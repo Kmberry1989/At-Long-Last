@@ -1,4 +1,5 @@
 import { startTransition, useMemo, useState } from 'react'
+import { useAudio } from '../audio/AudioProvider.jsx'
 import { BoardScene } from '../board/BoardScene.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
@@ -10,6 +11,7 @@ import { useSynth } from './useSynth.js'
 
 export function GameScreen() {
   const { couple, hasPartner } = useCouple()
+  const { playAction } = useAudio()
   const { userId } = useFirebaseApp()
   const {
     activity,
@@ -65,7 +67,10 @@ export function GameScreen() {
           </div>
           <button
             className="chip button-chip"
-            onClick={() => startTransition(() => setJournalOpen(true))}
+            onClick={() => {
+              playAction?.()
+              startTransition(() => setJournalOpen(true))
+            }}
             type="button"
           >
             Journal {journalEntries.length}
@@ -89,7 +94,10 @@ export function GameScreen() {
             <button
               className="primary-btn pulse"
               disabled={!canRoll || working}
-              onClick={rollTurn}
+              onClick={() => {
+                playAction?.()
+                rollTurn()
+              }}
               type="button"
             >
               {canRoll ? 'Roll Dice' : `${activePlayer.displayName} is up`}
@@ -98,7 +106,10 @@ export function GameScreen() {
               <button
                 className="primary-btn alt"
                 disabled={!canSpinDuel}
-                onClick={spinDuelWheel}
+                onClick={() => {
+                  playAction?.()
+                  spinDuelWheel()
+                }}
                 type="button"
               >
                 {canSpinDuel ? 'Spin Duel Wheel' : 'Waiting For Spin'}
@@ -129,12 +140,22 @@ export function GameScreen() {
               <button
                 className="primary-btn"
                 disabled={working || session.hearts < session.pendingKeepsake.cost}
-                onClick={() => chooseKeepsake(true)}
+                onClick={() => {
+                  playAction?.()
+                  chooseKeepsake(true)
+                }}
                 type="button"
               >
                 Buy It
               </button>
-              <button className="primary-btn alt" onClick={() => chooseKeepsake(false)} type="button">
+              <button
+                className="primary-btn alt"
+                onClick={() => {
+                  playAction?.()
+                  chooseKeepsake(false)
+                }}
+                type="button"
+              >
                 Save Hearts
               </button>
             </div>
@@ -169,7 +190,10 @@ export function GameScreen() {
             <button
               className="primary-btn pulse"
               disabled={!canSpinDuel}
-              onClick={spinDuelWheel}
+              onClick={() => {
+                playAction?.()
+                spinDuelWheel()
+              }}
               type="button"
             >
               {canSpinDuel ? 'Spin It' : 'Host Is Spinning'}
@@ -216,7 +240,10 @@ export function GameScreen() {
             </div>
             <button
               className="primary-btn"
-              onClick={() => startTransition(() => setJournalOpen(true))}
+              onClick={() => {
+                playAction?.()
+                startTransition(() => setJournalOpen(true))
+              }}
               type="button"
             >
               Open Journal

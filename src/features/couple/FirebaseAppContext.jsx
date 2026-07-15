@@ -5,9 +5,10 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { initializeApp } from 'firebase/app'
+import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth'
 import {
+  getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
@@ -15,6 +16,27 @@ import {
 import { getFirebaseConfig, isFirebaseEnabled } from './firebaseConfig.js'
 
 const FirebaseAppContext = createContext(null)
+let firebaseSingleton = null
+
+function getFirebaseServices(config) {
+  if (firebaseSingleton) {
+    return firebaseSingleton
+  }
+
+  const hadExistingApp = getApps().length > 0
+  const app = hadExistingApp ? getApp() : initializeApp(config)
+  const db = hadExistingApp
+    ? getFirestore(app)
+    : initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      })
+  const auth = getAuth(app)
+
+  firebaseSingleton = { app, auth, db }
+  return firebaseSingleton
+}
 
 export function FirebaseAppProvider({ children }) {
   const [state, setState] = useState({
@@ -39,13 +61,7 @@ export function FirebaseAppProvider({ children }) {
       return undefined
     }
 
-    const app = initializeApp(config)
-    const db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-      }),
-    })
-    const auth = getAuth(app)
+    const { app, auth, db } = getFirebaseServices(config)
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
