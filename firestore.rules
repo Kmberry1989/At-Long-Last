@@ -1,0 +1,96 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Prototype rules for a two-player invite flow backed by anonymous auth.
+    // Review these before sharing broadly.
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function hasOnlyKeys(keys) {
+      return request.resource.data.keys().hasOnly(keys);
+    }
+
+    function isInviteCode(code) {
+      return code is string
+        && code.size() == 6
+        && code.matches('^[A-Z2-9]+$');
+    }
+
+    function isCoupleParticipant(data) {
+      return isAuthed()
+        && data.playerIds is list
+        && request.auth.uid in data.playerIds;
+    }
+
+    function isParticipant(coupleId) {
+      return isAuthed() &&
+        exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds;
+    }
+
+    match /coupleInvites/{inviteCode} {
+      allow create: if isAuthed()
+        && isInviteCode(inviteCode)
+        && hasOnlyKeys(['coupleId', 'createdAt'])
+        && request.resource.data.coupleId is string;
+
+      allow read: if isAuthed();
+      allow update: if false;
+      allow delete: if isAuthed()
+        && resource.data.coupleId is string
+        && isParticipant(resource.data.coupleId)
+        && get(/databases/$(database)/documents/couples/$(resource.data.coupleId)).data.activeSessionId == null;
+    }
+
+    match /playerCouples/{userId} {
+      allow create, update: if isAuthed()
+        && request.auth.uid == userId
+        && hasOnlyKeys(['coupleId', 'createdAt', 'updatedAt'])
+        && request.resource.data.coupleId is string;
+
+      allow read: if isAuthed() && request.auth.uid == userId;
+      allow delete: if isAuthed() && request.auth.uid == userId;
+    }
+
+    match /couples/{coupleId} {
+      allow create: if isAuthed()
+        && request.resource.data.playerIds is list
+        && request.resource.data.playerIds.size() >= 1
+        && request.resource.data.playerIds.size() <= 2
+        && request.auth.uid in request.resource.data.playerIds;
+
+      allow read, update: if isCoupleParticipant(resource.data);
+      allow delete: if isCoupleParticipant(resource.data)
+        && resource.data.activeSessionId == null;
+    }
+
+    match /sessions/{sessionId} {
+      allow create: if isAuthed()
+        && request.resource.data.coupleId is string
+        && isParticipant(request.resource.data.coupleId);
+
+      allow read, update: if isParticipant(resource.data.coupleId);
+      allow delete: if false;
+    }
+
+    match /activities/{activityId} {
+      allow create: if isAuthed()
+        && request.resource.data.coupleId is string
+        && isParticipant(request.resource.data.coupleId);
+
+      allow read, update: if isParticipant(resource.data.coupleId);
+      allow delete: if false;
+    }
+
+    match /journalEntries/{entryId} {
+      allow create: if isAuthed()
+        && request.resource.data.coupleId is string
+        && isParticipant(request.resource.data.coupleId);
+
+      allow read: if isParticipant(resource.data.coupleId);
+      allow update, delete: if false;
+    }
+  }
+}
