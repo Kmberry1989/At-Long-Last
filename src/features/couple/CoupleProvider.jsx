@@ -37,15 +37,17 @@ export function CoupleProvider({ children }) {
       return
     }
 
+    // Tear down the forbidden listener state first so Firestore does not keep
+    // retrying a couple doc the current user cannot read.
+    setLinkedCoupleId(null)
+    setCouple(null)
+    setLoading(false)
+
     try {
       await clearPlayerCoupleLink({ db, userId })
-      setLinkedCoupleId(null)
-      setCouple(null)
       setError('That saved couple link was stale, so it was cleared. You can create or join a room again.')
     } catch {
       setError(nextError.message)
-    } finally {
-      setLoading(false)
     }
   }
 
