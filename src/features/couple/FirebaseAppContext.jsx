@@ -8,12 +8,16 @@ import {
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
   EmailAuthProvider,
+  GoogleAuthProvider,
+  OAuthProvider,
   createUserWithEmailAndPassword,
   getAuth,
   linkWithCredential,
+  linkWithPopup,
   onAuthStateChanged,
   signInAnonymously,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
 } from 'firebase/auth'
@@ -59,6 +63,48 @@ function buildReadyState(baseState) {
     ...baseState,
     ready: true,
   }
+}
+
+function buildAvailableProviders() {
+  return {
+    apple: import.meta.env.VITE_ENABLE_APPLE_AUTH === 'true',
+    google: true,
+  }
+}
+
+function getFriendlyAuthMessage(error, providerLabel = 'That sign-in method') {
+  switch (error?.code) {
+    case 'auth/operation-not-allowed':
+      return `${providerLabel} is not enabled in Firebase Auth yet.`
+    case 'auth/popup-blocked':
+      return `Your browser blocked the ${providerLabel.toLowerCase()} popup. Allow popups and try again.`
+    case 'auth/popup-closed-by-user':
+      return `${providerLabel} was canceled before it finished.`
+    case 'auth/cancelled-popup-request':
+      return `${providerLabel} is already opening.`
+    case 'auth/account-exists-with-different-credential':
+      return 'That email already belongs to a different sign-in method on this phone.'
+    default:
+      return error?.message || `${providerLabel} could not start.`
+  }
+}
+
+function createProvider(providerId) {
+  if (providerId === 'google') {
+    const provider = new GoogleAuthProvider()
+    provider.addScope('email')
+    provider.addScope('profile')
+    return provider
+  }
+
+  if (providerId === 'apple') {
+    const provider = new OAuthProvider('apple.com')
+    provider.addScope('email')
+    provider.addScope('name')
+    return provider
+  }
+
+  throw new Error(`Unknown provider: ${providerId}`)
 }
 
 export function FirebaseAppProvider({ children }) {
@@ -140,7 +186,7 @@ export function FirebaseAppProvider({ children }) {
 
   async function signInAsGuest(displayName) {
     if (!state.auth || !state.db) {
-      return
+      return false
     }
 
     setAuthWorking(true)
@@ -157,8 +203,10 @@ export function FirebaseAppProvider({ children }) {
         db: state.db,
         user: credential.user,
       })
+      return true
     } catch (error) {
-      setAuthError(error.message)
+      setAuthError(getFriendlyAuthMessage(error, 'Guest sign-in'))
+      return false
     } finally {
       setAuthWorking(false)
     }
@@ -170,7 +218,7 @@ export function FirebaseAppProvider({ children }) {
     password,
   }) {
     if (!state.auth || !state.db) {
-      return
+      return false
     }
 
     setAuthWorking(true)
@@ -199,8 +247,10 @@ export function FirebaseAppProvider({ children }) {
         db: state.db,
         user,
       })
+      return true
     } catch (error) {
-      setAuthError(error.message)
+      setAuthError(getFriendlyAuthMessage(error, 'Email sign-in'))
+      return false
     } finally {
       setAuthWorking(false)
     }
@@ -211,7 +261,7 @@ export function FirebaseAppProvider({ children }) {
     password,
   }) {
     if (!state.auth) {
-      return
+      return false
     }
 
     setAuthWorking(true)
@@ -219,8 +269,61 @@ export function FirebaseAppProvider({ children }) {
 
     try {
       await signInWithEmailAndPassword(state.auth, email, password)
+      return true
     } catch (error) {
-      setAuthError(error.message)
+      setAuthError(getFriendlyAuthMessage(error, 'Email sign-in'))
+      return false
+    } finally {
+      setAuthWorking(false)
+    }
+  }
+
+  async function signInWithProvider({
+    displayName = '',
+    providerId,
+  }) {
+    if (!state.auth || !state.db) {
+      return false
+    }
+
+    const providerLabel = providerId === 'apple' ? 'Apple sign-in' : 'Google sign-in'
+
+    setAuthWorking(true)
+    setAuthError('')
+
+    try {
+      const provider = createProvider(providerId)
+      let user = state.user
+
+      if (user?.isAnonymous) {
+        const linked = await linkWithPopup(user, provider)
+        user = linked.user
+      } else {
+        const result = await signInWithPopup(state.auth, provider)
+        user = result.user
+      }
+
+      const nextName = displayName.trim() || user.displayName?.trim() || ''
+
+      if (nextName) {
+        await updateProfile(user, {
+          displayName: nextName,
+        })
+        await saveProfileDisplayName({
+          db: state.db,
+          displayName: nextName,
+          user,
+        })
+      }
+
+      await ensureProfileDocument({
+        db: state.db,
+        user,
+      })
+      return true
+    } catch (error) {
+      setAuthError(getFriendlyAuthMessage(error, providerLabel))
+      return false
     } finally {
       setAuthWorking(false)
     }
@@ -228,7 +331,7 @@ export function FirebaseAppProvider({ children }) {
 
   async function signOutUser() {
     if (!state.auth) {
-      return
+      return false
     }
 
     setAuthWorking(true)
@@ -236,8 +339,10 @@ export function FirebaseAppProvider({ children }) {
 
     try {
       await signOut(state.auth)
+      return true
     } catch (error) {
-      setAuthError(error.message)
+      setAuthError(getFriendlyAuthMessage(error, 'Sign out'))
+      return false
     } finally {
       setAuthWorking(false)
     }
@@ -245,7 +350,7 @@ export function FirebaseAppProvider({ children }) {
 
   async function updateDisplayName(displayName) {
     if (!state.user || !state.db) {
-      return
+      return false
     }
 
     setAuthWorking(true)
@@ -260,8 +365,10 @@ export function FirebaseAppProvider({ children }) {
         displayName,
         user: state.user,
       })
+      return true
     } catch (error) {
-      setAuthError(error.message)
+      setAuthError(getFriendlyAuthMessage(error, 'Profile update'))
+      return false
     } finally {
       setAuthWorking(false)
     }
@@ -271,6 +378,7 @@ export function FirebaseAppProvider({ children }) {
     () => ({
       ...state,
       appId: import.meta.env.VITE_APP_ID || 'at-long-last',
+      availableProviders: buildAvailableProviders(),
       authError,
       authWorking,
       createAccount,
@@ -283,6 +391,7 @@ export function FirebaseAppProvider({ children }) {
       setAuthError,
       signInAsGuest,
       signInWithEmail,
+      signInWithProvider,
       signOutUser,
       updateDisplayName,
     }),

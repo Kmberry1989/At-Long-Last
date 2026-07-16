@@ -2,7 +2,14 @@
   "auth": {
     "providers": {
       "anonymous": true,
-      "emailPassword": true
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "At Long Last",
+        "supportEmail": "kylematthewberry@gmail.com",
+        "authorizedRedirectUris": [
+          "https://atlonglast.vercel.app"
+        ]
+      }
     }
   },
   "firestore": {

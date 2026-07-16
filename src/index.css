@@ -609,6 +609,35 @@ p {
   color: rgba(78, 67, 68, 0.62);
 }
 
+.provider-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.provider-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 54px;
+  background: rgba(255, 252, 248, 0.92);
+}
+
+.provider-btn-apple {
+  background: rgba(38, 34, 35, 0.92);
+  color: #fff8f1;
+}
+
+.provider-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.provider-btn span {
+  line-height: 1;
+}
+
 .account-strip,
 .inline-editor {
   display: grid;

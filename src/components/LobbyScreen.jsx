@@ -3,6 +3,25 @@ import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" className="provider-icon" viewBox="0 0 24 24">
+      <path d="M21.8 12.23c0-.76-.07-1.49-.2-2.18H12v4.12h5.5a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.93-1.78 3.04-4.4 3.04-7.58Z" fill="#4285F4" />
+      <path d="M12 22c2.75 0 5.06-.91 6.75-2.47l-3.3-2.56c-.91.61-2.07.98-3.45.98-2.65 0-4.9-1.79-5.7-4.2H2.9v2.64A10 10 0 0 0 12 22Z" fill="#34A853" />
+      <path d="M6.3 13.75A5.99 5.99 0 0 1 6 12c0-.61.1-1.2.3-1.75V7.61H2.9A10 10 0 0 0 2 12c0 1.61.39 3.12 1.08 4.39l3.22-2.64Z" fill="#FBBC04" />
+      <path d="M12 6.05c1.5 0 2.84.51 3.9 1.52l2.92-2.92C17.05 2.98 14.75 2 12 2A10 10 0 0 0 3.08 7.61l3.22 2.64c.8-2.41 3.05-4.2 5.7-4.2Z" fill="#EA4335" />
+    </svg>
+  )
+}
+
+function AppleMark() {
+  return (
+    <svg aria-hidden="true" className="provider-icon" viewBox="0 0 24 24">
+      <path d="M15.18 2.21c.08 1-.28 1.97-.8 2.67-.64.85-1.7 1.5-2.72 1.42-.13-.98.3-1.99.83-2.63.6-.74 1.66-1.39 2.69-1.46ZM18.45 17.13c-.53 1.2-.78 1.73-1.46 2.82-.95 1.52-2.28 3.41-3.94 3.43-1.47.02-1.85-.94-3.85-.93-2 .01-2.42.95-3.89.93-1.66-.02-2.92-1.72-3.87-3.24-2.67-4.28-2.95-9.31-1.31-11.84 1.17-1.82 3-2.88 4.71-2.88 1.74 0 2.84.96 4.28.96 1.4 0 2.26-.96 4.27-.96 1.53 0 3.15.83 4.32 2.27-3.79 2.08-3.18 7.51.74 9.44Z" fill="currentColor" />
+    </svg>
+  )
+}
+
 function DecorativePath() {
   return (
     <div aria-hidden="true" className="lobby-backdrop">
@@ -48,6 +67,7 @@ export function LobbyScreen() {
     switchCouple,
   } = useCouple()
   const {
+    availableProviders,
     authError,
     authWorking,
     createAccount,
@@ -57,6 +77,7 @@ export function LobbyScreen() {
     ready,
     signInAsGuest,
     signInWithEmail,
+    signInWithProvider,
     signOutUser,
     updateDisplayName,
     user,
@@ -197,12 +218,12 @@ export function LobbyScreen() {
   async function handleCreateAccount() {
     playAction?.()
     setNotice('')
-    await createAccount({
+    const success = await createAccount({
       displayName,
       email,
       password,
     })
-    if (!authError) {
+    if (success) {
       setUpgradeOpen(false)
       playSuccess?.()
     }
@@ -211,11 +232,11 @@ export function LobbyScreen() {
   async function handleSignIn() {
     playAction?.()
     setNotice('')
-    await signInWithEmail({
+    const success = await signInWithEmail({
       email,
       password,
     })
-    if (!authError) {
+    if (success) {
       playSuccess?.()
     }
   }
@@ -223,8 +244,8 @@ export function LobbyScreen() {
   async function handleGuestEntry() {
     playAction?.()
     setNotice('')
-    await signInAsGuest(displayName)
-    if (!authError) {
+    const success = await signInAsGuest(displayName)
+    if (success) {
       setNotice('Guest profile ready. You can save it to email later.')
       playSuccess?.()
     }
@@ -233,8 +254,8 @@ export function LobbyScreen() {
   async function handleSaveDisplayName() {
     playAction?.()
     setNotice('')
-    await updateDisplayName(displayName)
-    if (!authError) {
+    const success = await updateDisplayName(displayName)
+    if (success) {
       setEditingProfile(false)
       setNotice('Profile name updated.')
       playSuccess?.()
@@ -244,7 +265,61 @@ export function LobbyScreen() {
   async function handleSignOut() {
     playAction?.()
     setNotice('')
-    await signOutUser()
+    const success = await signOutUser()
+    if (success) {
+      playSuccess?.()
+    }
+  }
+
+  async function handleProviderAuth(providerId) {
+    playAction?.()
+    setNotice('')
+    const success = await signInWithProvider({
+      displayName,
+      providerId,
+    })
+
+    if (!success) {
+      return
+    }
+
+    if (isAnonymous) {
+      setUpgradeOpen(false)
+      setNotice(
+        providerId === 'apple'
+          ? 'Guest profile saved with Apple.'
+          : 'Guest profile saved with Google.',
+      )
+    }
+
+    playSuccess?.()
+  }
+
+  function renderProviderButtons(verb = 'Continue') {
+    return (
+      <div className="provider-stack">
+        <button
+          className="ghost-btn provider-btn"
+          disabled={working}
+          onClick={() => handleProviderAuth('google')}
+          type="button"
+        >
+          <GoogleMark />
+          <span>{verb} with Google</span>
+        </button>
+        {availableProviders?.apple ? (
+          <button
+            className="ghost-btn provider-btn provider-btn-apple"
+            disabled={working}
+            onClick={() => handleProviderAuth('apple')}
+            type="button"
+          >
+            <AppleMark />
+            <span>{verb} with Apple</span>
+          </button>
+        ) : null}
+      </div>
+    )
   }
 
   function renderAuthCard() {
@@ -307,6 +382,8 @@ export function LobbyScreen() {
                 Create My Profile
               </button>
             </div>
+            <div className="divider-label">or use a provider</div>
+            {renderProviderButtons('Continue')}
             <div className="divider-label">or keep it light first</div>
             <div className="button-row">
               <button
@@ -353,6 +430,8 @@ export function LobbyScreen() {
                 Sign In
               </button>
             </div>
+            <div className="divider-label">or use a saved provider</div>
+            {renderProviderButtons('Continue')}
           </>
         )}
       </>
@@ -408,15 +487,19 @@ export function LobbyScreen() {
           link, and progress.
         </p>
         {!upgradeOpen ? (
-          <div className="button-row">
-            <button
-              className="primary-btn"
-              onClick={() => setUpgradeOpen(true)}
-              type="button"
-            >
-              Save With Email
-            </button>
-          </div>
+          <>
+            <div className="button-row">
+              <button
+                className="primary-btn"
+                onClick={() => setUpgradeOpen(true)}
+                type="button"
+              >
+                Save With Email
+              </button>
+            </div>
+            <div className="divider-label">or keep this guest with a provider</div>
+            {renderProviderButtons('Save')}
+          </>
         ) : (
           <>
             <input
@@ -459,6 +542,8 @@ export function LobbyScreen() {
                 Not Yet
               </button>
             </div>
+            <div className="divider-label">or save this guest another way</div>
+            {renderProviderButtons('Save')}
           </>
         )}
       </div>
