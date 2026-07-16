@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
@@ -44,14 +44,33 @@ export function LobbyScreen() {
     leaveCouple,
     launchPreview,
     loading,
+    profile,
     switchCouple,
   } = useCouple()
-  const { enabled, ready } = useFirebaseApp()
+  const {
+    authError,
+    authWorking,
+    createAccount,
+    enabled,
+    isAnonymous,
+    isSignedIn,
+    ready,
+    signInAsGuest,
+    signInWithEmail,
+    signOutUser,
+    updateDisplayName,
+    user,
+  } = useFirebaseApp()
   const { playAction, playError, playSuccess, setStage } = useAudio()
   const [displayName, setDisplayName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [entryMode, setEntryMode] = useState('start')
+  const [authMode, setAuthMode] = useState('create')
   const [notice, setNotice] = useState('')
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [editingProfile, setEditingProfile] = useState(false)
 
   useEffect(() => {
     setStage?.('lobby')
@@ -67,15 +86,35 @@ export function LobbyScreen() {
   }, [])
 
   useEffect(() => {
-    if (error) {
+    if (error || authError) {
       playError?.()
     }
-  }, [error, playError])
+  }, [authError, error, playError])
 
-  const canSubmit = useMemo(
-    () => Boolean(displayName.trim()),
-    [displayName],
+  useEffect(() => {
+    if (profile?.displayName && !displayName) {
+      setDisplayName(profile.displayName)
+    }
+  }, [displayName, profile?.displayName])
+
+  useEffect(() => {
+    if (user?.email && !email) {
+      setEmail(user.email)
+    }
+  }, [email, user?.email])
+
+  const working = loading || authWorking
+  const authNotice = authError || error || notice
+  const profileName =
+    profile?.displayName?.trim() ||
+    user?.displayName?.trim() ||
+    displayName.trim()
+  const canGuest = Boolean(displayName.trim())
+  const canCreateAccount = Boolean(
+    displayName.trim() && email.trim() && password.trim().length >= 6,
   )
+  const canSignIn = Boolean(email.trim() && password.trim())
+  const canJoinByCode = Boolean(profileName && inviteCode.trim().length >= 4)
   const isActive = !hasPartner
   const waitingForPartner = Boolean(couple && !hasPartner)
 
@@ -90,7 +129,7 @@ export function LobbyScreen() {
       if (navigator.share) {
         await navigator.share({
           title: 'At Long Last',
-          text: `Join my At Long Last board night with code ${couple.inviteCode}.`,
+          text: `Join my At Long Last board game with code ${couple.inviteCode}.`,
           url: couple.shareLink,
         })
         setNotice('Invite shared.')
@@ -129,19 +168,19 @@ export function LobbyScreen() {
   async function handleCreate() {
     playAction?.()
     setNotice('')
-    await createCouple(displayName)
+    await createCouple(profileName)
   }
 
   async function handleJoin() {
     playAction?.()
     setNotice('')
-    await joinCouple(displayName, inviteCode)
+    await joinCouple(profileName, inviteCode)
   }
 
   async function handleSwitch() {
     playAction?.()
     setNotice('')
-    await switchCouple(displayName, inviteCode)
+    await switchCouple(profileName, inviteCode)
   }
 
   async function handleLeave() {
@@ -155,6 +194,277 @@ export function LobbyScreen() {
     launchPreview(displayName)
   }
 
+  async function handleCreateAccount() {
+    playAction?.()
+    setNotice('')
+    await createAccount({
+      displayName,
+      email,
+      password,
+    })
+    if (!authError) {
+      setUpgradeOpen(false)
+      playSuccess?.()
+    }
+  }
+
+  async function handleSignIn() {
+    playAction?.()
+    setNotice('')
+    await signInWithEmail({
+      email,
+      password,
+    })
+    if (!authError) {
+      playSuccess?.()
+    }
+  }
+
+  async function handleGuestEntry() {
+    playAction?.()
+    setNotice('')
+    await signInAsGuest(displayName)
+    if (!authError) {
+      setNotice('Guest profile ready. You can save it to email later.')
+      playSuccess?.()
+    }
+  }
+
+  async function handleSaveDisplayName() {
+    playAction?.()
+    setNotice('')
+    await updateDisplayName(displayName)
+    if (!authError) {
+      setEditingProfile(false)
+      setNotice('Profile name updated.')
+      playSuccess?.()
+    }
+  }
+
+  async function handleSignOut() {
+    playAction?.()
+    setNotice('')
+    await signOutUser()
+  }
+
+  function renderAuthCard() {
+    return (
+      <>
+        <div className="mode-toggle" role="tablist" aria-label="Auth mode">
+          <button
+            className={`mode-pill${authMode === 'create' ? ' active' : ''}`}
+            onClick={() => setAuthMode('create')}
+            type="button"
+          >
+            Create Account
+          </button>
+          <button
+            className={`mode-pill${authMode === 'signin' ? ' active' : ''}`}
+            onClick={() => setAuthMode('signin')}
+            type="button"
+          >
+            Sign In
+          </button>
+        </div>
+
+        {authMode === 'create' ? (
+          <>
+            <p className="eyebrow">Keep Your Place</p>
+            <h2>Make this a profile, not a one-off room.</h2>
+            <p className="support-copy">
+              Create a saved profile so your couple, scrapbook, and keepsakes stay
+              yours when you come back later.
+            </p>
+            <input
+              className="text-input"
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Display name"
+              value={displayName}
+            />
+            <input
+              autoComplete="email"
+              className="text-input"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email"
+              type="email"
+              value={email}
+            />
+            <input
+              autoComplete="new-password"
+              className="text-input"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Password (6+ characters)"
+              type="password"
+              value={password}
+            />
+            <div className="button-row">
+              <button
+                className="primary-btn"
+                disabled={!canCreateAccount || working}
+                onClick={handleCreateAccount}
+                type="button"
+              >
+                Create My Profile
+              </button>
+            </div>
+            <div className="divider-label">or keep it light first</div>
+            <div className="button-row">
+              <button
+                className="ghost-btn"
+                disabled={!canGuest || working}
+                onClick={handleGuestEntry}
+                type="button"
+              >
+                Continue As Guest
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="eyebrow">Welcome Back</p>
+            <h2>Pick up where you left off.</h2>
+            <p className="support-copy">
+              Sign in on this phone and your saved couple link will reconnect if it
+              still belongs to you.
+            </p>
+            <input
+              autoComplete="email"
+              className="text-input"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email"
+              type="email"
+              value={email}
+            />
+            <input
+              autoComplete="current-password"
+              className="text-input"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Password"
+              type="password"
+              value={password}
+            />
+            <div className="button-row">
+              <button
+                className="primary-btn"
+                disabled={!canSignIn || working}
+                onClick={handleSignIn}
+                type="button"
+              >
+                Sign In
+              </button>
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
+
+  function renderAccountStrip() {
+    return (
+      <div className="account-strip">
+        <div className="account-copy">
+          <p className="eyebrow">{isAnonymous ? 'Guest Profile' : 'Saved Profile'}</p>
+          <strong>{profileName || 'Player'}</strong>
+          <p>
+            {isAnonymous
+              ? 'This guest stays on this browser unless you save it with email.'
+              : user?.email || 'Signed in and ready for return nights.'}
+          </p>
+        </div>
+        <div className="account-actions">
+          <button
+            className="ghost-btn"
+            onClick={() => setEditingProfile((current) => !current)}
+            type="button"
+          >
+            {editingProfile ? 'Done' : 'Edit Name'}
+          </button>
+          {!isAnonymous && (
+            <button
+              className="ghost-btn"
+              disabled={working}
+              onClick={handleSignOut}
+              type="button"
+            >
+              Sign Out
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  function renderGuestUpgrade() {
+    if (!isAnonymous) {
+      return null
+    }
+
+    return (
+      <div className="glass-card hero-card upgrade-card">
+        <p className="eyebrow">Save This Guest</p>
+        <h2>Keep this couple beyond one browser.</h2>
+        <p className="support-copy">
+          Upgrade this guest to an email profile and keep the same player ID, room
+          link, and progress.
+        </p>
+        {!upgradeOpen ? (
+          <div className="button-row">
+            <button
+              className="primary-btn"
+              onClick={() => setUpgradeOpen(true)}
+              type="button"
+            >
+              Save With Email
+            </button>
+          </div>
+        ) : (
+          <>
+            <input
+              autoComplete="nickname"
+              className="text-input"
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Display name"
+              value={displayName}
+            />
+            <input
+              autoComplete="email"
+              className="text-input"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email"
+              type="email"
+              value={email}
+            />
+            <input
+              autoComplete="new-password"
+              className="text-input"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Password (6+ characters)"
+              type="password"
+              value={password}
+            />
+            <div className="button-row">
+              <button
+                className="primary-btn"
+                disabled={!canCreateAccount || working}
+                onClick={handleCreateAccount}
+                type="button"
+              >
+                Save My Profile
+              </button>
+              <button
+                className="ghost-btn"
+                onClick={() => setUpgradeOpen(false)}
+                type="button"
+              >
+                Not Yet
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <section
       className={`screen lobby-screen${isActive ? ' active' : ' inactive'}`}
@@ -163,11 +473,10 @@ export function LobbyScreen() {
       <div className="lobby-content">
         <div className="title-band">
           <p className="brand-script">At Long Last</p>
-          <p className="title-kicker">A five-round board night for two phones.</p>
+          <p className="title-kicker">A five-round board game for two phones.</p>
           <h1>Two phones. One little world.</h1>
           <p className="title-copy">
-            Trade tiny confessions, chase shared hearts, buy keepsakes, and walk
-            away with a scrapbook instead of a scoreboard.
+            Walk away together with a scrapbook instead of a scoreboard.
           </p>
         </div>
 
@@ -204,8 +513,32 @@ export function LobbyScreen() {
                 </button>
               </div>
             </>
+          ) : !isSignedIn ? (
+            renderAuthCard()
           ) : waitingForPartner ? (
             <>
+              {renderAccountStrip()}
+              {editingProfile && (
+                <div className="inline-editor">
+                  <input
+                    className="text-input"
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    placeholder="Display name"
+                    value={displayName}
+                  />
+                  <div className="button-row">
+                    <button
+                      className="primary-btn alt"
+                      disabled={!displayName.trim() || working}
+                      onClick={handleSaveDisplayName}
+                      type="button"
+                    >
+                      Save Name
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <p className="eyebrow">Waiting Room</p>
               <h2>{couple.players[0]?.displayName}&apos;s room is open.</h2>
               <p className="support-copy">
@@ -248,7 +581,7 @@ export function LobbyScreen() {
                 />
                 <button
                   className="primary-btn alt"
-                  disabled={!canSubmit || inviteCode.trim().length < 4 || loading}
+                  disabled={!canJoinByCode || working}
                   onClick={handleSwitch}
                   type="button"
                 >
@@ -257,16 +590,40 @@ export function LobbyScreen() {
               </div>
 
               <div className="button-row split-row">
-                <button className="ghost-btn" disabled={loading} onClick={handleLeave} type="button">
+                <button className="ghost-btn" disabled={working} onClick={handleLeave} type="button">
                   Leave This Room
                 </button>
-                <button className="ghost-btn" onClick={() => handleModeChange('join')} type="button">
-                  I Have A Code
-                </button>
+                {!isAnonymous && (
+                  <button className="ghost-btn" disabled={working} onClick={handleSignOut} type="button">
+                    Sign Out
+                  </button>
+                )}
               </div>
             </>
           ) : (
             <>
+              {renderAccountStrip()}
+              {editingProfile && (
+                <div className="inline-editor">
+                  <input
+                    className="text-input"
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    placeholder="Display name"
+                    value={displayName}
+                  />
+                  <div className="button-row">
+                    <button
+                      className="primary-btn alt"
+                      disabled={!displayName.trim() || working}
+                      onClick={handleSaveDisplayName}
+                      type="button"
+                    >
+                      Save Name
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="mode-toggle" role="tablist" aria-label="Entry mode">
                 <button
                   className={`mode-pill${entryMode === 'start' ? ' active' : ''}`}
@@ -284,13 +641,6 @@ export function LobbyScreen() {
                 </button>
               </div>
 
-              <input
-                className="text-input"
-                onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Your display name"
-                value={displayName}
-              />
-
               {entryMode === 'start' ? (
                 <>
                   <div className="entry-copy">
@@ -303,7 +653,7 @@ export function LobbyScreen() {
                   <div className="button-row">
                     <button
                       className="primary-btn"
-                      disabled={!canSubmit || loading}
+                      disabled={!profileName || working}
                       onClick={handleCreate}
                       type="button"
                     >
@@ -328,7 +678,7 @@ export function LobbyScreen() {
                     />
                     <button
                       className="primary-btn"
-                      disabled={!canSubmit || inviteCode.trim().length < 4 || loading}
+                      disabled={!canJoinByCode || working}
                       onClick={handleJoin}
                       type="button"
                     >
@@ -336,7 +686,7 @@ export function LobbyScreen() {
                     </button>
                   </div>
                   <div className="step-strip">
-                    <span>Name</span>
+                    <span>Profile</span>
                     <span>Code</span>
                     <span>Board</span>
                   </div>
@@ -345,12 +695,14 @@ export function LobbyScreen() {
             </>
           )}
 
-          {(notice || error) && (
-            <p className={error ? 'error-copy' : 'notice-copy'}>
-              {error || notice}
+          {(authNotice) && (
+            <p className={authError || error ? 'error-copy' : 'notice-copy'}>
+              {authNotice}
             </p>
           )}
         </div>
+
+        {enabled && isSignedIn && renderGuestUpgrade()}
       </div>
     </section>
   )

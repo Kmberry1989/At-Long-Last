@@ -291,6 +291,10 @@ export function AudioProvider({ children }) {
     return engineRef.current
   }
 
+  function getExistingEngine() {
+    return engineRef.current
+  }
+
   const unlockAudio = useEffectEvent(() => {
     ensureEngine()?.ensureReady()
     setUnlocked(Boolean(engineRef.current?.unlocked))
@@ -319,11 +323,11 @@ export function AudioProvider({ children }) {
   const value = useMemo(
     () => ({
       muted,
-      playAction: () => ensureEngine()?.playAction(),
-      playError: () => ensureEngine()?.playError(),
-      playPhase: (phase) => ensureEngine()?.playPhase(phase),
-      playSuccess: () => ensureEngine()?.playSuccess(),
-      setStage: (stage) => ensureEngine()?.setStage(stage),
+      playAction: () => getExistingEngine()?.playAction(),
+      playError: () => getExistingEngine()?.playError(),
+      playPhase: (phase) => getExistingEngine()?.playPhase(phase),
+      playSuccess: () => getExistingEngine()?.playSuccess(),
+      setStage: (stage) => getExistingEngine()?.setStage(stage),
       toggleMuted: () => {
         const nextMuted = ensureEngine()?.toggleMuted() ?? !muted
         setMuted(nextMuted)

@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore'
 import { useFirebaseApp } from './FirebaseAppContext.jsx'
 import {
+  clearPlayerCoupleLink,
   createCoupleDocument,
   joinCoupleByInviteCode,
   leaveCoupleDocument,
@@ -14,19 +15,46 @@ import { createDefaultBoardState } from '../session/sessionWiring.js'
 const CoupleContext = createContext(null)
 
 export function CoupleProvider({ children }) {
-  const { db, enabled, origin, ready, userId } = useFirebaseApp()
+  const {
+    db,
+    enabled,
+    origin,
+    profile,
+    ready,
+    user,
+    userId,
+  } = useFirebaseApp()
   const [couple, setCouple] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [previewCouple, setPreviewCouple] = useState(null)
   const [linkedCoupleId, setLinkedCoupleId] = useState(null)
 
+  async function recoverFromStaleCoupleLink(nextError) {
+    if (!db || !userId || nextError?.code !== 'permission-denied') {
+      setError(nextError.message)
+      setLoading(false)
+      return
+    }
+
+    try {
+      await clearPlayerCoupleLink({ db, userId })
+      setLinkedCoupleId(null)
+      setCouple(null)
+      setError('That saved couple link was stale, so it was cleared. You can create or join a room again.')
+    } catch {
+      setError(nextError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!ready) {
       return undefined
     }
 
-    if (!enabled || !db || !userId) {
+    if (!enabled || !db || !userId || !user) {
       setLoading(false)
       setCouple(previewCouple)
       return undefined
@@ -51,7 +79,7 @@ export function CoupleProvider({ children }) {
     )
 
     return () => unsubscribe()
-  }, [db, enabled, previewCouple, ready, userId])
+  }, [db, enabled, previewCouple, ready, user, userId])
 
   useEffect(() => {
     if (!ready) {
@@ -67,17 +95,26 @@ export function CoupleProvider({ children }) {
     const unsubscribe = onSnapshot(
       doc(db, 'couples', linkedCoupleId),
       (snapshot) => {
-        setCouple(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null)
+        if (!snapshot.exists()) {
+          clearPlayerCoupleLink({ db, userId }).catch(() => undefined)
+          setLinkedCoupleId(null)
+          setCouple(null)
+          setLoading(false)
+          return
+        }
+
+        setCouple({ id: snapshot.id, ...snapshot.data() })
         setLoading(false)
       },
-      (nextError) => {
-        setError(nextError.message)
-        setLoading(false)
-      },
+      recoverFromStaleCoupleLink,
     )
 
     return () => unsubscribe()
-  }, [db, enabled, linkedCoupleId, ready])
+  }, [db, enabled, linkedCoupleId, ready, userId])
+
+  function getPreferredName(displayName) {
+    return displayName?.trim() || profile?.displayName?.trim() || user?.displayName?.trim() || 'Player'
+  }
 
   async function createCouple(displayName) {
     if (!db || !userId) {
@@ -86,7 +123,12 @@ export function CoupleProvider({ children }) {
 
     setError('')
     try {
-      await createCoupleDocument({ db, displayName, origin, userId })
+      await createCoupleDocument({
+        db,
+        displayName: getPreferredName(displayName),
+        origin,
+        userId,
+      })
     } catch (nextError) {
       setError(nextError.message)
     }
@@ -102,7 +144,7 @@ export function CoupleProvider({ children }) {
       await joinCoupleByInviteCode({
         code: inviteCode,
         db,
-        displayName,
+        displayName: getPreferredName(displayName),
         userId,
       })
     } catch (nextError) {
@@ -144,7 +186,7 @@ export function CoupleProvider({ children }) {
       await joinCoupleByInviteCode({
         code: inviteCode,
         db,
-        displayName,
+        displayName: getPreferredName(displayName),
         userId,
       })
     } catch (nextError) {
@@ -193,11 +235,12 @@ export function CoupleProvider({ children }) {
       leaveCouple,
       launchPreview,
       loading,
+      profile,
       previewMode: !enabled,
       setError,
       switchCouple,
     }),
-    [couple, enabled, error, loading],
+    [couple, enabled, error, loading, profile],
   )
 
   return (

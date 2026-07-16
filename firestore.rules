@@ -2,7 +2,7 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Prototype rules for a two-player invite flow backed by anonymous auth.
+    // Prototype rules for a two-player invite flow backed by durable auth or guest auth.
     // Review these before sharing broadly.
     function isAuthed() {
       return request.auth != null;
@@ -52,6 +52,13 @@ service cloud.firestore {
 
       allow read: if isAuthed() && request.auth.uid == userId;
       allow delete: if isAuthed() && request.auth.uid == userId;
+    }
+
+    match /profiles/{userId} {
+      allow create, read, update: if isAuthed()
+        && request.auth.uid == userId;
+
+      allow delete: if false;
     }
 
     match /couples/{coupleId} {

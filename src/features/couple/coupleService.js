@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   runTransaction,
@@ -253,4 +254,11 @@ export async function leaveCoupleDocument({
       updatedAt: serverTimestamp(),
     })
   })
+}
+
+export async function clearPlayerCoupleLink({
+  db,
+  userId,
+}) {
+  await deleteDoc(doc(db, 'playerCouples', userId))
 }
