@@ -1,7 +1,7 @@
-import { startTransition, useMemo, useState } from 'react'
+import { startTransition, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { BoardScene } from '../board/BoardScene.jsx'
-import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
+import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
@@ -12,32 +12,32 @@ import { useSynth } from './useSynth.js'
 export function GameScreen() {
   const { couple, hasPartner } = useCouple()
   const { playAction } = useAudio()
-  const { userId } = useFirebaseApp()
   const {
     activity,
+    boardState,
     canRoll,
     canSpinDuel,
     chooseKeepsake,
     error,
     finalSummary,
     journalEntries,
+    myDuelResult,
+    myVibeVote,
     playerIndex,
     readyToPlay,
     rollTurn,
     session,
+    skipActivity,
+    skipDuel,
     spinDuelWheel,
     submitActivityTurn,
     submitDuelResult,
+    submitVibeVote,
     working,
   } = useSession()
   const [journalOpen, setJournalOpen] = useState(false)
 
   useSynth(session)
-
-  const myDuelResult = useMemo(
-    () => session?.duelResults?.[userId] ?? null,
-    [session?.duelResults, userId],
-  )
 
   if (!hasPartner || !couple || !readyToPlay || !session) {
     return null
@@ -54,6 +54,7 @@ export function GameScreen() {
       <div className="board-wrap">
         <BoardScene
           activePlayerIndex={session.activePlayerIndex}
+          boardState={boardState}
           players={session.players}
           positions={session.positions}
           round={session.round}
@@ -65,6 +66,11 @@ export function GameScreen() {
           <div className="chip">
             Round <strong>{session.round}</strong> / {session.totalRounds}
           </div>
+          {session.vibeWeights && (
+            <div className="chip vibe-chip">
+              Vibe <strong>{Object.entries(session.vibeWeights).sort((left, right) => right[1] - left[1])[0][0]}</strong>
+            </div>
+          )}
           <button
             className="chip button-chip"
             onClick={() => {
@@ -163,11 +169,35 @@ export function GameScreen() {
         </div>
       )}
 
+      {session.phase === 'vibeSetup' && (
+        <div className="overlay-screen">
+          <VibeDial
+            defaultWeights={session.vibeWeights || session.vibeVotes?.[userId] || undefined}
+            disabled={working || Boolean(myVibeVote)}
+            onConfirm={(vote) => {
+              playAction?.()
+              submitVibeVote(vote)
+            }}
+            playerName={session.players[playerIndex]?.displayName || 'You'}
+          />
+          {myVibeVote && (
+            <div className="overlay-note">
+              <p className="eyebrow">Vote Locked</p>
+              <p className="support-copy">Waiting for the other phone to lock the mood.</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {session.phase === 'activity' && activity && ActivityComponent && (
         <div className="overlay-screen">
           <ActivityComponent
             activity={activity}
             disabled={activity.state.turnIndex !== playerIndex || working}
+            onSkip={() => {
+              playAction?.()
+              skipActivity()
+            }}
             onSubmit={submitActivityTurn}
             players={session.players}
           />
@@ -183,9 +213,11 @@ export function GameScreen() {
               This round is worth {3 + session.roundDuelBonus} shared hearts.
             </p>
             <div className="wheel-preview">
-              <span>Quick Flip</span>
-              <span>Target Tap</span>
-              <span>Steady Hold</span>
+              {['tender', 'playful', 'spicy'].map((vibe) => (
+                <span key={vibe}>
+                  {vibe} {Math.round((session.vibeWeights?.[vibe] || 0) * 100)}%
+                </span>
+              ))}
             </div>
             <button
               className="primary-btn pulse"
@@ -213,7 +245,14 @@ export function GameScreen() {
               </p>
             </div>
           ) : (
-            <DuelComponent disabled={working} onComplete={submitDuelResult} />
+            <DuelComponent
+              disabled={working}
+              onComplete={submitDuelResult}
+              onSkip={() => {
+                playAction?.()
+                skipDuel()
+              }}
+            />
           )}
         </div>
       )}

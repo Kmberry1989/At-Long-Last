@@ -9,6 +9,7 @@ import {
   joinCoupleByInviteCode,
   leaveCoupleDocument,
 } from './coupleService.js'
+import { createDefaultBoardState } from '../session/sessionWiring.js'
 
 const CoupleContext = createContext(null)
 
@@ -176,6 +177,7 @@ export function CoupleProvider({ children }) {
         },
       ],
       activeSessionId: 'preview-session',
+      boardState: createDefaultBoardState(),
     }
     setPreviewCouple(nextPreviewCouple)
     setCouple(nextPreviewCouple)

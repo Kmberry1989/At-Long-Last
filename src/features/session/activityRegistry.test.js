@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { activityRegistry } from './activityRegistry.jsx'
+import { activityRegistry, activityIds } from './activityRegistry.jsx'
 
 const players = [
   { displayName: 'Kyle' },
@@ -7,18 +7,23 @@ const players = [
 ]
 
 describe('activityRegistry', () => {
-  it('completes spark check-in after two turns', () => {
-    const entry = activityRegistry['spark-checkin']
+  it('contains the full 45-item activity pack with unique ids', () => {
+    expect(activityIds).toHaveLength(45)
+    expect(new Set(activityIds).size).toBe(45)
+  })
+
+  it('completes a normal two-turn activity and produces journal-ready text', () => {
+    const entry = activityRegistry['comfort-menu']
     let state = entry.createInitialState()
 
     let step = entry.advance(state, {
-      input: { mood: 4, note: 'Ready for this.' },
+      input: { text: 'Tea and quiet.' },
       playerIndex: 0,
     })
     expect(step.completed).toBe(false)
 
     step = entry.advance(step.state, {
-      input: { mood: 5, note: 'Very in.' },
+      input: { text: 'Blanket and forehead rubs.' },
       playerIndex: 1,
     })
     expect(step.completed).toBe(true)
@@ -26,23 +31,32 @@ describe('activityRegistry', () => {
     const result = entry.resolve(step.state, players)
     expect(result.heartBonus).toBe(3)
     expect(result.payload.entries).toHaveLength(2)
+    expect(result.text).toContain('Kyle:')
+    expect(result.vibe).toBe('tender')
   })
 
-  it('completes story chain after four turns', () => {
-    const entry = activityRegistry['story-chain']
+  it('adds an openAt timestamp for postcard-next-year', () => {
+    const entry = activityRegistry['postcard-next-year']
     let state = entry.createInitialState()
 
-    for (let index = 0; index < 4; index += 1) {
-      const step = entry.advance(state, {
-        input: { text: `Line ${index + 1}` },
-        playerIndex: index % 2,
-      })
-      state = step.state
-      if (index < 3) {
-        expect(step.completed).toBe(false)
-      } else {
-        expect(step.completed).toBe(true)
-      }
-    }
+    state = entry.advance(state, {
+      input: { text: 'Remember when we finally slowed down?' },
+      playerIndex: 0,
+    }).state
+
+    const step = entry.advance(state, {
+      input: { text: 'And started laughing again on purpose.' },
+      playerIndex: 1,
+    })
+
+    const result = entry.resolve(step.state, players)
+    expect(result.openAt).toBeTypeOf('string')
+    expect(result.payload.openAt).toBe(result.openAt)
+  })
+
+  it('keeps all spicy activities skippable', () => {
+    const spicyEntries = Object.values(activityRegistry).filter((entry) => entry.vibe === 'spicy')
+    expect(spicyEntries).toHaveLength(15)
+    expect(spicyEntries.every((entry) => entry.skippable)).toBe(true)
   })
 })

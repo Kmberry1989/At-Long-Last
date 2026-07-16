@@ -94,11 +94,20 @@ function createFallbackPawn(color) {
   return group
 }
 
-export function BoardScene({ players, positions, activePlayerIndex }) {
+export function BoardScene({ players, positions, activePlayerIndex, boardState }) {
   const mountRef = useRef(null)
   const boardPath = useMemo(() => buildBoardPath(), [])
   const targetIndicesRef = useRef(positions)
   const activePlayerIndexRef = useRef(activePlayerIndex)
+  const boardStateKey = useMemo(
+    () =>
+      JSON.stringify({
+        playfulStickerIds: boardState?.playfulStickerIds || [],
+        spicyGlowLevel: boardState?.spicyGlowLevel || 0,
+        tenderStars: boardState?.tenderStars || 0,
+      }),
+    [boardState],
+  )
 
   useEffect(() => {
     targetIndicesRef.current = positions
@@ -200,6 +209,69 @@ export function BoardScene({ players, positions, activePlayerIndex }) {
       boardGroup.add(mesh)
     })
 
+    const homeTile = boardPath[0]?.position || new THREE.Vector3(0, 0.35, 0)
+    const parsedBoardState = boardState || {}
+
+    const tenderStars = Math.min(parsedBoardState.tenderStars || 0, 10)
+    for (let index = 0; index < tenderStars; index += 1) {
+      const angle = (index / Math.max(tenderStars, 1)) * Math.PI * 2
+      const star = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.18, 0),
+        new THREE.MeshStandardMaterial({
+          color: '#ffe4af',
+          emissive: '#f4c16d',
+          emissiveIntensity: 0.75,
+        }),
+      )
+      star.position.set(
+        Math.cos(angle) * 5.8,
+        3.3 + (index % 3) * 0.28,
+        Math.sin(angle) * 4.2,
+      )
+      scene.add(star)
+    }
+
+    parsedBoardState.playfulStickerIds?.slice(0, 8).forEach((stickerId, index) => {
+      const angle = (index / 8) * Math.PI * 2
+      const sticker = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.56, 0.56, 0.12, 24),
+        new THREE.MeshStandardMaterial({
+          color: ['#f6c55f', '#ff91a3', '#8fc5ff', '#9ad89b'][index % 4],
+          roughness: 0.4,
+        }),
+      )
+      sticker.rotation.x = Math.PI / 2
+      sticker.position.set(
+        Math.cos(angle) * 13.4,
+        0.2,
+        Math.sin(angle) * 10.1,
+      )
+      sticker.userData.label = stickerId
+      scene.add(sticker)
+    })
+
+    if ((parsedBoardState.spicyGlowLevel || 0) > 0) {
+      const glow = new THREE.PointLight(
+        '#ff9a6d',
+        1.2 + parsedBoardState.spicyGlowLevel * 0.35,
+        18,
+      )
+      glow.position.set(homeTile.x, 2.4, homeTile.z)
+      scene.add(glow)
+
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(1.2 + parsedBoardState.spicyGlowLevel * 0.08, 0.1, 14, 32),
+        new THREE.MeshStandardMaterial({
+          color: '#ffb07c',
+          emissive: '#ff865e',
+          emissiveIntensity: 0.55 + parsedBoardState.spicyGlowLevel * 0.08,
+        }),
+      )
+      ring.rotation.x = Math.PI / 2
+      ring.position.set(homeTile.x, 0.44, homeTile.z)
+      scene.add(ring)
+    }
+
     const tokenGroups = players.map((player, index) => {
       const group = new THREE.Group()
       const fallback = createFallbackPawn(player.color)
@@ -292,7 +364,7 @@ export function BoardScene({ players, positions, activePlayerIndex }) {
         object.geometry?.dispose?.()
       })
     }
-  }, [boardPath, players])
+  }, [boardPath, boardStateKey, players])
 
   return <div className="board-canvas" ref={mountRef} />
 }

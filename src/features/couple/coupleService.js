@@ -5,6 +5,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore'
+import { createDefaultBoardState } from '../session/sessionWiring.js'
 
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -55,6 +56,7 @@ export function buildCreateCouplePayload({
       },
     ],
     activeSessionId: null,
+    boardState: createDefaultBoardState(),
   }
 }
 

@@ -11,7 +11,12 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { buildInitialSession } from './sessionLogic.js'
+import { finalizeVibeSetup, buildInitialSession } from './sessionLogic.js'
+import {
+  averageVibeVotes,
+  buildBoardRewardPatch,
+  createDefaultBoardState,
+} from './sessionWiring.js'
 
 export async function ensureActiveSession(db, couple) {
   if (couple.activeSessionId) {
@@ -109,11 +114,13 @@ export async function createActivityRecord(db, session, activityType, initialSta
 
 export async function finalizeActivity({
   activityId,
+  activityResult = null,
   db,
   journalEntry,
   nextSession,
   sessionId,
   state,
+  status = 'completed',
 }) {
   const sessionRef = doc(db, 'sessions', sessionId)
   const activityRef = doc(db, 'activities', activityId)
@@ -126,9 +133,9 @@ export async function finalizeActivity({
 
     transaction.update(activityRef, {
       resolvedAt: serverTimestamp(),
-      result: journalEntry,
+      result: activityResult,
       state,
-      status: 'completed',
+      status,
       updatedAt: serverTimestamp(),
     })
 
@@ -138,11 +145,13 @@ export async function finalizeActivity({
     })
   })
 
-  await addDoc(collection(db, 'journalEntries'), {
-    ...journalEntry,
-    createdAt: serverTimestamp(),
-    sessionId,
-  })
+  if (journalEntry) {
+    await addDoc(collection(db, 'journalEntries'), {
+      ...journalEntry,
+      createdAt: serverTimestamp(),
+      sessionId,
+    })
+  }
 }
 
 export async function appendJournalEntry(db, payload) {
@@ -156,6 +165,60 @@ export async function updateSessionState(db, sessionId, nextSession) {
   await updateDoc(doc(db, 'sessions', sessionId), {
     ...nextSession,
     updatedAt: serverTimestamp(),
+  })
+}
+
+export async function submitVibeVote(db, sessionId, userId, vote) {
+  const sessionRef = doc(db, 'sessions', sessionId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(sessionRef)
+    if (!snapshot.exists()) {
+      throw new Error('Session disappeared.')
+    }
+
+    const session = { id: snapshot.id, ...snapshot.data() }
+    const vibeVotes = {
+      ...session.vibeVotes,
+      [userId]: vote,
+    }
+
+    if (Object.keys(vibeVotes).length >= session.players.length) {
+      const vibeWeights = averageVibeVotes(vibeVotes)
+      transaction.update(sessionRef, {
+        ...finalizeVibeSetup(session, vibeWeights),
+        updatedAt: serverTimestamp(),
+      })
+      return
+    }
+
+    transaction.update(sessionRef, {
+      vibeVotes,
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+export async function applyCoupleBoardReward(db, coupleId, vibe, rewardId) {
+  const coupleRef = doc(db, 'couples', coupleId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(coupleRef)
+    if (!snapshot.exists()) {
+      throw new Error('Couple no longer exists.')
+    }
+
+    const couple = snapshot.data()
+    const boardState = buildBoardRewardPatch(
+      couple.boardState || createDefaultBoardState(),
+      vibe,
+      rewardId,
+    )
+
+    transaction.update(coupleRef, {
+      boardState,
+      updatedAt: serverTimestamp(),
+    })
   })
 }
 

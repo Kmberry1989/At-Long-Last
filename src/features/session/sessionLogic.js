@@ -5,10 +5,11 @@ import {
   TOTAL_ROUNDS,
   getBoardSpace,
 } from './boardConfig.js'
+import { DEFAULT_VIBE_WEIGHTS } from './sessionWiring.js'
 
 export function buildInitialSession(couple) {
   return {
-    actionText: `${couple.players[0].displayName} rolls first.`,
+    actionText: 'Set the vibe together before the first roll.',
     activePlayerIndex: 0,
     coupleId: couple.id,
     currentDuel: null,
@@ -21,7 +22,7 @@ export function buildInitialSession(couple) {
     pendingActivityId: null,
     pendingActivityType: null,
     pendingKeepsake: null,
-    phase: 'turn',
+    phase: 'vibeSetup',
     players: couple.players,
     positions: [0, 0],
     round: 1,
@@ -29,6 +30,20 @@ export function buildInitialSession(couple) {
     startingPlayerIndex: 0,
     totalRounds: TOTAL_ROUNDS,
     turnsTakenThisRound: 0,
+    usedActivityIds: [],
+    usedDuelIds: [],
+    vibeVotes: {},
+    vibeWeights: null,
+  }
+}
+
+export function finalizeVibeSetup(session, vibeWeights = DEFAULT_VIBE_WEIGHTS) {
+  return {
+    ...session,
+    actionText: `${session.players[0].displayName} rolls first.`,
+    phase: 'turn',
+    vibeVotes: {},
+    vibeWeights,
   }
 }
 
@@ -131,6 +146,7 @@ export function applyRollToSession(
     ...base,
     actionText: 'Connection space. Time for a quick shared moment.',
     pendingActivityType: activityType,
+    usedActivityIds: [...session.usedActivityIds, activityType],
     phase: 'activity',
   }
 }
@@ -173,6 +189,15 @@ export function resolveActivityCompletion(session, result) {
   })
 }
 
+export function resolveSkippedActivity(session, label) {
+  return completeTurn({
+    ...session,
+    actionText: `${label} skipped. Moving on.`,
+    pendingActivityId: null,
+    pendingActivityType: null,
+  })
+}
+
 export function beginRoundDuel(session, duelId) {
   return {
     ...session,
@@ -183,6 +208,7 @@ export function beginRoundDuel(session, duelId) {
       id: duelId,
     },
     duelResults: {},
+    usedDuelIds: [...session.usedDuelIds, duelId],
     phase: 'duel',
   }
 }
@@ -202,6 +228,14 @@ export function evaluateDuelRound(session, duelRegistry) {
 
   if (tieResolution.retry) {
     return { status: 'retry' }
+  }
+
+  if (tieResolution.shared) {
+    return { status: 'shared' }
+  }
+
+  if (tieResolution.noContest) {
+    return { status: 'noContest' }
   }
 
   return {
@@ -224,8 +258,90 @@ export function advanceAfterDuel(session, outcome) {
     }
   }
 
+  const nextHearts =
+    outcome.status === 'noContest'
+      ? session.hearts
+      : session.hearts + session.currentDuel.heartBonus
+
+  if (outcome.status === 'shared') {
+    if (session.round >= session.totalRounds) {
+      return {
+        ...session,
+        actionText: 'You both landed it together and closed the night with a shared glow.',
+        currentDuel: null,
+        duelResults: {},
+        hearts: nextHearts,
+        lastDuelOutcome: {
+          heartBonus: session.currentDuel.heartBonus,
+          shared: true,
+        },
+        phase: 'finale',
+        roundDuelBonus: 0,
+      }
+    }
+
+    const round = session.round + 1
+    const startingPlayerIndex =
+      (session.startingPlayerIndex + 1) % session.players.length
+
+    return {
+      ...session,
+      actionText: `You both synced it. Round ${round} is ready.`,
+      activePlayerIndex: startingPlayerIndex,
+      currentDuel: null,
+      duelResults: {},
+      hearts: nextHearts,
+      lastDuelOutcome: {
+        heartBonus: session.currentDuel.heartBonus,
+        shared: true,
+      },
+      phase: 'turn',
+      round,
+      roundDuelBonus: 0,
+      startingPlayerIndex,
+      turnsTakenThisRound: 0,
+    }
+  }
+
+  if (outcome.status === 'noContest') {
+    if (session.round >= session.totalRounds) {
+      return {
+        ...session,
+        actionText: 'The last duel fizzled out, but the night still lands softly.',
+        currentDuel: null,
+        duelResults: {},
+        hearts: nextHearts,
+        lastDuelOutcome: {
+          noContest: true,
+        },
+        phase: 'finale',
+        roundDuelBonus: 0,
+      }
+    }
+
+    const round = session.round + 1
+    const startingPlayerIndex =
+      (session.startingPlayerIndex + 1) % session.players.length
+
+    return {
+      ...session,
+      actionText: `No bonus this time. Round ${round} is ready.`,
+      activePlayerIndex: startingPlayerIndex,
+      currentDuel: null,
+      duelResults: {},
+      hearts: nextHearts,
+      lastDuelOutcome: {
+        noContest: true,
+      },
+      phase: 'turn',
+      round,
+      roundDuelBonus: 0,
+      startingPlayerIndex,
+      turnsTakenThisRound: 0,
+    }
+  }
+
   const winningPlayer = session.players[outcome.winnerIndex]
-  const nextHearts = session.hearts + session.currentDuel.heartBonus
 
   if (session.round >= session.totalRounds) {
     return {

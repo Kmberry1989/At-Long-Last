@@ -1,117 +1,88 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { activityDefinitions } from './contentPackData.js'
 
-function SparkCheckInCard({ activity, disabled, onSubmit, players }) {
-  const [mood, setMood] = useState(3)
-  const [note, setNote] = useState('')
+function buildEntrySummary(definition, entries, players) {
+  if (entries.length < 2) {
+    return `${definition.label} started.`
+  }
+
+  return `${players[0].displayName} and ${players[1].displayName} left a ${definition.vibe} ${definition.type} beat together.`
+}
+
+function buildEntryText(entries, players) {
+  return entries
+    .map((entry) => `${players[entry.playerIndex].displayName}: ${entry.text}`)
+    .join('\n')
+}
+
+function buildOpenAt(definition) {
+  if (definition.id !== 'postcard-next-year') {
+    return null
+  }
+
+  const openAt = new Date()
+  openAt.setFullYear(openAt.getFullYear() + 1)
+  return openAt.toISOString()
+}
+
+function ActivityCard({ activity, disabled, onSkip, onSubmit, players }) {
+  const [text, setText] = useState('')
+  const activeName =
+    activity.state.turnIndex >= 0
+      ? players[activity.state.turnIndex]?.displayName
+      : null
+  const responsePlaceholder = useMemo(() => {
+    if (activity.type === 'ritual') {
+      return 'Describe what you left, chose, or imagined.'
+    }
+
+    if (activity.type === 'journal') {
+      return 'Write a couple of lines worth keeping.'
+    }
+
+    return 'One or two sentences is enough.'
+  }, [activity.type])
 
   return (
-    <div className="overlay-card">
-      <p className="eyebrow">Connection Event</p>
-      <h3>{activity.label}</h3>
-      <p className="support-copy">{activity.state.prompt}</p>
-      <div className="mood-row">
-        {[1, 2, 3, 4, 5].map((value) => (
-          <button
-            key={value}
-            className={`mood-chip${mood === value ? ' active' : ''}`}
-            disabled={disabled}
-            onClick={() => setMood(value)}
-            type="button"
-          >
-            {value}
+    <div className={`overlay-card activity-card vibe-${activity.vibe}`}>
+      <div className="overlay-head">
+        <p className="eyebrow">{activity.vibe} {activity.type}</p>
+        {activity.skippable && (
+          <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
+            Skip This
           </button>
-        ))}
+        )}
       </div>
-      <textarea
-        className="text-entry"
-        disabled={disabled}
-        onChange={(event) => setNote(event.target.value)}
-        placeholder="One sentence is enough."
-        rows={3}
-        value={note}
-      />
-      <button
-        className="primary-btn"
-        disabled={disabled || !note.trim()}
-        onClick={() => onSubmit({ mood, note })}
-        type="button"
-      >
-        Lock It In
-      </button>
-      <div className="activity-log">
-        {activity.state.entries.map((entry, index) => (
-          <div key={`${entry.playerIndex}-${index}`} className="activity-log-card">
-            <strong>{players[entry.playerIndex].displayName}</strong>
-            <span>Mood {entry.mood}/5</span>
-            <p>{entry.note}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function StoryChainCard({ activity, disabled, onSubmit, players }) {
-  const [line, setLine] = useState('')
-
-  return (
-    <div className="overlay-card">
-      <p className="eyebrow">Connection Event</p>
       <h3>{activity.label}</h3>
-      <p className="support-copy">{activity.state.prompt}</p>
-      <div className="story-paper">
-        {activity.state.lines.map((entry, index) => (
-          <p key={`${entry.playerIndex}-${index}`}>
-            <strong>{players[entry.playerIndex].displayName}:</strong> {entry.text}
-          </p>
-        ))}
+      <p className="support-copy">{activity.intro}</p>
+      <div className="activity-prompt">
+        <p>{activity.state.prompt}</p>
+      </div>
+      <div className="turn-badge">
+        <strong>{activeName}</strong>
+        <span>is up now</span>
       </div>
       <textarea
         className="text-entry"
         disabled={disabled}
-        onChange={(event) => setLine(event.target.value)}
-        placeholder="Add the next beat."
-        rows={3}
-        value={line}
+        onChange={(event) => setText(event.target.value)}
+        placeholder={responsePlaceholder}
+        rows={4}
+        value={text}
       />
       <button
         className="primary-btn"
-        disabled={disabled || !line.trim()}
-        onClick={() => onSubmit({ text: line })}
-        type="button"
-      >
-        Add Line
-      </button>
-    </div>
-  )
-}
-
-function GratitudeDropCard({ activity, disabled, onSubmit, players }) {
-  const [note, setNote] = useState('')
-
-  return (
-    <div className="overlay-card">
-      <p className="eyebrow">Connection Event</p>
-      <h3>{activity.label}</h3>
-      <p className="support-copy">{activity.state.prompt}</p>
-      <textarea
-        className="text-entry"
-        disabled={disabled}
-        onChange={(event) => setNote(event.target.value)}
-        placeholder="What landed for you lately?"
-        rows={3}
-        value={note}
-      />
-      <button
-        className="primary-btn"
-        disabled={disabled || !note.trim()}
-        onClick={() => onSubmit({ text: note })}
+        disabled={disabled || !text.trim()}
+        onClick={() => {
+          onSubmit({ text })
+          setText('')
+        }}
         type="button"
       >
         Send It
       </button>
       <div className="activity-log">
-        {activity.state.notes.map((entry, index) => (
+        {activity.state.entries.map((entry, index) => (
           <div key={`${entry.playerIndex}-${index}`} className="activity-log-card">
             <strong>{players[entry.playerIndex].displayName}</strong>
             <p>{entry.text}</p>
@@ -122,137 +93,64 @@ function GratitudeDropCard({ activity, disabled, onSubmit, players }) {
   )
 }
 
-function commonJournalShape(type, label, summary, payload, heartBonus) {
+function createRegistryEntry(definition) {
   return {
-    heartBonus,
-    label,
-    payload,
-    summary,
-    title: label,
-    type,
-  }
-}
-
-export const activityRegistry = {
-  'gratitude-drop': {
-    id: 'gratitude-drop',
-    intro: 'Fast appreciation, no overthinking.',
-    label: 'Gratitude Drop',
-    render: GratitudeDropCard,
+    ...definition,
     createInitialState() {
       return {
-        notes: [],
-        prompt: 'Name one thing your person did lately that still feels good.',
-        turnIndex: 0,
-      }
-    },
-    advance(state, { input, playerIndex }) {
-      const notes = [
-        ...state.notes,
-        { playerIndex, text: input.text.trim() },
-      ]
-      return {
-        completed: notes.length >= 2,
-        state: {
-          ...state,
-          notes,
-          turnIndex: state.turnIndex === 0 ? 1 : 0,
-        },
-      }
-    },
-    resolve(state, players) {
-      const summary = `${players[0].displayName} and ${players[1].displayName} traded two fresh gratitude notes.`
-      return commonJournalShape(
-        'activity',
-        'Gratitude Drop',
-        summary,
-        state,
-        4,
-      )
-    },
-  },
-  'spark-checkin': {
-    id: 'spark-checkin',
-    intro: 'Two turns, tiny honesty, instant bonus.',
-    label: 'Spark Check-In',
-    render: SparkCheckInCard,
-    createInitialState() {
-      return {
+        activityId: definition.id,
         entries: [],
-        prompt: 'What kind of energy are you bringing into tonight?',
+        prompt: definition.prompt,
         turnIndex: 0,
       }
     },
     advance(state, { input, playerIndex }) {
-      const entries = [
+      const nextEntries = [
         ...state.entries,
-        {
-          mood: input.mood,
-          note: input.note.trim(),
-          playerIndex,
-        },
-      ]
-      return {
-        completed: entries.length >= 2,
-        state: {
-          ...state,
-          entries,
-          turnIndex: state.turnIndex === 0 ? 1 : 0,
-        },
-      }
-    },
-    resolve(state, players) {
-      const summary = `${players[0].displayName} and ${players[1].displayName} synced their moods before the next move.`
-      return commonJournalShape(
-        'activity',
-        'Spark Check-In',
-        summary,
-        state,
-        3,
-      )
-    },
-  },
-  'story-chain': {
-    id: 'story-chain',
-    intro: 'A fast little shared fiction sprint.',
-    label: 'Story Chain',
-    render: StoryChainCard,
-    createInitialState() {
-      return {
-        lines: [],
-        prompt: 'Start a tiny story about the two of you getting gloriously sidetracked.',
-        turnIndex: 0,
-      }
-    },
-    advance(state, { input, playerIndex }) {
-      const lines = [
-        ...state.lines,
         {
           playerIndex,
           text: input.text.trim(),
         },
       ]
+
       return {
-        completed: lines.length >= 4,
+        completed: nextEntries.length >= 2,
         state: {
           ...state,
-          lines,
+          entries: nextEntries,
           turnIndex: state.turnIndex === 0 ? 1 : 0,
         },
       }
     },
+    render: ActivityCard,
     resolve(state, players) {
-      const summary = `${players[0].displayName} and ${players[1].displayName} wrote a four-line story that should probably get framed.`
-      return commonJournalShape(
-        'activity',
-        'Story Chain',
-        summary,
-        state,
-        5,
-      )
+      const openAt = buildOpenAt(definition)
+      return {
+        heartBonus: 2 + definition.intensity,
+        label: definition.label,
+        payload: {
+          ...state,
+          imageDataUrl: null,
+          openAt,
+        },
+        openAt,
+        savesToJournal: definition.savesToJournal,
+        summary: buildEntrySummary(definition, state.entries, players),
+        text: buildEntryText(state.entries, players),
+        title: definition.label,
+        type: definition.type,
+        vibe: definition.vibe,
+      }
     },
-  },
+  }
 }
+
+export const activityRegistry = Object.fromEntries(
+  activityDefinitions.map((definition) => [
+    definition.id,
+    createRegistryEntry(definition),
+  ]),
+)
 
 export const activityIds = Object.keys(activityRegistry)
 

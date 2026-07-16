@@ -38,6 +38,11 @@ describe('coupleService', () => {
     expect(payload.players).toHaveLength(1)
     expect(payload.playerIds).toEqual(['u1'])
     expect(payload.shareLink).toBe('https://example.com/?code=ABC123')
+    expect(payload.boardState).toEqual({
+      playfulStickerIds: [],
+      spicyGlowLevel: 0,
+      tenderStars: 0,
+    })
   })
 
   it('builds a minimal invite lookup payload', () => {

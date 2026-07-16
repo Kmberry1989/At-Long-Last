@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { resolveTieByTime } from './duelRegistry.jsx'
+import { duelIds, duelRegistry, resolveTieByTime } from './duelRegistry.jsx'
 
 describe('duelRegistry', () => {
+  it('contains the full 15-item duel pack with unique ids', () => {
+    expect(duelIds).toHaveLength(15)
+    expect(new Set(duelIds).size).toBe(15)
+  })
+
+  it('keeps all spicy duels skippable', () => {
+    const spicyDuels = Object.values(duelRegistry).filter((entry) => entry.vibe === 'spicy')
+    expect(spicyDuels).toHaveLength(5)
+    expect(spicyDuels.every((entry) => entry.skippable)).toBe(true)
+  })
+
   it('retries when both players are too close', () => {
     const outcome = resolveTieByTime(
       { won: true, time: 1 },

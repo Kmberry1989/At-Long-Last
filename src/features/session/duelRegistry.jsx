@@ -1,19 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { DoodleDuel } from '../../components/DoodleDuel.jsx'
+import { KissCourier } from '../../components/KissCourier.jsx'
+import { duelDefinitions } from './contentPackData.js'
 
-function DuelShell({ children, label, prompt }) {
+function DuelShell({ children, duel, onSkip }) {
   return (
-    <div className="overlay-card duel-card">
-      <p className="eyebrow">Round Duel</p>
-      <h3>{label}</h3>
-      <p className="support-copy">{prompt}</p>
+    <div className={`overlay-card duel-card vibe-${duel.vibe}`}>
+      <div className="overlay-head">
+        <p className="eyebrow">{duel.vibe} duel</p>
+        {duel.skippable && (
+          <button className="secondary-link" onClick={onSkip} type="button">
+            Skip Duel
+          </button>
+        )}
+      </div>
+      <h3>{duel.label}</h3>
+      <p className="support-copy">{duel.prompt}</p>
       {children}
     </div>
   )
 }
 
-function QuickFlipDuel({ disabled, onComplete }) {
+function QuickFlipDuel({ disabled, duel, onComplete, onSkip }) {
   const [phase, setPhase] = useState('ready')
-  const [target, setTarget] = useState('HEADS')
+  const [target, setTarget] = useState('HEART')
   const startAt = useRef(0)
 
   useEffect(() => {
@@ -23,7 +33,7 @@ function QuickFlipDuel({ disabled, onComplete }) {
 
     const delay = 700 + Math.random() * 1200
     const timer = window.setTimeout(() => {
-      const nextTarget = Math.random() > 0.5 ? 'HEADS' : 'TAILS'
+      const nextTarget = Math.random() > 0.5 ? 'HEART' : 'SPARK'
       setTarget(nextTarget)
       startAt.current = performance.now()
       setPhase('live')
@@ -41,6 +51,7 @@ function QuickFlipDuel({ disabled, onComplete }) {
       setPhase('done')
       onComplete({
         highlight: 'jumped too early',
+        score: 0,
         time: 99,
         won: false,
       })
@@ -51,26 +62,26 @@ function QuickFlipDuel({ disabled, onComplete }) {
     const time = (performance.now() - startAt.current) / 1000
     setPhase('done')
     onComplete({
-      highlight: won ? `called ${target.toLowerCase()} in ${time.toFixed(2)}s` : 'called the wrong side',
+      highlight: won
+        ? `hit ${target.toLowerCase()} in ${time.toFixed(2)}s`
+        : 'went for the wrong symbol',
+      score: won ? 1 : 0,
       time,
       won,
     })
   }
 
   return (
-    <DuelShell
-      label="Quick Flip"
-      prompt="Wait for the call, then tap the right side before your partner does."
-    >
+    <DuelShell duel={duel} onSkip={onSkip}>
       <div className="duel-stage">
         <div className={`flip-signal phase-${phase}`}>{phase === 'live' ? target : 'WAIT'}</div>
       </div>
       <div className="duel-actions">
-        <button className="primary-btn alt" disabled={disabled} onClick={() => press('HEADS')} type="button">
-          Heads
+        <button className="primary-btn alt" disabled={disabled} onClick={() => press('HEART')} type="button">
+          Heart
         </button>
-        <button className="primary-btn alt" disabled={disabled} onClick={() => press('TAILS')} type="button">
-          Tails
+        <button className="primary-btn alt" disabled={disabled} onClick={() => press('SPARK')} type="button">
+          Spark
         </button>
       </div>
       <button
@@ -79,13 +90,13 @@ function QuickFlipDuel({ disabled, onComplete }) {
         onClick={() => setPhase('arming')}
         type="button"
       >
-        Arm It
+        Ready
       </button>
     </DuelShell>
   )
 }
 
-function TargetTapDuel({ disabled, onComplete }) {
+function TargetTapDuel({ disabled, duel, onComplete, onSkip }) {
   const [running, setRunning] = useState(false)
   const [targetX, setTargetX] = useState(52)
   const [targetY, setTargetY] = useState(50)
@@ -109,6 +120,7 @@ function TargetTapDuel({ disabled, onComplete }) {
       setRunning(false)
       onComplete({
         highlight: 'timed out on the target',
+        score: 0,
         time: 99,
         won: false,
       })
@@ -128,7 +140,8 @@ function TargetTapDuel({ disabled, onComplete }) {
     setRunning(false)
     const time = (performance.now() - startAt.current) / 1000
     onComplete({
-      highlight: `nailed the target in ${time.toFixed(2)}s`,
+      highlight: `landed it in ${time.toFixed(2)}s`,
+      score: 1,
       time,
       won: true,
     })
@@ -143,19 +156,11 @@ function TargetTapDuel({ disabled, onComplete }) {
   )
 
   return (
-    <DuelShell
-      label="Target Tap"
-      prompt="Start the hunt, then smash the moving target the moment it lands."
-    >
+    <DuelShell duel={duel} onSkip={onSkip}>
       <div className="target-stage">
         {running && (
-          <button
-            className="moving-target"
-            onClick={hitTarget}
-            style={style}
-            type="button"
-          >
-            ✦
+          <button className="moving-target" onClick={hitTarget} style={style} type="button">
+            ♥
           </button>
         )}
       </div>
@@ -171,11 +176,12 @@ function TargetTapDuel({ disabled, onComplete }) {
   )
 }
 
-function SteadyHoldDuel({ disabled, onComplete }) {
+function HoldSyncDuel({ disabled, duel, onComplete, onSkip }) {
   const [running, setRunning] = useState(false)
   const [fill, setFill] = useState(0)
   const startAt = useRef(0)
   const frameRef = useRef(0)
+  const targetTime = duel.id === 'sync-breath' ? 2.6 : 1.8
 
   useEffect(() => {
     if (!running) {
@@ -187,14 +193,16 @@ function SteadyHoldDuel({ disabled, onComplete }) {
 
     const tick = () => {
       const elapsed = (performance.now() - startAt.current) / 1000
-      const progress = Math.min(elapsed / 2, 1)
+      const progress = Math.min(elapsed / (targetTime * 1.5), 1)
       setFill(progress * 100)
 
       if (progress >= 1) {
         setRunning(false)
         onComplete({
-          highlight: 'held too long',
-          time: 99,
+          delta: Math.abs(elapsed - targetTime),
+          highlight: 'held past the sweet spot',
+          score: 0,
+          time: elapsed,
           won: false,
         })
         return
@@ -204,9 +212,8 @@ function SteadyHoldDuel({ disabled, onComplete }) {
     }
 
     frameRef.current = requestAnimationFrame(tick)
-
     return () => cancelAnimationFrame(frameRef.current)
-  }, [onComplete, running])
+  }, [onComplete, running, targetTime])
 
   function release() {
     if (disabled || !running) {
@@ -215,22 +222,21 @@ function SteadyHoldDuel({ disabled, onComplete }) {
 
     setRunning(false)
     const elapsed = (performance.now() - startAt.current) / 1000
-    const delta = Math.abs(elapsed - 1.25)
-    const won = delta <= 0.18
+    const delta = Math.abs(elapsed - targetTime)
     onComplete({
-      highlight: won
-        ? `stuck the sweet spot at ${elapsed.toFixed(2)}s`
-        : `missed the sweet spot by ${delta.toFixed(2)}s`,
+      delta,
+      highlight:
+        delta <= 0.22
+          ? `sat right on the pulse at ${elapsed.toFixed(2)}s`
+          : `missed the pulse by ${delta.toFixed(2)}s`,
+      score: Math.max(0, 100 - delta * 100),
       time: elapsed,
-      won,
+      won: delta <= 0.22,
     })
   }
 
   return (
-    <DuelShell
-      label="Steady Hold"
-      prompt="Press and release when the bar lands inside the green window."
-    >
+    <DuelShell duel={duel} onSkip={onSkip}>
       <div className="hold-track">
         <div className="hold-window" />
         <div className="hold-fill" style={{ width: `${fill}%` }} />
@@ -253,7 +259,169 @@ function SteadyHoldDuel({ disabled, onComplete }) {
   )
 }
 
-export function resolveTieByTime(resultA, resultB) {
+function TextSprintDuel({ disabled, duel, onComplete, onSkip }) {
+  const [text, setText] = useState('')
+  const startedAtRef = useRef(performance.now())
+
+  function finish() {
+    if (disabled || !text.trim()) {
+      return
+    }
+
+    const time = (performance.now() - startedAtRef.current) / 1000
+    const score = Math.min(200, text.trim().length)
+    onComplete({
+      excerpt: text.trim().slice(0, 80),
+      highlight: `locked a ${score}-point answer in ${time.toFixed(2)}s`,
+      score,
+      time,
+      won: true,
+    })
+  }
+
+  return (
+    <DuelShell duel={duel} onSkip={onSkip}>
+      <textarea
+        className="text-entry"
+        disabled={disabled}
+        onChange={(event) => setText(event.target.value)}
+        placeholder="Type your answer fast."
+        rows={4}
+        value={text}
+      />
+      <button className="primary-btn" disabled={disabled || !text.trim()} onClick={finish} type="button">
+        Lock Answer
+      </button>
+    </DuelShell>
+  )
+}
+
+function SliderMatchDuel({ disabled, duel, onComplete, onSkip }) {
+  const [value, setValue] = useState(5)
+
+  return (
+    <DuelShell duel={duel} onSkip={onSkip}>
+      <div className="slider-stage">
+        <input
+          className="range-input"
+          disabled={disabled}
+          max="10"
+          min="1"
+          onChange={(event) => setValue(Number(event.target.value))}
+          type="range"
+          value={value}
+        />
+        <div className="slider-value">{value}</div>
+      </div>
+      <button
+        className="primary-btn"
+        disabled={disabled}
+        onClick={() =>
+          onComplete({
+            highlight: `locked ${value}/10`,
+            score: value,
+            time: 10 - value,
+            value,
+            won: true,
+          })}
+        type="button"
+      >
+        Lock It
+      </button>
+    </DuelShell>
+  )
+}
+
+function ConstellationDuel({ disabled, duel, onComplete, onSkip }) {
+  const canvasRef = useRef(null)
+  const dotsRef = useRef([])
+  const [dotCount, setDotCount] = useState(0)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    if (!canvas || !context) {
+      return undefined
+    }
+
+    const devicePixelRatio = window.devicePixelRatio || 1
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * devicePixelRatio
+    canvas.height = rect.height * devicePixelRatio
+    context.scale(devicePixelRatio, devicePixelRatio)
+
+    function redraw() {
+      context.clearRect(0, 0, rect.width, rect.height)
+      dotsRef.current.forEach((dot) => {
+        context.fillStyle = '#f0d39f'
+        context.beginPath()
+        context.arc(dot.x, dot.y, 4, 0, Math.PI * 2)
+        context.fill()
+      })
+    }
+
+    redraw()
+    return undefined
+  }, [dotCount])
+
+  function placeDot(event) {
+    if (disabled || dotCount >= 5) {
+      return
+    }
+
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    const y = event.clientY - rect.top
+    dotsRef.current = [...dotsRef.current, { x, y }]
+    setDotCount(dotsRef.current.length)
+  }
+
+  function finish() {
+    if (dotCount < 5) {
+      return
+    }
+
+    const average = dotsRef.current.reduce(
+      (current, dot) => ({
+        x: current.x + dot.x,
+        y: current.y + dot.y,
+      }),
+      { x: 0, y: 0 },
+    )
+    const center = {
+      x: average.x / dotsRef.current.length,
+      y: average.y / dotsRef.current.length,
+    }
+    const spread =
+      dotsRef.current.reduce(
+        (total, dot) => total + Math.hypot(dot.x - center.x, dot.y - center.y),
+        0,
+      ) / dotsRef.current.length
+
+    onComplete({
+      center,
+      highlight: 'plotted a little sky map',
+      score: Math.max(0, 100 - spread),
+      spread,
+      time: spread,
+      won: true,
+    })
+  }
+
+  return (
+    <DuelShell duel={duel} onSkip={onSkip}>
+      <div className="constellation-stage">
+        <canvas className="constellation-canvas" onClick={placeDot} ref={canvasRef} />
+        <p className="constellation-hint">{dotCount}/5 stars placed</p>
+      </div>
+      <button className="primary-btn" disabled={disabled || dotCount < 5} onClick={finish} type="button">
+        Reveal My Sky
+      </button>
+    </DuelShell>
+  )
+}
+
+function resolveTieByTime(resultA, resultB) {
   if (resultA.won && resultB.won) {
     const delta = Math.abs(resultA.time - resultB.time)
     if (delta < 0.12) {
@@ -270,35 +438,143 @@ export function resolveTieByTime(resultA, resultB) {
   return { retry: true }
 }
 
-export const duelRegistry = {
-  'quick-flip': {
-    durationMs: 5000,
-    id: 'quick-flip',
-    label: 'Quick Flip',
-    prompt: 'Call the right side after the reveal.',
-    resolveTie: resolveTieByTime,
-    start: QuickFlipDuel,
+function resolveByScore(resultA, resultB) {
+  if (resultA.score === resultB.score) {
+    return resolveTieByTime(resultA, resultB)
+  }
+
+  return { winnerIndex: resultA.score > resultB.score ? 0 : 1 }
+}
+
+function resolveSharedByDelta(resultA, resultB, threshold = 0.2) {
+  const delta = Math.abs((resultA.delta ?? 99) - (resultB.delta ?? 99))
+  if (resultA.delta <= threshold && resultB.delta <= threshold && delta <= threshold) {
+    return { shared: true }
+  }
+
+  return { winnerIndex: (resultA.delta ?? 99) < (resultB.delta ?? 99) ? 0 : 1 }
+}
+
+function resolveSharedByValue(resultA, resultB, threshold = 1) {
+  const delta = Math.abs((resultA.value ?? 0) - (resultB.value ?? 0))
+  if (delta <= threshold) {
+    return { shared: true }
+  }
+
+  return { winnerIndex: (resultA.value ?? 0) > (resultB.value ?? 0) ? 0 : 1 }
+}
+
+function resolveConstellation(resultA, resultB) {
+  if (!resultA.center || !resultB.center) {
+    return { retry: true }
+  }
+
+  const distance = Math.hypot(
+    resultA.center.x - resultB.center.x,
+    resultA.center.y - resultB.center.y,
+  )
+  if (distance <= 48) {
+    return { shared: true }
+  }
+
+  return { winnerIndex: (resultA.spread ?? 99) < (resultB.spread ?? 99) ? 0 : 1 }
+}
+
+const duelComponentMap = {
+  'constellation-home': {
+    component: ConstellationDuel,
+    resolveTie: resolveConstellation,
   },
-  'steady-hold': {
-    durationMs: 5000,
-    id: 'steady-hold',
-    label: 'Steady Hold',
-    prompt: 'Release inside the green window.',
-    resolveTie: resolveTieByTime,
-    start: SteadyHoldDuel,
+  'doodle-duel-memory': {
+    component: DoodleDuel,
+    resolveTie: resolveByScore,
   },
-  'target-tap': {
-    durationMs: 4500,
-    id: 'target-tap',
-    label: 'Target Tap',
-    prompt: 'Catch the moving target fast.',
+  'emoji-court': {
+    component: TextSprintDuel,
+    resolveTie: resolveByScore,
+  },
+  'fever-dream-date': {
+    component: TextSprintDuel,
+    resolveTie: resolveByScore,
+  },
+  'gratitude-duel': {
+    component: TextSprintDuel,
+    resolveTie: resolveByScore,
+  },
+  'heartbeat-hold-tender': {
+    component: HoldSyncDuel,
+    resolveTie: (a, b) => resolveSharedByDelta(a, b, 0.22),
+  },
+  'kiss-courier': {
+    component: KissCourier,
+    resolveTie: () => ({ shared: true }),
+  },
+  'letterpress-one-word': {
+    component: TextSprintDuel,
+    resolveTie: resolveByScore,
+  },
+  'portrait-panic-directed': {
+    component: DoodleDuel,
+    resolveTie: resolveByScore,
+  },
+  'reaction-heart': {
+    component: QuickFlipDuel,
     resolveTie: resolveTieByTime,
-    start: TargetTapDuel,
+  },
+  'slow-draw-portrait-romantic': {
+    component: DoodleDuel,
+    resolveTie: resolveByScore,
+  },
+  'sync-breath': {
+    component: HoldSyncDuel,
+    resolveTie: (a, b) => resolveSharedByDelta(a, b, 0.26),
+  },
+  'temperature-check': {
+    component: SliderMatchDuel,
+    resolveTie: (a, b) => resolveSharedByValue(a, b, 1),
+  },
+  'voice-note-trailer': {
+    component: TextSprintDuel,
+    resolveTie: resolveByScore,
+  },
+  'wavelength-slider': {
+    component: SliderMatchDuel,
+    resolveTie: resolveByScore,
   },
 }
+
+function buildRegistryEntry(definition) {
+  const mapping = duelComponentMap[definition.id] || {
+    component: TargetTapDuel,
+    resolveTie: resolveTieByTime,
+  }
+
+  return {
+    ...definition,
+    durationMs: definition.durationSec * 1000,
+    resolveTie: mapping.resolveTie,
+    start: function DuelStart(props) {
+      const Component = mapping.component
+      return (
+        <Component
+          {...props}
+          duel={definition}
+          durationSec={definition.durationSec}
+          prompt={definition.prompt}
+        />
+      )
+    },
+  }
+}
+
+export const duelRegistry = Object.fromEntries(
+  duelDefinitions.map((definition) => [definition.id, buildRegistryEntry(definition)]),
+)
 
 export const duelIds = Object.keys(duelRegistry)
 
 export function pickRandomDuelId(random = Math.random) {
   return duelIds[Math.floor(random() * duelIds.length)]
 }
+
+export { resolveTieByTime }
