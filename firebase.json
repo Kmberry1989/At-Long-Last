@@ -1,7 +1,6 @@
 {
   "auth": {
     "providers": {
-      "anonymous": true,
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "At Long Last",

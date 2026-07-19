@@ -29,6 +29,7 @@ describe('sessionLogic', () => {
     expect(session.round).toBe(1)
     expect(session.positions).toEqual([0, 0])
     expect(session.phase).toBe('vibeSetup')
+    expect(session.preset).toBe('standard')
     expect(session.vibeWeights).toBeNull()
   })
 
@@ -142,12 +143,31 @@ describe('sessionLogic', () => {
     const summary = buildFinalSummary(
       {
         hearts: 10,
+        lastDuelOutcome: {
+          shared: true,
+        },
         keepsakes: [{ id: 'a' }, { id: 'b' }],
+        players: buildCouple().players,
+        vibeWeights: {
+          tender: 0.2,
+          playful: 0.55,
+          spicy: 0.25,
+        },
       },
-      5,
+      [
+        { id: '1', type: 'prompt', vibe: 'tender' },
+        { id: '2', type: 'ritual', vibe: 'playful' },
+        { id: '3', type: 'journal', vibe: 'spicy' },
+        { id: '4', type: 'duel', vibe: 'playful' },
+        { id: '5', type: 'keepsake', vibe: 'tender' },
+      ],
     )
 
+    expect(summary.headline).toBe('A night with some weight to it.')
     expect(summary.journalCount).toBe(5)
     expect(summary.keepsakeCount).toBe(2)
+    expect(summary.duelOutcomeLabel).toBe('Shared finish')
+    expect(summary.dominantVibe).toBe('playful')
+    expect(summary.presetLabel).toBe('Standard')
   })
 })

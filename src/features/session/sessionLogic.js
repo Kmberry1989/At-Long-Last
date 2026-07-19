@@ -2,19 +2,23 @@ import {
   BASE_DUEL_HEART_BONUS,
   BOARD_SPACES,
   KEEPSAKES,
-  TOTAL_ROUNDS,
   getBoardSpace,
 } from './boardConfig.js'
+import { getPresetGoals, getSessionPreset, summarizeSessionGoals } from './sessionPresets.js'
 import { DEFAULT_VIBE_WEIGHTS } from './sessionWiring.js'
 
 export function buildInitialSession(couple) {
+  const preset = getSessionPreset(couple.sessionPreset)
+
   return {
     actionText: 'Set the vibe together before the first roll.',
     activePlayerIndex: 0,
     coupleId: couple.id,
     currentDuel: null,
+    goals: getPresetGoals(preset.id),
     duelResults: {},
     hearts: 6,
+    hostId: couple.players[0]?.uid || null,
     keepsakes: [],
     lastDuelOutcome: null,
     lastMove: null,
@@ -25,10 +29,11 @@ export function buildInitialSession(couple) {
     phase: 'vibeSetup',
     players: couple.players,
     positions: [0, 0],
+    preset: preset.id,
     round: 1,
     roundDuelBonus: 0,
     startingPlayerIndex: 0,
-    totalRounds: TOTAL_ROUNDS,
+    totalRounds: preset.totalRounds,
     turnsTakenThisRound: 0,
     usedActivityIds: [],
     usedDuelIds: [],
@@ -40,7 +45,7 @@ export function buildInitialSession(couple) {
 export function finalizeVibeSetup(session, vibeWeights = DEFAULT_VIBE_WEIGHTS) {
   return {
     ...session,
-    actionText: `${session.players[0].displayName} rolls first.`,
+    actionText: `${session.players[session.startingPlayerIndex]?.displayName || session.players[0].displayName} rolls first.`,
     phase: 'turn',
     vibeVotes: {},
     vibeWeights,
@@ -384,18 +389,88 @@ export function advanceAfterDuel(session, outcome) {
   }
 }
 
-export function buildFinalSummary(session, journalCount) {
-  const vibes =
-    session.keepsakes.length >= 3
-      ? 'Certified sparks-all-night energy.'
-      : session.keepsakes.length >= 2
-        ? 'A very solid little legend.'
-        : 'Short and sweet, but still worth keeping.'
+function getDominantVibe(vibeWeights) {
+  const dominant = Object.entries(vibeWeights || {}).sort((left, right) => right[1] - left[1])[0]?.[0]
+  return dominant || 'tender'
+}
+
+function buildFinaleTone({ completedGoalCount, hearts, journalCount, keepsakeCount }) {
+  if (completedGoalCount >= 2 || keepsakeCount >= 3 || journalCount >= 7 || hearts >= 12) {
+    return {
+      coda: 'The drawer should open like proof that tonight really happened, not just a score recap.',
+      headline: 'A whole night worth pinning up.',
+      tierLabel: 'Scrapbook headliner',
+      vibes: 'Certified sparks-all-night energy.',
+    }
+  }
+
+  if (completedGoalCount >= 1 || keepsakeCount >= 2 || journalCount >= 5 || hearts >= 9) {
+    return {
+      coda: 'Enough little wins stacked up to feel like a proper finale instead of a fade-out.',
+      headline: 'A night with some weight to it.',
+      tierLabel: 'Shelf-worthy run',
+      vibes: 'A very solid little legend.',
+    }
+  }
 
   return {
-    hearts: session.hearts,
+    coda: 'Even the quieter runs leave behind something you will actually want to reopen later.',
+    headline: 'Still worth keeping close.',
+    tierLabel: 'Soft landing',
+    vibes: 'Short and sweet, but still worth keeping.',
+  }
+}
+
+function buildDuelOutcomeLabel(session) {
+  if (session.lastDuelOutcome?.shared) {
+    return 'Shared finish'
+  }
+
+  if (session.lastDuelOutcome?.noContest) {
+    return 'Soft landing'
+  }
+
+  if (typeof session.lastDuelOutcome?.winnerIndex === 'number') {
+    return `${session.players[session.lastDuelOutcome.winnerIndex]?.displayName || 'Someone'} closed the last duel`
+  }
+
+  return 'Night sealed'
+}
+
+export function buildFinalSummary(session, journalEntries = []) {
+  const journalCount = Array.isArray(journalEntries)
+    ? journalEntries.filter((entry) => entry.type !== 'finale').length
+    : journalEntries
+  const hearts = session.hearts
+  const keepsakeCount = session.keepsakes.length
+  const preset = getSessionPreset(session.preset)
+  const dominantVibe = getDominantVibe(session.vibeWeights)
+  const goals = summarizeSessionGoals(session, Array.isArray(journalEntries) ? journalEntries : [])
+  const completedGoals = goals.filter((goal) => goal.completed)
+  const finaleTone = buildFinaleTone({
+    completedGoalCount: completedGoals.length,
+    hearts,
     journalCount,
-    keepsakeCount: session.keepsakes.length,
-    vibes,
+    keepsakeCount,
+  })
+
+  return {
+    coda: finaleTone.coda,
+    completedGoalCount: completedGoals.length,
+    dominantVibe,
+    duelOutcomeLabel: buildDuelOutcomeLabel(session),
+    goalBadges: completedGoals.map((goal) => goal.badge),
+    goalCount: goals.length,
+    goals,
+    headline: finaleTone.headline,
+    hearts,
+    journalCount,
+    keepsakeCount,
+    keepsakeLabels: session.keepsakes.map((keepsake) => keepsake.label),
+    preset: preset.id,
+    presetLabel: preset.label,
+    tierLabel: finaleTone.tierLabel,
+    totalRounds: session.totalRounds || preset.totalRounds,
+    vibes: finaleTone.vibes,
   }
 }

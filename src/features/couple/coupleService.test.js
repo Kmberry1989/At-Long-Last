@@ -3,8 +3,11 @@ import {
   buildCreateCouplePayload,
   buildInviteLookupPayload,
   buildJoinCouplePatch,
+  buildJoinFromPublicLobbyPatch,
+  buildLobbyMessagePayload,
   buildLeaveCouplePatch,
   buildPlayerCoupleLinkPayload,
+  buildPublicLobbyPayload,
   createInviteCode,
   normalizeInviteCode,
 } from './coupleService.js'
@@ -32,12 +35,14 @@ describe('coupleService', () => {
       displayName: 'Kyle',
       inviteCode: 'ABC123',
       origin: 'https://example.com',
+      sessionPreset: 'quick',
       userId: 'u1',
     })
 
     expect(payload.players).toHaveLength(1)
     expect(payload.playerIds).toEqual(['u1'])
     expect(payload.shareLink).toBe('https://example.com/?code=ABC123')
+    expect(payload.sessionPreset).toBe('quick')
     expect(payload.boardState).toEqual({
       playfulStickerIds: [],
       spicyGlowLevel: 0,
@@ -57,6 +62,42 @@ describe('coupleService', () => {
     })
   })
 
+  it('builds a public lobby payload', () => {
+    expect(
+      buildPublicLobbyPayload({
+        coupleId: 'couple-1',
+        hostId: 'u1',
+        hostName: 'Kyle',
+        inviteCode: 'ABC123',
+        shareLink: 'https://example.com/?code=ABC123',
+      }),
+    ).toEqual({
+      coupleId: 'couple-1',
+      hostId: 'u1',
+      hostName: 'Kyle',
+      inviteCode: 'ABC123',
+      playerCount: 1,
+      shareLink: 'https://example.com/?code=ABC123',
+      status: 'open',
+    })
+  })
+
+  it('builds a lobby chat payload', () => {
+    expect(
+      buildLobbyMessagePayload({
+        authorId: 'u1',
+        authorName: 'Kyle',
+        lobbyId: 'couple-1',
+        text: ' hello there ',
+      }),
+    ).toEqual({
+      authorId: 'u1',
+      authorName: 'Kyle',
+      lobbyId: 'couple-1',
+      text: 'hello there',
+    })
+  })
+
   it('adds the second player when joining', () => {
     const patch = buildJoinCouplePatch(
       {
@@ -68,6 +109,21 @@ describe('coupleService', () => {
     )
 
     expect(patch.playerIds).toEqual(['u1', 'u2'])
+    expect(patch.players[1].displayName).toBe('Two')
+    expect(patch.status).toBe('paired')
+  })
+
+  it('builds a paired couple patch from an open public lobby', () => {
+    const patch = buildJoinFromPublicLobbyPatch(
+      {
+        hostId: 'u1',
+        hostName: 'One',
+      },
+      { displayName: 'Two', userId: 'u2' },
+    )
+
+    expect(patch.playerIds).toEqual(['u1', 'u2'])
+    expect(patch.players[0].displayName).toBe('One')
     expect(patch.players[1].displayName).toBe('Two')
     expect(patch.status).toBe('paired')
   })

@@ -27,8 +27,10 @@ import {
   resolveSkippedActivity,
 } from './sessionLogic.js'
 import {
+  abandonSession,
   appendJournalEntry,
   applyCoupleBoardReward,
+  claimSessionHost as claimSessionHostDocument,
   createActivityRecord,
   ensureActiveSession,
   finalizeActivity,
@@ -38,6 +40,7 @@ import {
   subscribeToSession,
   updateSessionState,
 } from './sessionService.js'
+import { getSessionPreset } from './sessionPresets.js'
 import {
   averageVibeVotes,
   buildBoardRewardPatch,
@@ -48,6 +51,20 @@ import {
 } from './sessionWiring.js'
 
 const SessionContext = createContext(null)
+const SESSION_STALE_MS = 1000 * 60 * 15
+
+function toDateValue(value) {
+  if (!value) {
+    return null
+  }
+
+  if (typeof value.toDate === 'function') {
+    return value.toDate()
+  }
+
+  const resolved = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(resolved.getTime()) ? null : resolved
+}
 
 function createPreviewPartnerVote(vote) {
   return {
@@ -109,6 +126,7 @@ export function SessionProvider({ children }) {
   const [error, setError] = useState('')
   const [working, setWorking] = useState(false)
   const [boardState, setBoardState] = useState(createDefaultBoardState())
+  const [connectionState, setConnectionState] = useState(enabled ? 'connecting' : 'local-preview')
   const resolvingDuelRef = useRef(false)
 
   const playerIndex = useMemo(() => {
@@ -123,7 +141,8 @@ export function SessionProvider({ children }) {
   }, [activity, couple, enabled, session, userId])
 
   const localUserId = enabled ? userId : couple?.players?.[playerIndex]?.uid
-  const isHost = playerIndex === 0
+  const sessionHostId = session?.hostId || session?.players?.[0]?.uid || null
+  const isHost = localUserId ? sessionHostId === localUserId : playerIndex === 0
   const canRoll = session?.phase === 'turn' && session.activePlayerIndex === playerIndex
   const canSpinDuel = isHost && session?.phase === 'duelWheel'
   const myDuelResult = useMemo(
@@ -142,6 +161,7 @@ export function SessionProvider({ children }) {
   useEffect(() => {
     if (!enabled && couple && hasPartner) {
       setSession((current) => current ?? buildInitialSession(couple))
+      setConnectionState('local-preview')
       return undefined
     }
 
@@ -157,6 +177,7 @@ export function SessionProvider({ children }) {
     if (!db || !couple?.activeSessionId) {
       if (enabled) {
         setSession(null)
+        setConnectionState('connecting')
       }
       return undefined
     }
@@ -164,7 +185,10 @@ export function SessionProvider({ children }) {
     return subscribeToSession(
       db,
       couple.activeSessionId,
-      setSession,
+      (nextSession, metadata) => {
+        setSession(nextSession)
+        setConnectionState(metadata?.fromCache ? 'syncing' : 'live')
+      },
       (nextError) => setError(nextError.message),
     )
   }, [couple?.activeSessionId, db, enabled])
@@ -204,6 +228,50 @@ export function SessionProvider({ children }) {
       (nextError) => setError(nextError.message),
     )
   }, [couple?.id, db, enabled])
+
+  const sessionPreset = useMemo(
+    () => getSessionPreset(session?.preset),
+    [session?.preset],
+  )
+  const lastActionAt = toDateValue(session?.lastActionAt)
+  const isSessionStale = Boolean(
+    enabled &&
+    session &&
+    session.status === 'active' &&
+    lastActionAt &&
+    Date.now() - lastActionAt.getTime() > SESSION_STALE_MS,
+  )
+  const canRecoverSession = Boolean(enabled && session && (isHost || isSessionStale))
+
+  const sessionStatusMessage = useMemo(() => {
+    if (!session) {
+      return ''
+    }
+
+    if (!enabled) {
+      return 'Local preview only. Firebase pairing and resume are disabled here.'
+    }
+
+    if (connectionState === 'syncing') {
+      return 'Sync is catching up on this phone.'
+    }
+
+    if (isSessionStale) {
+      return 'This night looks stalled. Resume or start a fresh run from here.'
+    }
+
+    if (session.phase === 'turn') {
+      return canRoll
+        ? 'Your turn. Roll when you are ready.'
+        : `${session.players[session.activePlayerIndex]?.displayName || 'Your partner'} is taking their turn.`
+    }
+
+    if (session.phase === 'duelWheel' && !canSpinDuel) {
+      return `${session.players[0]?.displayName || 'The host'} is lining up the duel spin.`
+    }
+
+    return session.actionText
+  }, [canRoll, canSpinDuel, connectionState, enabled, isSessionStale, session])
 
   useEffect(() => {
     if (
@@ -251,7 +319,7 @@ export function SessionProvider({ children }) {
       nextSession.phase === 'finale'
         ? buildFinaleJournalEntry({
             coupleId: couple.id,
-            journalCount: journalEntries.length + (duelJournalEntry ? 1 : 0),
+            journalEntries: duelJournalEntry ? [duelJournalEntry, ...journalEntries] : journalEntries,
             session: nextSession,
             sessionId: session.id,
           })
@@ -293,6 +361,8 @@ export function SessionProvider({ children }) {
       const activityType = pickWeightedActivityId(
         session.vibeWeights || DEFAULT_VIBE_WEIGHTS,
         session.usedActivityIds,
+        Math.random,
+        { preset: session.preset },
       )
       const keepsakeId = KEEPSAKES[Math.floor(Math.random() * KEEPSAKES.length)].id
       const nextSession = applyRollToSession(session, {
@@ -386,6 +456,8 @@ export function SessionProvider({ children }) {
     const duelId = pickWeightedDuelId(
       session.vibeWeights || DEFAULT_VIBE_WEIGHTS,
       session.usedDuelIds,
+      Math.random,
+      { preset: session.preset },
     )
     const nextSession = beginRoundDuel(session, duelId)
     if (!enabled) {
@@ -600,7 +672,7 @@ export function SessionProvider({ children }) {
       if (nextSession.phase === 'finale') {
         const finaleEntry = buildFinaleJournalEntry({
           coupleId: couple.id,
-          journalCount: journalEntries.length + (journalEntry ? 1 : 0),
+          journalEntries: journalEntry ? [journalEntry, ...journalEntries] : journalEntries,
           session: nextSession,
           sessionId: session.id,
         })
@@ -634,35 +706,89 @@ export function SessionProvider({ children }) {
     })
   }
 
+  async function claimSessionHost() {
+    if (!enabled || !db || !session?.id || !localUserId || working) {
+      return
+    }
+
+    setWorking(true)
+    setError('')
+    try {
+      await claimSessionHostDocument(db, session.id, localUserId)
+    } catch (nextError) {
+      setError(nextError.message)
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function startFreshSession() {
+    if (!enabled || !db || !couple?.id || !session?.id || working || !canRecoverSession) {
+      return
+    }
+
+    setWorking(true)
+    setError('')
+    try {
+      await abandonSession(db, {
+        coupleId: couple.id,
+        sessionId: session.id,
+      })
+      await ensureActiveSession(db, {
+        ...couple,
+        activeSessionId: null,
+      })
+    } catch (nextError) {
+      setError(nextError.message)
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  function resumeSession() {
+    setError('')
+    if (enabled) {
+      setConnectionState('live')
+    }
+  }
+
   const finalSummary = useMemo(
     () =>
       session?.phase === 'finale'
-        ? buildFinalSummary(session, journalEntries.length)
+        ? buildFinalSummary(session, journalEntries)
         : null,
-    [journalEntries.length, session],
+    [journalEntries, session],
   )
 
   const value = useMemo(
     () => ({
       activity,
       boardState,
+      canRecoverSession,
       canRoll,
       canSpinDuel,
+      claimSessionHost,
       chooseKeepsake,
+      connectionState,
       error,
       finalSummary,
       hasLiveSession: Boolean(session),
       isHost,
+      isSessionStale,
       journalEntries,
       myDuelResult,
       myVibeVote,
       playerIndex,
       readyToPlay: (!enabled || ready) && hasPartner && Boolean(session),
+      resumeSession,
       rollTurn,
       session,
+      sessionPreset,
+      sessionStatusMessage,
       skipActivity,
       skipDuel,
       spinDuelWheel,
+      startFreshSession,
       submitActivityTurn,
       submitDuelResult,
       submitVibeVote,
@@ -671,19 +797,24 @@ export function SessionProvider({ children }) {
     [
       activity,
       boardState,
+      canRecoverSession,
       canRoll,
       canSpinDuel,
+      connectionState,
       enabled,
       error,
       finalSummary,
       hasPartner,
       isHost,
+      isSessionStale,
       journalEntries,
       myDuelResult,
       myVibeVote,
       playerIndex,
       ready,
       session,
+      sessionPreset,
+      sessionStatusMessage,
       working,
     ],
   )

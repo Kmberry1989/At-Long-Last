@@ -18,6 +18,28 @@ import {
   createDefaultBoardState,
 } from './sessionWiring.js'
 
+function buildSessionWritePayload(nextSession) {
+  const payload = {
+    ...nextSession,
+    lastActionAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }
+
+  if (nextSession.status === 'abandoned') {
+    payload.endedAt = serverTimestamp()
+    return payload
+  }
+
+  if (nextSession.phase === 'finale') {
+    payload.endedAt = serverTimestamp()
+    payload.status = 'completed'
+    return payload
+  }
+
+  payload.status = 'active'
+  return payload
+}
+
 export async function ensureActiveSession(db, couple) {
   if (couple.activeSessionId) {
     return couple.activeSessionId
@@ -39,7 +61,11 @@ export async function ensureActiveSession(db, couple) {
 
     transaction.set(sessionRef, {
       ...buildInitialSession(current),
+      lastActionAt: serverTimestamp(),
+      startedAt: serverTimestamp(),
+      status: 'active',
       createdAt: serverTimestamp(),
+      endedAt: null,
       updatedAt: serverTimestamp(),
     })
     transaction.update(coupleRef, {
@@ -54,11 +80,11 @@ export async function ensureActiveSession(db, couple) {
 export function subscribeToSession(db, sessionId, onNext, onError) {
   return onSnapshot(doc(db, 'sessions', sessionId), (snapshot) => {
     if (!snapshot.exists()) {
-      onNext(null)
+      onNext(null, snapshot.metadata)
       return
     }
 
-    onNext({ id: snapshot.id, ...snapshot.data() })
+    onNext({ id: snapshot.id, ...snapshot.data() }, snapshot.metadata)
   }, onError)
 }
 
@@ -140,8 +166,7 @@ export async function finalizeActivity({
     })
 
     transaction.update(sessionRef, {
-      ...nextSession,
-      updatedAt: serverTimestamp(),
+      ...buildSessionWritePayload(nextSession),
     })
   })
 
@@ -163,8 +188,7 @@ export async function appendJournalEntry(db, payload) {
 
 export async function updateSessionState(db, sessionId, nextSession) {
   await updateDoc(doc(db, 'sessions', sessionId), {
-    ...nextSession,
-    updatedAt: serverTimestamp(),
+    ...buildSessionWritePayload(nextSession),
   })
 }
 
@@ -186,13 +210,14 @@ export async function submitVibeVote(db, sessionId, userId, vote) {
     if (Object.keys(vibeVotes).length >= session.players.length) {
       const vibeWeights = averageVibeVotes(vibeVotes)
       transaction.update(sessionRef, {
-        ...finalizeVibeSetup(session, vibeWeights),
-        updatedAt: serverTimestamp(),
+        ...buildSessionWritePayload(finalizeVibeSetup(session, vibeWeights)),
       })
       return
     }
 
     transaction.update(sessionRef, {
+      lastActionAt: serverTimestamp(),
+      status: 'active',
       vibeVotes,
       updatedAt: serverTimestamp(),
     })
@@ -219,6 +244,40 @@ export async function applyCoupleBoardReward(db, coupleId, vibe, rewardId) {
       boardState,
       updatedAt: serverTimestamp(),
     })
+  })
+}
+
+export async function claimSessionHost(db, sessionId, userId) {
+  await updateDoc(doc(db, 'sessions', sessionId), {
+    hostId: userId,
+    lastActionAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function abandonSession(db, { coupleId, sessionId }) {
+  const coupleRef = doc(db, 'couples', coupleId)
+  const sessionRef = doc(db, 'sessions', sessionId)
+
+  await runTransaction(db, async (transaction) => {
+    const coupleSnapshot = await transaction.get(coupleRef)
+
+    if (coupleSnapshot.exists() && coupleSnapshot.data().activeSessionId === sessionId) {
+      transaction.update(coupleRef, {
+        activeSessionId: null,
+        updatedAt: serverTimestamp(),
+      })
+    }
+
+    const sessionSnapshot = await transaction.get(sessionRef)
+    if (sessionSnapshot.exists()) {
+      transaction.update(sessionRef, {
+        endedAt: serverTimestamp(),
+        lastActionAt: serverTimestamp(),
+        status: 'abandoned',
+        updatedAt: serverTimestamp(),
+      })
+    }
   })
 }
 

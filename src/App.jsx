@@ -1,17 +1,25 @@
+import { Suspense, lazy } from 'react'
 import { AudioProvider } from './audio/AudioProvider.jsx'
 import { AudioToggle } from './components/AudioToggle.jsx'
 import { FirebaseAppProvider } from './features/couple/FirebaseAppContext.jsx'
 import { CoupleProvider } from './features/couple/CoupleProvider.jsx'
 import { SessionProvider } from './features/session/SessionProvider.jsx'
-import { LobbyScreen } from './components/LobbyScreen.jsx'
-import { GameScreen } from './components/GameScreen.jsx'
+
+const LobbyScreen = lazy(() =>
+  import('./components/LobbyScreen.jsx').then((module) => ({ default: module.LobbyScreen })),
+)
+const GameScreen = lazy(() =>
+  import('./components/GameScreen.jsx').then((module) => ({ default: module.GameScreen })),
+)
 
 function AppContent() {
   return (
     <div className="app-shell">
       <AudioToggle />
-      <LobbyScreen />
-      <GameScreen />
+      <Suspense fallback={null}>
+        <LobbyScreen />
+        <GameScreen />
+      </Suspense>
     </div>
   )
 }

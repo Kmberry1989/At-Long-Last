@@ -65,14 +65,14 @@ export function buildDuelJournalEntry({
   }
 }
 
-export function buildFinaleJournalEntry({ coupleId, journalCount, session, sessionId }) {
-  const summary = buildFinalSummary(session, journalCount)
+export function buildFinaleJournalEntry({ coupleId, journalEntries, session, sessionId }) {
+  const summary = buildFinalSummary(session, journalEntries)
   return {
     coupleId,
     payload: summary,
     sessionId,
     summary: summary.vibes,
-    text: `${summary.keepsakeCount} keepsakes, ${summary.journalCount} journal beats, ${summary.hearts} hearts left.`,
+    text: `${summary.presetLabel} night, ${summary.keepsakeCount} keepsakes, ${summary.journalCount} journal beats, ${summary.hearts} hearts left, ${summary.completedGoalCount}/${summary.goalCount} goals hit.`,
     title: 'Night Closed Out',
     type: 'finale',
     vibe: session.vibeWeights?.spicy >= 0.5 ? 'spicy' : session.vibeWeights?.playful >= 0.34 ? 'playful' : 'tender',

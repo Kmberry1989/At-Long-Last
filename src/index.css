@@ -253,7 +253,7 @@ p {
 
 .title-copy {
   max-width: 34ch;
-  color: rgba(255, 244, 234, 0.96);
+  color: #ffffff;
   font-size: 15px;
   line-height: 1.5;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
@@ -692,6 +692,161 @@ p {
   letter-spacing: 0.12em;
 }
 
+.public-lobby-list {
+  display: grid;
+  gap: 10px;
+}
+
+.public-lobby-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  border-radius: 22px;
+  padding: 14px 16px;
+  border: 1px solid rgba(65, 109, 136, 0.16);
+  background: rgba(255, 251, 247, 0.68);
+  color: var(--app-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.public-lobby-card strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 22px;
+}
+
+.public-lobby-card span {
+  color: var(--app-ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.public-lobby-card.active {
+  border-color: rgba(198, 84, 102, 0.42);
+  background: linear-gradient(180deg, rgba(255, 244, 236, 0.96) 0%, rgba(255, 236, 225, 0.9) 100%);
+  box-shadow:
+    0 16px 28px rgba(11, 13, 19, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.public-lobby-empty,
+.lobby-chat-card {
+  display: grid;
+  gap: 10px;
+  border-radius: 22px;
+  padding: 14px 16px;
+  border: 1px solid rgba(65, 109, 136, 0.16);
+  background: rgba(255, 251, 247, 0.68);
+}
+
+.lobby-chat-card h3 {
+  margin: 0;
+  color: var(--app-ink);
+  font-size: 24px;
+}
+
+.lobby-chat-thread {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.lobby-chat-bubble {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  border-radius: 18px;
+  padding: 11px 12px;
+  background: rgba(60, 44, 36, 0.06);
+}
+
+.lobby-chat-bubble strong {
+  color: var(--app-blue-deep);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lobby-chat-bubble p {
+  color: var(--app-ink);
+}
+
+.lobby-chat-bubble.mine {
+  background: rgba(217, 111, 123, 0.12);
+}
+
+.lobby-chat-compose {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.preset-card,
+.session-alert,
+.scrapbook-tonight-card {
+  display: grid;
+  gap: 12px;
+  border-radius: 22px;
+  padding: 16px;
+  border: 1px solid rgba(65, 109, 136, 0.16);
+  background: rgba(255, 251, 247, 0.72);
+}
+
+.preset-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.session-alert {
+  margin-bottom: 12px;
+}
+
+.session-alert p {
+  color: var(--app-ink-soft);
+}
+
+.button-row.compact {
+  gap: 8px;
+}
+
+.journal-filter-row {
+  margin-bottom: 14px;
+}
+
+.scrapbook-tonight-card {
+  margin-bottom: 14px;
+}
+
+.scrapbook-tonight-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.scrapbook-tonight-head span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(78, 67, 68, 0.72);
+}
+
+.scrapbook-tonight-head strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 24px;
+}
+
+.board-loading {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .step-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1028,12 +1183,14 @@ p {
   transform: translateY(100%);
   transition: transform 320ms var(--app-ease);
   background:
-    radial-gradient(circle at 80% 10%, rgba(124, 168, 201, 0.18) 0%, transparent 26%),
-    linear-gradient(180deg, rgba(251, 243, 235, 0.98) 0%, rgba(242, 230, 218, 0.96) 100%);
+    radial-gradient(circle at 85% 8%, rgba(124, 168, 201, 0.2) 0%, transparent 24%),
+    radial-gradient(circle at 12% 22%, rgba(239, 197, 137, 0.22) 0%, transparent 28%),
+    linear-gradient(180deg, rgba(252, 244, 236, 0.99) 0%, rgba(241, 227, 213, 0.97) 100%);
   padding: 18px;
   padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 18px));
   color: var(--app-ink);
   overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .journal-drawer.open {
@@ -1044,12 +1201,74 @@ p {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: center;
-  margin-bottom: 14px;
+  align-items: start;
+  margin-bottom: 16px;
 }
 
 .journal-header h3 {
   font-size: 28px;
+}
+
+.journal-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.scrapbook-overview {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 251, 247, 0.8) 0%, rgba(250, 241, 233, 0.94) 100%);
+  border: 1px solid rgba(35, 28, 29, 0.08);
+  box-shadow:
+    0 18px 38px rgba(36, 26, 20, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.scrapbook-overview-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.scrapbook-overview-copy strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 24px;
+}
+
+.scrapbook-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.scrapbook-overview-stats div,
+.finale-note-row span,
+.finale-tag-row span {
+  border-radius: 18px;
+  border: 1px solid rgba(35, 28, 29, 0.08);
+  background: rgba(255, 253, 250, 0.78);
+}
+
+.scrapbook-overview-stats div {
+  padding: 12px 10px;
+  text-align: center;
+}
+
+.scrapbook-overview-stats strong {
+  display: block;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 26px;
+}
+
+.scrapbook-overview-stats span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(78, 67, 68, 0.72);
 }
 
 .vibe-chip strong {
@@ -1223,7 +1442,7 @@ p {
 .journal-timeline {
   position: relative;
   display: grid;
-  gap: 12px;
+  gap: 14px;
   max-height: calc(100dvh - 136px);
   overflow: auto;
   padding-right: 4px;
@@ -1233,61 +1452,290 @@ p {
   padding: 18px;
 }
 
-.timeline-entry {
+.scrapbook-flow {
+  padding-bottom: 12px;
+}
+
+.scrapbook-empty {
+  background:
+    linear-gradient(180deg, rgba(255, 252, 249, 0.86) 0%, rgba(248, 238, 229, 0.92) 100%);
+}
+
+.scrapbook-entry {
+  position: relative;
   display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 18px;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(35, 28, 29, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 249, 0.88) 0%, rgba(248, 239, 231, 0.98) 100%);
+  box-shadow:
+    0 18px 34px rgba(36, 26, 20, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.66);
 }
 
-.timeline-marker {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  margin-top: 6px;
-  background: var(--app-gold);
-  box-shadow: 0 0 0 6px rgba(239, 197, 137, 0.14);
+.scrapbook-entry::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 7px;
+  background: linear-gradient(180deg, rgba(239, 197, 137, 0.96) 0%, rgba(217, 111, 123, 0.82) 100%);
 }
 
-.timeline-entry.vibe-playful .timeline-marker {
-  background: var(--app-blue);
-  box-shadow: 0 0 0 6px rgba(124, 168, 201, 0.16);
+.scrapbook-entry.entry-duel::before,
+.scrapbook-entry.vibe-playful::before {
+  background: linear-gradient(180deg, rgba(124, 168, 201, 0.96) 0%, rgba(239, 197, 137, 0.88) 100%);
 }
 
-.timeline-entry.vibe-spicy .timeline-marker {
-  background: var(--app-rose);
-  box-shadow: 0 0 0 6px rgba(217, 111, 123, 0.16);
+.scrapbook-entry.entry-finale::before,
+.scrapbook-entry.vibe-spicy::before {
+  background: linear-gradient(180deg, rgba(217, 111, 123, 0.96) 0%, rgba(255, 178, 139, 0.88) 100%);
 }
 
-.timeline-body {
-  display: grid;
-  gap: 8px;
+.scrapbook-entry.angle-1 {
+  transform: rotate(-0.7deg);
 }
 
-.timeline-head {
+.scrapbook-entry.angle-2 {
+  transform: rotate(0.7deg);
+}
+
+.scrapbook-meta,
+.scrapbook-headline,
+.scrapbook-prompt,
+.scrapbook-response-grid,
+.scrapbook-duel-grid,
+.scrapbook-stats-grid,
+.scrapbook-tag-row {
+  position: relative;
+  z-index: 1;
+}
+
+.scrapbook-meta {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
   align-items: center;
 }
 
-.timeline-open-at {
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(78, 67, 68, 0.76);
+.scrapbook-meta > div {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
 }
 
-.timeline-text {
-  margin: 0;
-  white-space: pre-wrap;
-  font-family: 'Instrument Sans', 'Avenir Next', system-ui, sans-serif;
+.scrapbook-sticker,
+.scrapbook-date,
+.scrapbook-vibe,
+.scrapbook-seal {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.scrapbook-sticker {
+  background: rgba(255, 246, 239, 0.94);
+  color: #7a4f41;
+}
+
+.scrapbook-date,
+.scrapbook-vibe,
+.scrapbook-seal {
+  color: rgba(78, 67, 68, 0.82);
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.scrapbook-headline {
+  display: grid;
+  gap: 6px;
+}
+
+.scrapbook-headline strong,
+.scrapbook-finale-hero strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 28px;
+  line-height: 0.98;
+}
+
+.scrapbook-headline p,
+.scrapbook-overview-copy p,
+.scrapbook-response-card p,
+.scrapbook-duel-card p,
+.scrapbook-finale-hero p {
   color: var(--app-ink-soft);
 }
 
-.timeline-image {
-  width: 100%;
-  border-radius: 18px;
+.scrapbook-prompt,
+.scrapbook-response-card,
+.scrapbook-duel-card,
+.scrapbook-duel-banner,
+.scrapbook-finale-hero,
+.scrapbook-stats-grid div,
+.scrapbook-ticket-row div {
+  border-radius: 20px;
   border: 1px solid rgba(35, 28, 29, 0.08);
+  background: rgba(255, 252, 249, 0.76);
+}
+
+.scrapbook-prompt {
+  padding: 14px 15px;
+  display: grid;
+  gap: 6px;
+}
+
+.scrapbook-prompt span,
+.scrapbook-response-card span,
+.scrapbook-duel-card span,
+.scrapbook-duel-banner span,
+.scrapbook-ticket-row span,
+.scrapbook-finale-hero span,
+.scrapbook-stats-grid span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(78, 67, 68, 0.72);
+}
+
+.scrapbook-response-grid,
+.scrapbook-duel-grid,
+.scrapbook-tag-row {
+  display: grid;
+  gap: 10px;
+}
+
+.scrapbook-response-card,
+.scrapbook-duel-card {
+  padding: 14px 15px;
+  display: grid;
+  gap: 6px;
+}
+
+.scrapbook-duel-banner {
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(124, 168, 201, 0.18) 0%, rgba(255, 250, 245, 0.86) 100%);
+}
+
+.scrapbook-duel-banner strong,
+.scrapbook-ticket-row strong,
+.scrapbook-stats-grid strong {
+  font-family: 'Fraunces', Georgia, serif;
+}
+
+.scrapbook-duel-banner strong {
+  font-size: 34px;
+  line-height: 0.9;
+}
+
+.scrapbook-image {
+  width: 100%;
+  border-radius: 22px;
+  border: 1px solid rgba(35, 28, 29, 0.08);
+  background: rgba(255, 252, 249, 0.86);
+}
+
+.scrapbook-duel-card strong {
+  color: rgba(78, 67, 68, 0.92);
+}
+
+.scrapbook-duel-card.winner {
+  background:
+    linear-gradient(180deg, rgba(255, 246, 235, 0.94) 0%, rgba(255, 232, 214, 0.86) 100%);
+}
+
+.scrapbook-duel-card.skipped {
+  opacity: 0.82;
+}
+
+.scrapbook-keepsake-ticket {
+  display: grid;
+  gap: 14px;
+}
+
+.scrapbook-ticket-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scrapbook-ticket-row div {
+  padding: 14px 15px;
+  display: grid;
+  gap: 6px;
+}
+
+.scrapbook-finale-hero {
+  padding: 18px;
+  display: grid;
+  gap: 8px;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(239, 197, 137, 0.34) 0%, transparent 24%),
+    linear-gradient(180deg, rgba(255, 245, 239, 0.98) 0%, rgba(251, 233, 223, 0.96) 100%);
+}
+
+.scrapbook-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scrapbook-stats-grid div {
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.scrapbook-stats-grid strong {
+  display: block;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.scrapbook-tag-row {
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+}
+
+.scrapbook-tag-row span {
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px dashed rgba(35, 28, 29, 0.14);
+  background: rgba(255, 251, 247, 0.82);
+  text-align: center;
+  color: rgba(78, 67, 68, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.finale-note-row,
+.finale-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.finale-note-row span,
+.finale-tag-row span {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--app-ink-soft);
+}
+
+.finale-vibes {
+  margin-top: 2px;
 }
 
 .doodle-meta {
@@ -1506,6 +1954,31 @@ p {
 
   .summary-grid strong {
     font-size: 24px;
+  }
+
+  .journal-drawer {
+    padding: 16px 14px;
+    padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 16px));
+  }
+
+  .journal-header h3,
+  .scrapbook-headline strong,
+  .scrapbook-finale-hero strong {
+    font-size: 24px;
+  }
+
+  .scrapbook-overview,
+  .scrapbook-entry {
+    padding: 16px;
+  }
+
+  .scrapbook-ticket-row,
+  .scrapbook-tag-row {
+    grid-template-columns: 1fr;
+  }
+
+  .scrapbook-overview-stats {
+    gap: 8px;
   }
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildActivityJournalEntry,
   buildDuelJournalEntry,
+  buildFinaleJournalEntry,
 } from './journalHelpers.js'
 
 describe('journalHelpers', () => {
@@ -66,5 +67,42 @@ describe('journalHelpers', () => {
 
     expect(entry?.payload.imageDataUrl).toContain('data:image/png')
     expect(entry?.vibe).toBe('playful')
+  })
+
+  it('passes richer finale payload data through to the scrapbook entry', () => {
+    const entry = buildFinaleJournalEntry({
+      coupleId: 'couple-1',
+      journalEntries: [
+        { id: 'a', type: 'prompt', vibe: 'tender' },
+        { id: 'b', type: 'ritual', vibe: 'playful' },
+        { id: 'c', type: 'journal', vibe: 'spicy' },
+        { id: 'd', type: 'duel', vibe: 'playful' },
+        { id: 'e', type: 'keepsake', vibe: 'tender' },
+        { id: 'f', type: 'prompt', vibe: 'tender' },
+      ],
+      session: {
+        hearts: 11,
+        keepsakes: [{ label: 'Pocket Love Note' }, { label: 'Sparkler Photo' }],
+        lastDuelOutcome: {
+          winnerIndex: 1,
+        },
+        players: [
+          { uid: 'u1', displayName: 'Kyle' },
+          { uid: 'u2', displayName: 'Elaine' },
+        ],
+        vibeWeights: {
+          tender: 0.6,
+          playful: 0.2,
+          spicy: 0.2,
+        },
+      },
+      sessionId: 'session-1',
+    })
+
+    expect(entry?.payload.headline).toBeTruthy()
+    expect(entry?.payload.keepsakeLabels).toEqual(['Pocket Love Note', 'Sparkler Photo'])
+    expect(entry?.payload.duelOutcomeLabel).toContain('Elaine')
+    expect(entry?.payload.presetLabel).toBe('Standard')
+    expect(entry?.payload.goalBadges).toContain('10+ hearts')
   })
 })

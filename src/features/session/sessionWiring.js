@@ -1,4 +1,5 @@
 import { activityDefinitions, duelDefinitions } from './contentPackData.js'
+import { getSessionPreset } from './sessionPresets.js'
 
 export const DEFAULT_VIBE_WEIGHTS = {
   playful: 0.3,
@@ -45,9 +46,27 @@ export function getAllowedIntensities(weights = DEFAULT_VIBE_WEIGHTS) {
   return normalizeVibeWeights(weights).spicy >= 0.5 ? [1, 2, 3] : [1, 2]
 }
 
-function scoreEntry(entry, weights, random = Math.random) {
+function scoreEntry(entry, weights, usedIds, entries, presetId, random = Math.random) {
   const weight = weights[entry.vibe] ?? 0.1
-  return weight * (0.84 + random() * 0.32)
+  const preset = getSessionPreset(presetId)
+  const usedEntries = entries.filter((candidate) => usedIds.includes(candidate.id))
+  const vibeCounts = usedEntries.reduce(
+    (counts, candidate) => ({
+      ...counts,
+      [candidate.vibe]: (counts[candidate.vibe] || 0) + 1,
+    }),
+    { tender: 0, playful: 0, spicy: 0 },
+  )
+  const minUsed = Math.min(vibeCounts.tender, vibeCounts.playful, vibeCounts.spicy)
+  const vibePenalty = vibeCounts[entry.vibe] - minUsed
+  const varietyBias = preset.id === 'quick' ? 0.3 : preset.id === 'long' ? 0.18 : 0.24
+  const intensityBias = preset.id === 'quick'
+    ? Math.max(0.82, 1 - entry.intensity * 0.05)
+    : preset.id === 'long'
+      ? 1 + entry.intensity * 0.04
+      : 1
+
+  return weight * intensityBias * (1 - vibePenalty * varietyBias * 0.1) * (0.84 + random() * 0.32)
 }
 
 export function pickWeightedEntry(
@@ -55,6 +74,7 @@ export function pickWeightedEntry(
   weights,
   usedIds = [],
   random = Math.random,
+  options = {},
 ) {
   const normalized = normalizeVibeWeights(weights)
   const allowedIntensities = getAllowedIntensities(normalized)
@@ -69,7 +89,7 @@ export function pickWeightedEntry(
   const scored = pool
     .map((entry) => ({
       entry,
-      score: scoreEntry(entry, normalized, random),
+      score: scoreEntry(entry, normalized, usedIds, entries, options.preset, random),
     }))
     .sort((left, right) => right.score - left.score)
 
@@ -79,12 +99,12 @@ export function pickWeightedEntry(
   return topPool[Math.floor(random() * topPool.length)]?.entry ?? pool[0]
 }
 
-export function pickWeightedActivityId(weights, usedIds = [], random = Math.random) {
-  return pickWeightedEntry(activityDefinitions, weights, usedIds, random).id
+export function pickWeightedActivityId(weights, usedIds = [], random = Math.random, options = {}) {
+  return pickWeightedEntry(activityDefinitions, weights, usedIds, random, options).id
 }
 
-export function pickWeightedDuelId(weights, usedIds = [], random = Math.random) {
-  return pickWeightedEntry(duelDefinitions, weights, usedIds, random).id
+export function pickWeightedDuelId(weights, usedIds = [], random = Math.random, options = {}) {
+  return pickWeightedEntry(duelDefinitions, weights, usedIds, random, options).id
 }
 
 export function createDefaultBoardState() {

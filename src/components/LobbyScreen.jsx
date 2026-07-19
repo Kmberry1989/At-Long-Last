@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
+import { SESSION_PRESET_OPTIONS } from '../features/session/sessionPresets.js'
 
 function GoogleMark() {
   return (
@@ -10,14 +11,6 @@ function GoogleMark() {
       <path d="M12 22c2.75 0 5.06-.91 6.75-2.47l-3.3-2.56c-.91.61-2.07.98-3.45.98-2.65 0-4.9-1.79-5.7-4.2H2.9v2.64A10 10 0 0 0 12 22Z" fill="#34A853" />
       <path d="M6.3 13.75A5.99 5.99 0 0 1 6 12c0-.61.1-1.2.3-1.75V7.61H2.9A10 10 0 0 0 2 12c0 1.61.39 3.12 1.08 4.39l3.22-2.64Z" fill="#FBBC04" />
       <path d="M12 6.05c1.5 0 2.84.51 3.9 1.52l2.92-2.92C17.05 2.98 14.75 2 12 2A10 10 0 0 0 3.08 7.61l3.22 2.64c.8-2.41 3.05-4.2 5.7-4.2Z" fill="#EA4335" />
-    </svg>
-  )
-}
-
-function AppleMark() {
-  return (
-    <svg aria-hidden="true" className="provider-icon" viewBox="0 0 24 24">
-      <path d="M15.18 2.21c.08 1-.28 1.97-.8 2.67-.64.85-1.7 1.5-2.72 1.42-.13-.98.3-1.99.83-2.63.6-.74 1.66-1.39 2.69-1.46ZM18.45 17.13c-.53 1.2-.78 1.73-1.46 2.82-.95 1.52-2.28 3.41-3.94 3.43-1.47.02-1.85-.94-3.85-.93-2 .01-2.42.95-3.89.93-1.66-.02-2.92-1.72-3.87-3.24-2.67-4.28-2.95-9.31-1.31-11.84 1.17-1.82 3-2.88 4.71-2.88 1.74 0 2.84.96 4.28.96 1.4 0 2.26-.96 4.27-.96 1.53 0 3.15.83 4.32 2.27-3.79 2.08-3.18 7.51.74 9.44Z" fill="currentColor" />
     </svg>
   )
 }
@@ -55,27 +48,34 @@ async function copyText(value) {
 
 export function LobbyScreen() {
   const {
+    activePublicLobbyId,
     couple,
     createCouple,
     error,
     hasPartner,
     joinCouple,
+    joinPublicLobby,
     leaveCouple,
     launchPreview,
     loading,
+    postLobbyMessage,
     profile,
+    publicLobbyMessages,
+    publicLobbies,
+    sessionPreset,
+    selectedPublicLobbyId,
+    selectPublicLobby,
     switchCouple,
+    switchPublicLobby,
+    updateSessionPreset,
   } = useCouple()
   const {
-    availableProviders,
     authError,
     authWorking,
     createAccount,
     enabled,
-    isAnonymous,
     isSignedIn,
     ready,
-    signInAsGuest,
     signInWithEmail,
     signInWithProvider,
     signOutUser,
@@ -88,9 +88,9 @@ export function LobbyScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [entryMode, setEntryMode] = useState('start')
-  const [authMode, setAuthMode] = useState('create')
+  const [authMode, setAuthMode] = useState('signin')
+  const [lobbyChatDraft, setLobbyChatDraft] = useState('')
   const [notice, setNotice] = useState('')
-  const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [editingProfile, setEditingProfile] = useState(false)
 
   useEffect(() => {
@@ -124,20 +124,27 @@ export function LobbyScreen() {
     }
   }, [email, user?.email])
 
+  useEffect(() => {
+    setLobbyChatDraft('')
+  }, [activePublicLobbyId])
+
   const working = loading || authWorking
   const authNotice = authError || error || notice
   const profileName =
     profile?.displayName?.trim() ||
     user?.displayName?.trim() ||
     displayName.trim()
-  const canGuest = Boolean(displayName.trim())
   const canCreateAccount = Boolean(
     displayName.trim() && email.trim() && password.trim().length >= 6,
   )
   const canSignIn = Boolean(email.trim() && password.trim())
   const canJoinByCode = Boolean(profileName && inviteCode.trim().length >= 4)
+  const selectedPublicLobby = publicLobbies.find((entry) => entry.id === selectedPublicLobbyId) || null
   const isActive = !hasPartner
   const waitingForPartner = Boolean(couple && !hasPartner)
+  const alternatePublicLobbies = waitingForPartner
+    ? publicLobbies.filter((entry) => entry.id !== couple?.id)
+    : publicLobbies
 
   async function handleShareInvite() {
     if (!couple?.shareLink) {
@@ -186,10 +193,10 @@ export function LobbyScreen() {
     setNotice('')
   }
 
-  async function handleCreate() {
+  async function handleCreate(preset = sessionPreset) {
     playAction?.()
     setNotice('')
-    await createCouple(profileName)
+    await createCouple(profileName, preset)
   }
 
   async function handleJoin() {
@@ -215,6 +222,16 @@ export function LobbyScreen() {
     launchPreview(displayName)
   }
 
+  async function handlePresetChange(nextPreset) {
+    if (!updateSessionPreset) {
+      return
+    }
+
+    playAction?.()
+    setNotice('')
+    await updateSessionPreset(nextPreset)
+  }
+
   async function handleCreateAccount() {
     playAction?.()
     setNotice('')
@@ -224,7 +241,6 @@ export function LobbyScreen() {
       password,
     })
     if (success) {
-      setUpgradeOpen(false)
       playSuccess?.()
     }
   }
@@ -237,16 +253,6 @@ export function LobbyScreen() {
       password,
     })
     if (success) {
-      playSuccess?.()
-    }
-  }
-
-  async function handleGuestEntry() {
-    playAction?.()
-    setNotice('')
-    const success = await signInAsGuest(displayName)
-    if (success) {
-      setNotice('Guest profile ready. You can save it to email later.')
       playSuccess?.()
     }
   }
@@ -283,19 +289,43 @@ export function LobbyScreen() {
       return
     }
 
-    if (isAnonymous) {
-      setUpgradeOpen(false)
-      setNotice(
-        providerId === 'apple'
-          ? 'Guest profile saved with Apple.'
-          : 'Guest profile saved with Google.',
-      )
-    }
-
     playSuccess?.()
   }
 
-  function renderProviderButtons(verb = 'Continue') {
+  async function handleJoinPublicLobby() {
+    if (!selectedPublicLobbyId) {
+      return
+    }
+
+    playAction?.()
+    setNotice('')
+    await joinPublicLobby(selectedPublicLobbyId)
+  }
+
+  async function handleSendLobbyMessage() {
+    const nextMessage = lobbyChatDraft.trim()
+    if (!nextMessage) {
+      return
+    }
+
+    playAction?.()
+    setNotice('')
+    await postLobbyMessage(nextMessage)
+    setLobbyChatDraft('')
+    playSuccess?.()
+  }
+
+  async function handleSwitchPublicLobby() {
+    if (!selectedPublicLobbyId) {
+      return
+    }
+
+    playAction?.()
+    setNotice('')
+    await switchPublicLobby(selectedPublicLobbyId)
+  }
+
+  function renderGoogleButton(label = 'Continue with Google') {
     return (
       <div className="provider-stack">
         <button
@@ -305,19 +335,8 @@ export function LobbyScreen() {
           type="button"
         >
           <GoogleMark />
-          <span>{verb} with Google</span>
+          <span>{label}</span>
         </button>
-        {availableProviders?.apple ? (
-          <button
-            className="ghost-btn provider-btn provider-btn-apple"
-            disabled={working}
-            onClick={() => handleProviderAuth('apple')}
-            type="button"
-          >
-            <AppleMark />
-            <span>{verb} with Apple</span>
-          </button>
-        ) : null}
       </div>
     )
   }
@@ -325,6 +344,14 @@ export function LobbyScreen() {
   function renderAuthCard() {
     return (
       <>
+        <p className="eyebrow">Welcome</p>
+        <h2>Sign in fast, or use email below.</h2>
+        <p className="support-copy">
+          Use Google to get back in quickly, or switch to email to sign in or make
+          a new profile.
+        </p>
+        {renderGoogleButton('Continue with Google')}
+        <div className="divider-label">or use email</div>
         <div className="mode-toggle" role="tablist" aria-label="Auth mode">
           <button
             className={`mode-pill${authMode === 'create' ? ' active' : ''}`}
@@ -344,11 +371,10 @@ export function LobbyScreen() {
 
         {authMode === 'create' ? (
           <>
-            <p className="eyebrow">Keep Your Place</p>
-            <h2>Make this a profile, not a one-off room.</h2>
+            <p className="eyebrow">Create Account</p>
+            <h2>Make a profile you can come back to.</h2>
             <p className="support-copy">
-              Create a saved profile so your couple, scrapbook, and keepsakes stay
-              yours when you come back later.
+              Save your couple link, scrapbook, and keepsakes to this login.
             </p>
             <input
               className="text-input"
@@ -380,19 +406,6 @@ export function LobbyScreen() {
                 type="button"
               >
                 Create My Profile
-              </button>
-            </div>
-            <div className="divider-label">or use a provider</div>
-            {renderProviderButtons('Continue')}
-            <div className="divider-label">or keep it light first</div>
-            <div className="button-row">
-              <button
-                className="ghost-btn"
-                disabled={!canGuest || working}
-                onClick={handleGuestEntry}
-                type="button"
-              >
-                Continue As Guest
               </button>
             </div>
           </>
@@ -430,10 +443,151 @@ export function LobbyScreen() {
                 Sign In
               </button>
             </div>
-            <div className="divider-label">or use a saved provider</div>
-            {renderProviderButtons('Continue')}
           </>
         )}
+      </>
+    )
+  }
+
+  function renderPresetPicker({
+    disabled = false,
+    heading = 'Choose tonight’s length.',
+    support = 'This sets how many rounds the shared board will run before the finale.',
+  } = {}) {
+    return (
+      <div className="preset-card">
+        <p className="eyebrow">Session Preset</p>
+        <h3>{heading}</h3>
+        <p className="support-copy">{support}</p>
+        <div className="preset-grid">
+          {SESSION_PRESET_OPTIONS.map((preset) => (
+            <button
+              className={`public-lobby-card${sessionPreset === preset.id ? ' active' : ''}`}
+              disabled={disabled}
+              key={preset.id}
+              onClick={() => handlePresetChange(preset.id)}
+              type="button"
+            >
+              <strong>{preset.label}</strong>
+              <span>{preset.totalRounds} rounds</span>
+              <span>{preset.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  function renderLobbyChat({
+    cta,
+    emptyCopy,
+    headline,
+    kicker,
+  }) {
+    return (
+      <div className="lobby-chat-card">
+        <p className="eyebrow">{kicker}</p>
+        <h3>{headline}</h3>
+        <div className="lobby-chat-thread">
+          {publicLobbyMessages.length ? (
+            publicLobbyMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`lobby-chat-bubble${message.authorId === user?.uid ? ' mine' : ''}`}
+              >
+                <strong>{message.authorName}</strong>
+                <p>{message.text}</p>
+              </div>
+            ))
+          ) : (
+            <p className="support-copy">{emptyCopy}</p>
+          )}
+        </div>
+        <div className="lobby-chat-compose">
+          <input
+            className="text-input"
+            onChange={(event) => setLobbyChatDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                handleSendLobbyMessage()
+              }
+            }}
+            placeholder="Send a quick hello"
+            value={lobbyChatDraft}
+          />
+          <button
+            className="primary-btn alt"
+            disabled={!lobbyChatDraft.trim() || working}
+            onClick={handleSendLobbyMessage}
+            type="button"
+          >
+            Send
+          </button>
+        </div>
+        {cta || null}
+      </div>
+    )
+  }
+
+  function renderPublicLobbyBrowser() {
+    return (
+      <>
+        <div className="entry-copy">
+          <h3>Optional public room browser.</h3>
+          <p className="support-copy">
+            If you do not have a code yet, you can still browse the open rooms here.
+            Invite codes remain the primary way to reconnect.
+          </p>
+        </div>
+
+        <div className="public-lobby-list">
+          {alternatePublicLobbies.length ? (
+            alternatePublicLobbies.map((lobby) => (
+              <button
+                key={lobby.id}
+                className={`public-lobby-card${lobby.id === selectedPublicLobbyId ? ' active' : ''}`}
+                onClick={() => {
+                  playAction?.()
+                  selectPublicLobby(lobby.id)
+                }}
+                type="button"
+              >
+                <strong>{lobby.hostName}&apos;s room</strong>
+                <span>Invite {lobby.inviteCode}</span>
+                <span>1 spot open</span>
+              </button>
+            ))
+          ) : (
+            <div className="public-lobby-empty">
+              <p className="support-copy">
+                {waitingForPartner
+                  ? 'No other public rooms are open right now.'
+                  : 'No public rooms are open yet. Start one on the other phone or use an invite code below.'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {selectedPublicLobby && renderLobbyChat({
+          cta: (
+            <div className="button-row">
+              <button
+                className="primary-btn"
+                disabled={working}
+                onClick={waitingForPartner ? handleSwitchPublicLobby : handleJoinPublicLobby}
+                type="button"
+              >
+                {waitingForPartner
+                  ? `Switch To ${selectedPublicLobby.hostName}'s Room`
+                  : `Join ${selectedPublicLobby.hostName}'s Room`}
+              </button>
+            </div>
+          ),
+          emptyCopy: 'No one has chatted here yet.',
+          headline: `${selectedPublicLobby.hostName}&apos;s public lobby`,
+          kicker: 'Lobby Chat',
+        })}
       </>
     )
   }
@@ -442,13 +596,9 @@ export function LobbyScreen() {
     return (
       <div className="account-strip">
         <div className="account-copy">
-          <p className="eyebrow">{isAnonymous ? 'Guest Profile' : 'Saved Profile'}</p>
+          <p className="eyebrow">Profile</p>
           <strong>{profileName || 'Player'}</strong>
-          <p>
-            {isAnonymous
-              ? 'This guest stays on this browser unless you save it with email.'
-              : user?.email || 'Signed in and ready for return nights.'}
-          </p>
+          <p>{user?.email || 'Signed in and ready for return nights.'}</p>
         </div>
         <div className="account-actions">
           <button
@@ -458,94 +608,15 @@ export function LobbyScreen() {
           >
             {editingProfile ? 'Done' : 'Edit Name'}
           </button>
-          {!isAnonymous && (
-            <button
-              className="ghost-btn"
-              disabled={working}
-              onClick={handleSignOut}
-              type="button"
-            >
-              Sign Out
-            </button>
-          )}
+          <button
+            className="ghost-btn"
+            disabled={working}
+            onClick={handleSignOut}
+            type="button"
+          >
+            Sign Out
+          </button>
         </div>
-      </div>
-    )
-  }
-
-  function renderGuestUpgrade() {
-    if (!isAnonymous) {
-      return null
-    }
-
-    return (
-      <div className="glass-card hero-card upgrade-card">
-        <p className="eyebrow">Save This Guest</p>
-        <h2>Keep this couple beyond one browser.</h2>
-        <p className="support-copy">
-          Upgrade this guest to an email profile and keep the same player ID, room
-          link, and progress.
-        </p>
-        {!upgradeOpen ? (
-          <>
-            <div className="button-row">
-              <button
-                className="primary-btn"
-                onClick={() => setUpgradeOpen(true)}
-                type="button"
-              >
-                Save With Email
-              </button>
-            </div>
-            <div className="divider-label">or keep this guest with a provider</div>
-            {renderProviderButtons('Save')}
-          </>
-        ) : (
-          <>
-            <input
-              autoComplete="nickname"
-              className="text-input"
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Display name"
-              value={displayName}
-            />
-            <input
-              autoComplete="email"
-              className="text-input"
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Email"
-              type="email"
-              value={email}
-            />
-            <input
-              autoComplete="new-password"
-              className="text-input"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password (6+ characters)"
-              type="password"
-              value={password}
-            />
-            <div className="button-row">
-              <button
-                className="primary-btn"
-                disabled={!canCreateAccount || working}
-                onClick={handleCreateAccount}
-                type="button"
-              >
-                Save My Profile
-              </button>
-              <button
-                className="ghost-btn"
-                onClick={() => setUpgradeOpen(false)}
-                type="button"
-              >
-                Not Yet
-              </button>
-            </div>
-            <div className="divider-label">or save this guest another way</div>
-            {renderProviderButtons('Save')}
-          </>
-        )}
       </div>
     )
   }
@@ -558,7 +629,7 @@ export function LobbyScreen() {
       <div className="lobby-content">
         <div className="title-band">
           <p className="brand-script">At Long Last</p>
-          <p className="title-kicker">A five-round board game for two phones.</p>
+          <p className="title-kicker">A private board game night for two phones.</p>
           <h1>Two phones. One little world.</h1>
           <p className="title-copy">
             Walk away together with a scrapbook instead of a scoreboard.
@@ -577,10 +648,10 @@ export function LobbyScreen() {
           ) : !enabled ? (
             <>
               <p className="eyebrow">Local Preview</p>
-              <h2>Firebase keys are still missing.</h2>
+              <h2>Live pairing is offline in this build.</h2>
               <p className="support-copy">
-                Add your `VITE_FIREBASE_*` vars and `VITE_APP_ID` for live pairing.
-                Until then, you can still open a local preview board.
+                Add your `VITE_FIREBASE_*` vars and `VITE_APP_ID` to test real pairing.
+                This preview stays on one phone and does not save or sync anything.
               </p>
               <input
                 className="text-input"
@@ -625,11 +696,16 @@ export function LobbyScreen() {
               )}
 
               <p className="eyebrow">Waiting Room</p>
-              <h2>{couple.players[0]?.displayName}&apos;s room is open.</h2>
+              <h2>{couple.players[0]?.displayName}&apos;s private room is ready.</h2>
               <p className="support-copy">
-                Send the invite, then both phones will fall straight into the board
-                as soon as your partner arrives.
+                Share the invite code directly. The public listing and chat can stay
+                in the background unless you need them.
               </p>
+
+              {renderPresetPicker({
+                disabled: working,
+                heading: 'Lock in the night length before they join.',
+              })}
 
               <div className="invite-display">
                 <span className="invite-label">Invite code</span>
@@ -647,15 +723,53 @@ export function LobbyScreen() {
               </div>
 
               <div className="step-strip">
-                <span>1. Start</span>
-                <span>2. Send</span>
-                <span>3. Arrive</span>
+                <span>1. Share</span>
+                <span>2. Join</span>
+                <span>3. Play</span>
               </div>
 
-              <p className="support-copy room-help">
-                If both of you created rooms by accident, paste their code below and
-                jump over instead.
-              </p>
+              {renderLobbyChat({
+                emptyCopy: 'Your lobby is live. Messages will show up here.',
+                headline: activePublicLobbyId === couple.id
+                  ? 'Optional room chat before the board starts.'
+                  : `${selectedPublicLobby?.hostName || 'Another player'}'s public lobby`,
+                kicker: activePublicLobbyId === couple.id ? 'Optional Public Listing' : 'Open Room',
+              })}
+
+              <div className="entry-copy room-help">
+                <h3>Switch into another room instead.</h3>
+                <p className="support-copy">
+                  If both of you opened rooms by accident, pick the other room here,
+                  chat first if you want, then switch directly.
+                </p>
+              </div>
+
+              <div className="public-lobby-list">
+                {alternatePublicLobbies.length ? (
+                  alternatePublicLobbies.map((lobby) => (
+                    <button
+                      key={lobby.id}
+                      className={`public-lobby-card${lobby.id === selectedPublicLobbyId ? ' active' : ''}`}
+                      onClick={() => {
+                        playAction?.()
+                        selectPublicLobby(lobby.id)
+                      }}
+                      type="button"
+                    >
+                      <strong>{lobby.hostName}&apos;s room</strong>
+                      <span>Invite {lobby.inviteCode}</span>
+                      <span>Ready to switch</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="public-lobby-empty">
+                    <p className="support-copy">
+                      No other open rooms are visible right now. You can still use a
+                      direct code below.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="join-row">
                 <input
@@ -678,11 +792,9 @@ export function LobbyScreen() {
                 <button className="ghost-btn" disabled={working} onClick={handleLeave} type="button">
                   Leave This Room
                 </button>
-                {!isAnonymous && (
-                  <button className="ghost-btn" disabled={working} onClick={handleSignOut} type="button">
-                    Sign Out
-                  </button>
-                )}
+                <button className="ghost-btn" disabled={working} onClick={handleSignOut} type="button">
+                  Sign Out
+                </button>
               </div>
             </>
           ) : (
@@ -722,36 +834,41 @@ export function LobbyScreen() {
                   onClick={() => handleModeChange('join')}
                   type="button"
                 >
-                  Use A Code
+                  Join By Code
                 </button>
               </div>
 
               {entryMode === 'start' ? (
                 <>
                   <div className="entry-copy">
-                    <h2>Start the room on one phone.</h2>
+                    <h2>Start a private room on this phone.</h2>
                     <p className="support-copy">
-                      You&apos;ll get a short invite code and a share link. Once your
-                      partner joins, the board opens on both phones.
+                      You&apos;ll get a short code and share link. A public listing can
+                      still exist quietly in the background, but the main flow is
+                      direct invite pairing.
                     </p>
                   </div>
+                  {renderPresetPicker({
+                    disabled: working,
+                  })}
                   <div className="button-row">
                     <button
                       className="primary-btn"
                       disabled={!profileName || working}
-                      onClick={handleCreate}
+                      onClick={() => handleCreate(sessionPreset)}
                       type="button"
                     >
-                      Start Our Night
+                      Open Private Room
                     </button>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="entry-copy">
-                    <h2>Join the room from their invite.</h2>
+                    <h2>Join with a code first.</h2>
                     <p className="support-copy">
-                      Paste the short code from their phone or open the share link.
+                      Paste the invite code or open a share link. Use the public browser
+                      only if you do not have the code yet.
                     </p>
                   </div>
                   <div className="join-row">
@@ -770,11 +887,7 @@ export function LobbyScreen() {
                       Join
                     </button>
                   </div>
-                  <div className="step-strip">
-                    <span>Profile</span>
-                    <span>Code</span>
-                    <span>Board</span>
-                  </div>
+                  {renderPublicLobbyBrowser()}
                 </>
               )}
             </>
@@ -786,8 +899,6 @@ export function LobbyScreen() {
             </p>
           )}
         </div>
-
-        {enabled && isSignedIn && renderGuestUpgrade()}
       </div>
     </section>
   )

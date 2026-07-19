@@ -1,13 +1,18 @@
-import { startTransition, useState } from 'react'
+import { Suspense, lazy, startTransition, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
-import { BoardScene } from '../board/BoardScene.jsx'
 import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import { useSession } from '../features/session/SessionProvider.jsx'
-import { JournalDrawer } from './JournalDrawer.jsx'
 import { useSynth } from './useSynth.js'
+
+const BoardScene = lazy(() =>
+  import('../board/BoardScene.jsx').then((module) => ({ default: module.BoardScene })),
+)
+const JournalDrawer = lazy(() =>
+  import('./JournalDrawer.jsx').then((module) => ({ default: module.JournalDrawer })),
+)
 
 export function GameScreen() {
   const { couple, hasPartner } = useCouple()
@@ -15,21 +20,30 @@ export function GameScreen() {
   const {
     activity,
     boardState,
+    canRecoverSession,
     canRoll,
     canSpinDuel,
+    claimSessionHost,
     chooseKeepsake,
+    connectionState,
     error,
     finalSummary,
+    isHost,
+    isSessionStale,
     journalEntries,
     myDuelResult,
     myVibeVote,
     playerIndex,
     readyToPlay,
+    resumeSession,
     rollTurn,
     session,
+    sessionPreset,
+    sessionStatusMessage,
     skipActivity,
     skipDuel,
     spinDuelWheel,
+    startFreshSession,
     submitActivityTurn,
     submitDuelResult,
     submitVibeVote,
@@ -52,19 +66,24 @@ export function GameScreen() {
   return (
     <section className="screen active game-screen">
       <div className="board-wrap">
-        <BoardScene
-          activePlayerIndex={session.activePlayerIndex}
-          boardState={boardState}
-          players={session.players}
-          positions={session.positions}
-          round={session.round}
-        />
+        <Suspense fallback={<div className="board-loading">Loading board…</div>}>
+          <BoardScene
+            activePlayerIndex={session.activePlayerIndex}
+            boardState={boardState}
+            players={session.players}
+            positions={session.positions}
+            round={session.round}
+          />
+        </Suspense>
         <div className="hud top">
           <div className="chip heart">
             Hearts <strong>{session.hearts}</strong>
           </div>
           <div className="chip">
             Round <strong>{session.round}</strong> / {session.totalRounds}
+          </div>
+          <div className="chip">
+            {sessionPreset.label}
           </div>
           {session.vibeWeights && (
             <div className="chip vibe-chip">
@@ -79,7 +98,7 @@ export function GameScreen() {
             }}
             type="button"
           >
-            Journal {journalEntries.length}
+            Scrapbook {journalEntries.length}
           </button>
         </div>
         <div className="hud players">
@@ -95,7 +114,27 @@ export function GameScreen() {
           ))}
         </div>
         <div className="bottom-tray">
-          <p className="status-line">{session.actionText}</p>
+          <p className="status-line">{sessionStatusMessage}</p>
+          {(connectionState === 'syncing' || isSessionStale || error) && (
+            <div className="session-alert">
+              <p>{error || sessionStatusMessage}</p>
+              <div className="button-row compact">
+                <button className="primary-btn alt" onClick={resumeSession} type="button">
+                  Resume
+                </button>
+                {canRecoverSession && (
+                  <button className="primary-btn alt" onClick={startFreshSession} type="button">
+                    Start Fresh
+                  </button>
+                )}
+                {!isHost && isSessionStale && (
+                  <button className="primary-btn alt" onClick={claimSessionHost} type="button">
+                    Claim Host
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           <div className="button-row">
             <button
               className="primary-btn pulse"
@@ -106,7 +145,7 @@ export function GameScreen() {
               }}
               type="button"
             >
-              {canRoll ? 'Roll Dice' : `${activePlayer.displayName} is up`}
+              {canRoll ? 'Roll Dice' : `Waiting on ${activePlayer.displayName}`}
             </button>
             {session.phase === 'duelWheel' && (
               <button
@@ -172,7 +211,7 @@ export function GameScreen() {
       {session.phase === 'vibeSetup' && (
         <div className="overlay-screen">
           <VibeDial
-            defaultWeights={session.vibeWeights || session.vibeVotes?.[userId] || undefined}
+            defaultWeights={myVibeVote || session.vibeWeights || undefined}
             disabled={working || Boolean(myVibeVote)}
             onConfirm={(vote) => {
               playAction?.()
@@ -261,8 +300,12 @@ export function GameScreen() {
         <div className="overlay-screen">
           <div className="overlay-card finale-card">
             <p className="eyebrow">Finale</p>
-            <h3>Night Closed Out</h3>
-            <p className="support-copy">{finalSummary.vibes}</p>
+            <h3>{finalSummary.headline}</h3>
+            <p className="support-copy">{finalSummary.coda}</p>
+            <div className="finale-note-row">
+              <span>{finalSummary.tierLabel}</span>
+              <span>{finalSummary.duelOutcomeLabel}</span>
+            </div>
             <div className="summary-grid">
               <div>
                 <strong>{session.hearts}</strong>
@@ -277,6 +320,14 @@ export function GameScreen() {
                 <span>Journal Beats</span>
               </div>
             </div>
+            {finalSummary.keepsakeLabels.length > 0 && (
+              <div className="finale-tag-row">
+                {finalSummary.keepsakeLabels.map((label) => (
+                  <span key={label}>{label}</span>
+                ))}
+              </div>
+            )}
+            <p className="support-copy finale-vibes">{finalSummary.vibes}</p>
             <button
               className="primary-btn"
               onClick={() => {
@@ -285,17 +336,19 @@ export function GameScreen() {
               }}
               type="button"
             >
-              Open Journal
+              Open Scrapbook
             </button>
           </div>
         </div>
       )}
 
-      <JournalDrawer
-        entries={journalEntries}
-        onClose={() => startTransition(() => setJournalOpen(false))}
-        open={journalOpen}
-      />
+      <Suspense fallback={null}>
+        <JournalDrawer
+          entries={journalEntries}
+          onClose={() => startTransition(() => setJournalOpen(false))}
+          open={journalOpen}
+        />
+      </Suspense>
     </section>
   )
 }

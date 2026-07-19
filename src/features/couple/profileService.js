@@ -7,15 +7,14 @@ import {
 export function buildProfilePatch({
   displayName,
   email,
-  isAnonymous,
 }) {
-  const trimmedName = displayName?.trim() || (isAnonymous ? 'Guest' : 'Player')
+  const trimmedName = displayName?.trim() || 'Player'
 
   return {
     createdAt: serverTimestamp(),
     displayName: trimmedName,
     email: email || null,
-    isAnonymous: Boolean(isAnonymous),
+    isAnonymous: false,
     lastSeenAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }
@@ -34,7 +33,6 @@ export async function ensureProfileDocument({
     buildProfilePatch({
       displayName: user.displayName,
       email: user.email,
-      isAnonymous: user.isAnonymous,
     }),
     { merge: true },
   )

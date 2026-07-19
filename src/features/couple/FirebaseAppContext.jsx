@@ -7,15 +7,12 @@ import {
 } from 'react'
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
-  EmailAuthProvider,
+  browserLocalPersistence,
   GoogleAuthProvider,
-  OAuthProvider,
   createUserWithEmailAndPassword,
   getAuth,
-  linkWithCredential,
-  linkWithPopup,
   onAuthStateChanged,
-  signInAnonymously,
+  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -65,13 +62,6 @@ function buildReadyState(baseState) {
   }
 }
 
-function buildAvailableProviders() {
-  return {
-    apple: import.meta.env.VITE_ENABLE_APPLE_AUTH === 'true',
-    google: true,
-  }
-}
-
 function getFriendlyAuthMessage(error, providerLabel = 'That sign-in method') {
   switch (error?.code) {
     case 'auth/operation-not-allowed':
@@ -84,9 +74,23 @@ function getFriendlyAuthMessage(error, providerLabel = 'That sign-in method') {
       return `${providerLabel} is already opening.`
     case 'auth/account-exists-with-different-credential':
       return 'That email already belongs to a different sign-in method on this phone.'
+    case 'auth/unauthorized-domain':
+      return 'This domain is not authorized for Firebase sign-in yet.'
+    case 'auth/invalid-user-token':
+    case 'auth/user-token-expired':
+      return 'That saved sign-in expired on this device. Sign in again to keep playing.'
     default:
       return error?.message || `${providerLabel} could not start.`
   }
+}
+
+function isRecoverableAuthStateError(error) {
+  return [
+    'auth/invalid-user-token',
+    'auth/network-request-failed',
+    'auth/user-disabled',
+    'auth/user-token-expired',
+  ].includes(error?.code)
 }
 
 function createProvider(providerId) {
@@ -94,13 +98,6 @@ function createProvider(providerId) {
     const provider = new GoogleAuthProvider()
     provider.addScope('email')
     provider.addScope('profile')
-    return provider
-  }
-
-  if (providerId === 'apple') {
-    const provider = new OAuthProvider('apple.com')
-    provider.addScope('email')
-    provider.addScope('name')
     return provider
   }
 
@@ -134,6 +131,7 @@ export function FirebaseAppProvider({ children }) {
 
     const { app, auth, db } = getFirebaseServices(config)
     let profileUnsubscribe = () => undefined
+    setPersistence(auth, browserLocalPersistence).catch(() => undefined)
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       profileUnsubscribe()
@@ -153,7 +151,70 @@ export function FirebaseAppProvider({ children }) {
         return
       }
 
-      await ensureProfileDocument({ db, user })
+      if (user.isAnonymous) {
+        setState({
+          enabled: true,
+          ready: true,
+          app,
+          auth,
+          db,
+          profile: null,
+          user: null,
+          userId: null,
+        })
+        setAuthError('Older local-only profiles were retired. Sign in with Google or email.')
+
+        try {
+          await signOut(auth)
+        } catch (error) {
+          setAuthError(getFriendlyAuthMessage(error, 'Sign out'))
+        }
+        return
+      }
+
+      try {
+        await user.getIdToken()
+      } catch (error) {
+        if (isRecoverableAuthStateError(error)) {
+          setAuthError('That saved sign-in expired on this device. Please sign in again.')
+          await signOut(auth).catch(() => undefined)
+          setState({
+            enabled: true,
+            ready: true,
+            app,
+            auth,
+            db,
+            profile: null,
+            user: null,
+            userId: null,
+          })
+          return
+        }
+
+        setAuthError(getFriendlyAuthMessage(error, 'Sign-in'))
+      }
+
+      try {
+        await ensureProfileDocument({ db, user })
+      } catch (error) {
+        if (isRecoverableAuthStateError(error)) {
+          setAuthError('That saved sign-in expired on this device. Please sign in again.')
+          await signOut(auth).catch(() => undefined)
+          setState({
+            enabled: true,
+            ready: true,
+            app,
+            auth,
+            db,
+            profile: null,
+            user: null,
+            userId: null,
+          })
+          return
+        }
+
+        setAuthError(getFriendlyAuthMessage(error, 'Profile setup'))
+      }
 
       setState({
         enabled: true,
@@ -184,34 +245,6 @@ export function FirebaseAppProvider({ children }) {
     }
   }, [])
 
-  async function signInAsGuest(displayName) {
-    if (!state.auth || !state.db) {
-      return false
-    }
-
-    setAuthWorking(true)
-    setAuthError('')
-
-    try {
-      const credential = await signInAnonymously(state.auth)
-      if (displayName.trim()) {
-        await updateProfile(credential.user, {
-          displayName: displayName.trim(),
-        })
-      }
-      await ensureProfileDocument({
-        db: state.db,
-        user: credential.user,
-      })
-      return true
-    } catch (error) {
-      setAuthError(getFriendlyAuthMessage(error, 'Guest sign-in'))
-      return false
-    } finally {
-      setAuthWorking(false)
-    }
-  }
-
   async function createAccount({
     displayName,
     email,
@@ -225,15 +258,8 @@ export function FirebaseAppProvider({ children }) {
     setAuthError('')
 
     try {
-      let user = state.user
-      if (user?.isAnonymous) {
-        const credential = EmailAuthProvider.credential(email, password)
-        const linked = await linkWithCredential(user, credential)
-        user = linked.user
-      } else {
-        const created = await createUserWithEmailAndPassword(state.auth, email, password)
-        user = created.user
-      }
+      const created = await createUserWithEmailAndPassword(state.auth, email, password)
+      const user = created.user
 
       await updateProfile(user, {
         displayName: displayName.trim(),
@@ -286,22 +312,19 @@ export function FirebaseAppProvider({ children }) {
       return false
     }
 
-    const providerLabel = providerId === 'apple' ? 'Apple sign-in' : 'Google sign-in'
+    const providerLabel = 'Google sign-in'
 
     setAuthWorking(true)
     setAuthError('')
 
     try {
-      const provider = createProvider(providerId)
-      let user = state.user
-
-      if (user?.isAnonymous) {
-        const linked = await linkWithPopup(user, provider)
-        user = linked.user
-      } else {
-        const result = await signInWithPopup(state.auth, provider)
-        user = result.user
+      if (providerId !== 'google') {
+        throw new Error('Only Google sign-in is enabled in this beta.')
       }
+
+      const provider = createProvider(providerId)
+      const result = await signInWithPopup(state.auth, provider)
+      const user = result.user
 
       const nextName = displayName.trim() || user.displayName?.trim() || ''
 
@@ -378,18 +401,15 @@ export function FirebaseAppProvider({ children }) {
     () => ({
       ...state,
       appId: import.meta.env.VITE_APP_ID || 'at-long-last',
-      availableProviders: buildAvailableProviders(),
       authError,
       authWorking,
       createAccount,
-      isAnonymous: Boolean(state.user?.isAnonymous),
       isSignedIn: Boolean(state.user),
       origin:
         typeof window === 'undefined'
           ? 'http://localhost:5173'
           : window.location.origin,
       setAuthError,
-      signInAsGuest,
       signInWithEmail,
       signInWithProvider,
       signOutUser,

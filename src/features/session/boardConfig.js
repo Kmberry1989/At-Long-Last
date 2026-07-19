@@ -1,4 +1,3 @@
-export const TOTAL_ROUNDS = 5
 export const BASE_DUEL_HEART_BONUS = 3
 
 export const KEEPSAKES = [
