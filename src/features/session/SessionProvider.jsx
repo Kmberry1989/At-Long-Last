@@ -11,6 +11,7 @@ import {
   buildActivityJournalEntry,
   buildDuelJournalEntry,
   buildFinaleJournalEntry,
+  buildSkippedActivityJournalEntry,
 } from './journalHelpers.js'
 import { KEEPSAKES } from './boardConfig.js'
 import { duelRegistry } from './duelRegistry.jsx'
@@ -20,6 +21,8 @@ import {
   beginRoundDuel,
   buildFinalSummary,
   buildInitialSession,
+  choosePendingActivity,
+  ensureSessionArcState,
   evaluateDuelRound,
   finalizeVibeSetup,
   resolveActivityCompletion,
@@ -47,11 +50,16 @@ import {
   createDefaultBoardState,
   DEFAULT_VIBE_WEIGHTS,
   pickWeightedActivityId,
+  pickWeightedActivityOptions,
   pickWeightedDuelId,
 } from './sessionWiring.js'
 
 const SessionContext = createContext(null)
 const SESSION_STALE_MS = 1000 * 60 * 15
+
+export function resolveSessionHostId(session, couple) {
+  return session?.hostId || session?.players?.[0]?.uid || couple?.players?.[0]?.uid || null
+}
 
 function toDateValue(value) {
   if (!value) {
@@ -141,7 +149,7 @@ export function SessionProvider({ children }) {
   }, [activity, couple, enabled, session, userId])
 
   const localUserId = enabled ? userId : couple?.players?.[playerIndex]?.uid
-  const sessionHostId = session?.hostId || session?.players?.[0]?.uid || null
+  const sessionHostId = resolveSessionHostId(session, couple)
   const isHost = localUserId ? sessionHostId === localUserId : playerIndex === 0
   const canRoll = session?.phase === 'turn' && session.activePlayerIndex === playerIndex
   const canSpinDuel = isHost && session?.phase === 'duelWheel'
@@ -186,7 +194,7 @@ export function SessionProvider({ children }) {
       db,
       couple.activeSessionId,
       (nextSession, metadata) => {
-        setSession(nextSession)
+        setSession(ensureSessionArcState(nextSession))
         setConnectionState(metadata?.fromCache ? 'syncing' : 'live')
       },
       (nextError) => setError(nextError.message),
@@ -270,6 +278,12 @@ export function SessionProvider({ children }) {
       return `${session.players[0]?.displayName || 'The host'} is lining up the duel spin.`
     }
 
+    if (session.phase === 'activityChoice') {
+      return session.activePlayerIndex === playerIndex
+        ? 'Pick the next connection beat.'
+        : `${session.players[session.activePlayerIndex]?.displayName || 'Your partner'} is choosing the next beat.`
+    }
+
     return session.actionText
   }, [canRoll, canSpinDuel, connectionState, enabled, isSessionStale, session])
 
@@ -305,7 +319,7 @@ export function SessionProvider({ children }) {
     resolvingDuelRef.current = true
 
     const duel = duelRegistry[session.currentDuel.id]
-    const nextSession = advanceAfterDuel(session, outcome)
+    const nextSession = advanceAfterDuel(session, outcome, duel)
     const duelJournalEntry = buildDuelJournalEntry({
       coupleId: couple.id,
       duel,
@@ -364,8 +378,16 @@ export function SessionProvider({ children }) {
         Math.random,
         { preset: session.preset },
       )
+      const activityOptions = pickWeightedActivityOptions(
+        session.vibeWeights || DEFAULT_VIBE_WEIGHTS,
+        session.usedActivityIds,
+        2,
+        Math.random,
+        { preset: session.preset },
+      )
       const keepsakeId = KEEPSAKES[Math.floor(Math.random() * KEEPSAKES.length)].id
       const nextSession = applyRollToSession(session, {
+        activityOptions,
         activityType,
         keepsakeId,
         roll,
@@ -374,10 +396,10 @@ export function SessionProvider({ children }) {
       if (!enabled) {
         setSession(nextSession)
         if (nextSession.phase === 'activity') {
-          const entry = activityRegistry[activityType]
+          const entry = activityRegistry[nextSession.pendingActivityType]
           setActivity({
             id: 'preview-activity',
-            type: activityType,
+            type: nextSession.pendingActivityType,
             vibe: entry.vibe,
             state: entry.createInitialState(session.players),
           })
@@ -388,9 +410,52 @@ export function SessionProvider({ children }) {
       await updateSessionState(db, session.id, nextSession)
 
       if (nextSession.phase === 'activity') {
-        const entry = activityRegistry[activityType]
-        await createActivityRecord(db, session, activityType, entry.createInitialState(session.players))
+        const entry = activityRegistry[nextSession.pendingActivityType]
+        await createActivityRecord(
+          db,
+          session,
+          nextSession.pendingActivityType,
+          entry.createInitialState(session.players),
+        )
       }
+    } catch (nextError) {
+      setError(nextError.message)
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function selectActivityOption(activityType) {
+    if (!session || session.phase !== 'activityChoice' || working) {
+      return
+    }
+
+    setWorking(true)
+    setError('')
+
+    try {
+      const nextSession = choosePendingActivity(session, activityType)
+
+      if (!enabled) {
+        const entry = activityRegistry[activityType]
+        setSession(nextSession)
+        setActivity({
+          id: 'preview-activity',
+          type: activityType,
+          vibe: entry.vibe,
+          state: entry.createInitialState(session.players),
+        })
+        return
+      }
+
+      await updateSessionState(db, session.id, nextSession)
+      const entry = activityRegistry[activityType]
+      await createActivityRecord(
+        db,
+        session,
+        activityType,
+        entry.createInitialState(session.players),
+      )
     } catch (nextError) {
       setError(nextError.message)
     } finally {
@@ -518,6 +583,7 @@ export function SessionProvider({ children }) {
         }
 
         const result = entry.resolve(advanced.state, session.players)
+        const nextSession = resolveActivityCompletion(session, result)
         const journalEntry = buildActivityJournalEntry({
           coupleId: couple.id,
           result,
@@ -532,7 +598,7 @@ export function SessionProvider({ children }) {
         }
 
         setBoardState((current) => buildBoardRewardPatch(current, result.vibe, activity.type))
-        setSession(resolveActivityCompletion(session, result))
+        setSession(nextSession)
         setActivity(null)
         return
       }
@@ -580,9 +646,28 @@ export function SessionProvider({ children }) {
     setError('')
 
     const nextSession = resolveSkippedActivity(session, activityRegistry[activity.type].label)
+    const skipJournalEntry =
+      !session.usedKeepsakePerks?.includes('pocket-love-note') &&
+      nextSession.usedKeepsakePerks?.includes('pocket-love-note')
+        ? buildSkippedActivityJournalEntry({
+            activity: {
+              ...activity,
+              label: activityRegistry[activity.type].label,
+              vibe: activityRegistry[activity.type].vibe,
+            },
+            coupleId: couple.id,
+            sessionId: session.id,
+          })
+        : null
 
     try {
       if (!enabled) {
+        if (skipJournalEntry) {
+          setJournalEntries((current) => [
+            buildPreviewJournalRecord(skipJournalEntry, 'skip', current.length),
+            ...current,
+          ])
+        }
         setSession(nextSession)
         setActivity(null)
         return
@@ -601,6 +686,9 @@ export function SessionProvider({ children }) {
         state: activity.state,
         status: 'skipped',
       })
+      if (skipJournalEntry) {
+        await appendJournalEntry(db, skipJournalEntry)
+      }
     } catch (nextError) {
       setError(nextError.message)
     } finally {
@@ -644,7 +732,7 @@ export function SessionProvider({ children }) {
       }
 
       const outcome = skippedOutcome || evaluateDuelRound(previewSession, duelRegistry)
-      const nextSession = advanceAfterDuel(previewSession, outcome)
+      const nextSession = advanceAfterDuel(previewSession, outcome, duel)
       const duel = duelRegistry[session.currentDuel.id]
       const journalEntry = buildDuelJournalEntry({
         coupleId: couple.id,
@@ -785,6 +873,7 @@ export function SessionProvider({ children }) {
       session,
       sessionPreset,
       sessionStatusMessage,
+      selectActivityOption,
       skipActivity,
       skipDuel,
       spinDuelWheel,

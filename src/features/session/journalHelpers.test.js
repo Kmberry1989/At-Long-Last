@@ -3,6 +3,7 @@ import {
   buildActivityJournalEntry,
   buildDuelJournalEntry,
   buildFinaleJournalEntry,
+  buildSkippedActivityJournalEntry,
 } from './journalHelpers.js'
 
 describe('journalHelpers', () => {
@@ -69,6 +70,25 @@ describe('journalHelpers', () => {
     expect(entry?.vibe).toBe('playful')
   })
 
+  it('builds a lightweight saved-anyway journal stub for skipped activities', () => {
+    const entry = buildSkippedActivityJournalEntry({
+      activity: {
+        label: 'Comfort Menu',
+        state: {
+          prompt: "When I'm overwhelmed, what actually helps is...",
+        },
+        type: 'prompt',
+        vibe: 'tender',
+      },
+      coupleId: 'couple-1',
+      sessionId: 'session-1',
+    })
+
+    expect(entry?.title).toContain('Saved Anyway')
+    expect(entry?.summary).toContain('Pocket Love Note')
+    expect(entry?.text).toContain("When I'm overwhelmed")
+  })
+
   it('passes richer finale payload data through to the scrapbook entry', () => {
     const entry = buildFinaleJournalEntry({
       coupleId: 'couple-1',
@@ -90,6 +110,22 @@ describe('journalHelpers', () => {
           { uid: 'u1', displayName: 'Kyle' },
           { uid: 'u2', displayName: 'Elaine' },
         ],
+        completedSpotlightActs: ['warmup', 'spark'],
+        momentum: {
+          playful: 2,
+          spicy: 0,
+          tender: 2,
+          consumed: {
+            playful: true,
+            spicy: false,
+            tender: false,
+          },
+          unlocked: {
+            playful: true,
+            spicy: false,
+            tender: true,
+          },
+        },
         vibeWeights: {
           tender: 0.6,
           playful: 0.2,
@@ -104,5 +140,8 @@ describe('journalHelpers', () => {
     expect(entry?.payload.duelOutcomeLabel).toContain('Elaine')
     expect(entry?.payload.presetLabel).toBe('Standard')
     expect(entry?.payload.goalBadges).toContain('10+ hearts')
+    expect(entry?.payload.completedSpotlightCount).toBe(2)
+    expect(entry?.payload.momentumLabels).toContain('Soft landing armed')
+    expect(entry?.text).toContain('spotlights cleared')
   })
 })

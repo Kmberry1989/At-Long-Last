@@ -5,6 +5,7 @@ import {
   createDefaultBoardState,
   getAllowedIntensities,
   pickWeightedActivityId,
+  pickWeightedActivityOptions,
   pickWeightedDuelId,
 } from './sessionWiring.js'
 
@@ -37,6 +38,18 @@ describe('sessionWiring', () => {
     const second = pickWeightedDuelId({ tender: 0, playful: 1, spicy: 0 }, [first], () => 0)
 
     expect(second).not.toBe(first)
+  })
+
+  it('builds unique activity options for a double-pick choice', () => {
+    const picks = pickWeightedActivityOptions(
+      { tender: 1, playful: 0, spicy: 0 },
+      [],
+      2,
+      () => 0,
+    )
+
+    expect(picks).toHaveLength(2)
+    expect(new Set(picks).size).toBe(2)
   })
 
   it('updates board rewards by vibe', () => {

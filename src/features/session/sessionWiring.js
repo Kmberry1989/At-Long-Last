@@ -103,6 +103,29 @@ export function pickWeightedActivityId(weights, usedIds = [], random = Math.rand
   return pickWeightedEntry(activityDefinitions, weights, usedIds, random, options).id
 }
 
+export function pickWeightedActivityOptions(
+  weights,
+  usedIds = [],
+  count = 2,
+  random = Math.random,
+  options = {},
+) {
+  const picks = []
+  const seen = new Set(usedIds)
+
+  while (picks.length < count) {
+    const nextId = pickWeightedActivityId(weights, Array.from(seen), random, options)
+    if (!nextId || seen.has(nextId)) {
+      break
+    }
+
+    picks.push(nextId)
+    seen.add(nextId)
+  }
+
+  return picks
+}
+
 export function pickWeightedDuelId(weights, usedIds = [], random = Math.random, options = {}) {
   return pickWeightedEntry(duelDefinitions, weights, usedIds, random, options).id
 }

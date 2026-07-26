@@ -376,13 +376,27 @@ export async function leaveCoupleDocument({
 
     const nextCouple = buildLeaveCouplePatch(current, userId)
 
+    let publicLobbySnapshot = null
+    let inviteRef = null
+    let inviteSnapshot = null
+
+    if (!nextCouple) {
+      publicLobbySnapshot = await transaction.get(publicLobbyRef)
+      if (current.inviteCode) {
+        inviteRef = doc(db, 'coupleInvites', current.inviteCode)
+        inviteSnapshot = await transaction.get(inviteRef)
+      }
+    }
+
     transaction.delete(playerLinkRef)
 
     if (!nextCouple) {
       transaction.delete(coupleRef)
-      transaction.delete(publicLobbyRef)
-      if (current.inviteCode) {
-        transaction.delete(doc(db, 'coupleInvites', current.inviteCode))
+      if (publicLobbySnapshot.exists()) {
+        transaction.delete(publicLobbyRef)
+      }
+      if (inviteSnapshot?.exists()) {
+        transaction.delete(inviteRef)
       }
       return
     }

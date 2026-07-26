@@ -7,23 +7,302 @@ import {
 import { getPresetGoals, getSessionPreset, summarizeSessionGoals } from './sessionPresets.js'
 import { DEFAULT_VIBE_WEIGHTS } from './sessionWiring.js'
 
+const MOMENTUM_UNLOCK_THRESHOLD = 2
+
+const ACT_LABELS = {
+  finale: 'Finale',
+  spark: 'Spark',
+  warmup: 'Warmup',
+}
+
+const MOMENTUM_LABELS = {
+  playful: 'Double pick armed',
+  spicy: 'Heat boost armed',
+  tender: 'Soft landing armed',
+}
+
+function capitalize(value = '') {
+  if (!value) {
+    return ''
+  }
+
+  return value[0].toUpperCase() + value.slice(1)
+}
+
+export function createMomentumState() {
+  return {
+    consumed: {
+      playful: false,
+      spicy: false,
+      tender: false,
+    },
+    playful: 0,
+    spicy: 0,
+    tender: 0,
+    unlocked: {
+      playful: false,
+      spicy: false,
+      tender: false,
+    },
+  }
+}
+
+export function getDominantVibe(vibeWeights) {
+  const dominant = Object.entries(vibeWeights || {}).sort((left, right) => right[1] - left[1])[0]?.[0]
+  return dominant || 'tender'
+}
+
+export function getSessionAct(round = 1, totalRounds = 6) {
+  if (round >= totalRounds) {
+    return 'finale'
+  }
+
+  if (round <= 2) {
+    return 'warmup'
+  }
+
+  return 'spark'
+}
+
+export function buildSpotlight(act, vibeWeights = DEFAULT_VIBE_WEIGHTS) {
+  if (act === 'spark') {
+    const vibe = getDominantVibe(vibeWeights)
+    return {
+      act,
+      completed: false,
+      description: `Land one ${vibe} activity or duel while ${capitalize(vibe)} leads tonight.`,
+      id: `spark-${vibe}`,
+      label: `${capitalize(vibe)} Spark`,
+      rewarded: false,
+    }
+  }
+
+  if (act === 'finale') {
+    return {
+      act,
+      completed: false,
+      description: 'Finish the last duel cleanly. No skip, no no-contest fade-out.',
+      id: 'finale-close-clean',
+      label: 'Close It Out',
+      rewarded: false,
+    }
+  }
+
+  return {
+    act: 'warmup',
+    completed: false,
+    description: 'Save one journal-worthy activity before the night settles in.',
+    id: 'warmup-journal-save',
+    label: 'Save The First Page',
+    rewarded: false,
+  }
+}
+
+export function ensureSessionArcState(session) {
+  if (!session) {
+    return session
+  }
+
+  const act = getSessionAct(session.round || 1, session.totalRounds || 6)
+  const momentum = {
+    ...createMomentumState(),
+    ...session.momentum,
+    consumed: {
+      ...createMomentumState().consumed,
+      ...session.momentum?.consumed,
+    },
+    unlocked: {
+      ...createMomentumState().unlocked,
+      ...session.momentum?.unlocked,
+    },
+  }
+  const spotlight =
+    session.spotlight?.act === act
+      ? {
+          ...buildSpotlight(act, session.vibeWeights),
+          ...session.spotlight,
+        }
+      : buildSpotlight(act, session.vibeWeights)
+
+  return {
+    ...session,
+    completedSpotlightActs: session.completedSpotlightActs || [],
+    keepsakePerks: session.keepsakePerks || [],
+    momentum,
+    pendingActivityOptions: session.pendingActivityOptions || null,
+    spotlight,
+    usedKeepsakePerks: session.usedKeepsakePerks || [],
+  }
+}
+
+function appendUnique(items = [], value) {
+  return items.includes(value) ? items : [...items, value]
+}
+
+function hasKeepsakePerk(session, perkId) {
+  return session.keepsakePerks.includes(perkId)
+}
+
+function hasUnusedKeepsakePerk(session, perkId) {
+  return hasKeepsakePerk(session, perkId) && !session.usedKeepsakePerks.includes(perkId)
+}
+
+function consumeKeepsakePerk(session, perkId) {
+  if (!hasUnusedKeepsakePerk(session, perkId)) {
+    return session
+  }
+
+  return {
+    ...session,
+    usedKeepsakePerks: [...session.usedKeepsakePerks, perkId],
+  }
+}
+
+function hasArmedMomentumBonus(session, vibe) {
+  return Boolean(session.momentum?.unlocked?.[vibe] && !session.momentum?.consumed?.[vibe])
+}
+
+function consumeMomentumBonus(session, vibe) {
+  if (!hasArmedMomentumBonus(session, vibe)) {
+    return session
+  }
+
+  return {
+    ...session,
+    momentum: {
+      ...session.momentum,
+      consumed: {
+        ...session.momentum.consumed,
+        [vibe]: true,
+      },
+    },
+  }
+}
+
+function addSpotlightReward(session, successCopy) {
+  if (session.spotlight.completed && session.spotlight.rewarded) {
+    return session
+  }
+
+  return {
+    ...session,
+    actionText: `${successCopy} Spotlight cleared for +2 hearts.`,
+    completedSpotlightActs: appendUnique(session.completedSpotlightActs, session.spotlight.act),
+    hearts: session.hearts + 2,
+    spotlight: {
+      ...session.spotlight,
+      completed: true,
+      rewarded: true,
+    },
+  }
+}
+
+function maybeCompleteSpotlight(session, event) {
+  if (!session?.spotlight || session.spotlight.completed) {
+    return session
+  }
+
+  if (
+    session.spotlight.act === 'warmup' &&
+    event.type === 'activity' &&
+    event.result?.savesToJournal
+  ) {
+    return addSpotlightReward(session, 'First page saved.')
+  }
+
+  if (
+    session.spotlight.act === 'spark' &&
+    (event.type === 'activity' || event.type === 'duel') &&
+    event.vibe === getDominantVibe(session.vibeWeights)
+  ) {
+    return addSpotlightReward(session, `${capitalize(event.vibe)} momentum landed.`)
+  }
+
+  if (
+    session.spotlight.act === 'finale' &&
+    event.type === 'duel' &&
+    (event.outcome?.status === 'shared' || event.outcome?.status === 'resolved')
+  ) {
+    return addSpotlightReward(session, 'Finale landed clean.')
+  }
+
+  return session
+}
+
+function syncSpotlightToRound(session, round = session.round) {
+  const nextAct = getSessionAct(round, session.totalRounds || 6)
+  if (session.spotlight?.act === nextAct) {
+    return session
+  }
+
+  return {
+    ...session,
+    spotlight: buildSpotlight(nextAct, session.vibeWeights),
+  }
+}
+
+function buildMomentumUnlockCopy(vibe) {
+  if (vibe === 'playful') {
+    return 'Playful momentum armed a double pick.'
+  }
+
+  if (vibe === 'spicy') {
+    return 'Spicy momentum armed a heat boost.'
+  }
+
+  return 'Tender momentum armed a soft landing.'
+}
+
+function addMomentum(session, vibe) {
+  if (!vibe) {
+    return session
+  }
+
+  const nextValue = (session.momentum?.[vibe] || 0) + 1
+  const unlockedBefore = Boolean(session.momentum?.unlocked?.[vibe])
+  const nextSession = {
+    ...session,
+    momentum: {
+      ...session.momentum,
+      [vibe]: nextValue,
+      unlocked: {
+        ...session.momentum.unlocked,
+        [vibe]: unlockedBefore || nextValue >= MOMENTUM_UNLOCK_THRESHOLD,
+      },
+    },
+  }
+
+  if (!unlockedBefore && nextValue >= MOMENTUM_UNLOCK_THRESHOLD) {
+    return {
+      ...nextSession,
+      actionText: buildMomentumUnlockCopy(vibe),
+    }
+  }
+
+  return nextSession
+}
+
 export function buildInitialSession(couple) {
   const preset = getSessionPreset(couple.sessionPreset)
 
-  return {
+  return ensureSessionArcState({
     actionText: 'Set the vibe together before the first roll.',
     activePlayerIndex: 0,
+    completedSpotlightActs: [],
     coupleId: couple.id,
     currentDuel: null,
-    goals: getPresetGoals(preset.id),
     duelResults: {},
+    goals: getPresetGoals(preset.id),
     hearts: 6,
     hostId: couple.players[0]?.uid || null,
+    keepsakePerks: [],
     keepsakes: [],
     lastDuelOutcome: null,
     lastMove: null,
     lastRoll: null,
+    momentum: createMomentumState(),
     pendingActivityId: null,
+    pendingActivityOptions: null,
     pendingActivityType: null,
     pendingKeepsake: null,
     phase: 'vibeSetup',
@@ -37,19 +316,22 @@ export function buildInitialSession(couple) {
     turnsTakenThisRound: 0,
     usedActivityIds: [],
     usedDuelIds: [],
+    usedKeepsakePerks: [],
     vibeVotes: {},
     vibeWeights: null,
-  }
+  })
 }
 
 export function finalizeVibeSetup(session, vibeWeights = DEFAULT_VIBE_WEIGHTS) {
-  return {
+  const nextSession = ensureSessionArcState({
     ...session,
     actionText: `${session.players[session.startingPlayerIndex]?.displayName || session.players[0].displayName} rolls first.`,
     phase: 'turn',
     vibeVotes: {},
     vibeWeights,
-  }
+  })
+
+  return syncSpotlightToRound(nextSession)
 }
 
 export function getTurnPlayerIndex(startingPlayerIndex, turnsTaken, count = 2) {
@@ -57,11 +339,12 @@ export function getTurnPlayerIndex(startingPlayerIndex, turnsTaken, count = 2) {
 }
 
 export function completeTurn(session) {
-  const turnsTakenThisRound = session.turnsTakenThisRound + 1
+  const nextSession = ensureSessionArcState(session)
+  const turnsTakenThisRound = nextSession.turnsTakenThisRound + 1
 
-  if (turnsTakenThisRound >= session.players.length) {
+  if (turnsTakenThisRound >= nextSession.players.length) {
     return {
-      ...session,
+      ...nextSession,
       actionText: 'Round duel time. Spin the wheel together.',
       phase: 'duelWheel',
       turnsTakenThisRound,
@@ -69,14 +352,14 @@ export function completeTurn(session) {
   }
 
   const activePlayerIndex = getTurnPlayerIndex(
-    session.startingPlayerIndex,
+    nextSession.startingPlayerIndex,
     turnsTakenThisRound,
-    session.players.length,
+    nextSession.players.length,
   )
-  const nextPlayer = session.players[activePlayerIndex]
+  const nextPlayer = nextSession.players[activePlayerIndex]
 
   return {
-    ...session,
+    ...nextSession,
     actionText: `${nextPlayer.displayName}, your turn.`,
     activePlayerIndex,
     phase: 'turn',
@@ -84,24 +367,42 @@ export function completeTurn(session) {
   }
 }
 
+export function choosePendingActivity(session, activityType) {
+  const nextSession = ensureSessionArcState(session)
+  if (!nextSession.pendingActivityOptions?.includes(activityType)) {
+    return nextSession
+  }
+
+  return {
+    ...nextSession,
+    actionText: 'Connection picked. Open it together.',
+    pendingActivityOptions: null,
+    pendingActivityType: activityType,
+    phase: 'activity',
+    usedActivityIds: [...nextSession.usedActivityIds, activityType],
+  }
+}
+
 export function applyRollToSession(
   session,
   {
+    activityOptions = [],
     activityType,
     keepsakeId,
     roll,
   },
 ) {
-  const activePlayerIndex = session.activePlayerIndex
-  const nextPositions = [...session.positions]
+  const nextSession = ensureSessionArcState(session)
+  const activePlayerIndex = nextSession.activePlayerIndex
+  const nextPositions = [...nextSession.positions]
   const from = nextPositions[activePlayerIndex]
   const to = (from + roll) % BOARD_SPACES.length
   nextPositions[activePlayerIndex] = to
   const space = getBoardSpace(to)
 
   const base = {
-    ...session,
-    actionText: `${session.players[activePlayerIndex].displayName} landed on ${space.label}.`,
+    ...nextSession,
+    actionText: `${nextSession.players[activePlayerIndex].displayName} landed on ${space.label}.`,
     lastMove: {
       from,
       playerIndex: activePlayerIndex,
@@ -110,22 +411,37 @@ export function applyRollToSession(
       to,
     },
     lastRoll: roll,
+    pendingActivityOptions: null,
     positions: nextPositions,
   }
 
   if (space.type === 'heart') {
     return completeTurn({
       ...base,
-      actionText: `${session.players[activePlayerIndex].displayName} picked up 2 shared hearts.`,
-      hearts: session.hearts + 2,
+      actionText: `${nextSession.players[activePlayerIndex].displayName} picked up 2 shared hearts.`,
+      hearts: nextSession.hearts + 2,
     })
   }
 
   if (space.type === 'oops') {
+    if (hasUnusedKeepsakePerk(base, 'midnight-snack')) {
+      return completeTurn({
+        ...consumeKeepsakePerk(base, 'midnight-snack'),
+        actionText: 'Midnight Snack softened the snag. No hearts lost.',
+      })
+    }
+
+    if (hasArmedMomentumBonus(base, 'tender')) {
+      return completeTurn({
+        ...consumeMomentumBonus(base, 'tender'),
+        actionText: 'Tender momentum cushioned the snag. No hearts lost.',
+      })
+    }
+
     return completeTurn({
       ...base,
-      actionText: `${session.players[activePlayerIndex].displayName} hit a snag. Lose 2 hearts.`,
-      hearts: Math.max(0, session.hearts - 2),
+      actionText: `${nextSession.players[activePlayerIndex].displayName} hit a snag. Lose 2 hearts.`,
+      hearts: Math.max(0, nextSession.hearts - 2),
     })
   }
 
@@ -133,8 +449,8 @@ export function applyRollToSession(
     return completeTurn({
       ...base,
       actionText: 'Duel space. The round-end showdown is worth 1 extra heart.',
-      hearts: session.hearts + 1,
-      roundDuelBonus: session.roundDuelBonus + 1,
+      hearts: nextSession.hearts + 1,
+      roundDuelBonus: nextSession.roundDuelBonus + 1,
     })
   }
 
@@ -147,88 +463,154 @@ export function applyRollToSession(
     }
   }
 
+  if (hasArmedMomentumBonus(base, 'playful') && activityOptions.length >= 2) {
+    return {
+      ...consumeMomentumBonus(base, 'playful'),
+      actionText: 'Playful momentum unlocked a double pick. Choose the next beat.',
+      pendingActivityOptions: activityOptions,
+      pendingActivityType: null,
+      phase: 'activityChoice',
+    }
+  }
+
   return {
     ...base,
     actionText: 'Connection space. Time for a quick shared moment.',
     pendingActivityType: activityType,
-    usedActivityIds: [...session.usedActivityIds, activityType],
     phase: 'activity',
+    usedActivityIds: [...nextSession.usedActivityIds, activityType],
   }
 }
 
 export function resolveKeepsakeDecision(session, shouldBuy) {
-  const keepsake = session.pendingKeepsake
+  const nextSession = ensureSessionArcState(session)
+  const keepsake = nextSession.pendingKeepsake
   if (!keepsake) {
-    return session
+    return nextSession
   }
 
-  let nextSession = {
-    ...session,
+  let resolved = {
+    ...nextSession,
     pendingKeepsake: null,
   }
 
-  if (shouldBuy && session.hearts >= keepsake.cost) {
-    nextSession = {
-      ...nextSession,
-      actionText: `You grabbed ${keepsake.label}.`,
-      hearts: session.hearts - keepsake.cost,
-      keepsakes: [...session.keepsakes, keepsake],
+  if (shouldBuy && nextSession.hearts >= keepsake.cost) {
+    resolved = {
+      ...resolved,
+      actionText: `You grabbed ${keepsake.label}. ${keepsake.perkLabel} is armed.`,
+      hearts: nextSession.hearts - keepsake.cost,
+      keepsakePerks: appendUnique(nextSession.keepsakePerks, keepsake.perkId),
+      keepsakes: [...nextSession.keepsakes, keepsake],
     }
   } else {
-    nextSession = {
-      ...nextSession,
+    resolved = {
+      ...resolved,
       actionText: 'You saved your hearts for later.',
     }
   }
 
-  return completeTurn(nextSession)
+  return completeTurn(syncSpotlightToRound(resolved))
 }
 
 export function resolveActivityCompletion(session, result) {
-  return completeTurn({
-    ...session,
-    actionText: `${result.label} complete. ${result.heartBonus} hearts added to the stash.`,
-    hearts: session.hearts + result.heartBonus,
+  const nextSession = ensureSessionArcState(session)
+  let heartBonus = result.heartBonus
+  let resolved = {
+    ...nextSession,
     pendingActivityId: null,
+    pendingActivityOptions: null,
     pendingActivityType: null,
+  }
+
+  if (result.savesToJournal && hasUnusedKeepsakePerk(resolved, 'sparkler-photo')) {
+    resolved = consumeKeepsakePerk(resolved, 'sparkler-photo')
+    heartBonus += 1
+  }
+
+  resolved = {
+    ...resolved,
+    actionText: `${result.label} complete. ${heartBonus} hearts added to the stash.`,
+    hearts: resolved.hearts + heartBonus,
+  }
+
+  resolved = addMomentum(resolved, result.vibe)
+  resolved = maybeCompleteSpotlight(resolved, {
+    result,
+    type: 'activity',
+    vibe: result.vibe,
   })
+
+  return completeTurn(resolved)
 }
 
 export function resolveSkippedActivity(session, label) {
-  return completeTurn({
-    ...session,
-    actionText: `${label} skipped. Moving on.`,
-    pendingActivityId: null,
-    pendingActivityType: null,
-  })
+  const nextSession = ensureSessionArcState(session)
+  const usedLoveNote = hasUnusedKeepsakePerk(nextSession, 'pocket-love-note')
+  const resolved = usedLoveNote
+    ? consumeKeepsakePerk(
+        {
+          ...nextSession,
+          actionText: `${label} skipped, but Pocket Love Note still saved a page.`,
+          pendingActivityId: null,
+          pendingActivityOptions: null,
+          pendingActivityType: null,
+        },
+        'pocket-love-note',
+      )
+    : {
+        ...nextSession,
+        actionText: `${label} skipped. Moving on.`,
+        pendingActivityId: null,
+        pendingActivityOptions: null,
+        pendingActivityType: null,
+      }
+
+  return completeTurn(resolved)
 }
 
 export function beginRoundDuel(session, duelId) {
+  let nextSession = ensureSessionArcState(session)
+  let heartBonus = BASE_DUEL_HEART_BONUS + nextSession.roundDuelBonus
+
+  if (hasArmedMomentumBonus(nextSession, 'spicy')) {
+    nextSession = consumeMomentumBonus(nextSession, 'spicy')
+    heartBonus += 1
+  }
+
+  if (
+    nextSession.round >= nextSession.totalRounds &&
+    hasUnusedKeepsakePerk(nextSession, 'last-dance-ticket')
+  ) {
+    nextSession = consumeKeepsakePerk(nextSession, 'last-dance-ticket')
+    heartBonus += 2
+  }
+
   return {
-    ...session,
-    actionText: 'Duel live. Best finish takes the shared heart bonus.',
+    ...nextSession,
+    actionText: `Duel live. This showdown is worth ${heartBonus} shared hearts.`,
     currentDuel: {
       attempt: 1,
-      heartBonus: BASE_DUEL_HEART_BONUS + session.roundDuelBonus,
+      heartBonus,
       id: duelId,
     },
     duelResults: {},
-    usedDuelIds: [...session.usedDuelIds, duelId],
     phase: 'duel',
+    usedDuelIds: [...nextSession.usedDuelIds, duelId],
   }
 }
 
 export function evaluateDuelRound(session, duelRegistry) {
-  const playerOne = session.players[0]
-  const playerTwo = session.players[1]
-  const resultOne = session.duelResults[playerOne.uid]
-  const resultTwo = session.duelResults[playerTwo.uid]
+  const nextSession = ensureSessionArcState(session)
+  const playerOne = nextSession.players[0]
+  const playerTwo = nextSession.players[1]
+  const resultOne = nextSession.duelResults[playerOne.uid]
+  const resultTwo = nextSession.duelResults[playerTwo.uid]
 
   if (!resultOne || !resultTwo) {
     return { status: 'pending' }
   }
 
-  const duel = duelRegistry[session.currentDuel.id]
+  const duel = duelRegistry[nextSession.currentDuel.id]
   const tieResolution = duel.resolveTie(resultOne, resultTwo)
 
   if (tieResolution.retry) {
@@ -249,35 +631,47 @@ export function evaluateDuelRound(session, duelRegistry) {
   }
 }
 
-export function advanceAfterDuel(session, outcome) {
+export function advanceAfterDuel(session, outcome, duel) {
+  const nextSession = ensureSessionArcState(session)
   if (outcome.status === 'retry') {
     return {
-      ...session,
+      ...nextSession,
       actionText: 'Too close. Replay the duel.',
       currentDuel: {
-        ...session.currentDuel,
-        attempt: session.currentDuel.attempt + 1,
+        ...nextSession.currentDuel,
+        attempt: nextSession.currentDuel.attempt + 1,
       },
       duelResults: {},
       phase: 'duel',
     }
   }
 
+  let resolved = nextSession
+
+  if (outcome.status === 'shared' || outcome.status === 'resolved') {
+    resolved = addMomentum(resolved, duel?.vibe)
+    resolved = maybeCompleteSpotlight(resolved, {
+      outcome,
+      type: 'duel',
+      vibe: duel?.vibe,
+    })
+  }
+
   const nextHearts =
     outcome.status === 'noContest'
-      ? session.hearts
-      : session.hearts + session.currentDuel.heartBonus
+      ? resolved.hearts
+      : resolved.hearts + nextSession.currentDuel.heartBonus
 
   if (outcome.status === 'shared') {
-    if (session.round >= session.totalRounds) {
+    if (nextSession.round >= nextSession.totalRounds) {
       return {
-        ...session,
+        ...resolved,
         actionText: 'You both landed it together and closed the night with a shared glow.',
         currentDuel: null,
         duelResults: {},
         hearts: nextHearts,
         lastDuelOutcome: {
-          heartBonus: session.currentDuel.heartBonus,
+          heartBonus: nextSession.currentDuel.heartBonus,
           shared: true,
         },
         phase: 'finale',
@@ -285,19 +679,19 @@ export function advanceAfterDuel(session, outcome) {
       }
     }
 
-    const round = session.round + 1
+    const round = nextSession.round + 1
     const startingPlayerIndex =
-      (session.startingPlayerIndex + 1) % session.players.length
+      (nextSession.startingPlayerIndex + 1) % nextSession.players.length
 
-    return {
-      ...session,
+    return syncSpotlightToRound({
+      ...resolved,
       actionText: `You both synced it. Round ${round} is ready.`,
       activePlayerIndex: startingPlayerIndex,
       currentDuel: null,
       duelResults: {},
       hearts: nextHearts,
       lastDuelOutcome: {
-        heartBonus: session.currentDuel.heartBonus,
+        heartBonus: nextSession.currentDuel.heartBonus,
         shared: true,
       },
       phase: 'turn',
@@ -305,13 +699,13 @@ export function advanceAfterDuel(session, outcome) {
       roundDuelBonus: 0,
       startingPlayerIndex,
       turnsTakenThisRound: 0,
-    }
+    }, round)
   }
 
   if (outcome.status === 'noContest') {
-    if (session.round >= session.totalRounds) {
+    if (nextSession.round >= nextSession.totalRounds) {
       return {
-        ...session,
+        ...resolved,
         actionText: 'The last duel fizzled out, but the night still lands softly.',
         currentDuel: null,
         duelResults: {},
@@ -324,12 +718,12 @@ export function advanceAfterDuel(session, outcome) {
       }
     }
 
-    const round = session.round + 1
+    const round = nextSession.round + 1
     const startingPlayerIndex =
-      (session.startingPlayerIndex + 1) % session.players.length
+      (nextSession.startingPlayerIndex + 1) % nextSession.players.length
 
-    return {
-      ...session,
+    return syncSpotlightToRound({
+      ...resolved,
       actionText: `No bonus this time. Round ${round} is ready.`,
       activePlayerIndex: startingPlayerIndex,
       currentDuel: null,
@@ -343,21 +737,21 @@ export function advanceAfterDuel(session, outcome) {
       roundDuelBonus: 0,
       startingPlayerIndex,
       turnsTakenThisRound: 0,
-    }
+    }, round)
   }
 
-  const winningPlayer = session.players[outcome.winnerIndex]
+  const winningPlayer = nextSession.players[outcome.winnerIndex]
 
-  if (session.round >= session.totalRounds) {
+  if (nextSession.round >= nextSession.totalRounds) {
     return {
-      ...session,
+      ...resolved,
       actionText: `${winningPlayer.displayName} closed the night with the last duel win.`,
       currentDuel: null,
       duelResults: {},
       hearts: nextHearts,
       lastDuelOutcome: {
         ...outcome,
-        heartBonus: session.currentDuel.heartBonus,
+        heartBonus: nextSession.currentDuel.heartBonus,
         winnerIndex: outcome.winnerIndex,
       },
       phase: 'finale',
@@ -365,12 +759,12 @@ export function advanceAfterDuel(session, outcome) {
     }
   }
 
-  const round = session.round + 1
+  const round = nextSession.round + 1
   const startingPlayerIndex =
-    (session.startingPlayerIndex + 1) % session.players.length
+    (nextSession.startingPlayerIndex + 1) % nextSession.players.length
 
-  return {
-    ...session,
+  return syncSpotlightToRound({
+    ...resolved,
     actionText: `${winningPlayer.displayName} won the duel. Round ${round} is ready.`,
     activePlayerIndex: startingPlayerIndex,
     currentDuel: null,
@@ -378,7 +772,7 @@ export function advanceAfterDuel(session, outcome) {
     hearts: nextHearts,
     lastDuelOutcome: {
       ...outcome,
-      heartBonus: session.currentDuel.heartBonus,
+      heartBonus: nextSession.currentDuel.heartBonus,
       winnerIndex: outcome.winnerIndex,
     },
     phase: 'turn',
@@ -386,12 +780,7 @@ export function advanceAfterDuel(session, outcome) {
     roundDuelBonus: 0,
     startingPlayerIndex,
     turnsTakenThisRound: 0,
-  }
-}
-
-function getDominantVibe(vibeWeights) {
-  const dominant = Object.entries(vibeWeights || {}).sort((left, right) => right[1] - left[1])[0]?.[0]
-  return dominant || 'tender'
+  }, round)
 }
 
 function buildFinaleTone({ completedGoalCount, hearts, journalCount, keepsakeCount }) {
@@ -437,15 +826,23 @@ function buildDuelOutcomeLabel(session) {
   return 'Night sealed'
 }
 
+export function getMomentumSummary(session) {
+  const nextSession = ensureSessionArcState(session)
+  return Object.entries(nextSession.momentum.unlocked)
+    .filter(([, unlocked]) => unlocked)
+    .map(([vibe]) => MOMENTUM_LABELS[vibe])
+}
+
 export function buildFinalSummary(session, journalEntries = []) {
+  const nextSession = ensureSessionArcState(session)
   const journalCount = Array.isArray(journalEntries)
     ? journalEntries.filter((entry) => entry.type !== 'finale').length
     : journalEntries
-  const hearts = session.hearts
-  const keepsakeCount = session.keepsakes.length
-  const preset = getSessionPreset(session.preset)
-  const dominantVibe = getDominantVibe(session.vibeWeights)
-  const goals = summarizeSessionGoals(session, Array.isArray(journalEntries) ? journalEntries : [])
+  const hearts = nextSession.hearts
+  const keepsakeCount = nextSession.keepsakes.length
+  const preset = getSessionPreset(nextSession.preset)
+  const dominantVibe = getDominantVibe(nextSession.vibeWeights)
+  const goals = summarizeSessionGoals(nextSession, Array.isArray(journalEntries) ? journalEntries : [])
   const completedGoals = goals.filter((goal) => goal.completed)
   const finaleTone = buildFinaleTone({
     completedGoalCount: completedGoals.length,
@@ -455,10 +852,13 @@ export function buildFinalSummary(session, journalEntries = []) {
   })
 
   return {
+    actLabel: ACT_LABELS[nextSession.spotlight?.act] || 'Warmup',
     coda: finaleTone.coda,
     completedGoalCount: completedGoals.length,
+    completedSpotlightActs: nextSession.completedSpotlightActs,
+    completedSpotlightCount: nextSession.completedSpotlightActs.length,
     dominantVibe,
-    duelOutcomeLabel: buildDuelOutcomeLabel(session),
+    duelOutcomeLabel: buildDuelOutcomeLabel(nextSession),
     goalBadges: completedGoals.map((goal) => goal.badge),
     goalCount: goals.length,
     goals,
@@ -466,11 +866,13 @@ export function buildFinalSummary(session, journalEntries = []) {
     hearts,
     journalCount,
     keepsakeCount,
-    keepsakeLabels: session.keepsakes.map((keepsake) => keepsake.label),
+    keepsakeLabels: nextSession.keepsakes.map((keepsake) => keepsake.label),
+    momentumLabels: getMomentumSummary(nextSession),
+    momentumUnlockedCount: getMomentumSummary(nextSession).length,
     preset: preset.id,
     presetLabel: preset.label,
     tierLabel: finaleTone.tierLabel,
-    totalRounds: session.totalRounds || preset.totalRounds,
+    totalRounds: nextSession.totalRounds || preset.totalRounds,
     vibes: finaleTone.vibes,
   }
 }

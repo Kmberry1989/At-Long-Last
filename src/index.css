@@ -905,24 +905,34 @@ p {
 
 .hud {
   position: absolute;
-  left: 14px;
-  right: 14px;
+  left: 18px;
+  right: 18px;
   z-index: 8;
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .hud.top {
-  top: 60px;
-  align-items: center;
+  top: 66px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.hud.momentum-hud {
+  top: 128px;
+  right: auto;
+  width: min(370px, calc(100vw - 270px));
+  display: grid;
+  gap: 8px;
 }
 
 .hud.players {
   top: 128px;
-  left: 14px;
-  right: auto;
-  width: min(220px, 52vw);
+  left: auto;
+  width: min(230px, calc(100vw - 36px));
   flex-direction: column;
+  gap: 7px;
 }
 
 .chip,
@@ -932,20 +942,150 @@ p {
 }
 
 .chip {
-  display: flex;
+  height: 54px;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 2px 8px;
   min-width: 0;
-  flex: 1;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--app-ink);
+}
+
+.chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-ink-soft);
+}
+
+.chip > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chip > strong small {
+  margin-left: 2px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--app-ink-soft);
 }
 
 .chip.heart {
   background:
     linear-gradient(180deg, rgba(255, 222, 229, 0.96) 0%, rgba(232, 170, 181, 0.86) 100%);
+}
+
+.spotlight-chip {
+  display: grid;
+}
+
+.spotlight-chip small,
+.momentum-pill small {
+  color: var(--app-ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.spotlight-banner,
+.momentum-pill,
+.perk-copy,
+.activity-option-card {
+  background:
+    linear-gradient(180deg, rgba(255, 249, 242, 0.92) 0%, rgba(244, 232, 220, 0.84) 100%);
+  backdrop-filter: blur(18px) saturate(1.05);
+  -webkit-backdrop-filter: blur(18px) saturate(1.05);
+  border: 1px solid rgba(255, 246, 238, 0.42);
+  box-shadow:
+    0 20px 48px rgba(7, 9, 14, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.spotlight-banner {
+  border-radius: 18px;
+  padding: 12px 14px;
+  color: var(--app-ink);
+  display: grid;
+  gap: 2px;
+}
+
+.spotlight-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7a4f41;
+}
+
+.spotlight-banner strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.05;
+}
+
+.spotlight-banner p {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.spotlight-banner p,
+.perk-copy p,
+.activity-option-card p,
+.momentum-pill small {
+  margin: 0;
+  color: var(--app-ink-soft);
+}
+
+.momentum-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.momentum-pill {
+  border-radius: 14px;
+  padding: 8px 9px;
+  color: var(--app-ink);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1px 6px;
+}
+
+.momentum-pill strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 16px;
+  line-height: 0.96;
+}
+
+.momentum-pill small {
+  grid-column: 1 / -1;
+  font-size: 9px;
+}
+
+.momentum-pill.active.vibe-tender {
+  outline: 2px solid rgba(90, 165, 142, 0.34);
+}
+
+.momentum-pill.active.vibe-playful {
+  outline: 2px solid rgba(124, 168, 201, 0.34);
+}
+
+.momentum-pill.active.vibe-spicy {
+  outline: 2px solid rgba(217, 111, 123, 0.34);
 }
 
 .player-strip {
@@ -954,6 +1094,8 @@ p {
   gap: 8px;
   align-items: center;
   color: var(--app-ink);
+  padding: 9px 11px;
+  border-radius: 16px;
 }
 
 .player-strip.active {
@@ -961,7 +1103,7 @@ p {
 }
 
 .player-strip.mine {
-  transform: translateX(6px);
+  transform: none;
 }
 
 .dot {
@@ -973,12 +1115,14 @@ p {
 
 .bottom-tray {
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 50%;
+  right: auto;
+  width: min(560px, calc(100vw - 24px));
+  transform: translateX(-50%);
   bottom: 12px;
   z-index: 8;
   border-radius: 24px;
-  padding: 16px 14px 14px;
+  padding: 13px 14px 12px;
 }
 
 .status-line {
@@ -1031,6 +1175,15 @@ p {
 
 .overlay-card.duel-card,
 .overlay-card.finale-card {
+  text-align: center;
+}
+
+.session-recovery-overlay {
+  z-index: 20;
+  background: rgba(39, 30, 31, 0.74);
+}
+
+.session-recovery-card {
   text-align: center;
 }
 
@@ -1157,9 +1310,51 @@ p {
   margin-bottom: 12px;
 }
 
+.perk-copy {
+  border-radius: 18px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  color: var(--app-ink);
+}
+
+.perk-copy span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7a4f41;
+}
+
+.activity-option-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.activity-option-card {
+  border: none;
+  border-radius: 22px;
+  padding: 16px;
+  text-align: left;
+  color: var(--app-ink);
+  display: grid;
+  gap: 6px;
+}
+
+.activity-option-card strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.activity-option-card:disabled {
+  opacity: 0.6;
+}
+
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   margin: 16px 0;
 }
@@ -1938,11 +2133,36 @@ p {
 
   .hud.top {
     top: 58px;
+    left: 10px;
+    right: 10px;
+    gap: 5px;
+  }
+
+  .hud.momentum-hud {
+    top: 118px;
+    left: 10px;
+    width: min(220px, 54vw);
   }
 
   .hud.players {
-    top: 126px;
-    width: min(184px, 50vw);
+    top: 118px;
+    right: 10px;
+    width: min(150px, 42vw);
+  }
+
+  .chip {
+    height: 50px;
+    padding: 7px 8px;
+    font-size: 9px;
+  }
+
+  .chip > strong {
+    font-size: 15px;
+  }
+
+  .spotlight-banner p,
+  .momentum-pill small {
+    display: none;
   }
 
   .join-row,
@@ -1988,9 +2208,14 @@ p {
     gap: 8px;
   }
 
+  .hud.momentum-hud {
+    top: 112px;
+    gap: 8px;
+  }
+
   .hud.players {
-    top: 114px;
-    width: min(196px, 50vw);
+    top: 112px;
+    width: min(210px, 46vw);
     gap: 8px;
   }
 
@@ -2001,8 +2226,6 @@ p {
   }
 
   .bottom-tray {
-    left: 10px;
-    right: 10px;
     bottom: 10px;
     padding: 14px 12px 12px;
   }
@@ -2037,9 +2260,13 @@ p {
     top: 44px;
   }
 
+  .hud.momentum-hud {
+    top: 100px;
+  }
+
   .hud.players {
-    top: 98px;
-    width: min(170px, 46vw);
+    top: 100px;
+    width: min(190px, 43vw);
   }
 
   .chip {
@@ -2086,15 +2313,20 @@ p {
     right: 10px;
   }
 
-  .hud.players {
-    top: 86px;
+  .hud.momentum-hud {
+    top: 92px;
     left: 10px;
-    width: min(156px, 44vw);
+    right: 10px;
+  }
+
+  .hud.players {
+    top: 92px;
+    left: auto;
+    right: 10px;
+    width: min(172px, 42vw);
   }
 
   .bottom-tray {
-    left: 8px;
-    right: 8px;
     bottom: 8px;
     border-radius: 20px;
     padding: 10px 10px 10px;

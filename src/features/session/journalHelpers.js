@@ -22,6 +22,32 @@ export function buildActivityJournalEntry({ coupleId, result, sessionId }) {
   }
 }
 
+export function buildSkippedActivityJournalEntry({
+  activity,
+  coupleId,
+  sessionId,
+}) {
+  if (!activity) {
+    return null
+  }
+
+  return {
+    coupleId,
+    payload: {
+      prompt: activity.state?.prompt || null,
+      skipped: true,
+    },
+    sessionId,
+    summary: `${activity.label} got skipped, but Pocket Love Note still saved a tiny trace of it.`,
+    text: activity.state?.prompt
+      ? `Saved anyway: ${activity.state.prompt}`
+      : 'Saved anyway: you skipped it, but still wanted the page.',
+    title: `${activity.label} (Saved Anyway)`,
+    type: activity.type,
+    vibe: activity.vibe,
+  }
+}
+
 export function buildDuelJournalEntry({
   coupleId,
   duel,
@@ -72,7 +98,7 @@ export function buildFinaleJournalEntry({ coupleId, journalEntries, session, ses
     payload: summary,
     sessionId,
     summary: summary.vibes,
-    text: `${summary.presetLabel} night, ${summary.keepsakeCount} keepsakes, ${summary.journalCount} journal beats, ${summary.hearts} hearts left, ${summary.completedGoalCount}/${summary.goalCount} goals hit.`,
+    text: `${summary.presetLabel} night, ${summary.keepsakeCount} keepsakes, ${summary.journalCount} journal beats, ${summary.hearts} hearts left, ${summary.completedGoalCount}/${summary.goalCount} goals hit, ${summary.completedSpotlightCount} spotlights cleared, ${summary.momentumUnlockedCount} momentum bonuses armed.`,
     title: 'Night Closed Out',
     type: 'finale',
     vibe: session.vibeWeights?.spicy >= 0.5 ? 'spicy' : session.vibeWeights?.playful >= 0.34 ? 'playful' : 'tender',

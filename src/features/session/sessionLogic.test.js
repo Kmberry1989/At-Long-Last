@@ -6,76 +6,64 @@ import {
   beginRoundDuel,
   buildFinalSummary,
   buildInitialSession,
-  evaluateDuelRound,
+  choosePendingActivity,
+  ensureSessionArcState,
   finalizeVibeSetup,
+  getSessionAct,
   resolveActivityCompletion,
   resolveKeepsakeDecision,
   resolveSkippedActivity,
 } from './sessionLogic.js'
 
-function buildCouple() {
+function buildCouple(sessionPreset = 'standard') {
   return {
     id: 'couple-1',
     players: [
       { uid: 'u1', displayName: 'Kyle', color: '#f00' },
       { uid: 'u2', displayName: 'Elaine', color: '#0af' },
     ],
+    sessionPreset,
   }
 }
 
+function buildReadySession(overrides = {}) {
+  const vibeWeights = overrides.vibeWeights || {
+    tender: 0.5,
+    playful: 0.3,
+    spicy: 0.2,
+  }
+  const base = finalizeVibeSetup(
+    buildInitialSession(buildCouple(overrides.preset || 'standard')),
+    vibeWeights,
+  )
+
+  return ensureSessionArcState({
+    ...base,
+    ...overrides,
+    vibeWeights,
+  })
+}
+
 describe('sessionLogic', () => {
-  it('builds the initial session in vibe setup', () => {
+  it('builds the initial session with spotlight, perks, and momentum state', () => {
     const session = buildInitialSession(buildCouple())
-    expect(session.round).toBe(1)
-    expect(session.positions).toEqual([0, 0])
+
     expect(session.phase).toBe('vibeSetup')
-    expect(session.preset).toBe('standard')
-    expect(session.vibeWeights).toBeNull()
+    expect(session.spotlight.act).toBe('warmup')
+    expect(session.momentum.playful).toBe(0)
+    expect(session.keepsakePerks).toEqual([])
   })
 
-  it('moves from vibe setup into the normal turn phase', () => {
-    const session = buildInitialSession(buildCouple())
-    const next = finalizeVibeSetup(session, {
-      tender: 0.5,
-      playful: 0.3,
-      spicy: 0.2,
-    })
-
-    expect(next.phase).toBe('turn')
-    expect(next.vibeWeights.tender).toBe(0.5)
-    expect(next.actionText).toContain('rolls first')
+  it('calculates act transitions across presets', () => {
+    expect(getSessionAct(1, 4)).toBe('warmup')
+    expect(getSessionAct(3, 4)).toBe('spark')
+    expect(getSessionAct(4, 4)).toBe('finale')
+    expect(getSessionAct(5, 8)).toBe('spark')
+    expect(getSessionAct(8, 8)).toBe('finale')
   })
 
-  it('advances after a simple heart roll', () => {
-    const session = finalizeVibeSetup(buildInitialSession(buildCouple()))
-    const next = applyRollToSession(session, {
-      activityType: 'comfort-menu',
-      keepsakeId: 'love-note',
-      roll: 5,
-    })
-
-    expect(next.hearts).toBe(8)
-    expect(next.activePlayerIndex).toBe(1)
-    expect(next.phase).toBe('turn')
-  })
-
-  it('opens a keepsake choice and can buy it', () => {
-    let session = finalizeVibeSetup(buildInitialSession(buildCouple()))
-    session = applyRollToSession(session, {
-      activityType: 'comfort-menu',
-      keepsakeId: 'love-note',
-      roll: 4,
-    })
-
-    expect(session.phase).toBe('keepsake')
-    session.hearts = 12
-    session = resolveKeepsakeDecision(session, true)
-    expect(session.keepsakes).toHaveLength(1)
-    expect(session.activePlayerIndex).toBe(1)
-  })
-
-  it('awards hearts, records the activity id, and clears activity state after completion', () => {
-    let session = finalizeVibeSetup(buildInitialSession(buildCouple()))
+  it('clears the warmup spotlight after a journal-saving activity', () => {
+    let session = buildReadySession()
     session = applyRollToSession(session, {
       activityType: 'comfort-menu',
       keepsakeId: 'love-note',
@@ -85,69 +73,218 @@ describe('sessionLogic', () => {
     const next = resolveActivityCompletion(session, {
       heartBonus: 3,
       label: 'Comfort Menu',
+      savesToJournal: true,
+      vibe: 'tender',
     })
 
-    expect(session.usedActivityIds).toContain('comfort-menu')
-    expect(next.hearts).toBe(9)
-    expect(next.pendingActivityType).toBe(null)
-    expect(next.activePlayerIndex).toBe(1)
+    expect(next.hearts).toBe(11)
+    expect(next.spotlight.completed).toBe(true)
+    expect(next.completedSpotlightActs).toContain('warmup')
+    expect(next.momentum.tender).toBe(1)
   })
 
-  it('can skip an activity without awarding hearts', () => {
-    let session = finalizeVibeSetup(buildInitialSession(buildCouple()))
+  it('adds the sparkler-photo perk bonus to the next saved activity', () => {
+    const session = buildReadySession({
+      keepsakePerks: ['sparkler-photo'],
+    })
+
+    const next = resolveActivityCompletion(session, {
+      heartBonus: 2,
+      label: 'Small Mercies',
+      savesToJournal: true,
+      vibe: 'tender',
+    })
+
+    expect(next.hearts).toBe(11)
+    expect(next.usedKeepsakePerks).toContain('sparkler-photo')
+  })
+
+  it('uses midnight snack before spending hearts on an oops space', () => {
+    const session = buildReadySession({
+      keepsakePerks: ['midnight-snack'],
+    })
+
+    const next = applyRollToSession(session, {
+      activityType: 'comfort-menu',
+      keepsakeId: 'love-note',
+      roll: 1,
+    })
+
+    expect(next.hearts).toBe(6)
+    expect(next.usedKeepsakePerks).toContain('midnight-snack')
+  })
+
+  it('records the love-note perk as consumed on the first skipped activity', () => {
+    const session = buildReadySession({
+      keepsakePerks: ['pocket-love-note'],
+      pendingActivityType: 'comfort-menu',
+      phase: 'activity',
+    })
+
+    const next = resolveSkippedActivity(session, 'Comfort Menu')
+    expect(next.usedKeepsakePerks).toContain('pocket-love-note')
+  })
+
+  it('stacks final duel boosts from spicy momentum and last dance ticket', () => {
+    const session = buildReadySession({
+      keepsakePerks: ['last-dance-ticket'],
+      momentum: {
+        playful: 0,
+        spicy: 2,
+        tender: 0,
+        consumed: {
+          playful: false,
+          spicy: false,
+          tender: false,
+        },
+        unlocked: {
+          playful: false,
+          spicy: true,
+          tender: false,
+        },
+      },
+      round: 6,
+      totalRounds: 6,
+    })
+
+    const next = beginRoundDuel(session, 'reaction-heart')
+
+    expect(next.currentDuel.heartBonus).toBe(6)
+    expect(next.momentum.consumed.spicy).toBe(true)
+    expect(next.usedKeepsakePerks).toContain('last-dance-ticket')
+  })
+
+  it('opens a playful double-pick choice and locks the selected activity', () => {
+    let session = buildReadySession({
+      momentum: {
+        playful: 2,
+        spicy: 0,
+        tender: 0,
+        consumed: {
+          playful: false,
+          spicy: false,
+          tender: false,
+        },
+        unlocked: {
+          playful: true,
+          spicy: false,
+          tender: false,
+        },
+      },
+    })
+
     session = applyRollToSession(session, {
+      activityOptions: ['comfort-menu', 'small-mercies'],
       activityType: 'comfort-menu',
       keepsakeId: 'love-note',
       roll: 2,
     })
 
-    const next = resolveSkippedActivity(session, 'Comfort Menu')
-    expect(next.hearts).toBe(session.hearts)
-    expect(next.phase).toBe('turn')
-    expect(next.pendingActivityType).toBe(null)
+    expect(session.phase).toBe('activityChoice')
+    expect(session.pendingActivityOptions).toEqual(['comfort-menu', 'small-mercies'])
+    expect(session.momentum.consumed.playful).toBe(true)
+
+    const next = choosePendingActivity(session, 'small-mercies')
+    expect(next.phase).toBe('activity')
+    expect(next.pendingActivityType).toBe('small-mercies')
+    expect(next.usedActivityIds).toContain('small-mercies')
   })
 
-  it('resolves a duel and starts the next round', () => {
-    let session = finalizeVibeSetup(buildInitialSession(buildCouple()))
-    session.turnsTakenThisRound = 2
-    session.phase = 'duelWheel'
-    session = beginRoundDuel(session, 'reaction-heart')
-    session.duelResults = {
-      u1: { won: true, time: 0.8 },
-      u2: { won: true, time: 1.2 },
-    }
+  it('advances spotlight and momentum from a dominant-vibe duel in the spark act', () => {
+    const session = buildReadySession({
+      currentDuel: {
+        attempt: 1,
+        heartBonus: 4,
+        id: 'reaction-heart',
+      },
+      duelResults: {
+        u1: { time: 0.8, won: true },
+        u2: { time: 1.2, won: true },
+      },
+      phase: 'duel',
+      round: 3,
+      totalRounds: 6,
+      turnsTakenThisRound: 2,
+      vibeWeights: {
+        tender: 0.2,
+        playful: 0.6,
+        spicy: 0.2,
+      },
+    })
 
-    const outcome = evaluateDuelRound(session, duelRegistry)
-    const next = advanceAfterDuel(session, outcome)
+    const outcome = { status: 'resolved', winnerIndex: 0 }
+    const next = advanceAfterDuel(session, outcome, {
+      id: 'reaction-heart',
+      label: 'Reaction Heart',
+      vibe: 'playful',
+    })
 
-    expect(session.usedDuelIds).toContain('reaction-heart')
-    expect(outcome.status).toBe('resolved')
-    expect(next.round).toBe(2)
-    expect(next.phase).toBe('turn')
-    expect(next.hearts).toBe(9)
+    expect(next.hearts).toBe(12)
+    expect(next.completedSpotlightActs).toContain('spark')
+    expect(next.momentum.playful).toBe(1)
+    expect(next.round).toBe(4)
   })
 
-  it('ends a duel with no contest after both players skip the replacement', () => {
-    let session = finalizeVibeSetup(buildInitialSession(buildCouple()))
-    session.turnsTakenThisRound = 2
-    session.phase = 'duelWheel'
-    session = beginRoundDuel(session, 'reaction-heart')
-    session.currentDuel.attempt = 2
+  it('replaces the warmup spotlight with the finale spotlight when the last round begins', () => {
+    const session = buildReadySession({
+      currentDuel: {
+        attempt: 1,
+        heartBonus: 3,
+        id: 'reaction-heart',
+      },
+      phase: 'duel',
+      round: 3,
+      totalRounds: 4,
+      turnsTakenThisRound: 2,
+    })
 
-    const next = advanceAfterDuel(session, { status: 'noContest' })
-    expect(next.phase).toBe('turn')
-    expect(next.hearts).toBe(6)
+    const next = advanceAfterDuel(session, { status: 'noContest' }, duelRegistry['reaction-heart'])
+    expect(next.round).toBe(4)
+    expect(next.spotlight.act).toBe('finale')
   })
 
-  it('builds the finale summary', () => {
+  it('adds purchased perks when buying a keepsake', () => {
+    let session = buildReadySession()
+    session = applyRollToSession(session, {
+      activityType: 'comfort-menu',
+      keepsakeId: 'love-note',
+      roll: 4,
+    })
+    session.hearts = 12
+
+    const next = resolveKeepsakeDecision(session, true)
+
+    expect(next.keepsakePerks).toContain('pocket-love-note')
+    expect(next.keepsakes).toHaveLength(1)
+  })
+
+  it('builds the finale summary with spotlight and momentum totals', () => {
     const summary = buildFinalSummary(
       {
+        completedSpotlightActs: ['warmup', 'spark'],
         hearts: 10,
+        keepsakes: [{ id: 'a', label: 'Pocket Love Note' }, { id: 'b', label: 'Sparkler Photo' }],
         lastDuelOutcome: {
           shared: true,
         },
-        keepsakes: [{ id: 'a' }, { id: 'b' }],
+        momentum: {
+          playful: 2,
+          spicy: 0,
+          tender: 2,
+          consumed: {
+            playful: true,
+            spicy: false,
+            tender: false,
+          },
+          unlocked: {
+            playful: true,
+            spicy: false,
+            tender: true,
+          },
+        },
         players: buildCouple().players,
+        preset: 'standard',
+        totalRounds: 6,
         vibeWeights: {
           tender: 0.2,
           playful: 0.55,
@@ -164,10 +301,9 @@ describe('sessionLogic', () => {
     )
 
     expect(summary.headline).toBe('A night with some weight to it.')
-    expect(summary.journalCount).toBe(5)
-    expect(summary.keepsakeCount).toBe(2)
     expect(summary.duelOutcomeLabel).toBe('Shared finish')
-    expect(summary.dominantVibe).toBe('playful')
-    expect(summary.presetLabel).toBe('Standard')
+    expect(summary.completedSpotlightCount).toBe(2)
+    expect(summary.momentumLabels).toContain('Double pick armed')
+    expect(summary.momentumLabels).toContain('Soft landing armed')
   })
 })

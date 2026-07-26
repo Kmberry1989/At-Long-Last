@@ -2,14 +2,77 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Prototype rules for a two-player invite flow backed by durable auth.
-    // Review these before sharing broadly.
-    function isAuthed() {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // profiles/{uid}
+    //   Owner-only profile with displayName, optional email, auth state, and
+    //   created/updated/last-seen timestamps. Email is private PII.
+    //
+    // playerCouples/{uid}
+    //   Owner-only pointer to a couple containing that same uid.
+    //
+    // coupleInvites/{sixCharacterCode}
+    //   Exact-document invite lookup linked to a couple with the same code.
+    //   Invite collection listing is intentionally denied.
+    //
+    // couples/{coupleId}
+    //   One or two validated players, immutable invite identity, optional
+    //   active session pointer, preset, and bounded persistent board state.
+    //
+    // publicLobbies/{coupleId}
+    //   Authenticated discovery row for a one-player waiting couple.
+    //
+    // lobbyMessages/{messageId}
+    //   Immutable, bounded message authored by the authenticated user and
+    //   scoped to an existing open lobby.
+    //
+    // sessions/{sessionId}
+    //   Couple-scoped game state. Couple/player/preset/creation identity is
+    //   immutable; active sessions can terminate but cannot be reopened.
+    //
+    // activities/{activityId}
+    //   Couple/session-scoped activity state. Identity is immutable and a
+    //   terminal completed/skipped activity cannot be reopened.
+    //
+    // journalEntries/{entryId}
+    //   Immutable, bounded couple/session-scoped scrapbook entry.
+    //
+    // ===============================================================
+    // Shared helpers
+    // ===============================================================
+
+    function isAuthenticated() {
       return request.auth != null;
     }
 
-    function hasOnlyKeys(keys) {
-      return request.resource.data.keys().hasOnly(keys);
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function uidNotModified(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isBoundedString(value, minSize, maxSize) {
+      return value is string
+        && value.size() >= minSize
+        && value.size() <= maxSize;
+    }
+
+    function isOptionalBoundedString(data, field, maxSize) {
+      return !(field in data)
+        || data[field] == null
+        || (data[field] is string && data[field].size() <= maxSize);
+    }
+
+    function hasOnlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
     function isInviteCode(code) {
@@ -18,145 +81,1246 @@ service cloud.firestore {
         && code.matches('^[A-Z2-9]+$');
     }
 
-    function isCoupleParticipant(data) {
-      return isAuthed()
+    function isPreset(value) {
+      return value in ['quick', 'standard', 'long'];
+    }
+
+    function isVibe(value) {
+      return value in ['tender', 'playful', 'spicy'];
+    }
+
+    function hasNoActiveSession(data) {
+      return !('activeSessionId' in data) || data.activeSessionId == null;
+    }
+
+    function isValidColor(value) {
+      return value is string && value.matches('^#[0-9a-fA-F]{6}$');
+    }
+
+    function isValidPlayer(player, uid) {
+      return player is map
+        && player.keys().hasAll(['uid', 'displayName', 'color', 'accent', 'avatar'])
+        && player.keys().hasOnly(['uid', 'displayName', 'color', 'accent', 'avatar'])
+        && player.uid == uid
+        && isBoundedString(player.displayName, 1, 60)
+        && isValidColor(player.color)
+        && isValidColor(player.accent)
+        && isBoundedString(player.avatar, 1, 160)
+        && player.avatar.matches('^/assets/players/[a-zA-Z0-9._-]+$');
+    }
+
+    function isValidPlayers(playerIds, players) {
+      return playerIds is list
+        && players is list
+        && playerIds.size() >= 1
+        && playerIds.size() <= 2
+        && players.size() == playerIds.size()
+        && isBoundedString(playerIds[0], 1, 128)
+        && isValidPlayer(players[0], playerIds[0])
+        && (
+          playerIds.size() == 1
+          || (
+            isBoundedString(playerIds[1], 1, 128)
+            && playerIds[1] != playerIds[0]
+            && isValidPlayer(players[1], playerIds[1])
+          )
+        );
+    }
+
+    function isCoupleParticipantData(data) {
+      return isAuthenticated()
         && data.playerIds is list
         && request.auth.uid in data.playerIds;
     }
 
+    function coupleExists(coupleId) {
+      return exists(/databases/$(database)/documents/couples/$(coupleId));
+    }
+
+    function coupleExistsAfter(coupleId) {
+      return existsAfter(/databases/$(database)/documents/couples/$(coupleId));
+    }
+
+    function coupleData(coupleId) {
+      return get(/databases/$(database)/documents/couples/$(coupleId)).data;
+    }
+
+    function coupleDataAfter(coupleId) {
+      return getAfter(/databases/$(database)/documents/couples/$(coupleId)).data;
+    }
+
     function isParticipant(coupleId) {
-      return isAuthed() &&
-        exists(/databases/$(database)/documents/couples/$(coupleId)) &&
-        request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds;
+      return isAuthenticated()
+        && coupleExists(coupleId)
+        && isCoupleParticipantData(coupleData(coupleId));
     }
 
-    function isJoinableCoupleUpdate() {
-      return isAuthed()
-        && resource.data.status == 'waiting'
-        && resource.data.activeSessionId == null
-        && resource.data.playerIds is list
+    function isParticipantAfter(coupleId) {
+      return isAuthenticated()
+        && coupleExistsAfter(coupleId)
+        && isCoupleParticipantData(coupleDataAfter(coupleId));
+    }
+
+    function isValidBoardState(data) {
+      return data is map
+        && data.keys().hasAll(['playfulStickerIds', 'spicyGlowLevel', 'tenderStars'])
+        && data.keys().hasOnly(['playfulStickerIds', 'spicyGlowLevel', 'tenderStars'])
+        && data.playfulStickerIds is list
+        && data.playfulStickerIds.size() <= 24
+        && data.playfulStickerIds.toSet().size() == data.playfulStickerIds.size()
+        && data.spicyGlowLevel is int
+        && data.spicyGlowLevel >= 0
+        && data.spicyGlowLevel <= 5
+        && data.tenderStars is int
+        && data.tenderStars >= 0
+        && data.tenderStars <= 100;
+    }
+
+    function isValidCouple(data) {
+      return data.keys().hasAll([
+          'inviteCode',
+          'shareLink',
+          'status',
+          'playerIds',
+          'players'
+        ])
+        && data.keys().hasOnly([
+          'inviteCode',
+          'shareLink',
+          'sessionPreset',
+          'status',
+          'playerIds',
+          'players',
+          'activeSessionId',
+          'boardState',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isInviteCode(data.inviteCode)
+        && isBoundedString(data.shareLink, 12, 500)
+        && data.shareLink.matches('^https?://.{1,450}/[?]code=' + data.inviteCode + '$')
+        && data.status in ['waiting', 'paired']
+        && isValidPlayers(data.playerIds, data.players)
+        && (
+          (data.status == 'waiting' && data.playerIds.size() == 1)
+          || (data.status == 'paired' && data.playerIds.size() == 2)
+        )
+        && (!('sessionPreset' in data) || isPreset(data.sessionPreset))
+        && (
+          !('activeSessionId' in data)
+          || data.activeSessionId == null
+          || isBoundedString(data.activeSessionId, 1, 128)
+        )
+        && (!('boardState' in data) || isValidBoardState(data.boardState))
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidCurrentCoupleWrite() {
+      return isValidCouple(request.resource.data)
+        && 'createdAt' in request.resource.data
+        && request.resource.data.createdAt is timestamp
+        && 'updatedAt' in request.resource.data
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // ===============================================================
+    // Invite and couple lifecycle validators
+    // ===============================================================
+
+    function isValidInvite(data, inviteCode) {
+      return data.keys().hasAll(['coupleId', 'createdAt'])
+        && data.keys().hasOnly(['coupleId', 'createdAt'])
+        && isBoundedString(data.coupleId, 1, 128)
+        && data.createdAt == request.time
+        && isInviteCode(inviteCode);
+    }
+
+    function isValidPlayerCoupleLink(data) {
+      return data.keys().hasAll(['coupleId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['coupleId', 'createdAt', 'updatedAt'])
+        && isBoundedString(data.coupleId, 1, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function isValidPublicLobby(data, lobbyId) {
+      return data.keys().hasAll([
+          'coupleId',
+          'hostId',
+          'hostName',
+          'inviteCode',
+          'playerCount',
+          'shareLink',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'coupleId',
+          'hostId',
+          'hostName',
+          'inviteCode',
+          'playerCount',
+          'shareLink',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.coupleId == lobbyId
+        && isBoundedString(data.hostId, 1, 128)
+        && isBoundedString(data.hostName, 1, 60)
+        && isInviteCode(data.inviteCode)
+        && data.playerCount == 1
+        && isBoundedString(data.shareLink, 12, 500)
+        && data.status == 'open'
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function lobbyMatchesCouple(data, couple) {
+      return couple.status == 'waiting'
+        && hasNoActiveSession(couple)
+        && couple.playerIds.size() == 1
+        && data.hostId == couple.playerIds[0]
+        && data.hostName == couple.players[0].displayName
+        && data.inviteCode == couple.inviteCode
+        && data.shareLink == couple.shareLink;
+    }
+
+    function isValidCoupleCreate(coupleId) {
+      let data = request.resource.data;
+      return isValidCurrentCoupleWrite()
+        && data.playerIds.size() == 1
+        && data.playerIds[0] == request.auth.uid
+        && data.status == 'waiting'
+        && hasNoActiveSession(data)
+        && 'sessionPreset' in data
+        && 'boardState' in data
+        && data.createdAt == request.time
+        && existsAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        )
+        && getAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        ).data.coupleId == coupleId
+        && existsAfter(
+          /databases/$(database)/documents/coupleInvites/$(data.inviteCode)
+        )
+        && getAfter(
+          /databases/$(database)/documents/coupleInvites/$(data.inviteCode)
+        ).data.coupleId == coupleId
+        && existsAfter(
+          /databases/$(database)/documents/publicLobbies/$(coupleId)
+        )
+        && lobbyMatchesCouple(
+          getAfter(
+            /databases/$(database)/documents/publicLobbies/$(coupleId)
+          ).data,
+          data
+        );
+    }
+
+    function isJoinableCoupleUpdate(coupleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return isValidCurrentCoupleWrite()
+        && before.status == 'waiting'
+        && hasNoActiveSession(before)
+        && before.playerIds.size() == 1
+        && !(request.auth.uid in before.playerIds)
+        && after.status == 'paired'
+        && after.playerIds.size() == 2
+        && after.playerIds[0] == before.playerIds[0]
+        && after.playerIds[1] == request.auth.uid
+        && after.players[0] == before.players[0]
+        && isValidPlayer(after.players[1], request.auth.uid)
+        && after.inviteCode == before.inviteCode
+        && after.shareLink == before.shareLink
+        && hasNoActiveSession(after)
+        && (
+          !('sessionPreset' in before)
+          || after.sessionPreset == before.sessionPreset
+        )
+        && (
+          !('boardState' in before)
+          || after.boardState == before.boardState
+        )
+        && after.createdAt == before.createdAt
+        && hasOnlyChanged(['playerIds', 'players', 'status', 'updatedAt'])
+        && existsAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        )
+        && getAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        ).data.coupleId == coupleId
+        && !existsAfter(
+          /databases/$(database)/documents/publicLobbies/$(coupleId)
+        );
+    }
+
+    function isValidLeaveCoupleUpdate(coupleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let remainingIndex = before.playerIds[0] == request.auth.uid ? 1 : 0;
+      return isCoupleParticipantData(before)
+        && isValidCurrentCoupleWrite()
+        && hasNoActiveSession(before)
+        && before.playerIds.size() == 2
+        && after.playerIds.size() == 1
+        && after.playerIds[0] == before.playerIds[remainingIndex]
+        && after.players[0] == before.players[remainingIndex]
+        && after.status == 'waiting'
+        && after.inviteCode == before.inviteCode
+        && after.shareLink == before.shareLink
+        && hasNoActiveSession(after)
+        && after.createdAt == before.createdAt
+        && hasOnlyChanged(['playerIds', 'players', 'status', 'updatedAt'])
+        && !existsAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        )
+        && existsAfter(
+          /databases/$(database)/documents/publicLobbies/$(coupleId)
+        )
+        && lobbyMatchesCouple(
+          getAfter(
+            /databases/$(database)/documents/publicLobbies/$(coupleId)
+          ).data,
+          after
+        );
+    }
+
+    function isValidPresetUpdate() {
+      return isCoupleParticipantData(resource.data)
+        && resource.data.playerIds[0] == request.auth.uid
+        && hasNoActiveSession(resource.data)
+        && isValidCurrentCoupleWrite()
+        && isPreset(request.resource.data.sessionPreset)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasOnlyChanged(['sessionPreset', 'updatedAt']);
+    }
+
+    function isValidBoardRewardUpdate() {
+      let before = resource.data.boardState;
+      let after = request.resource.data.boardState;
+      return isCoupleParticipantData(resource.data)
+        && isValidCurrentCoupleWrite()
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasOnlyChanged(['boardState', 'updatedAt'])
+        && (
+          (
+            after.tenderStars == before.tenderStars + 1
+            && after.spicyGlowLevel == before.spicyGlowLevel
+            && after.playfulStickerIds == before.playfulStickerIds
+          )
+          || (
+            before.spicyGlowLevel < 5
+            && after.spicyGlowLevel == before.spicyGlowLevel + 1
+            && after.tenderStars == before.tenderStars
+            && after.playfulStickerIds == before.playfulStickerIds
+          )
+          || (
+            after.playfulStickerIds.size() == before.playfulStickerIds.size() + 1
+            && after.playfulStickerIds.toSet().hasAll(before.playfulStickerIds)
+            && after.tenderStars == before.tenderStars
+            && after.spicyGlowLevel == before.spicyGlowLevel
+          )
+        );
+    }
+
+    function isValidSessionAttach(coupleId) {
+      let sessionId = request.resource.data.activeSessionId;
+      return isCoupleParticipantData(resource.data)
+        && resource.data.playerIds[0] == request.auth.uid
+        && hasNoActiveSession(resource.data)
+        && isValidCurrentCoupleWrite()
+        && isBoundedString(sessionId, 1, 128)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasOnlyChanged(['activeSessionId', 'updatedAt'])
+        && existsAfter(
+          /databases/$(database)/documents/sessions/$(sessionId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/sessions/$(sessionId)
+        ).data.coupleId == coupleId
+        && getAfter(
+          /databases/$(database)/documents/sessions/$(sessionId)
+        ).data.status == 'active';
+    }
+
+    function isValidSessionDetach(coupleId) {
+      let sessionId = resource.data.activeSessionId;
+      return isCoupleParticipantData(resource.data)
+        && isBoundedString(sessionId, 1, 128)
+        && request.resource.data.activeSessionId == null
+        && isValidCurrentCoupleWrite()
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasOnlyChanged(['activeSessionId', 'updatedAt'])
+        && existsAfter(
+          /databases/$(database)/documents/sessions/$(sessionId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/sessions/$(sessionId)
+        ).data.coupleId == coupleId
+        && getAfter(
+          /databases/$(database)/documents/sessions/$(sessionId)
+        ).data.status in ['abandoned', 'completed'];
+    }
+
+    function isValidLastParticipantDelete(coupleId) {
+      return isCoupleParticipantData(resource.data)
         && resource.data.playerIds.size() == 1
-        && !(request.auth.uid in resource.data.playerIds)
-        && request.resource.data.playerIds is list
-        && request.resource.data.playerIds.size() == 2
-        && request.resource.data.playerIds[0] == resource.data.playerIds[0]
-        && request.resource.data.playerIds[1] == request.auth.uid
-        && request.resource.data.players is list
-        && request.resource.data.players.size() == 2
-        && request.resource.data.players[0].uid == resource.data.playerIds[0]
-        && request.resource.data.players[1].uid == request.auth.uid
-        && request.resource.data.players[0].displayName is string
-        && request.resource.data.players[1].displayName is string
-        && request.resource.data.status == 'paired'
-        && request.resource.data.inviteCode == resource.data.inviteCode
-        && request.resource.data.shareLink == resource.data.shareLink
-        && request.resource.data.activeSessionId == resource.data.activeSessionId
-        && request.resource.data.boardState == resource.data.boardState;
+        && request.auth.uid == resource.data.playerIds[0]
+        && hasNoActiveSession(resource.data)
+        && !existsAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        )
+        && !existsAfter(
+          /databases/$(database)/documents/publicLobbies/$(coupleId)
+        )
+        && !existsAfter(
+          /databases/$(database)/documents/coupleInvites/$(resource.data.inviteCode)
+        );
     }
 
-    function lobbyExists(lobbyId) {
-      return exists(/databases/$(database)/documents/publicLobbies/$(lobbyId));
+    function isCompletedLobbyJoin(lobbyId) {
+      let couple = coupleDataAfter(resource.data.coupleId);
+      return isAuthenticated()
+        && resource.data.coupleId == lobbyId
+        && resource.data.status == 'open'
+        && resource.data.playerCount == 1
+        && couple.status == 'paired'
+        && couple.playerIds.size() == 2
+        && couple.playerIds[0] == resource.data.hostId
+        && couple.playerIds[1] == request.auth.uid
+        && couple.players[0].displayName == resource.data.hostName
+        && couple.inviteCode == resource.data.inviteCode
+        && couple.shareLink == resource.data.shareLink
+        && existsAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        )
+        && getAfter(
+          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+        ).data.coupleId == lobbyId;
     }
 
-    match /coupleInvites/{inviteCode} {
-      allow create: if isAuthed()
-        && isInviteCode(inviteCode)
-        && hasOnlyKeys(['coupleId', 'createdAt'])
-        && request.resource.data.coupleId is string;
+    // ===============================================================
+    // Session and activity validators
+    // ===============================================================
 
-      allow read: if isAuthed();
-      allow update: if false;
-      allow delete: if isAuthed()
-        && resource.data.coupleId is string
-        && isParticipant(resource.data.coupleId)
-        && get(/databases/$(database)/documents/couples/$(resource.data.coupleId)).data.activeSessionId == null;
+    function activityIds() {
+      return [
+        'comfort-menu', 'small-mercies', 'weather-report', 'receipts',
+        'future-artifact', 'postcard-next-year', 'translation', 'map-pin-wish',
+        'director-commentary', 'house-rules', 'growth-ring', 'anchor-memory',
+        'unsent-draft', 'gratitude-snapshot', 'shared-seed', 'cursed-date-12',
+        'yelp-review', 'build-a-cult', 'lore-drop', 'two-truths-one-dream',
+        'alternate-job', 'apocalypse-role', 'pet-peeve-love-letter',
+        'conspiracy-us', 'wikipedia-us', 'theme-song', 'bad-advice',
+        'villain-origin', 'nudge-wars', 'sound-capsule',
+        'replay-favorite-kiss', 'wanted-list', 'slow-morning',
+        'confidence-fit', 'whisper-line', 'scent-memory',
+        'favorite-way-held', 'look-you-love', 'flirt-resume',
+        'what-miss-today', 'date-that-never-ends', 'secret-admiration',
+        'after-hours-tile', 'landing-lights', 'rewind-touch'
+      ];
     }
 
-    match /playerCouples/{userId} {
-      allow create, update: if isAuthed()
-        && request.auth.uid == userId
-        && hasOnlyKeys(['coupleId', 'createdAt', 'updatedAt'])
-        && request.resource.data.coupleId is string;
-
-      allow read: if isAuthed() && request.auth.uid == userId;
-      allow delete: if isAuthed() && request.auth.uid == userId;
+    function duelIds() {
+      return [
+        'constellation-home', 'heartbeat-hold-tender',
+        'letterpress-one-word', 'sync-breath', 'gratitude-duel',
+        'doodle-duel-memory', 'portrait-panic-directed',
+        'wavelength-slider', 'emoji-court', 'reaction-heart',
+        'kiss-courier', 'fever-dream-date', 'voice-note-trailer',
+        'temperature-check', 'slow-draw-portrait-romantic'
+      ];
     }
+
+    function keepsakePerkIds() {
+      return [
+        'sparkler-photo',
+        'midnight-snack',
+        'pocket-love-note',
+        'last-dance-ticket'
+      ];
+    }
+
+    function isValidKnownIdList(values, allowed, maxSize) {
+      return values is list
+        && values.size() <= maxSize
+        && values.toSet().hasOnly(allowed);
+    }
+
+    function isValidKeepsake(data) {
+      return data is map
+        && data.keys().hasAll([
+          'id', 'label', 'cost', 'blurb', 'perkDescription', 'perkId', 'perkLabel'
+        ])
+        && data.keys().hasOnly([
+          'id', 'label', 'cost', 'blurb', 'perkDescription', 'perkId', 'perkLabel'
+        ])
+        && data.id in [
+          'sparkler-photo', 'midnight-snack', 'love-note', 'dance-ticket'
+        ]
+        && isBoundedString(data.label, 1, 80)
+        && data.cost is int
+        && data.cost >= 1
+        && data.cost <= 20
+        && isBoundedString(data.blurb, 1, 240)
+        && isBoundedString(data.perkDescription, 1, 240)
+        && data.perkId in keepsakePerkIds()
+        && isBoundedString(data.perkLabel, 1, 80);
+    }
+
+    function isValidOptionalKeepsake(data) {
+      return data == null || isValidKeepsake(data);
+    }
+
+    function isValidVibeWeights(data) {
+      return data == null
+        || (
+          data is map
+          && data.keys().hasAll(['tender', 'playful', 'spicy'])
+          && data.keys().hasOnly(['tender', 'playful', 'spicy'])
+          && data.tender is number
+          && data.tender >= 0
+          && data.tender <= 1
+          && data.playful is number
+          && data.playful >= 0
+          && data.playful <= 1
+          && data.spicy is number
+          && data.spicy >= 0
+          && data.spicy <= 1
+        );
+    }
+
+    function isValidVibeVote(data) {
+      return data is map
+        && data.keys().hasAll(['tender', 'playful', 'spicy'])
+        && data.keys().hasOnly(['tender', 'playful', 'spicy'])
+        && data.tender is number
+        && data.tender >= 0
+        && data.tender <= 1
+        && data.playful is number
+        && data.playful >= 0
+        && data.playful <= 1
+        && data.spicy is number
+        && data.spicy >= 0
+        && data.spicy <= 1;
+    }
+
+    function isValidVibeVotes(data, playerIds) {
+      return data is map
+        && data.keys().hasOnly(playerIds)
+        && data.keys().size() <= 2
+        && (
+          !(playerIds[0] in data)
+          || isValidVibeVote(data[playerIds[0]])
+        )
+        && (
+          playerIds.size() < 2
+          || !(playerIds[1] in data)
+          || isValidVibeVote(data[playerIds[1]])
+        );
+    }
+
+    function isValidDuelResult(data) {
+      return data is map
+        && data.keys().hasAll(['highlight', 'time', 'won'])
+        && data.keys().hasOnly([
+          'highlight', 'score', 'time', 'won', 'value', 'skipped', 'excerpt',
+          'delta', 'dataUrl', 'center', 'spread'
+        ])
+        && isBoundedString(data.highlight, 1, 240)
+        && data.time is number
+        && data.time >= 0
+        && data.time <= 600
+        && data.won is bool
+        && (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 10000))
+        && (!('value' in data) || (data.value is number && data.value >= 0 && data.value <= 100))
+        && (!('skipped' in data) || data.skipped is bool)
+        && isOptionalBoundedString(data, 'excerpt', 100)
+        && (!('delta' in data) || (data.delta is number && data.delta >= 0 && data.delta <= 600))
+        && isOptionalBoundedString(data, 'dataUrl', 750000)
+        && (
+          !('center' in data)
+          || (
+            data.center is map
+            && data.center.keys().hasAll(['x', 'y'])
+            && data.center.keys().hasOnly(['x', 'y'])
+            && data.center.x is number
+            && data.center.x >= 0
+            && data.center.x <= 4096
+            && data.center.y is number
+            && data.center.y >= 0
+            && data.center.y <= 4096
+          )
+        )
+        && (!('spread' in data) || (data.spread is number && data.spread >= 0 && data.spread <= 4096));
+    }
+
+    function isValidDuelResults(data, playerIds) {
+      return data is map
+        && data.keys().hasOnly(playerIds)
+        && data.keys().size() <= 2
+        && (
+          !(playerIds[0] in data)
+          || isValidDuelResult(data[playerIds[0]])
+        )
+        && (
+          playerIds.size() < 2
+          || !(playerIds[1] in data)
+          || isValidDuelResult(data[playerIds[1]])
+        );
+    }
+
+    function isValidCurrentDuel(data) {
+      return data == null
+        || (
+          data is map
+          && data.keys().hasAll(['attempt', 'heartBonus', 'id'])
+          && data.keys().hasOnly(['attempt', 'heartBonus', 'id'])
+          && data.attempt is int
+          && data.attempt >= 1
+          && data.attempt <= 20
+          && data.heartBonus is int
+          && data.heartBonus >= 0
+          && data.heartBonus <= 20
+          && data.id in duelIds()
+        );
+    }
+
+    function isValidLastMove(data) {
+      return data == null
+        || (
+          data is map
+          && data.keys().hasAll(['from', 'playerIndex', 'spaceId', 'steps', 'to'])
+          && data.keys().hasOnly(['from', 'playerIndex', 'spaceId', 'steps', 'to'])
+          && data.from is int
+          && data.from >= 0
+          && data.from < 20
+          && data.playerIndex is int
+          && data.playerIndex >= 0
+          && data.playerIndex <= 1
+          && isBoundedString(data.spaceId, 1, 64)
+          && data.steps is int
+          && data.steps >= 1
+          && data.steps <= 6
+          && data.to is int
+          && data.to >= 0
+          && data.to < 20
+        );
+    }
+
+    function isValidLastDuelOutcome(data) {
+      return data == null
+        || (
+          data is map
+          && data.keys().hasOnly([
+            'status', 'winnerIndex', 'heartBonus', 'shared', 'noContest'
+          ])
+          && (!('status' in data) || data.status in ['resolved', 'shared', 'noContest'])
+          && (!('winnerIndex' in data) || (data.winnerIndex is int && data.winnerIndex >= 0 && data.winnerIndex <= 1))
+          && (!('heartBonus' in data) || (data.heartBonus is int && data.heartBonus >= 0 && data.heartBonus <= 20))
+          && (!('shared' in data) || data.shared is bool)
+          && (!('noContest' in data) || data.noContest is bool)
+        );
+    }
+
+    function isValidMomentum(data) {
+      return data is map
+        && data.keys().hasAll([
+          'tender', 'playful', 'spicy', 'consumed', 'unlocked'
+        ])
+        && data.keys().hasOnly([
+          'tender', 'playful', 'spicy', 'consumed', 'unlocked'
+        ])
+        && data.tender is int
+        && data.tender >= 0
+        && data.tender <= 50
+        && data.playful is int
+        && data.playful >= 0
+        && data.playful <= 50
+        && data.spicy is int
+        && data.spicy >= 0
+        && data.spicy <= 50
+        && data.consumed is map
+        && data.consumed.keys().hasAll(['tender', 'playful', 'spicy'])
+        && data.consumed.keys().hasOnly(['tender', 'playful', 'spicy'])
+        && data.consumed.tender is bool
+        && data.consumed.playful is bool
+        && data.consumed.spicy is bool
+        && data.unlocked is map
+        && data.unlocked.keys().hasAll(['tender', 'playful', 'spicy'])
+        && data.unlocked.keys().hasOnly(['tender', 'playful', 'spicy'])
+        && data.unlocked.tender is bool
+        && data.unlocked.playful is bool
+        && data.unlocked.spicy is bool;
+    }
+
+    function isValidSpotlight(data) {
+      return data is map
+        && data.keys().hasAll([
+          'act', 'completed', 'description', 'id', 'label', 'rewarded'
+        ])
+        && data.keys().hasOnly([
+          'act', 'completed', 'description', 'id', 'label', 'rewarded'
+        ])
+        && data.act in ['warmup', 'spark', 'finale']
+        && data.completed is bool
+        && isBoundedString(data.description, 1, 300)
+        && isBoundedString(data.id, 1, 80)
+        && isBoundedString(data.label, 1, 100)
+        && data.rewarded is bool;
+    }
+
+    function isValidGoal(data) {
+      return data is map
+        && data.keys().hasAll(['badge', 'description', 'id', 'label', 'target'])
+        && data.keys().hasOnly(['badge', 'description', 'id', 'label', 'target'])
+        && data.id in ['heartReserve', 'keepsakeCollector', 'vibeSampler']
+        && isBoundedString(data.badge, 1, 80)
+        && isBoundedString(data.description, 1, 240)
+        && isBoundedString(data.label, 1, 80)
+        && data.target is int
+        && data.target >= 1
+        && data.target <= 20;
+    }
+
+    function isValidGoals(data) {
+      return data is list
+        && data.size() >= 2
+        && data.size() <= 3
+        && isValidGoal(data[0])
+        && isValidGoal(data[1])
+        && (data.size() == 2 || isValidGoal(data[2]));
+    }
+
+    function isValidKeepsakes(data) {
+      return data is list
+        && data.size() <= 12
+        && (data.size() < 1 || isValidKeepsake(data[0]))
+        && (data.size() < 2 || isValidKeepsake(data[1]))
+        && (data.size() < 3 || isValidKeepsake(data[2]))
+        && (data.size() < 4 || isValidKeepsake(data[3]))
+        && (data.size() < 5 || isValidKeepsake(data[4]))
+        && (data.size() < 6 || isValidKeepsake(data[5]))
+        && (data.size() < 7 || isValidKeepsake(data[6]))
+        && (data.size() < 8 || isValidKeepsake(data[7]))
+        && (data.size() < 9 || isValidKeepsake(data[8]))
+        && (data.size() < 10 || isValidKeepsake(data[9]))
+        && (data.size() < 11 || isValidKeepsake(data[10]))
+        && (data.size() < 12 || isValidKeepsake(data[11]));
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll([
+          'actionText', 'activePlayerIndex', 'completedSpotlightActs',
+          'coupleId', 'currentDuel', 'duelResults', 'goals', 'hearts',
+          'hostId', 'keepsakePerks', 'keepsakes', 'lastDuelOutcome',
+          'lastMove', 'lastRoll', 'momentum', 'pendingActivityId',
+          'pendingActivityOptions', 'pendingActivityType', 'pendingKeepsake',
+          'phase', 'players', 'positions', 'preset', 'round',
+          'roundDuelBonus', 'spotlight', 'startingPlayerIndex', 'status',
+          'totalRounds', 'turnsTakenThisRound', 'usedActivityIds',
+          'usedDuelIds', 'usedKeepsakePerks', 'vibeVotes', 'vibeWeights',
+          'createdAt', 'startedAt', 'endedAt', 'lastActionAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'actionText', 'activePlayerIndex', 'completedSpotlightActs',
+          'coupleId', 'currentDuel', 'duelResults', 'goals', 'hearts',
+          'hostId', 'keepsakePerks', 'keepsakes', 'lastDuelOutcome',
+          'lastMove', 'lastRoll', 'momentum', 'pendingActivityId',
+          'pendingActivityOptions', 'pendingActivityType', 'pendingKeepsake',
+          'phase', 'players', 'positions', 'preset', 'round',
+          'roundDuelBonus', 'spotlight', 'startingPlayerIndex', 'status',
+          'totalRounds', 'turnsTakenThisRound', 'usedActivityIds',
+          'usedDuelIds', 'usedKeepsakePerks', 'vibeVotes', 'vibeWeights',
+          'createdAt', 'startedAt', 'endedAt', 'lastActionAt', 'updatedAt'
+        ])
+        && isBoundedString(data.actionText, 1, 500)
+        && data.activePlayerIndex is int
+        && data.activePlayerIndex >= 0
+        && data.activePlayerIndex <= 1
+        && isValidKnownIdList(
+          data.completedSpotlightActs,
+          ['warmup', 'spark', 'finale'],
+          3
+        )
+        && isBoundedString(data.coupleId, 1, 128)
+        && isValidCurrentDuel(data.currentDuel)
+        && data.players is list
+        && data.players.size() == 2
+        && isValidPlayer(data.players[0], data.players[0].uid)
+        && isValidPlayer(data.players[1], data.players[1].uid)
+        && data.players[0].uid != data.players[1].uid
+        && isValidDuelResults(
+          data.duelResults,
+          [data.players[0].uid, data.players[1].uid]
+        )
+        && isValidGoals(data.goals)
+        && data.hearts is int
+        && data.hearts >= 0
+        && data.hearts <= 200
+        && data.hostId in [data.players[0].uid, data.players[1].uid]
+        && isValidKnownIdList(data.keepsakePerks, keepsakePerkIds(), 4)
+        && isValidKeepsakes(data.keepsakes)
+        && isValidLastDuelOutcome(data.lastDuelOutcome)
+        && isValidLastMove(data.lastMove)
+        && (data.lastRoll == null || (data.lastRoll is int && data.lastRoll >= 1 && data.lastRoll <= 6))
+        && isValidMomentum(data.momentum)
+        && isOptionalBoundedString(data, 'pendingActivityId', 128)
+        && (
+          data.pendingActivityOptions == null
+          || isValidKnownIdList(data.pendingActivityOptions, activityIds(), 2)
+        )
+        && (
+          data.pendingActivityType == null
+          || data.pendingActivityType in activityIds()
+        )
+        && isValidOptionalKeepsake(data.pendingKeepsake)
+        && data.phase in [
+          'vibeSetup', 'turn', 'activityChoice', 'activity', 'keepsake',
+          'duelWheel', 'duel', 'finale'
+        ]
+        && data.positions is list
+        && data.positions.size() == 2
+        && data.positions[0] is int
+        && data.positions[0] >= 0
+        && data.positions[0] < 20
+        && data.positions[1] is int
+        && data.positions[1] >= 0
+        && data.positions[1] < 20
+        && isPreset(data.preset)
+        && data.round is int
+        && data.round >= 1
+        && data.round <= data.totalRounds
+        && data.roundDuelBonus is int
+        && data.roundDuelBonus >= 0
+        && data.roundDuelBonus <= 20
+        && isValidSpotlight(data.spotlight)
+        && data.startingPlayerIndex is int
+        && data.startingPlayerIndex >= 0
+        && data.startingPlayerIndex <= 1
+        && data.status in ['active', 'completed', 'abandoned']
+        && data.totalRounds in [4, 6, 8]
+        && (
+          (data.preset == 'quick' && data.totalRounds == 4)
+          || (data.preset == 'standard' && data.totalRounds == 6)
+          || (data.preset == 'long' && data.totalRounds == 8)
+        )
+        && data.turnsTakenThisRound is int
+        && data.turnsTakenThisRound >= 0
+        && data.turnsTakenThisRound <= 2
+        && isValidKnownIdList(data.usedActivityIds, activityIds(), 16)
+        && isValidKnownIdList(data.usedDuelIds, duelIds(), 8)
+        && isValidKnownIdList(data.usedKeepsakePerks, keepsakePerkIds(), 4)
+        && isValidVibeVotes(
+          data.vibeVotes,
+          [data.players[0].uid, data.players[1].uid]
+        )
+        && isValidVibeWeights(data.vibeWeights)
+        && data.createdAt is timestamp
+        && data.startedAt is timestamp
+        && (data.endedAt == null || data.endedAt is timestamp)
+        && data.lastActionAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSessionCreate(sessionId) {
+      let data = request.resource.data;
+      let couple = coupleDataAfter(data.coupleId);
+      return isValidSession(data)
+        && isParticipantAfter(data.coupleId)
+        && couple.playerIds.size() == 2
+        && data.players == couple.players
+        && data.hostId == couple.playerIds[0]
+        && data.preset == couple.sessionPreset
+        && data.phase == 'vibeSetup'
+        && data.status == 'active'
+        && data.hearts == 6
+        && data.round == 1
+        && data.activePlayerIndex == 0
+        && data.startingPlayerIndex == 0
+        && data.turnsTakenThisRound == 0
+        && data.positions == [0, 0]
+        && data.currentDuel == null
+        && data.pendingActivityId == null
+        && data.endedAt == null
+        && data.createdAt == request.time
+        && data.startedAt == request.time
+        && data.lastActionAt == request.time
+        && data.updatedAt == request.time
+        && couple.activeSessionId == sessionId;
+    }
+
+    function isValidSessionTimestamps() {
+      return request.resource.data.updatedAt == request.time
+        && (
+          request.resource.data.lastActionAt == resource.data.lastActionAt
+          || request.resource.data.lastActionAt == request.time
+        );
+    }
+
+    function isValidSessionIdentity() {
+      return request.resource.data.coupleId == resource.data.coupleId
+        && request.resource.data.players == resource.data.players
+        && request.resource.data.preset == resource.data.preset
+        && request.resource.data.totalRounds == resource.data.totalRounds
+        && request.resource.data.goals == resource.data.goals
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.startedAt == resource.data.startedAt;
+    }
+
+    function isValidHostChange() {
+      return request.resource.data.hostId == resource.data.hostId
+        || (
+          hasOnlyChanged(['hostId', 'lastActionAt', 'updatedAt'])
+          && request.resource.data.hostId == request.auth.uid
+          && request.auth.uid in [
+            resource.data.players[0].uid,
+            resource.data.players[1].uid
+          ]
+        );
+    }
+
+    function isValidDuelResultSubmission() {
+      let playerIds = [
+        resource.data.players[0].uid,
+        resource.data.players[1].uid
+      ];
+      let otherIndex = playerIds[0] == request.auth.uid ? 1 : 0;
+      return hasOnlyChanged(['duelResults', 'updatedAt'])
+        && request.resource.data.phase == 'duel'
+        && request.auth.uid in playerIds
+        && request.auth.uid in request.resource.data.duelResults
+        && isValidDuelResult(
+          request.resource.data.duelResults[request.auth.uid]
+        )
+        && (
+          !(playerIds[otherIndex] in resource.data.duelResults)
+          || (
+            playerIds[otherIndex] in request.resource.data.duelResults
+            && request.resource.data.duelResults[playerIds[otherIndex]]
+              == resource.data.duelResults[playerIds[otherIndex]]
+          )
+        );
+    }
+
+    function isValidSessionStatusTransition() {
+      return (
+          resource.data.status == 'active'
+          && request.resource.data.status == 'active'
+          && request.resource.data.endedAt == null
+        )
+        || (
+          resource.data.status == 'active'
+          && request.resource.data.status == 'completed'
+          && request.resource.data.phase == 'finale'
+          && request.resource.data.endedAt == request.time
+        )
+        || (
+          resource.data.status == 'active'
+          && request.resource.data.status == 'abandoned'
+          && request.resource.data.endedAt == request.time
+          && existsAfter(
+            /databases/$(database)/documents/couples/$(resource.data.coupleId)
+          )
+          && getAfter(
+            /databases/$(database)/documents/couples/$(resource.data.coupleId)
+          ).data.activeSessionId == null
+        );
+    }
+
+    function isValidSessionUpdate() {
+      return isParticipant(resource.data.coupleId)
+        && isValidSession(request.resource.data)
+        && isValidSessionIdentity()
+        && isValidSessionTimestamps()
+        && isValidHostChange()
+        && isValidSessionStatusTransition()
+        && (
+          !hasOnlyChanged(['duelResults', 'updatedAt'])
+          || isValidDuelResultSubmission()
+        );
+    }
+
+    function isValidActivity(data) {
+      return data.keys().hasAll([
+          'coupleId', 'sessionId', 'state', 'status', 'type',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'coupleId', 'sessionId', 'state', 'status', 'type',
+          'result', 'resolvedAt', 'createdAt', 'updatedAt'
+        ])
+        && isBoundedString(data.coupleId, 1, 128)
+        && isBoundedString(data.sessionId, 1, 128)
+        && data.state is map
+        && data.state.keys().size() <= 24
+        && data.status in ['in_progress', 'completed', 'skipped']
+        && data.type in activityIds()
+        && (!('result' in data) || data.result == null || (data.result is map && data.result.keys().size() <= 30))
+        && (!('resolvedAt' in data) || data.resolvedAt is timestamp)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidActivityCreate() {
+      let data = request.resource.data;
+      return isValidActivity(data)
+        && isParticipant(data.coupleId)
+        && exists(
+          /databases/$(database)/documents/sessions/$(data.sessionId)
+        )
+        && get(
+          /databases/$(database)/documents/sessions/$(data.sessionId)
+        ).data.coupleId == data.coupleId
+        && get(
+          /databases/$(database)/documents/sessions/$(data.sessionId)
+        ).data.status == 'active'
+        && data.status == 'in_progress'
+        && !('result' in data)
+        && !('resolvedAt' in data)
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidActivityUpdate() {
+      return isParticipant(resource.data.coupleId)
+        && isValidActivity(request.resource.data)
+        && request.resource.data.coupleId == resource.data.coupleId
+        && request.resource.data.sessionId == resource.data.sessionId
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && resource.data.status == 'in_progress'
+        && (
+          (
+            request.resource.data.status == 'in_progress'
+            && !('resolvedAt' in request.resource.data)
+            && hasOnlyChanged(['state', 'updatedAt'])
+          )
+          || (
+            request.resource.data.status in ['completed', 'skipped']
+            && request.resource.data.resolvedAt == request.time
+            && hasOnlyChanged([
+              'state', 'status', 'result', 'resolvedAt', 'updatedAt'
+            ])
+          )
+        );
+    }
+
+    function isValidJournalEntry(data) {
+      return data.keys().hasAll([
+          'coupleId', 'sessionId', 'payload', 'summary',
+          'text', 'title', 'type', 'vibe', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'coupleId', 'sessionId', 'payload', 'summary',
+          'text', 'title', 'type', 'vibe', 'openAt', 'createdAt'
+        ])
+        && isBoundedString(data.coupleId, 1, 128)
+        && isBoundedString(data.sessionId, 1, 128)
+        && data.payload is map
+        && data.payload.keys().size() <= 40
+        && isBoundedString(data.summary, 1, 1200)
+        && isBoundedString(data.text, 1, 4000)
+        && isBoundedString(data.title, 1, 160)
+        && isBoundedString(data.type, 1, 64)
+        && isVibe(data.vibe)
+        && isOptionalBoundedString(data, 'openAt', 40)
+        && data.createdAt == request.time;
+    }
+
+    // ===============================================================
+    // Collection rules (default deny outside these matches)
+    // ===============================================================
 
     match /profiles/{userId} {
-      allow create, read, update: if isAuthed()
-        && request.auth.uid == userId;
+      function isValidProfile(data) {
+        return data.keys().hasAll([
+            'displayName', 'email', 'isAnonymous',
+            'createdAt', 'lastSeenAt', 'updatedAt'
+          ])
+          && data.keys().hasOnly([
+            'displayName', 'email', 'isAnonymous',
+            'createdAt', 'lastSeenAt', 'updatedAt'
+          ])
+          && isBoundedString(data.displayName, 1, 60)
+          && (
+            data.email == null
+            || (
+              data.email is string
+              && data.email.size() <= 254
+              && data.email == request.auth.token.email
+            )
+          )
+          && data.isAnonymous is bool
+          && data.createdAt is timestamp
+          && data.lastSeenAt is timestamp
+          && data.updatedAt is timestamp;
+      }
+
+      allow create: if isOwner(userId)
+        && uidUnchanged(userId)
+        && isValidProfile(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastSeenAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow read: if isOwner(userId);
+
+      allow update: if isOwner(userId)
+        && uidNotModified(userId)
+        && isValidProfile(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.lastSeenAt == request.time
+        && request.resource.data.updatedAt == request.time;
 
       allow delete: if false;
     }
 
-    match /couples/{coupleId} {
-      allow create: if isAuthed()
-        && request.resource.data.playerIds is list
-        && request.resource.data.playerIds.size() >= 1
-        && request.resource.data.playerIds.size() <= 2
-        && request.auth.uid in request.resource.data.playerIds;
+    match /coupleInvites/{inviteCode} {
+      allow create: if isAuthenticated()
+        && isValidInvite(request.resource.data, inviteCode)
+        && coupleExistsAfter(request.resource.data.coupleId)
+        && coupleDataAfter(request.resource.data.coupleId).inviteCode == inviteCode
+        && coupleDataAfter(request.resource.data.coupleId).playerIds[0]
+          == request.auth.uid;
 
-      allow read: if isCoupleParticipant(resource.data);
-      allow update: if isCoupleParticipant(resource.data)
-        || isJoinableCoupleUpdate();
-      allow delete: if isCoupleParticipant(resource.data)
-        && resource.data.activeSessionId == null;
+      allow get: if isAuthenticated();
+      allow list: if false;
+      allow update: if false;
+
+      allow delete: if isAuthenticated()
+        && isParticipant(resource.data.coupleId)
+        && hasNoActiveSession(coupleData(resource.data.coupleId));
+    }
+
+    match /playerCouples/{userId} {
+      allow create, update: if isOwner(userId)
+        && uidUnchanged(userId)
+        && isValidPlayerCoupleLink(request.resource.data)
+        && isParticipantAfter(request.resource.data.coupleId);
+
+      allow read: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    match /couples/{coupleId} {
+      allow create: if isAuthenticated()
+        && isValidCoupleCreate(coupleId);
+
+      allow read: if isCoupleParticipantData(resource.data);
+
+      allow update: if isAuthenticated()
+        && (
+          isJoinableCoupleUpdate(coupleId)
+          || isValidLeaveCoupleUpdate(coupleId)
+          || isValidPresetUpdate()
+          || isValidBoardRewardUpdate()
+          || isValidSessionAttach(coupleId)
+          || isValidSessionDetach(coupleId)
+        );
+
+      allow delete: if isAuthenticated()
+        && isValidLastParticipantDelete(coupleId);
     }
 
     match /publicLobbies/{lobbyId} {
-      allow read: if isAuthed();
+      allow read: if isAuthenticated();
 
-      allow create: if isAuthed()
-        && request.resource.data.coupleId is string
+      allow create: if isAuthenticated()
+        && isValidPublicLobby(request.resource.data, lobbyId)
+        && coupleExistsAfter(lobbyId)
+        && lobbyMatchesCouple(request.resource.data, coupleDataAfter(lobbyId))
+        && (
+          request.resource.data.hostId == request.auth.uid
+          || (
+            coupleExists(lobbyId)
+            && isCoupleParticipantData(coupleData(lobbyId))
+          )
+        );
+
+      allow update: if isAuthenticated()
+        && isValidPublicLobby(request.resource.data, lobbyId)
+        && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.hostId == request.auth.uid
-        && request.resource.data.hostName is string
-        && request.resource.data.inviteCode is string
-        && request.resource.data.shareLink is string
-        && request.resource.data.playerCount is int
-        && request.resource.data.status is string;
+        && coupleExistsAfter(lobbyId)
+        && lobbyMatchesCouple(request.resource.data, coupleDataAfter(lobbyId));
 
-      allow update, delete: if isAuthed()
-        && resource.data.coupleId is string
-        && isParticipant(resource.data.coupleId);
+      allow delete: if isAuthenticated()
+        && (
+          (
+            isParticipant(resource.data.coupleId)
+            && hasNoActiveSession(coupleData(resource.data.coupleId))
+          )
+          || isCompletedLobbyJoin(lobbyId)
+        );
     }
 
     match /lobbyMessages/{messageId} {
-      allow read: if isAuthed();
+      function isValidLobbyMessage(data) {
+        return data.keys().hasAll([
+            'lobbyId', 'authorId', 'authorName', 'text', 'createdAt'
+          ])
+          && data.keys().hasOnly([
+            'lobbyId', 'authorId', 'authorName', 'text', 'createdAt'
+          ])
+          && isBoundedString(data.lobbyId, 1, 128)
+          && data.authorId == request.auth.uid
+          && isBoundedString(data.authorName, 1, 60)
+          && isBoundedString(data.text, 1, 280)
+          && data.createdAt == request.time;
+      }
 
-      allow create: if isAuthed()
-        && request.resource.data.lobbyId is string
-        && lobbyExists(request.resource.data.lobbyId)
-        && request.resource.data.authorId == request.auth.uid
-        && request.resource.data.authorName is string
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 280;
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+        && isValidLobbyMessage(request.resource.data)
+        && exists(
+          /databases/$(database)/documents/publicLobbies/$(request.resource.data.lobbyId)
+        );
 
       allow update, delete: if false;
     }
 
     match /sessions/{sessionId} {
-      allow create: if isAuthed()
-        && request.resource.data.coupleId is string
-        && isParticipant(request.resource.data.coupleId);
+      allow create: if isAuthenticated()
+        && isValidSessionCreate(sessionId);
 
-      allow read, update: if isParticipant(resource.data.coupleId);
+      allow read: if isParticipant(resource.data.coupleId);
+
+      allow update: if isAuthenticated()
+        && isValidSessionUpdate();
+
       allow delete: if false;
     }
 
     match /activities/{activityId} {
-      allow create: if isAuthed()
-        && request.resource.data.coupleId is string
-        && isParticipant(request.resource.data.coupleId);
+      allow create: if isAuthenticated()
+        && isValidActivityCreate();
 
-      allow read, update: if isParticipant(resource.data.coupleId);
+      allow read: if isParticipant(resource.data.coupleId);
+
+      allow update: if isAuthenticated()
+        && isValidActivityUpdate();
+
       allow delete: if false;
     }
 
     match /journalEntries/{entryId} {
-      allow create: if isAuthed()
-        && request.resource.data.coupleId is string
-        && isParticipant(request.resource.data.coupleId);
+      allow create: if isAuthenticated()
+        && isValidJournalEntry(request.resource.data)
+        && isParticipant(request.resource.data.coupleId)
+        && exists(
+          /databases/$(database)/documents/sessions/$(request.resource.data.sessionId)
+        )
+        && get(
+          /databases/$(database)/documents/sessions/$(request.resource.data.sessionId)
+        ).data.coupleId == request.resource.data.coupleId;
 
       allow read: if isParticipant(resource.data.coupleId);
       allow update, delete: if false;

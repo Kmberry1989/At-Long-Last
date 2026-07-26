@@ -14,6 +14,26 @@ const JournalDrawer = lazy(() =>
   import('./JournalDrawer.jsx').then((module) => ({ default: module.JournalDrawer })),
 )
 
+const ACT_LABELS = {
+  finale: 'Finale',
+  spark: 'Spark',
+  warmup: 'Warmup',
+}
+
+const MOMENTUM_BONUS_COPY = {
+  playful: 'Double pick armed',
+  spicy: 'Heat boost armed',
+  tender: 'Soft landing armed',
+}
+
+function capitalize(value = '') {
+  if (!value) {
+    return ''
+  }
+
+  return value[0].toUpperCase() + value.slice(1)
+}
+
 export function GameScreen() {
   const { couple, hasPartner } = useCouple()
   const { playAction } = useAudio()
@@ -37,8 +57,8 @@ export function GameScreen() {
     readyToPlay,
     resumeSession,
     rollTurn,
+    selectActivityOption,
     session,
-    sessionPreset,
     sessionStatusMessage,
     skipActivity,
     skipDuel,
@@ -62,6 +82,21 @@ export function GameScreen() {
   const ActivityComponent = activityEntry?.render ?? null
   const duelEntry = session.currentDuel ? duelRegistry[session.currentDuel.id] : null
   const DuelComponent = duelEntry?.start ?? null
+  const canChooseActivity = session.phase === 'activityChoice' && session.activePlayerIndex === playerIndex
+  const dominantVibe = session.vibeWeights
+    ? Object.entries(session.vibeWeights).sort((left, right) => right[1] - left[1])[0]?.[0]
+    : null
+  const activityOptions = (session.pendingActivityOptions || [])
+    .map((activityId) => activityRegistry[activityId])
+    .filter(Boolean)
+  const spotlightActLabel = ACT_LABELS[session.spotlight?.act] || 'Warmup'
+  const needsSessionRecovery = connectionState === 'syncing' || isSessionStale || Boolean(error)
+  const momentumCards = ['tender', 'playful', 'spicy'].map((vibe) => ({
+    active: Boolean(session.momentum?.unlocked?.[vibe] && !session.momentum?.consumed?.[vibe]),
+    label: capitalize(vibe),
+    value: session.momentum?.[vibe] || 0,
+    vibe,
+  }))
 
   return (
     <section className="screen active game-screen">
@@ -77,17 +112,18 @@ export function GameScreen() {
         </Suspense>
         <div className="hud top">
           <div className="chip heart">
-            Hearts <strong>{session.hearts}</strong>
+            <span>Hearts</span><strong>{session.hearts}</strong>
           </div>
           <div className="chip">
-            Round <strong>{session.round}</strong> / {session.totalRounds}
+            <span>Round</span><strong>{session.round}<small>/{session.totalRounds}</small></strong>
           </div>
-          <div className="chip">
-            {sessionPreset.label}
+          <div className="chip spotlight-chip">
+            <span>Spotlight</span>
+            <strong>{spotlightActLabel}</strong>
           </div>
-          {session.vibeWeights && (
+          {dominantVibe && (
             <div className="chip vibe-chip">
-              Vibe <strong>{Object.entries(session.vibeWeights).sort((left, right) => right[1] - left[1])[0][0]}</strong>
+              <span>Vibe</span><strong>{dominantVibe}</strong>
             </div>
           )}
           <button
@@ -98,8 +134,27 @@ export function GameScreen() {
             }}
             type="button"
           >
-            Scrapbook {journalEntries.length}
+            <span>Scrapbook</span><strong>{journalEntries.length}</strong>
           </button>
+        </div>
+        <div className="hud momentum-hud">
+          <div className="spotlight-banner">
+            <span className="spotlight-kicker">{spotlightActLabel} Spotlight</span>
+            <strong>{session.spotlight?.label}</strong>
+            <p>{session.spotlight?.description}</p>
+          </div>
+          <div className="momentum-row">
+            {momentumCards.map((card) => (
+              <div
+                key={card.vibe}
+                className={`momentum-pill${card.active ? ' active' : ''} vibe-${card.vibe}`}
+              >
+                <span>{card.label}</span>
+                <strong>{Math.min(card.value, 2)} / 2</strong>
+                <small>{card.active ? MOMENTUM_BONUS_COPY[card.vibe] : 'Building'}</small>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="hud players">
           {session.players.map((player, index) => (
@@ -114,27 +169,7 @@ export function GameScreen() {
           ))}
         </div>
         <div className="bottom-tray">
-          <p className="status-line">{sessionStatusMessage}</p>
-          {(connectionState === 'syncing' || isSessionStale || error) && (
-            <div className="session-alert">
-              <p>{error || sessionStatusMessage}</p>
-              <div className="button-row compact">
-                <button className="primary-btn alt" onClick={resumeSession} type="button">
-                  Resume
-                </button>
-                {canRecoverSession && (
-                  <button className="primary-btn alt" onClick={startFreshSession} type="button">
-                    Start Fresh
-                  </button>
-                )}
-                {!isHost && isSessionStale && (
-                  <button className="primary-btn alt" onClick={claimSessionHost} type="button">
-                    Claim Host
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+          {!needsSessionRecovery && <p className="status-line">{sessionStatusMessage}</p>}
           <div className="button-row">
             <button
               className="primary-btn pulse"
@@ -178,6 +213,10 @@ export function GameScreen() {
             <p className="eyebrow">Keepsake Stop</p>
             <h3>{session.pendingKeepsake.label}</h3>
             <p className="support-copy">{session.pendingKeepsake.blurb}</p>
+            <div className="perk-copy">
+              <span>{session.pendingKeepsake.perkLabel}</span>
+              <p>{session.pendingKeepsake.perkDescription}</p>
+            </div>
             <p className="price-copy">
               Costs <strong>{session.pendingKeepsake.cost}</strong> hearts.
             </p>
@@ -225,6 +264,36 @@ export function GameScreen() {
               <p className="support-copy">Waiting for the other phone to lock the mood.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {session.phase === 'activityChoice' && (
+        <div className="overlay-screen">
+          <div className="overlay-card">
+            <p className="eyebrow">Momentum Pick</p>
+            <h3>Choose The Next Beat</h3>
+            <p className="support-copy">
+              Playful momentum opened two options. {canChooseActivity ? 'Pick one and open it together.' : 'Waiting for the active phone to choose.'}
+            </p>
+            <div className="activity-option-grid">
+              {activityOptions.map((option) => (
+                <button
+                  key={option.id}
+                  className={`activity-option-card vibe-${option.vibe}`}
+                  disabled={!canChooseActivity || working}
+                  onClick={() => {
+                    playAction?.()
+                    selectActivityOption(option.id)
+                  }}
+                  type="button"
+                >
+                  <span className="eyebrow">{option.vibe} {option.type}</span>
+                  <strong>{option.label}</strong>
+                  <p>{option.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -316,13 +385,24 @@ export function GameScreen() {
                 <span>Keepsakes</span>
               </div>
               <div>
-                <strong>{journalEntries.length}</strong>
+                <strong>{finalSummary.journalCount}</strong>
                 <span>Journal Beats</span>
+              </div>
+              <div>
+                <strong>{finalSummary.completedSpotlightCount}</strong>
+                <span>Spotlights</span>
               </div>
             </div>
             {finalSummary.keepsakeLabels.length > 0 && (
               <div className="finale-tag-row">
                 {finalSummary.keepsakeLabels.map((label) => (
+                  <span key={label}>{label}</span>
+                ))}
+              </div>
+            )}
+            {finalSummary.momentumLabels.length > 0 && (
+              <div className="finale-tag-row momentum-tags">
+                {finalSummary.momentumLabels.map((label) => (
                   <span key={label}>{label}</span>
                 ))}
               </div>
@@ -349,6 +429,31 @@ export function GameScreen() {
           open={journalOpen}
         />
       </Suspense>
+
+      {needsSessionRecovery && (
+        <div className="overlay-screen session-recovery-overlay">
+          <div className="overlay-card session-recovery-card">
+            <p className="eyebrow">Session Check</p>
+            <h3>{isSessionStale ? 'This night paused here.' : 'Reconnecting your night.'}</h3>
+            <p className="support-copy">{error || sessionStatusMessage}</p>
+            <div className="button-row compact">
+              <button className="primary-btn alt" onClick={resumeSession} type="button">
+                Resume
+              </button>
+              {canRecoverSession && (
+                <button className="primary-btn alt" onClick={startFreshSession} type="button">
+                  Start Fresh
+                </button>
+              )}
+              {!isHost && isSessionStale && (
+                <button className="primary-btn alt" onClick={claimSessionHost} type="button">
+                  Claim Host
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

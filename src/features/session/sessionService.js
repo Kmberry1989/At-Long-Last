@@ -78,14 +78,19 @@ export async function ensureActiveSession(db, couple) {
 }
 
 export function subscribeToSession(db, sessionId, onNext, onError) {
-  return onSnapshot(doc(db, 'sessions', sessionId), (snapshot) => {
-    if (!snapshot.exists()) {
-      onNext(null, snapshot.metadata)
-      return
-    }
+  return onSnapshot(
+    doc(db, 'sessions', sessionId),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onNext(null, snapshot.metadata)
+        return
+      }
 
-    onNext({ id: snapshot.id, ...snapshot.data() }, snapshot.metadata)
-  }, onError)
+      onNext({ id: snapshot.id, ...snapshot.data() }, snapshot.metadata)
+    },
+    onError,
+  )
 }
 
 export function subscribeToActivity(db, activityId, onNext, onError) {
