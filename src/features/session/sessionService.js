@@ -266,6 +266,7 @@ export async function abandonSession(db, { coupleId, sessionId }) {
 
   await runTransaction(db, async (transaction) => {
     const coupleSnapshot = await transaction.get(coupleRef)
+    const sessionSnapshot = await transaction.get(sessionRef)
 
     if (coupleSnapshot.exists() && coupleSnapshot.data().activeSessionId === sessionId) {
       transaction.update(coupleRef, {
@@ -274,7 +275,6 @@ export async function abandonSession(db, { coupleId, sessionId }) {
       })
     }
 
-    const sessionSnapshot = await transaction.get(sessionRef)
     if (sessionSnapshot.exists()) {
       transaction.update(sessionRef, {
         endedAt: serverTimestamp(),

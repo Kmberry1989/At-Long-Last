@@ -321,150 +321,141 @@ service cloud.firestore {
         );
     }
 
-    function isJoinableCoupleUpdate(coupleId) {
+    function isValidCoupleLifecycleUpdateCompact(coupleId) {
       let before = resource.data;
       let after = request.resource.data;
+      let changed = after.diff(before).affectedKeys();
+      let callerWasParticipant = isCoupleParticipantData(before);
       return isValidCurrentCoupleWrite()
-        && before.status == 'waiting'
-        && hasNoActiveSession(before)
-        && before.playerIds.size() == 1
-        && !(request.auth.uid in before.playerIds)
-        && after.status == 'paired'
-        && after.playerIds.size() == 2
-        && after.playerIds[0] == before.playerIds[0]
-        && after.playerIds[1] == request.auth.uid
-        && after.players[0] == before.players[0]
-        && isValidPlayer(after.players[1], request.auth.uid)
-        && after.inviteCode == before.inviteCode
-        && after.shareLink == before.shareLink
-        && hasNoActiveSession(after)
-        && (
-          !('sessionPreset' in before)
-          || after.sessionPreset == before.sessionPreset
-        )
-        && (
-          !('boardState' in before)
-          || after.boardState == before.boardState
-        )
         && after.createdAt == before.createdAt
-        && hasOnlyChanged(['playerIds', 'players', 'status', 'updatedAt'])
-        && existsAfter(
-          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
-        )
-        && getAfter(
-          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
-        ).data.coupleId == coupleId
-        && !existsAfter(
-          /databases/$(database)/documents/publicLobbies/$(coupleId)
-        );
-    }
-
-    function isValidLeaveCoupleUpdate(coupleId) {
-      let before = resource.data;
-      let after = request.resource.data;
-      let remainingIndex = before.playerIds[0] == request.auth.uid ? 1 : 0;
-      return isCoupleParticipantData(before)
-        && isValidCurrentCoupleWrite()
-        && hasNoActiveSession(before)
-        && before.playerIds.size() == 2
-        && after.playerIds.size() == 1
-        && after.playerIds[0] == before.playerIds[remainingIndex]
-        && after.players[0] == before.players[remainingIndex]
-        && after.status == 'waiting'
-        && after.inviteCode == before.inviteCode
-        && after.shareLink == before.shareLink
-        && hasNoActiveSession(after)
-        && after.createdAt == before.createdAt
-        && hasOnlyChanged(['playerIds', 'players', 'status', 'updatedAt'])
-        && !existsAfter(
-          /databases/$(database)/documents/playerCouples/$(request.auth.uid)
-        )
-        && existsAfter(
-          /databases/$(database)/documents/publicLobbies/$(coupleId)
-        )
-        && lobbyMatchesCouple(
-          getAfter(
-            /databases/$(database)/documents/publicLobbies/$(coupleId)
-          ).data,
-          after
-        );
-    }
-
-    function isValidPresetUpdate() {
-      return isCoupleParticipantData(resource.data)
-        && resource.data.playerIds[0] == request.auth.uid
-        && hasNoActiveSession(resource.data)
-        && isValidCurrentCoupleWrite()
-        && isPreset(request.resource.data.sessionPreset)
-        && request.resource.data.createdAt == resource.data.createdAt
-        && hasOnlyChanged(['sessionPreset', 'updatedAt']);
-    }
-
-    function isValidBoardRewardUpdate() {
-      let before = resource.data.boardState;
-      let after = request.resource.data.boardState;
-      return isCoupleParticipantData(resource.data)
-        && isValidCurrentCoupleWrite()
-        && request.resource.data.createdAt == resource.data.createdAt
-        && hasOnlyChanged(['boardState', 'updatedAt'])
         && (
           (
-            after.tenderStars == before.tenderStars + 1
-            && after.spicyGlowLevel == before.spicyGlowLevel
-            && after.playfulStickerIds == before.playfulStickerIds
+            callerWasParticipant
+            && changed.hasOnly(['activeSessionId', 'updatedAt'])
+            && (
+              hasNoActiveSession(before)
+                ? (
+                  before.playerIds[0] == request.auth.uid
+                  && isBoundedString(after.activeSessionId, 1, 128)
+                  && existsAfter(
+                    /databases/$(database)/documents/sessions/$(after.activeSessionId)
+                  )
+                  && getAfter(
+                    /databases/$(database)/documents/sessions/$(after.activeSessionId)
+                  ).data.coupleId == coupleId
+                  && getAfter(
+                    /databases/$(database)/documents/sessions/$(after.activeSessionId)
+                  ).data.status == 'active'
+                )
+                : (
+                  after.activeSessionId == null
+                  && existsAfter(
+                    /databases/$(database)/documents/sessions/$(before.activeSessionId)
+                  )
+                  && getAfter(
+                    /databases/$(database)/documents/sessions/$(before.activeSessionId)
+                  ).data.coupleId == coupleId
+                  && getAfter(
+                    /databases/$(database)/documents/sessions/$(before.activeSessionId)
+                  ).data.status in ['abandoned', 'completed']
+                )
+            )
           )
           || (
-            before.spicyGlowLevel < 5
-            && after.spicyGlowLevel == before.spicyGlowLevel + 1
-            && after.tenderStars == before.tenderStars
-            && after.playfulStickerIds == before.playfulStickerIds
+            !callerWasParticipant
+            && changed.hasOnly(['playerIds', 'players', 'status', 'updatedAt'])
+            && before.status == 'waiting'
+            && hasNoActiveSession(before)
+            && before.playerIds.size() == 1
+            && after.status == 'paired'
+            && after.playerIds == [before.playerIds[0], request.auth.uid]
+            && after.players[0] == before.players[0]
+            && isValidPlayer(after.players[1], request.auth.uid)
+            && after.inviteCode == before.inviteCode
+            && after.shareLink == before.shareLink
+            && hasNoActiveSession(after)
+            && existsAfter(
+              /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+            )
+            && getAfter(
+              /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+            ).data.coupleId == coupleId
+            && !existsAfter(
+              /databases/$(database)/documents/publicLobbies/$(coupleId)
+            )
           )
           || (
-            after.playfulStickerIds.size() == before.playfulStickerIds.size() + 1
-            && after.playfulStickerIds.toSet().hasAll(before.playfulStickerIds)
-            && after.tenderStars == before.tenderStars
-            && after.spicyGlowLevel == before.spicyGlowLevel
+            callerWasParticipant
+            && (
+              (
+                changed.hasOnly([
+                  'playerIds', 'players', 'status', 'updatedAt'
+                ])
+                && before.playerIds.size() == 2
+                && hasNoActiveSession(before)
+                && after.status == 'waiting'
+                && after.playerIds.size() == 1
+                && !(request.auth.uid in after.playerIds)
+                && after.players.size() == 1
+                && (
+                  (
+                    after.playerIds[0] == before.playerIds[0]
+                    && after.players[0] == before.players[0]
+                  )
+                  || (
+                    after.playerIds[0] == before.playerIds[1]
+                    && after.players[0] == before.players[1]
+                  )
+                )
+                && !existsAfter(
+                  /databases/$(database)/documents/playerCouples/$(request.auth.uid)
+                )
+                && existsAfter(
+                  /databases/$(database)/documents/publicLobbies/$(coupleId)
+                )
+              )
+              || (
+                changed.hasOnly(['sessionPreset', 'updatedAt'])
+                && before.playerIds[0] == request.auth.uid
+                && hasNoActiveSession(before)
+                && isPreset(after.sessionPreset)
+              )
+              || (
+                changed.hasOnly(['boardState', 'updatedAt'])
+                && isValidBoardState(after.boardState)
+                && (
+                  (
+                    after.boardState.tenderStars
+                      == before.boardState.tenderStars + 1
+                    && after.boardState.spicyGlowLevel
+                      == before.boardState.spicyGlowLevel
+                    && after.boardState.playfulStickerIds
+                      == before.boardState.playfulStickerIds
+                  )
+                  || (
+                    before.boardState.spicyGlowLevel < 5
+                    && after.boardState.spicyGlowLevel
+                      == before.boardState.spicyGlowLevel + 1
+                    && after.boardState.tenderStars
+                      == before.boardState.tenderStars
+                    && after.boardState.playfulStickerIds
+                      == before.boardState.playfulStickerIds
+                  )
+                  || (
+                    after.boardState.playfulStickerIds.size()
+                      == before.boardState.playfulStickerIds.size() + 1
+                    && after.boardState.playfulStickerIds.toSet()
+                      .hasAll(before.boardState.playfulStickerIds)
+                    && after.boardState.tenderStars
+                      == before.boardState.tenderStars
+                    && after.boardState.spicyGlowLevel
+                      == before.boardState.spicyGlowLevel
+                  )
+                )
+              )
+            )
           )
         );
-    }
-
-    function isValidSessionAttach(coupleId) {
-      let sessionId = request.resource.data.activeSessionId;
-      return isCoupleParticipantData(resource.data)
-        && resource.data.playerIds[0] == request.auth.uid
-        && hasNoActiveSession(resource.data)
-        && isValidCurrentCoupleWrite()
-        && isBoundedString(sessionId, 1, 128)
-        && request.resource.data.createdAt == resource.data.createdAt
-        && hasOnlyChanged(['activeSessionId', 'updatedAt'])
-        && existsAfter(
-          /databases/$(database)/documents/sessions/$(sessionId)
-        )
-        && getAfter(
-          /databases/$(database)/documents/sessions/$(sessionId)
-        ).data.coupleId == coupleId
-        && getAfter(
-          /databases/$(database)/documents/sessions/$(sessionId)
-        ).data.status == 'active';
-    }
-
-    function isValidSessionDetach(coupleId) {
-      let sessionId = resource.data.activeSessionId;
-      return isCoupleParticipantData(resource.data)
-        && isBoundedString(sessionId, 1, 128)
-        && request.resource.data.activeSessionId == null
-        && isValidCurrentCoupleWrite()
-        && request.resource.data.createdAt == resource.data.createdAt
-        && hasOnlyChanged(['activeSessionId', 'updatedAt'])
-        && existsAfter(
-          /databases/$(database)/documents/sessions/$(sessionId)
-        )
-        && getAfter(
-          /databases/$(database)/documents/sessions/$(sessionId)
-        ).data.coupleId == coupleId
-        && getAfter(
-          /databases/$(database)/documents/sessions/$(sessionId)
-        ).data.status in ['abandoned', 'completed'];
     }
 
     function isValidLastParticipantDelete(coupleId) {
@@ -526,105 +517,6 @@ service cloud.firestore {
       ];
     }
 
-    function duelIds() {
-      return [
-        'constellation-home', 'heartbeat-hold-tender',
-        'letterpress-one-word', 'sync-breath', 'gratitude-duel',
-        'doodle-duel-memory', 'portrait-panic-directed',
-        'wavelength-slider', 'emoji-court', 'reaction-heart',
-        'kiss-courier', 'fever-dream-date', 'voice-note-trailer',
-        'temperature-check', 'slow-draw-portrait-romantic'
-      ];
-    }
-
-    function keepsakePerkIds() {
-      return [
-        'sparkler-photo',
-        'midnight-snack',
-        'pocket-love-note',
-        'last-dance-ticket'
-      ];
-    }
-
-    function isValidKnownIdList(values, allowed, maxSize) {
-      return values is list
-        && values.size() <= maxSize
-        && values.toSet().hasOnly(allowed);
-    }
-
-    function isValidKeepsake(data) {
-      return data is map
-        && data.keys().hasAll([
-          'id', 'label', 'cost', 'blurb', 'perkDescription', 'perkId', 'perkLabel'
-        ])
-        && data.keys().hasOnly([
-          'id', 'label', 'cost', 'blurb', 'perkDescription', 'perkId', 'perkLabel'
-        ])
-        && data.id in [
-          'sparkler-photo', 'midnight-snack', 'love-note', 'dance-ticket'
-        ]
-        && isBoundedString(data.label, 1, 80)
-        && data.cost is int
-        && data.cost >= 1
-        && data.cost <= 20
-        && isBoundedString(data.blurb, 1, 240)
-        && isBoundedString(data.perkDescription, 1, 240)
-        && data.perkId in keepsakePerkIds()
-        && isBoundedString(data.perkLabel, 1, 80);
-    }
-
-    function isValidOptionalKeepsake(data) {
-      return data == null || isValidKeepsake(data);
-    }
-
-    function isValidVibeWeights(data) {
-      return data == null
-        || (
-          data is map
-          && data.keys().hasAll(['tender', 'playful', 'spicy'])
-          && data.keys().hasOnly(['tender', 'playful', 'spicy'])
-          && data.tender is number
-          && data.tender >= 0
-          && data.tender <= 1
-          && data.playful is number
-          && data.playful >= 0
-          && data.playful <= 1
-          && data.spicy is number
-          && data.spicy >= 0
-          && data.spicy <= 1
-        );
-    }
-
-    function isValidVibeVote(data) {
-      return data is map
-        && data.keys().hasAll(['tender', 'playful', 'spicy'])
-        && data.keys().hasOnly(['tender', 'playful', 'spicy'])
-        && data.tender is number
-        && data.tender >= 0
-        && data.tender <= 1
-        && data.playful is number
-        && data.playful >= 0
-        && data.playful <= 1
-        && data.spicy is number
-        && data.spicy >= 0
-        && data.spicy <= 1;
-    }
-
-    function isValidVibeVotes(data, playerIds) {
-      return data is map
-        && data.keys().hasOnly(playerIds)
-        && data.keys().size() <= 2
-        && (
-          !(playerIds[0] in data)
-          || isValidVibeVote(data[playerIds[0]])
-        )
-        && (
-          playerIds.size() < 2
-          || !(playerIds[1] in data)
-          || isValidVibeVote(data[playerIds[1]])
-        );
-    }
-
     function isValidDuelResult(data) {
       return data is map
         && data.keys().hasAll(['highlight', 'time', 'won'])
@@ -660,161 +552,7 @@ service cloud.firestore {
         && (!('spread' in data) || (data.spread is number && data.spread >= 0 && data.spread <= 4096));
     }
 
-    function isValidDuelResults(data, playerIds) {
-      return data is map
-        && data.keys().hasOnly(playerIds)
-        && data.keys().size() <= 2
-        && (
-          !(playerIds[0] in data)
-          || isValidDuelResult(data[playerIds[0]])
-        )
-        && (
-          playerIds.size() < 2
-          || !(playerIds[1] in data)
-          || isValidDuelResult(data[playerIds[1]])
-        );
-    }
-
-    function isValidCurrentDuel(data) {
-      return data == null
-        || (
-          data is map
-          && data.keys().hasAll(['attempt', 'heartBonus', 'id'])
-          && data.keys().hasOnly(['attempt', 'heartBonus', 'id'])
-          && data.attempt is int
-          && data.attempt >= 1
-          && data.attempt <= 20
-          && data.heartBonus is int
-          && data.heartBonus >= 0
-          && data.heartBonus <= 20
-          && data.id in duelIds()
-        );
-    }
-
-    function isValidLastMove(data) {
-      return data == null
-        || (
-          data is map
-          && data.keys().hasAll(['from', 'playerIndex', 'spaceId', 'steps', 'to'])
-          && data.keys().hasOnly(['from', 'playerIndex', 'spaceId', 'steps', 'to'])
-          && data.from is int
-          && data.from >= 0
-          && data.from < 20
-          && data.playerIndex is int
-          && data.playerIndex >= 0
-          && data.playerIndex <= 1
-          && isBoundedString(data.spaceId, 1, 64)
-          && data.steps is int
-          && data.steps >= 1
-          && data.steps <= 6
-          && data.to is int
-          && data.to >= 0
-          && data.to < 20
-        );
-    }
-
-    function isValidLastDuelOutcome(data) {
-      return data == null
-        || (
-          data is map
-          && data.keys().hasOnly([
-            'status', 'winnerIndex', 'heartBonus', 'shared', 'noContest'
-          ])
-          && (!('status' in data) || data.status in ['resolved', 'shared', 'noContest'])
-          && (!('winnerIndex' in data) || (data.winnerIndex is int && data.winnerIndex >= 0 && data.winnerIndex <= 1))
-          && (!('heartBonus' in data) || (data.heartBonus is int && data.heartBonus >= 0 && data.heartBonus <= 20))
-          && (!('shared' in data) || data.shared is bool)
-          && (!('noContest' in data) || data.noContest is bool)
-        );
-    }
-
-    function isValidMomentum(data) {
-      return data is map
-        && data.keys().hasAll([
-          'tender', 'playful', 'spicy', 'consumed', 'unlocked'
-        ])
-        && data.keys().hasOnly([
-          'tender', 'playful', 'spicy', 'consumed', 'unlocked'
-        ])
-        && data.tender is int
-        && data.tender >= 0
-        && data.tender <= 50
-        && data.playful is int
-        && data.playful >= 0
-        && data.playful <= 50
-        && data.spicy is int
-        && data.spicy >= 0
-        && data.spicy <= 50
-        && data.consumed is map
-        && data.consumed.keys().hasAll(['tender', 'playful', 'spicy'])
-        && data.consumed.keys().hasOnly(['tender', 'playful', 'spicy'])
-        && data.consumed.tender is bool
-        && data.consumed.playful is bool
-        && data.consumed.spicy is bool
-        && data.unlocked is map
-        && data.unlocked.keys().hasAll(['tender', 'playful', 'spicy'])
-        && data.unlocked.keys().hasOnly(['tender', 'playful', 'spicy'])
-        && data.unlocked.tender is bool
-        && data.unlocked.playful is bool
-        && data.unlocked.spicy is bool;
-    }
-
-    function isValidSpotlight(data) {
-      return data is map
-        && data.keys().hasAll([
-          'act', 'completed', 'description', 'id', 'label', 'rewarded'
-        ])
-        && data.keys().hasOnly([
-          'act', 'completed', 'description', 'id', 'label', 'rewarded'
-        ])
-        && data.act in ['warmup', 'spark', 'finale']
-        && data.completed is bool
-        && isBoundedString(data.description, 1, 300)
-        && isBoundedString(data.id, 1, 80)
-        && isBoundedString(data.label, 1, 100)
-        && data.rewarded is bool;
-    }
-
-    function isValidGoal(data) {
-      return data is map
-        && data.keys().hasAll(['badge', 'description', 'id', 'label', 'target'])
-        && data.keys().hasOnly(['badge', 'description', 'id', 'label', 'target'])
-        && data.id in ['heartReserve', 'keepsakeCollector', 'vibeSampler']
-        && isBoundedString(data.badge, 1, 80)
-        && isBoundedString(data.description, 1, 240)
-        && isBoundedString(data.label, 1, 80)
-        && data.target is int
-        && data.target >= 1
-        && data.target <= 20;
-    }
-
-    function isValidGoals(data) {
-      return data is list
-        && data.size() >= 2
-        && data.size() <= 3
-        && isValidGoal(data[0])
-        && isValidGoal(data[1])
-        && (data.size() == 2 || isValidGoal(data[2]));
-    }
-
-    function isValidKeepsakes(data) {
-      return data is list
-        && data.size() <= 12
-        && (data.size() < 1 || isValidKeepsake(data[0]))
-        && (data.size() < 2 || isValidKeepsake(data[1]))
-        && (data.size() < 3 || isValidKeepsake(data[2]))
-        && (data.size() < 4 || isValidKeepsake(data[3]))
-        && (data.size() < 5 || isValidKeepsake(data[4]))
-        && (data.size() < 6 || isValidKeepsake(data[5]))
-        && (data.size() < 7 || isValidKeepsake(data[6]))
-        && (data.size() < 8 || isValidKeepsake(data[7]))
-        && (data.size() < 9 || isValidKeepsake(data[8]))
-        && (data.size() < 10 || isValidKeepsake(data[9]))
-        && (data.size() < 11 || isValidKeepsake(data[10]))
-        && (data.size() < 12 || isValidKeepsake(data[11]));
-    }
-
-    function isValidSession(data) {
+    function hasValidSessionSchema(data) {
       return data.keys().hasAll([
           'actionText', 'activePlayerIndex', 'completedSpotlightActs',
           'coupleId', 'currentDuel', 'duelResults', 'goals', 'hearts',
@@ -838,100 +576,26 @@ service cloud.firestore {
           'totalRounds', 'turnsTakenThisRound', 'usedActivityIds',
           'usedDuelIds', 'usedKeepsakePerks', 'vibeVotes', 'vibeWeights',
           'createdAt', 'startedAt', 'endedAt', 'lastActionAt', 'updatedAt'
-        ])
-        && isBoundedString(data.actionText, 1, 500)
-        && data.activePlayerIndex is int
-        && data.activePlayerIndex >= 0
-        && data.activePlayerIndex <= 1
-        && isValidKnownIdList(
-          data.completedSpotlightActs,
-          ['warmup', 'spark', 'finale'],
-          3
-        )
-        && isBoundedString(data.coupleId, 1, 128)
-        && isValidCurrentDuel(data.currentDuel)
-        && data.players is list
-        && data.players.size() == 2
-        && isValidPlayer(data.players[0], data.players[0].uid)
-        && isValidPlayer(data.players[1], data.players[1].uid)
-        && data.players[0].uid != data.players[1].uid
-        && isValidDuelResults(
-          data.duelResults,
-          [data.players[0].uid, data.players[1].uid]
-        )
-        && isValidGoals(data.goals)
-        && data.hearts is int
-        && data.hearts >= 0
-        && data.hearts <= 200
-        && data.hostId in [data.players[0].uid, data.players[1].uid]
-        && isValidKnownIdList(data.keepsakePerks, keepsakePerkIds(), 4)
-        && isValidKeepsakes(data.keepsakes)
-        && isValidLastDuelOutcome(data.lastDuelOutcome)
-        && isValidLastMove(data.lastMove)
-        && (data.lastRoll == null || (data.lastRoll is int && data.lastRoll >= 1 && data.lastRoll <= 6))
-        && isValidMomentum(data.momentum)
-        && isOptionalBoundedString(data, 'pendingActivityId', 128)
-        && (
-          data.pendingActivityOptions == null
-          || isValidKnownIdList(data.pendingActivityOptions, activityIds(), 2)
-        )
-        && (
-          data.pendingActivityType == null
-          || data.pendingActivityType in activityIds()
-        )
-        && isValidOptionalKeepsake(data.pendingKeepsake)
-        && data.phase in [
-          'vibeSetup', 'turn', 'activityChoice', 'activity', 'keepsake',
-          'duelWheel', 'duel', 'finale'
-        ]
-        && data.positions is list
-        && data.positions.size() == 2
-        && data.positions[0] is int
-        && data.positions[0] >= 0
-        && data.positions[0] < 20
-        && data.positions[1] is int
-        && data.positions[1] >= 0
-        && data.positions[1] < 20
-        && isPreset(data.preset)
-        && data.round is int
-        && data.round >= 1
-        && data.round <= data.totalRounds
-        && data.roundDuelBonus is int
-        && data.roundDuelBonus >= 0
-        && data.roundDuelBonus <= 20
-        && isValidSpotlight(data.spotlight)
-        && data.startingPlayerIndex is int
-        && data.startingPlayerIndex >= 0
-        && data.startingPlayerIndex <= 1
-        && data.status in ['active', 'completed', 'abandoned']
-        && data.totalRounds in [4, 6, 8]
-        && (
-          (data.preset == 'quick' && data.totalRounds == 4)
-          || (data.preset == 'standard' && data.totalRounds == 6)
-          || (data.preset == 'long' && data.totalRounds == 8)
-        )
-        && data.turnsTakenThisRound is int
-        && data.turnsTakenThisRound >= 0
-        && data.turnsTakenThisRound <= 2
-        && isValidKnownIdList(data.usedActivityIds, activityIds(), 16)
-        && isValidKnownIdList(data.usedDuelIds, duelIds(), 8)
-        && isValidKnownIdList(data.usedKeepsakePerks, keepsakePerkIds(), 4)
-        && isValidVibeVotes(
-          data.vibeVotes,
-          [data.players[0].uid, data.players[1].uid]
-        )
-        && isValidVibeWeights(data.vibeWeights)
-        && data.createdAt is timestamp
-        && data.startedAt is timestamp
-        && (data.endedAt == null || data.endedAt is timestamp)
-        && data.lastActionAt is timestamp
-        && data.updatedAt is timestamp;
+        ]);
     }
 
     function isValidSessionCreate(sessionId) {
       let data = request.resource.data;
       let couple = coupleDataAfter(data.coupleId);
-      return isValidSession(data)
+      return hasValidSessionSchema(data)
+        && isBoundedString(data.actionText, 1, 500)
+        && isBoundedString(data.coupleId, 1, 128)
+        && data.players is list
+        && data.players.size() == 2
+        && data.goals is list
+        && data.goals.size() >= 2
+        && data.goals.size() <= 3
+        && data.duelResults is map
+        && data.vibeVotes is map
+        && data.momentum is map
+        && data.spotlight is map
+        && data.hearts is int
+        && data.totalRounds in [4, 6, 8]
         && isParticipantAfter(data.coupleId)
         && couple.playerIds.size() == 2
         && data.players == couple.players
@@ -1008,41 +672,49 @@ service cloud.firestore {
         );
     }
 
-    function isValidSessionStatusTransition() {
-      return (
-          resource.data.status == 'active'
-          && request.resource.data.status == 'active'
-          && request.resource.data.endedAt == null
-        )
-        || (
-          resource.data.status == 'active'
-          && request.resource.data.status == 'completed'
-          && request.resource.data.phase == 'finale'
-          && request.resource.data.endedAt == request.time
-        )
-        || (
-          resource.data.status == 'active'
-          && request.resource.data.status == 'abandoned'
-          && request.resource.data.endedAt == request.time
-          && existsAfter(
-            /databases/$(database)/documents/couples/$(resource.data.coupleId)
-          )
-          && getAfter(
-            /databases/$(database)/documents/couples/$(resource.data.coupleId)
-          ).data.activeSessionId == null
-        );
-    }
-
-    function isValidSessionUpdate() {
+    function isValidSessionUpdateCompact() {
+      let after = request.resource.data;
+      let changed = after.diff(resource.data).affectedKeys();
       return isParticipant(resource.data.coupleId)
-        && isValidSession(request.resource.data)
+        && hasValidSessionSchema(after)
+        && isBoundedString(after.actionText, 1, 500)
+        && after.status in ['active', 'completed', 'abandoned']
+        && (after.endedAt == null || after.endedAt is timestamp)
         && isValidSessionIdentity()
         && isValidSessionTimestamps()
         && isValidHostChange()
-        && isValidSessionStatusTransition()
         && (
-          !hasOnlyChanged(['duelResults', 'updatedAt'])
-          || isValidDuelResultSubmission()
+          (
+            resource.data.status == 'active'
+            && after.status == 'active'
+            && after.endedAt == null
+          )
+          || (
+            resource.data.status == 'active'
+            && after.status == 'completed'
+            && resource.data.phase == 'duel'
+            && resource.data.round == resource.data.totalRounds
+            && after.phase == 'finale'
+            && after.round == resource.data.totalRounds
+            && after.currentDuel == null
+            && after.endedAt == request.time
+          )
+          || (
+            resource.data.status == 'active'
+            && after.status == 'abandoned'
+            && after.endedAt == request.time
+            && existsAfter(
+              /databases/$(database)/documents/couples/$(resource.data.coupleId)
+            )
+            && getAfter(
+              /databases/$(database)/documents/couples/$(resource.data.coupleId)
+            ).data.activeSessionId == null
+          )
+        )
+        && (
+          changed.hasOnly(['duelResults', 'updatedAt'])
+            ? isValidDuelResultSubmission()
+            : true
         );
     }
 
@@ -1216,14 +888,7 @@ service cloud.firestore {
       allow read: if isCoupleParticipantData(resource.data);
 
       allow update: if isAuthenticated()
-        && (
-          isJoinableCoupleUpdate(coupleId)
-          || isValidLeaveCoupleUpdate(coupleId)
-          || isValidPresetUpdate()
-          || isValidBoardRewardUpdate()
-          || isValidSessionAttach(coupleId)
-          || isValidSessionDetach(coupleId)
-        );
+        && isValidCoupleLifecycleUpdateCompact(coupleId);
 
       allow delete: if isAuthenticated()
         && isValidLastParticipantDelete(coupleId);
@@ -1294,7 +959,7 @@ service cloud.firestore {
       allow read: if isParticipant(resource.data.coupleId);
 
       allow update: if isAuthenticated()
-        && isValidSessionUpdate();
+        && isValidSessionUpdateCompact();
 
       allow delete: if false;
     }

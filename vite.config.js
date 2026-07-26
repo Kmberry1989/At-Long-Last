@@ -36,6 +36,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     fileParallelism: false,
+    include: ['src/**/*.test.{js,jsx}'],
     maxWorkers: 1,
     setupFiles: './src/test/setup.js',
     coverage: {

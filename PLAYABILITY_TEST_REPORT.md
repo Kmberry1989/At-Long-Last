@@ -2,16 +2,56 @@
 
 ## Current Run Summary
 
-- **Run date:** 2026-07-21 (America/Indiana/Indianapolis)
-- **Result:** PARTIAL — one live mobile profile was inspected and a recovery-layout defect was found; the two-profile endurance path remains blocked.
-- **Release decision:** Production remains unchanged. Do not deploy the local recovery-layout fix until two clean test profiles complete the critical path.
+- **Run date:** 2026-07-26 (America/Indiana/Indianapolis)
+- **Result:** PASS — hardened Firestore rules passed the production service-layer invite/join/session path with two isolated authenticated emulator accounts and focused adversarial coverage.
+- **Release decision:** Firestore rules only were deployed to `at-long-last` after the pre-deploy gate passed. The application bundle and existing Firestore data were not changed.
 - **Branch:** `main`
 - **Local URL:** `http://127.0.0.1:4173/`
 - **Production URL:** `https://atlonglast.vercel.app/`
 - **Runtime:** Node `v22.23.1`, npm `10.9.8`, macOS `26.5.2`
-- **Firebase mode:** live Standard Firestore (`at-long-last`, `nam5`)
+- **Firebase mode:** Standard Firestore emulator for deterministic two-account coverage; production rules deployment to `at-long-last` (`nam5`)
 
-The existing dirty worktree was preserved. The 2026-07-17 pass evidence below is historical; it is not a substitute for this remaining two-phone/finale retest.
+The existing dirty worktree was preserved. This run verifies the security-rules
+critical path; the older two-phone/mobile-finale endurance evidence below
+remains historical and separate.
+
+## 2026-07-26 Firestore Rules Hardening
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Firestore edition/target | PASS | `projects/at-long-last/databases/(default)` is Standard edition, native mode, in `nam5`. |
+| Rules syntax | PASS | Firebase CLI dry-run compiled `firestore.rules` without warnings. |
+| Two-account invite/join | PASS | The real `createCoupleDocument` and `joinCoupleByInviteCode` services created the four linked room documents, paired two distinct authenticated UIDs, created the joining player link, and removed the open lobby. |
+| Shared session bootstrap | PASS | The real `ensureActiveSession` service created one session and both authenticated contexts read the same couple/session identity. |
+| Session termination | PASS | The real `abandonSession` service atomically marked the session `abandoned` and cleared the couple pointer; reopening the terminal session was denied. |
+| Legitimate leave/reopen | PASS | The joining participant left through `leaveCoupleDocument`; the host remained and the waiting lobby reopened with matching identity. |
+| Bounded board reward | PASS | One production board-reward transition succeeded; a forged jump to 100 stars was denied. |
+| Adversarial rules suite | PASS | 11/11 rules tests passed, including unauthenticated access, invite enumeration, outsider reads, third-player injection, invite/schema mutation, forged couple links, arbitrary session attachment, identity/timestamp mutation, premature completion, cross-player duel-result tampering, and unpaired abandon/detach writes. |
+| App unit suite | PASS | `npm test`: 8 files / 47 tests passed. |
+| Static validation | PASS | `npm run lint`, `npm run build`, and `git diff --check` passed. |
+| Production rules deploy | PASS | Firebase CLI released `firestore.rules` to Cloud Firestore for `at-long-last`; no application deployment was made. |
+
+The emulator retest exposed and fixed one client transaction bug before
+deployment: `abandonSession` previously issued a write before its final read.
+The service now reads both couple and session documents before queuing either
+write.
+
+### Current Security Rules Audit
+
+```json
+{
+  "score": 4,
+  "summary": "Couple and session authority now comes from authenticated identity, existing resource state, and atomic after-state checks. Invite creation/join, participant leave, preset selection, active-session attach/detach, bounded board rewards, terminal session transitions, immutable session identity, and per-player duel results are constrained and emulator-covered. Remaining risk is limited to storage-abuse validation inside flexible nested gameplay, activity-state, and journal payload maps.",
+  "findings": [
+    {
+      "check": "Storage Abuse",
+      "severity": "minor",
+      "issue": "Flexible nested gameplay, activity state, and journal payload maps have key-count and document-schema bounds but do not type/length-check every possible nested value.",
+      "recommendation": "As payload shapes stabilize, add per-activity and per-journal-payload validators without expanding the session lifecycle evaluator past Firestore's expression limit."
+    }
+  ]
+}
+```
 
 ## Historical Preflight (2026-07-17)
 

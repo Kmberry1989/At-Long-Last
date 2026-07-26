@@ -18,8 +18,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
   createCoupleDocument,
   joinCoupleByInviteCode,
+  leaveCoupleDocument,
 } from '../src/features/couple/coupleService.js'
 import {
+  applyCoupleBoardReward,
   abandonSession,
   ensureActiveSession,
 } from '../src/features/session/sessionService.js'
@@ -217,6 +219,65 @@ describe('couple authorization boundaries', () => {
       }),
     )
   })
+
+  it('allows a real leave transition but rejects replacing the remaining player', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+
+    await assertFails(
+      updateDoc(doc(guestDb, 'couples', couple.id), {
+        playerIds: [OUTSIDER_UID],
+        players: [
+          {
+            accent: '#2aa1ff',
+            avatar: '/assets/players/kyle.glb',
+            color: '#59b5ff',
+            displayName: 'Outsider',
+            uid: OUTSIDER_UID,
+          },
+        ],
+        status: 'waiting',
+        updatedAt: serverTimestamp(),
+      }),
+    )
+
+    await leaveCoupleDocument({
+      couple,
+      db: guestDb,
+      userId: GUEST_UID,
+    })
+
+    const waitingCouple = await getDoc(doc(hostDb, 'couples', couple.id))
+    const reopenedLobby = await getDoc(
+      doc(hostDb, 'publicLobbies', couple.id),
+    )
+    expect(waitingCouple.data().playerIds).toEqual([HOST_UID])
+    expect(waitingCouple.data().status).toBe('waiting')
+    expect(reopenedLobby.data().hostId).toBe(HOST_UID)
+  })
+
+  it('allows one bounded board reward but rejects a forged jump', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+
+    await applyCoupleBoardReward(
+      guestDb,
+      couple.id,
+      'tender',
+      'comfort-menu',
+    )
+
+    const rewardedCouple = await getDoc(doc(hostDb, 'couples', couple.id))
+    expect(rewardedCouple.data().boardState.tenderStars).toBe(1)
+
+    await assertFails(
+      updateDoc(doc(guestDb, 'couples', couple.id), {
+        boardState: {
+          ...rewardedCouple.data().boardState,
+          tenderStars: 100,
+        },
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
 })
 
 describe('session lifecycle boundaries', () => {
@@ -241,6 +302,15 @@ describe('session lifecycle boundaries', () => {
     await assertFails(
       updateDoc(doc(hostDb, 'sessions', sessionId), {
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    )
+
+    await assertFails(
+      updateDoc(doc(hostDb, 'sessions', sessionId), {
+        endedAt: serverTimestamp(),
+        phase: 'finale',
+        status: 'completed',
         updatedAt: serverTimestamp(),
       }),
     )
