@@ -26,6 +26,7 @@ import {
   abandonSession,
   createActivityRecord,
   ensureActiveSession,
+  submitVibeVote,
 } from '../src/features/session/sessionService.js'
 
 const PROJECT_ID = 'demo-at-long-last'
@@ -188,6 +189,34 @@ afterAll(async () => {
 })
 
 describe('verified two-account lifecycle', () => {
+  it('allows both partners to submit vibe votes and enter the first turn', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+
+    await assertSucceeds(submitVibeVote(hostDb, sessionId, HOST_UID, {
+      playful: 0.4,
+      spicy: 0.2,
+      tender: 0.4,
+    }))
+    await assertSucceeds(submitVibeVote(guestDb, sessionId, GUEST_UID, {
+      playful: 0.3,
+      spicy: 0.2,
+      tender: 0.5,
+    }))
+
+    const sessionSnapshot = await getDoc(doc(guestDb, 'sessions', sessionId))
+    expect(sessionSnapshot.data()).toMatchObject({
+      phase: 'turn',
+      vibeVotes: {},
+      vibeWeights: {
+        playful: 0.35,
+        spicy: 0.2,
+        tender: 0.45,
+      },
+    })
+    expect(sessionSnapshot.data()).not.toHaveProperty('id')
+  })
+
   it('allows the three connection games only inside the couple session', async () => {
     const { couple, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)

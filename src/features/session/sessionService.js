@@ -24,6 +24,7 @@ function buildSessionWritePayload(nextSession) {
     lastActionAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }
+  delete payload.id
 
   if (nextSession.status === 'abandoned') {
     payload.endedAt = serverTimestamp()

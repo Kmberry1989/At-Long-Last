@@ -91,3 +91,13 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Verified the Sign In/Create Account tab switch, editable email/password controls, enabled-button state, and both final layouts. The required web-game client and direct mobile browser pass produced no application warning or error.
 - Validation passes: 9 app test files / 65 tests, lint, production build, and diff whitespace check.
 - This sign-in refinement remains local with the uncommitted Wave 3 and Wave 4 continuation.
+
+## 2026-07-27 — clean profile reset and recovery fix
+
+- Backed up the live Standard Firestore database, then removed all couple links, rooms, sessions, invitations, lobbies, activities, and journal progress while preserving all four profile documents and Firebase sign-in accounts.
+- Post-reset production inventory is four profiles and zero documents in every progress/couple collection.
+- Traced the reported second-player Vibe vote rejection to the local session `id` leaking into the Firestore update payload. Session writes now strip that client-only field.
+- Added a two-authenticated-account Firestore rules regression test that submits both Vibe votes and verifies the shared session advances to the first turn without persisting `id`.
+- The sound control now sits below gameplay overlays and hides while activity/recovery modals or the scrapbook drawer are open, leaving their Close controls unobstructed.
+- Mobile browser verification at 390×844 confirmed the scrapbook Close control is visible and clickable. The final required web-game client run completed without an application console error.
+- Validation passes: 9 app test files / 65 tests, 16/16 Firestore rules tests, lint, production build, and diff whitespace check.
