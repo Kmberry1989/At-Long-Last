@@ -1,10 +1,15 @@
 const ENTRY_LABELS = {
+  bluff: 'Bidding Receipt',
+  canvas: 'Merged Canvas',
   duel: 'Duel Replay',
   finale: 'Closing Poster',
+  harmonic: 'Resonance Lock',
   journal: 'Time Capsule',
   keepsake: 'Prize Pocket',
+  maze: 'Shared Route',
   match: 'Matched Instincts',
   prediction: 'Prediction Reveal',
+  photo: 'Photo Flashback',
   prompt: 'Conversation Slip',
   ritual: 'Shared Ritual',
   tempo: 'Rhythm Replay',
@@ -350,6 +355,121 @@ function WaveTwoResultCard({ entry }) {
   )
 }
 
+function CooperativeResultCard({ entry }) {
+  const responses = getResponseRows(entry)
+
+  return (
+    <>
+      <div className="scrapbook-headline">
+        <strong>{entry.title}</strong>
+        <p>{entry.summary}</p>
+      </div>
+
+      {entry.type === 'maze' && (
+        <div className="scrapbook-coop-stats">
+          <div>
+            <span>Shared moves</span>
+            <strong>{entry.payload?.moves || 0}</strong>
+          </div>
+          <div>
+            <span>Wall bumps</span>
+            <strong>{entry.payload?.bumps || 0}</strong>
+          </div>
+        </div>
+      )}
+
+      {entry.type === 'canvas' && (
+        <>
+          <div className="scrapbook-prompt">
+            <span>Blind prompt</span>
+            <p>{entry.payload?.prompt}</p>
+          </div>
+          <div className="scrapbook-blind-canvas">
+            {(entry.payload?.halves || []).map((half) => (
+              <img
+                alt={`${half.side} half of ${entry.payload?.prompt}`}
+                key={`${half.playerIndex}-${half.side}`}
+                src={half.imageDataUrl}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {entry.type === 'harmonic' && (
+        <div className="scrapbook-match-banner matched">
+          <span>Shared resonance</span>
+          <strong>{entry.payload?.averageResonance || 0}%</strong>
+        </div>
+      )}
+
+      <div className="scrapbook-response-grid">
+        {responses.map((response, index) => (
+          <div className="scrapbook-response-card" key={`${response.speaker}-${index}`}>
+            <span>{response.speaker}</span>
+            <p>{response.text}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function WaveFourResultCard({ entry }) {
+  if (entry.type === 'photo') {
+    return (
+      <>
+        <div className="scrapbook-headline">
+          <strong>{entry.title}</strong>
+          <p>{entry.summary}</p>
+        </div>
+        <div className="scrapbook-prompt">
+          <span>Photo prompt</span>
+          <p>{entry.payload?.prompt}</p>
+        </div>
+        {entry.payload?.imageDataUrl && (
+          <img
+            alt="Shared Photo Flashback"
+            className="scrapbook-photo-flashback"
+            src={entry.payload.imageDataUrl}
+          />
+        )}
+        <div className="scrapbook-response-grid">
+          {(entry.payload?.captions || []).map((caption, index) => (
+            <div className="scrapbook-response-card" key={`${caption.playerIndex}-${index}`}>
+              <span>{caption.label || `Caption ${index + 1}`}</span>
+              <p>{caption.text}</p>
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+
+  const succeeded = Boolean(entry.payload?.succeeded)
+  return (
+    <>
+      <div className="scrapbook-headline">
+        <strong>{entry.title}</strong>
+        <p>{entry.summary}</p>
+      </div>
+      <div className={`scrapbook-match-banner${succeeded ? ' matched' : ''}`}>
+        <span>{succeeded ? 'Boast proved' : 'Bluff caught'}</span>
+        <strong>{entry.payload?.bid || 0} promised</strong>
+      </div>
+      <div className="scrapbook-prompt">
+        <span>Category</span>
+        <p>{entry.payload?.topic}</p>
+      </div>
+      <div className="scrapbook-bluff-answers">
+        {(entry.payload?.answers || []).map((answer, index) => (
+          <span key={`${answer}-${index}`}>{answer}</span>
+        ))}
+      </div>
+    </>
+  )
+}
+
 function DuelEntryCard({ entry }) {
   const duelRows = getDuelRows(entry)
   const imageDataUrl = entry.payload?.imageDataUrl || null
@@ -475,6 +595,14 @@ function ScrapbookEntry({ entry, index, vaultRevealed }) {
     entry.type === 'word'
   ) {
     body = <WaveTwoResultCard entry={entry} />
+  } else if (
+    entry.type === 'maze' ||
+    entry.type === 'canvas' ||
+    entry.type === 'harmonic'
+  ) {
+    body = <CooperativeResultCard entry={entry} />
+  } else if (entry.type === 'bluff' || entry.type === 'photo') {
+    body = <WaveFourResultCard entry={entry} />
   } else if (entry.type === 'prompt' || entry.type === 'ritual' || entry.type === 'journal') {
     body = <ActivityEntryCard entry={entry} />
   }

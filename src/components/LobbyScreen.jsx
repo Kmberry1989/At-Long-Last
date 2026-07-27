@@ -168,6 +168,7 @@ export function LobbyScreen() {
   const selectedPublicLobby = publicLobbies.find((entry) => entry.id === selectedPublicLobbyId) || null
   const isActive = !hasPartner
   const waitingForPartner = Boolean(couple && !hasPartner)
+  const authScreenActive = Boolean(ready && enabled && !isSignedIn)
   const alternatePublicLobbies = waitingForPartner
     ? publicLobbies.filter((entry) => entry.id !== couple?.id)
     : publicLobbies
@@ -370,12 +371,11 @@ export function LobbyScreen() {
   function renderAuthCard() {
     return (
       <>
-        <p className="eyebrow">Welcome</p>
-        <h2>Sign in fast, or use email below.</h2>
-        <p className="support-copy">
-          Use Google to get back in quickly, or switch to email to sign in or make
-          a new profile.
-        </p>
+        <div className="auth-intro">
+          <p className="eyebrow">Welcome</p>
+          <h2>Your little world is waiting.</h2>
+          <p className="support-copy">Continue with Google, or use email.</p>
+        </div>
         {renderGoogleButton('Continue with Google')}
         <div className="divider-label">or use email</div>
         <div className="mode-toggle" role="tablist" aria-label="Auth mode">
@@ -396,12 +396,7 @@ export function LobbyScreen() {
         </div>
 
         {authMode === 'create' ? (
-          <>
-            <p className="eyebrow">Create Account</p>
-            <h2>Make a profile you can come back to.</h2>
-            <p className="support-copy">
-              Save your couple link, scrapbook, and keepsakes to this login.
-            </p>
+          <div className="auth-email-fields">
             <input
               className="text-input"
               onChange={(event) => setDisplayName(event.target.value)}
@@ -434,15 +429,9 @@ export function LobbyScreen() {
                 Create My Profile
               </button>
             </div>
-          </>
+          </div>
         ) : (
-          <>
-            <p className="eyebrow">Welcome Back</p>
-            <h2>Pick up where you left off.</h2>
-            <p className="support-copy">
-              Sign in on this phone and your saved couple link will reconnect if it
-              still belongs to you.
-            </p>
+          <div className="auth-email-fields">
             <input
               autoComplete="email"
               className="text-input"
@@ -469,7 +458,7 @@ export function LobbyScreen() {
                 Sign In
               </button>
             </div>
-          </>
+          </div>
         )}
       </>
     )
@@ -649,20 +638,24 @@ export function LobbyScreen() {
 
   return (
     <section
-      className={`screen lobby-screen${isActive ? ' active' : ' inactive'}`}
+      className={`screen lobby-screen${isActive ? ' active' : ' inactive'}${authScreenActive ? ' auth-screen' : ''}`}
     >
       <DecorativePath />
       <div className="lobby-content">
-        <div className="title-band">
+        <div className={`title-band${authScreenActive ? ' auth-title-band' : ''}`}>
           <p className="brand-script">At Long Last</p>
           <p className="title-kicker">A private board game night for two phones.</p>
-          <h1>Two phones. One little world.</h1>
-          <p className="title-copy">
-            Walk away together with a scrapbook instead of a scoreboard.
-          </p>
+          {!authScreenActive && (
+            <>
+              <h1>Two phones. One little world.</h1>
+              <p className="title-copy">
+                Walk away together with a scrapbook instead of a scoreboard.
+              </p>
+            </>
+          )}
         </div>
 
-        <div className="glass-card hero-card lobby-card">
+        <div className={`glass-card hero-card lobby-card${authScreenActive ? ' auth-card' : ''}`}>
           {!ready ? (
             <>
               <p className="eyebrow">Starting Up</p>

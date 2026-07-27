@@ -7,9 +7,9 @@ const players = [
 ]
 
 describe('activityRegistry', () => {
-  it('contains the original pack plus six connection games with unique ids', () => {
-    expect(activityIds).toHaveLength(51)
-    expect(new Set(activityIds).size).toBe(51)
+  it('contains the original pack plus eleven connection games with unique ids', () => {
+    expect(activityIds).toHaveLength(56)
+    expect(new Set(activityIds).size).toBe(56)
   })
 
   it('completes a normal two-turn activity and produces journal-ready text', () => {
@@ -224,5 +224,152 @@ describe('activityRegistry', () => {
     expect(result.payload.combinedWordCount).toBe(3)
     expect(result.payload.sharedWords).toEqual(['star'])
     expect(result.payload.uniqueFinds[0].words).toEqual(['heart'])
+  })
+
+  it('requires alternating horizontal and vertical moves in Dual-Axis Maze', () => {
+    const entry = activityRegistry['dual-axis-maze']
+    let state = entry.createInitialState(players, {
+      activePlayerIndex: 0,
+      random: () => 0,
+    })
+    const route = [
+      { delta: 1, playerIndex: 0 },
+      { delta: -1, playerIndex: 1 },
+      { delta: 1, playerIndex: 0 },
+      { delta: -1, playerIndex: 1 },
+      { delta: 1, playerIndex: 0 },
+      { delta: -1, playerIndex: 1 },
+      { delta: 1, playerIndex: 0 },
+      { delta: -1, playerIndex: 1 },
+    ]
+
+    let step
+    route.forEach((move) => {
+      step = entry.advance(state, {
+        input: { delta: move.delta },
+        playerIndex: move.playerIndex,
+      })
+      state = step.state
+    })
+
+    const result = entry.resolve(state, players)
+    expect(step.completed).toBe(true)
+    expect(state.position).toEqual({ x: 4, y: 0 })
+    expect(state.moves).toBe(8)
+    expect(state.bumps).toBe(0)
+    expect(result.heartBonus).toBe(5)
+  })
+
+  it('joins two validated Blind Canvas halves in left-to-right order', () => {
+    const entry = activityRegistry['blind-canvas']
+    let state = entry.createInitialState(players, {
+      activePlayerIndex: 1,
+      random: () => 0,
+    })
+    const imageDataUrl = 'data:image/webp;base64,AAAA'
+
+    state = entry.advance(state, {
+      input: { imageDataUrl, strokeCount: 3 },
+      playerIndex: 1,
+    }).state
+    const completed = entry.advance(state, {
+      input: { imageDataUrl, strokeCount: 2 },
+      playerIndex: 0,
+    })
+    const result = entry.resolve(completed.state, players)
+
+    expect(completed.completed).toBe(true)
+    expect(result.payload.halves.map((half) => half.side)).toEqual(['left', 'right'])
+    expect(result.payload.halves[0].playerIndex).toBe(1)
+    expect(result.heartBonus).toBe(4)
+  })
+
+  it('scores Harmonic Lock by closeness to the shared resonance', () => {
+    const entry = activityRegistry['harmonic-lock']
+    let state = entry.createInitialState(players, {
+      activePlayerIndex: 0,
+      random: () => 0,
+    })
+
+    state = entry.advance(state, {
+      input: { value: 36 },
+      playerIndex: 0,
+    }).state
+    const completed = entry.advance(state, {
+      input: { value: 38 },
+      playerIndex: 1,
+    })
+    const result = entry.resolve(completed.state, players)
+
+    expect(completed.completed).toBe(true)
+    expect(result.payload.averageResonance).toBe(97)
+    expect(result.payload.distance).toBe(2)
+    expect(result.heartBonus).toBe(5)
+  })
+
+  it('raises, challenges, and resolves Bluff Bidding on the honor system', () => {
+    const entry = activityRegistry['bluff-bidding']
+    let state = entry.createInitialState(players, {
+      activePlayerIndex: 0,
+      random: () => 0,
+    })
+
+    let step = entry.advance(state, {
+      input: { action: 'raise' },
+      playerIndex: 1,
+    })
+    expect(step.completed).toBe(false)
+    expect(step.state.currentBid).toBe(3)
+    expect(step.state.bidderIndex).toBe(1)
+    expect(step.state.turnIndex).toBe(0)
+
+    step = entry.advance(step.state, {
+      input: { action: 'challenge' },
+      playerIndex: 0,
+    })
+    expect(step.state.phase).toBe('proof')
+    expect(step.state.turnIndex).toBe(1)
+
+    step = entry.advance(step.state, {
+      input: { answers: ['Titanic', 'The Notebook', 'Moonstruck'] },
+      playerIndex: 1,
+    })
+    const result = entry.resolve(step.state, players)
+
+    expect(step.completed).toBe(true)
+    expect(result.payload.succeeded).toBe(true)
+    expect(result.payload.bid).toBe(3)
+    expect(result.heartBonus).toBe(4)
+  })
+
+  it('collects a shared photo with two sealed Flashback captions', () => {
+    const entry = activityRegistry['photo-flashback']
+    const imageDataUrl = 'data:image/webp;base64,AAAA'
+    let state = entry.createInitialState(players, {
+      activePlayerIndex: 0,
+      random: () => 0,
+    })
+
+    let step = entry.advance(state, {
+      input: {
+        caption: 'The rain started one minute later.',
+        imageDataUrl,
+      },
+      playerIndex: 0,
+    })
+    expect(step.completed).toBe(false)
+    expect(step.state.phase).toBe('caption')
+    expect(step.state.turnIndex).toBe(1)
+
+    step = entry.advance(step.state, {
+      input: { caption: 'Still my favorite accidental detour.' },
+      playerIndex: 1,
+    })
+    const result = entry.resolve(step.state, players)
+
+    expect(step.completed).toBe(true)
+    expect(result.payload.imageDataUrl).toBe(imageDataUrl)
+    expect(result.payload.captions).toHaveLength(2)
+    expect(result.heartBonus).toBe(4)
   })
 })

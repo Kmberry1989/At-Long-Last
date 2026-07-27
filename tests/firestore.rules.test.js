@@ -201,6 +201,11 @@ describe('verified two-account lifecycle', () => {
       'vibe-check',
       'tempo-tap',
       'word-weaver',
+      'dual-axis-maze',
+      'blind-canvas',
+      'harmonic-lock',
+      'bluff-bidding',
+      'photo-flashback',
     ]) {
       const activityId = await assertSucceeds(
         createActivityRecord(

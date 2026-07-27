@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { activityDefinitions } from './contentPackData.js'
 import { createConnectionGameEntry } from './connectionGameRegistry.jsx'
 import { createWaveTwoGameEntry } from './waveTwoGameRegistry.jsx'
+import { createWaveThreeGameEntry } from './waveThreeGameRegistry.jsx'
+import { createWaveFourGameEntry } from './waveFourGameRegistry.jsx'
 
 function buildEntrySummary(definition, entries, players) {
   if (entries.length < 2) {
@@ -161,6 +163,8 @@ export const activityRegistry = Object.fromEntries(
     definition.id,
     createConnectionGameEntry(definition) ||
       createWaveTwoGameEntry(definition) ||
+      createWaveThreeGameEntry(definition) ||
+      createWaveFourGameEntry(definition) ||
       createRegistryEntry(definition),
   ]),
 )

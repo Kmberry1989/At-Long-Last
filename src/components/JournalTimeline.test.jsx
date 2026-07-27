@@ -195,4 +195,109 @@ describe('JournalTimeline', () => {
     expect(screen.getByText('Letterpress Page')).toBeInTheDocument()
     expect(screen.getByText('3 words')).toBeInTheDocument()
   })
+
+  it('renders maze, merged-canvas, and harmonic cooperative artifacts', () => {
+    const imageDataUrl = 'data:image/webp;base64,AAAA'
+    render(
+      <JournalTimeline
+        entries={[
+          {
+            id: 'maze-1',
+            payload: {
+              bumps: 0,
+              heartBonus: 5,
+              moves: 8,
+            },
+            summary: 'The pearl reached the goal in 8 shared moves.',
+            text: '8 moves, 0 bumps',
+            title: 'Dual-Axis Maze',
+            type: 'maze',
+            vibe: 'playful',
+          },
+          {
+            id: 'canvas-1',
+            payload: {
+              halves: [
+                { imageDataUrl, playerIndex: 0, side: 'left' },
+                { imageDataUrl, playerIndex: 1, side: 'right' },
+              ],
+              prompt: 'A cozy cabin in the woods',
+            },
+            summary: 'Two hidden halves met at one seam.',
+            text: 'Kyle: left half, 3 strokes\nElaine: right half, 2 strokes',
+            title: 'Blind Canvas',
+            type: 'canvas',
+            vibe: 'playful',
+          },
+          {
+            id: 'harmonic-1',
+            payload: {
+              averageResonance: 97,
+              heartBonus: 5,
+            },
+            summary: 'Both dials found the hidden lock.',
+            text: 'Kyle: 36, 100% resonance\nElaine: 38, 94% resonance',
+            title: 'Harmonic Lock',
+            type: 'harmonic',
+            vibe: 'tender',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Shared Route')).toBeInTheDocument()
+    expect(screen.getByText('8')).toBeInTheDocument()
+    expect(screen.getByText('Merged Canvas')).toBeInTheDocument()
+    expect(screen.getAllByRole('img')).toHaveLength(2)
+    expect(screen.getByText('Resonance Lock')).toBeInTheDocument()
+    expect(screen.getByText('97%')).toBeInTheDocument()
+  })
+
+  it('renders a bidding receipt and two-caption Photo Flashback', () => {
+    const imageDataUrl = 'data:image/webp;base64,AAAA'
+    render(
+      <JournalTimeline
+        entries={[
+          {
+            id: 'bluff-1',
+            payload: {
+              answers: ['Titanic', 'Moonstruck', 'The Notebook'],
+              bid: 3,
+              succeeded: true,
+              topic: 'Famous romance movies',
+            },
+            summary: 'Elaine proved the 3-answer boast.',
+            text: 'Titanic, Moonstruck, The Notebook',
+            title: 'Bluff Bidding',
+            type: 'bluff',
+            vibe: 'playful',
+          },
+          {
+            id: 'photo-1',
+            payload: {
+              captions: [
+                { label: 'Kyle', playerIndex: 0, text: 'The rain started one minute later.' },
+                { label: 'Elaine', playerIndex: 1, text: 'Still my favorite accidental detour.' },
+              ],
+              imageDataUrl,
+              prompt: 'What detail does the picture leave out?',
+            },
+            summary: 'One photograph collected two versions of the same memory.',
+            text: 'Kyle: The rain started one minute later.\nElaine: Still my favorite accidental detour.',
+            title: 'Photo Flashback',
+            type: 'photo',
+            vibe: 'tender',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Bidding Receipt')).toBeInTheDocument()
+    expect(screen.getByText('3 promised')).toBeInTheDocument()
+    expect(screen.getByText('Moonstruck')).toBeInTheDocument()
+    expect(screen.getAllByText('Photo Flashback')).toHaveLength(2)
+    expect(screen.getByRole('img', { name: 'Shared Photo Flashback' })).toBeInTheDocument()
+    expect(screen.getByText('The rain started one minute later.')).toBeInTheDocument()
+    expect(screen.getByText('Still my favorite accidental detour.')).toBeInTheDocument()
+  })
 })

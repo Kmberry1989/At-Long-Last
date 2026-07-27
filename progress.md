@@ -60,3 +60,34 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Final validation passes: 9 app test files / 58 tests, 15/15 Firestore rules tests, lint, production build, and diff whitespace check.
 - The required web-game client was rerun after final validation. It emitted the complete Word Weaver tray, timer, score, loaded players, and all five decorations with no console-error artifact; the screenshot was visually inspected.
 - Wave 2 remains local and was not deployed.
+
+## 2026-07-27 — production release and cooperative Wave 3
+
+- Committed the complete player-piece, board-decoration, and first six mini-game milestone as `e442931` and pushed `main` to GitHub.
+- Released the compiled Firestore rules to project `at-long-last`.
+- Deployed Vercel production `dpl_5bg6hdR5nyfu4x31mjpKMdJPgH2r`, ready at `dist-krs80yaaf-kyle-matthew-berry-s-projects.vercel.app` and aliased to `https://atlonglast.vercel.app/`.
+- Read-only production smoke verification passed at 390×844 with a clean console; representative player GLB, thumbnail, and decoration URLs returned HTTP 200.
+- Started the next local milestone with Dual-Axis Maze, Blind Canvas, and Harmonic Lock. This Wave 3 work is not part of the production deployment above.
+- Added all three Wave 3 state machines, mobile activity cards, scrapbook treatments, `render_game_to_text` state, and Firestore activity IDs.
+- Dual-Axis Maze deliberately alternates bounded horizontal and vertical moves to avoid lost concurrent writes in the current document model. Blind Canvas stores compressed WebP/PNG halves under a strict size cap. Harmonic Lock uses visual resonance plus supported-device vibration.
+- Midpoint validation passes: lint, diff whitespace check, and 9 app test files / 62 tests.
+- Completed all three 390×844 two-turn preview flows without browser warning/error: an eight-move maze route, two drawn and merged canvas halves, and a 97% harmonic lock.
+- Visual inspection covered every activity and its scrapbook artifact. The maze was compacted after its first browser pass so all movement controls fit in the initial mobile viewport.
+- Wave 3 final validation passes: 9 app test files / 62 tests, 15/15 Firestore rules tests, lint, production build, and diff whitespace check.
+- The required web-game client emitted the compact maze, axis controls, move/bump counters, loaded players, and all five decorations without a console-error artifact; its screenshot and complete direct-play artifacts were inspected.
+- Continued into the two remaining supplied concepts: Bluff Bidding and Photo Flashback. These remain local with Wave 3.
+- Completed Bluff Bidding with alternating raise/challenge turns, an honor-system proof list, outcome-sensitive heart rewards, and a bidding-receipt scrapbook artifact.
+- Completed Photo Flashback with an explicit image picker, on-device WebP/JPEG compression, a 350,000-character payload ceiling, sequential sealed captions, and an instant-photo scrapbook reveal.
+- Added privacy-safe Wave 4 activity state to `render_game_to_text`, registered both IDs with Firestore rules coverage, and expanded the roadmap with a consolidated future-asset wishlist.
+- The required web-game client reached Bluff Bidding with both player pieces and all five decorations loaded. A separate 390×844 browser pass completed both full Wave 4 flows and visually inspected the initial cards, proof/caption stages, and scrapbook artifacts.
+- Wave 4 browser state confirmed the bid advanced from 2 to 3 before proof, the proof list contained three answers, Photo Flashback moved from zero to one sealed caption, and the selected image stayed present for the second caption. Neither complete flow produced an application console error.
+- Final local continuation validation passes: 9 app test files / 65 tests, 15/15 Firestore rules tests, lint, production build, and diff whitespace check.
+- Wave 3 and Wave 4 remain uncommitted and undeployed. Production remains pinned to commit `e442931`.
+
+## 2026-07-27 — condensed sign-in screen
+
+- Simplified the unauthenticated lobby without changing the Google or email authentication handlers: the auth state now uses a compact brand strip, one welcome message, and one shared email form area instead of repeating headings and explanatory copy.
+- Added auth-only spacing and control sizing so both Sign In and Create Account fit without scrolling at 390×844. On a 390×667 small-phone pass, the larger Create Account card ended at 582px and remained fully visible.
+- Verified the Sign In/Create Account tab switch, editable email/password controls, enabled-button state, and both final layouts. The required web-game client and direct mobile browser pass produced no application warning or error.
+- Validation passes: 9 app test files / 65 tests, lint, production build, and diff whitespace check.
+- This sign-in refinement remains local with the uncommitted Wave 3 and Wave 4 continuation.

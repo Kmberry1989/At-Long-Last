@@ -517,6 +517,8 @@ service cloud.firestore {
         'villain-origin', 'nudge-wars', 'sound-capsule',
         'mind-meld', 'prediction-box', 'the-vault',
         'vibe-check', 'tempo-tap', 'word-weaver',
+        'dual-axis-maze', 'blind-canvas', 'harmonic-lock',
+        'bluff-bidding', 'photo-flashback',
         'replay-favorite-kiss', 'wanted-list', 'slow-morning',
         'confidence-fit', 'whisper-line', 'scent-memory',
         'favorite-way-held', 'look-you-love', 'flirt-resume',

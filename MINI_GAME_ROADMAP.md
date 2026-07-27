@@ -43,39 +43,66 @@ Development previews:
 - A future content pass should expand the compact bundled dictionaries.
 - Best new art: ivory letter tiles, a velvet timer, and a miniature printing block.
 
-## Wave 3 — cooperative set
+## Wave 3 — playable locally
 
 ### Dual-Axis Maze
 
-- One phone controls horizontal movement and the other controls vertical movement.
-- Stream normalized axis intent through the activity document at a deliberately bounded rate.
-- Use deterministic maze seeds so reconnects restore the same board.
+- Implemented with deterministic 5×5 routes, one horizontal controller, one vertical
+  controller, alternating bounded moves, wall-bump tracking, and a shared-route scrapbook card.
+- Development preview: `?previewActivity=dual-axis-maze`
+- True simultaneous analog streaming remains a future transport upgrade; the current
+  alternating model avoids lost concurrent Firestore writes.
 - Best new art: a shallow wooden maze, a pearl token, brass gates, and tiny destination charms.
 
 ### Blind Canvas
 
-- Build on `DoodleDuel` canvas capture and scrapbook image support.
-- Start with one phone drawing each half sequentially; graduate to live simultaneous halves
-  after two-device canvas merging is reliable.
-- Reveal the merged image only after both halves are submitted.
+- Implemented as sequential unseen left/right canvases with compressed, size-bounded image
+  payloads and a joined scrapbook reveal.
+- Development preview: `?previewActivity=blind-canvas`
+- Live simultaneous halves can follow after two-device conflict handling is proven.
 - Best new art: torn deckled paper, two ink colors, and wax-seal prompt cards.
 
 ### Harmonic Lock
 
-- Each player adjusts one dial while a shared resonance score guides them toward a lock.
-- Start with visual and audio feedback; haptics remain progressive enhancement.
-- Store only dial positions and the resolved lock result, not a continuous input stream.
+- Implemented with resonance-guided dials, visual ring feedback, supported-device vibration,
+  compact stored dial positions, and a shared-resonance scrapbook reveal.
+- Development preview: `?previewActivity=harmonic-lock`
+- Layered tones remain a future audio-system enhancement.
 - Best new art/audio: paired brass tuning dials, a glass resonance chamber, and layered tones.
 
-## Wave 4 — memory expansion
+## Wave 4 — playable locally
+
+### Bluff Bidding
+
+- Implemented as an alternating raise-or-challenge duel capped at eight answers, followed
+  by an honor-system proof list and a bidding-receipt scrapbook card.
+- Development preview: `?previewActivity=bluff-bidding`
+- A future timed-live variant can add a synchronized 15-second proof clock after two-device
+  latency and reconnect behavior are proven.
+- Best new art/audio: miniature brass bid paddles, a velvet challenge card, a sand timer,
+  and a soft table-knock sound.
 
 ### Photo Flashback
 
-- Begin with an explicit photo picker instead of broad gallery access.
-- Attach a chosen image to a session-scoped memory prompt, then collect one caption from
-  each player.
-- Use private Firebase Storage paths with couple-only access and deletion controls.
+- Implemented with an explicit photo picker, on-device resizing and compression, a
+  350,000-character payload cap, sequential sealed captions, and an instant-photo scrapbook reveal.
+- Development preview: `?previewActivity=photo-flashback`
+- The current session-scoped image is stored inline. Private Firebase Storage paths with
+  couple-only access, retention controls, and explicit deletion are the durable follow-up.
 - Best new art: instant-photo frames, date stamps, corner mounts, and handwritten caption labels.
+
+## Future asset wishlist
+
+1. Brass-and-enamel continuum dial with two colored marker pins for Vibe Check.
+2. Softly glowing heart-ring target plus three short pulse sounds for Tempo Tap.
+3. Ivory letter tiles, velvet timer, and miniature printing block for Word Weaver.
+4. Shallow wooden maze, pearl token, brass gates, and interchangeable destination charms.
+5. Deckled two-part drawing paper, paired ink nibs, and wax-seal prompt cards.
+6. Twin brass tuning dials and a glass resonance chamber with layered harmonic tones.
+7. Numbered bid paddles, challenge card, and tabletop sand timer for Bluff Bidding.
+8. Instant-photo frames, date stamps, corner mounts, and handwriting-style caption labels.
+9. A tiny vault box with opening animation, paper notes, and reusable wax seals.
+10. Seasonal board-edge prop packs: picnic night, snowy cabin, beach dusk, and anniversary table.
 
 ## Shared acceptance gates
 

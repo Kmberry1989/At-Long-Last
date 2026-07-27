@@ -40,7 +40,9 @@ function getActivitySubmissionCount(state) {
     Object.keys(state?.values || {}).length,
     Object.keys(state?.results || {}).length,
     Object.keys(state?.submissions || {}).length,
+    Object.keys(state?.captions || {}).length,
     state?.entries?.length || 0,
+    state?.halves?.length || 0,
     state?.predictionId ? 1 : 0,
   )
 }
@@ -107,19 +109,27 @@ export function GameScreen() {
               Number.isFinite(activityState?.values?.[String(playerIndex)]) ||
               activityState?.results?.[String(playerIndex)] ||
               activityState?.submissions?.[String(playerIndex)] ||
+              activityState?.captions?.[String(playerIndex)] ||
+              activityState?.halves?.some((half) => half.playerIndex === playerIndex) ||
               (playerIndex === activityState?.predictorIndex && activityState?.predictionId) ||
               (playerIndex === activityState?.subjectIndex && activityState?.actualId) ||
               activityState?.entries?.some((entry) => entry.playerIndex === playerIndex),
             ),
+            axis: activityState?.axes?.[String(playerIndex)] || null,
+            bid: activityState?.currentBid || null,
+            bidderIndex: activityState?.bidderIndex ?? null,
+            goal: activityState?.goal || null,
             letters: activityState?.letters || [],
             leftLabel: activityState?.leftLabel || null,
             prompt: activityState?.prompt || null,
+            position: activityState?.position || null,
             rightLabel: activityState?.rightLabel || null,
             sealedCount: getActivitySubmissionCount(activityState),
             stage: activityState?.phase || activityState?.mode || null,
             targetIntervalMs: activityState?.targetIntervalMs || null,
             timeLimitSec: activityState?.timeLimitSec || null,
             turnIndex: activityState?.turnIndex ?? null,
+            walls: activityState?.obstacles || [],
           }
         : null,
       canAct:
