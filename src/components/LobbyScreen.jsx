@@ -2,7 +2,24 @@ import { useEffect, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
+import {
+  DEFAULT_PLAYER_AVATAR,
+  resolvePlayerAvatar,
+} from '../features/couple/playerAvatar.js'
 import { SESSION_PRESET_OPTIONS } from '../features/session/sessionPresets.js'
+import { PlayerPiecePicker } from './PlayerPiecePicker.jsx'
+
+const PLAYER_PIECE_STORAGE_KEY = 'at-long-last:player-piece:v1'
+
+function getSavedPlayerPiece() {
+  try {
+    return resolvePlayerAvatar(
+      window.localStorage.getItem(PLAYER_PIECE_STORAGE_KEY),
+    )
+  } catch {
+    return DEFAULT_PLAYER_AVATAR
+  }
+}
 
 function GoogleMark() {
   return (
@@ -92,6 +109,7 @@ export function LobbyScreen() {
   const [lobbyChatDraft, setLobbyChatDraft] = useState('')
   const [notice, setNotice] = useState('')
   const [editingProfile, setEditingProfile] = useState(false)
+  const [selectedAvatar, setSelectedAvatar] = useState(getSavedPlayerPiece)
 
   useEffect(() => {
     setStage?.('lobby')
@@ -127,6 +145,14 @@ export function LobbyScreen() {
   useEffect(() => {
     setLobbyChatDraft('')
   }, [activePublicLobbyId])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PLAYER_PIECE_STORAGE_KEY, selectedAvatar)
+    } catch {
+      // The selection still works for this visit when storage is unavailable.
+    }
+  }, [selectedAvatar])
 
   const working = loading || authWorking
   const authNotice = authError || error || notice
@@ -196,19 +222,19 @@ export function LobbyScreen() {
   async function handleCreate(preset = sessionPreset) {
     playAction?.()
     setNotice('')
-    await createCouple(profileName, preset)
+    await createCouple(profileName, preset, selectedAvatar)
   }
 
   async function handleJoin() {
     playAction?.()
     setNotice('')
-    await joinCouple(profileName, inviteCode)
+    await joinCouple(profileName, inviteCode, selectedAvatar)
   }
 
   async function handleSwitch() {
     playAction?.()
     setNotice('')
-    await switchCouple(profileName, inviteCode)
+    await switchCouple(profileName, inviteCode, selectedAvatar)
   }
 
   async function handleLeave() {
@@ -219,7 +245,7 @@ export function LobbyScreen() {
 
   function handlePreview() {
     playAction?.()
-    launchPreview(displayName)
+    launchPreview(displayName, selectedAvatar)
   }
 
   async function handlePresetChange(nextPreset) {
@@ -299,7 +325,7 @@ export function LobbyScreen() {
 
     playAction?.()
     setNotice('')
-    await joinPublicLobby(selectedPublicLobbyId)
+    await joinPublicLobby(selectedPublicLobbyId, selectedAvatar)
   }
 
   async function handleSendLobbyMessage() {
@@ -322,7 +348,7 @@ export function LobbyScreen() {
 
     playAction?.()
     setNotice('')
-    await switchPublicLobby(selectedPublicLobbyId)
+    await switchPublicLobby(selectedPublicLobbyId, selectedAvatar)
   }
 
   function renderGoogleButton(label = 'Continue with Google') {
@@ -659,6 +685,10 @@ export function LobbyScreen() {
                 placeholder="Your display name"
                 value={displayName}
               />
+              <PlayerPiecePicker
+                onChange={setSelectedAvatar}
+                value={selectedAvatar}
+              />
               <div className="button-row">
                 <button
                   className="primary-btn"
@@ -820,6 +850,12 @@ export function LobbyScreen() {
                   </div>
                 </div>
               )}
+
+              <PlayerPiecePicker
+                disabled={working}
+                onChange={setSelectedAvatar}
+                value={selectedAvatar}
+              />
 
               <div className="mode-toggle" role="tablist" aria-label="Entry mode">
                 <button

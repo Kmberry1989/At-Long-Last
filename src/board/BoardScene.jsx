@@ -1,7 +1,50 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
+import {
+  DRACOLoader,
+  DRACO_GLTF_CONFIG,
+} from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import { BOARD_SPACES } from '../features/session/boardConfig.js'
+
+const BOARD_DECORATIONS = [
+  {
+    id: 'trinket-box',
+    model: '/assets/board/deco-box_of_trinkets.glb',
+    position: [-6.4, -0.02, -3.8],
+    rotation: -0.38,
+    size: 2.1,
+  },
+  {
+    id: 'pressed-flower',
+    model: '/assets/board/deco-flower.glb',
+    position: [6.4, -0.02, -3.6],
+    rotation: 0.48,
+    size: 2,
+  },
+  {
+    id: 'keepsake-candle',
+    model: '/assets/board/deco-candle.glb',
+    position: [-5.1, -0.02, 3.2],
+    rotation: 0.24,
+    size: 1.6,
+  },
+  {
+    id: 'date-night-candle',
+    model: '/assets/board/deco-candle2.glb',
+    position: [5.2, -0.02, 3.4],
+    rotation: -0.2,
+    size: 1.5,
+  },
+  {
+    id: 'little-photo',
+    model: '/assets/board/deco-photo.glb',
+    position: [0.2, -0.02, -0.1],
+    rotation: 0.16,
+    size: 2.2,
+  },
+]
 
 function buildBoardPath() {
   return BOARD_SPACES.map((space, index) => {
@@ -94,6 +137,77 @@ function createFallbackPawn(color) {
   return group
 }
 
+function disposeObject3D(root) {
+  const geometries = new Set()
+  const materials = new Set()
+  const textures = new Set()
+
+  root.traverse((object) => {
+    if (object.geometry) {
+      geometries.add(object.geometry)
+    }
+
+    const objectMaterials = Array.isArray(object.material)
+      ? object.material
+      : [object.material]
+    objectMaterials.forEach((material) => {
+      if (!material) {
+        return
+      }
+      materials.add(material)
+      Object.values(material).forEach((value) => {
+        if (value?.isTexture) {
+          textures.add(value)
+        }
+      })
+    })
+  })
+
+  textures.forEach((texture) => texture.dispose())
+  materials.forEach((material) => material.dispose())
+  geometries.forEach((geometry) => geometry.dispose())
+}
+
+function tintModel(model, color) {
+  const playerColor = new THREE.Color(color)
+  model.traverse((child) => {
+    if (!child.isMesh) {
+      return
+    }
+
+    child.castShadow = true
+    child.receiveShadow = true
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material]
+    const tintedMaterials = materials.map((material) => {
+      const tinted = material.clone()
+      tinted.color?.lerp(playerColor, 0.32)
+      return tinted
+    })
+    child.material = Array.isArray(child.material)
+      ? tintedMaterials
+      : tintedMaterials[0]
+  })
+}
+
+function fitModel(model, targetSize) {
+  model.updateMatrixWorld(true)
+  const initialBox = new THREE.Box3().setFromObject(model)
+  const initialSize = initialBox.getSize(new THREE.Vector3())
+  const longestSide = Math.max(initialSize.x, initialSize.y, initialSize.z)
+  if (longestSide > 0) {
+    model.scale.multiplyScalar(targetSize / longestSide)
+  }
+
+  model.updateMatrixWorld(true)
+  const fittedBox = new THREE.Box3().setFromObject(model)
+  const center = fittedBox.getCenter(new THREE.Vector3())
+  model.position.x -= center.x
+  model.position.y -= fittedBox.min.y
+  model.position.z -= center.z
+}
+
 export function BoardScene({ players, positions, activePlayerIndex, boardState }) {
   const mountRef = useRef(null)
   const boardPath = useMemo(() => buildBoardPath(), [])
@@ -144,6 +258,9 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFShadowMap
     mount.appendChild(renderer.domElement)
+    let disposed = false
+    let animationFrameId = null
+    let manualTimeOffset = 0
 
     const ambient = new THREE.AmbientLight('#fff8ed', 1.5)
     scene.add(ambient)
@@ -277,28 +394,66 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
       const fallback = createFallbackPawn(player.color)
       group.add(fallback)
       group.position.copy(boardPath[targetIndicesRef.current[index]].position)
-      group.position.y += 0.42
+      group.position.y = 0.58
       group.userData.fallback = fallback
       scene.add(group)
       return group
     })
 
+    const dracoLoader = new DRACOLoader()
+    dracoLoader.setDecoderPath(DRACO_GLTF_CONFIG)
     const loader = new GLTFLoader()
-    players.forEach((player, index) => {
+    loader.setDRACOLoader(dracoLoader)
+    const loadedDecorations = new Set()
+    const loadedPlayerAvatars = new Set()
+
+    BOARD_DECORATIONS.forEach((decoration) => {
       loader.load(
-        player.avatar,
+        decoration.model,
         (gltf) => {
+          if (disposed) {
+            disposeObject3D(gltf.scene)
+            return
+          }
+
           const model = gltf.scene
-          model.scale.setScalar(0.66)
+          fitModel(model, decoration.size)
+          model.rotation.y = decoration.rotation
+          model.position.add(new THREE.Vector3(...decoration.position))
           model.traverse((child) => {
             if (child.isMesh) {
               child.castShadow = true
               child.receiveShadow = true
             }
           })
-          tokenGroups[index].remove(tokenGroups[index].userData.fallback)
-          model.position.y = 0.18
+          model.userData.decorationId = decoration.id
+          scene.add(model)
+          loadedDecorations.add(decoration.id)
+        },
+        undefined,
+        () => undefined,
+      )
+    })
+
+    players.forEach((player, index) => {
+      const avatar = resolvePlayerAvatar(player.avatar)
+      loader.load(
+        avatar,
+        (gltf) => {
+          if (disposed) {
+            disposeObject3D(gltf.scene)
+            return
+          }
+
+          const model = gltf.scene
+          fitModel(model, 1.22)
+          tintModel(model, player.color)
+          const fallback = tokenGroups[index].userData.fallback
+          tokenGroups[index].remove(fallback)
+          disposeObject3D(fallback)
+          delete tokenGroups[index].userData.fallback
           tokenGroups[index].add(model)
+          loadedPlayerAvatars.add(index)
         },
         undefined,
         () => undefined,
@@ -306,7 +461,7 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
     })
 
     const resizeObserver = new ResizeObserver(() => {
-      if (!mount.clientWidth || !mount.clientHeight) {
+      if (disposed || !mount.clientWidth || !mount.clientHeight) {
         return
       }
 
@@ -318,8 +473,8 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
 
     const startedAt = performance.now()
 
-    function animate() {
-      const elapsed = (performance.now() - startedAt) / 1000
+    function renderFrame(now = performance.now()) {
+      const elapsed = (now - startedAt + manualTimeOffset) / 1000
       const focus = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
       camera.position.x = THREE.MathUtils.lerp(
         camera.position.x,
@@ -337,32 +492,86 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
         const target = boardPath[targetIndicesRef.current[index]].position
         token.position.x = THREE.MathUtils.lerp(token.position.x, target.x, 0.12)
         token.position.z = THREE.MathUtils.lerp(token.position.z, target.z, 0.12)
-        token.position.y = 0.42 + Math.sin(elapsed * 3 + index) * 0.06
+        token.position.y = 0.58 + Math.sin(elapsed * 3 + index) * 0.06
         token.rotation.y = elapsed * 0.35
         token.scale.setScalar(index === activePlayerIndexRef.current ? 1.04 : 0.96)
       })
 
       floor.rotation.y = elapsed * 0.02
       renderer.render(scene, camera)
-      requestAnimationFrame(animate)
     }
+
+    function animate(now) {
+      if (disposed) {
+        return
+      }
+      renderFrame(now)
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    const renderGameToText = () => {
+      const gameplay = window.__atLongLastGameState
+      const activityUi = window.__atLongLastActivityUiState
+      return JSON.stringify({
+        activePlayerIndex: activePlayerIndexRef.current,
+        boardState: parsedBoardState,
+        coordinateSystem: 'board-space index increases clockwise from top',
+        decorations: BOARD_DECORATIONS.map((decoration) => ({
+          id: decoration.id,
+          loaded: loadedDecorations.has(decoration.id),
+        })),
+        gameplay: gameplay
+          ? {
+              ...gameplay,
+              activity: gameplay.activity
+                ? {
+                    ...gameplay.activity,
+                    ui: activityUi || null,
+                  }
+                : null,
+            }
+          : null,
+        mode: 'board',
+        players: players.map((player, index) => ({
+          avatar: resolvePlayerAvatar(player.avatar),
+          avatarLoaded: loadedPlayerAvatars.has(index),
+          color: player.color,
+          displayName: player.displayName,
+          positionIndex: targetIndicesRef.current[index],
+        })),
+      })
+    }
+    const advanceTime = (milliseconds) => {
+      if (disposed) {
+        return
+      }
+      manualTimeOffset += Math.max(0, Number(milliseconds) || 0)
+      renderFrame()
+    }
+    window.render_game_to_text = renderGameToText
+    window.advanceTime = advanceTime
 
     animate()
 
     return () => {
+      disposed = true
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
       resizeObserver.disconnect()
+      if (window.render_game_to_text === renderGameToText) {
+        delete window.render_game_to_text
+      }
+      if (window.advanceTime === advanceTime) {
+        delete window.advanceTime
+      }
+      dracoLoader.dispose()
+      disposeObject3D(scene)
+      renderer.renderLists.dispose()
       renderer.dispose()
-      mount.removeChild(renderer.domElement)
-      scene.traverse((object) => {
-        const materials = Array.isArray(object.material)
-          ? object.material
-          : [object.material]
-        materials.forEach((material) => {
-          material?.map?.dispose?.()
-          material?.dispose?.()
-        })
-        object.geometry?.dispose?.()
-      })
+      if (renderer.domElement.parentNode === mount) {
+        mount.removeChild(renderer.domElement)
+      }
     }
   }, [boardPath, boardStateKey, players])
 

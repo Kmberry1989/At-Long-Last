@@ -89,6 +89,13 @@ function buildPreviewJournalRecord(entry, prefix, index) {
   }
 }
 
+function createActivityState(entry, session, random = Math.random) {
+  return entry.createInitialState(session.players, {
+    activePlayerIndex: session.activePlayerIndex,
+    random,
+  })
+}
+
 function buildSkippedDuelRepick(session) {
   const duelId = pickWeightedDuelId(
     session.vibeWeights || DEFAULT_VIBE_WEIGHTS,
@@ -136,6 +143,7 @@ export function SessionProvider({ children }) {
   const [boardState, setBoardState] = useState(createDefaultBoardState())
   const [connectionState, setConnectionState] = useState(enabled ? 'connecting' : 'local-preview')
   const resolvingDuelRef = useRef(false)
+  const previewActivityStartedRef = useRef(false)
 
   const playerIndex = useMemo(() => {
     if (!enabled && session) {
@@ -168,7 +176,16 @@ export function SessionProvider({ children }) {
 
   useEffect(() => {
     if (!enabled && couple && hasPartner) {
-      setSession((current) => current ?? buildInitialSession(couple))
+      setSession((current) => {
+        if (current) {
+          return current
+        }
+        const initial = buildInitialSession(couple)
+        return {
+          ...initial,
+          id: initial.id || 'preview-session',
+        }
+      })
       setConnectionState('local-preview')
       return undefined
     }
@@ -180,6 +197,43 @@ export function SessionProvider({ children }) {
     ensureActiveSession(db, couple).catch((nextError) => setError(nextError.message))
     return undefined
   }, [couple, db, enabled, hasPartner, isHost])
+
+  useEffect(() => {
+    if (
+      !import.meta.env.DEV ||
+      enabled ||
+      !session ||
+      activity ||
+      previewActivityStartedRef.current
+    ) {
+      return
+    }
+
+    const activityType = new URLSearchParams(window.location.search)
+      .get('previewActivity')
+    const entry = activityRegistry[activityType]
+    if (!entry) {
+      return
+    }
+
+    previewActivityStartedRef.current = true
+    setSession({
+      ...session,
+      actionText: `${entry.label} preview is ready.`,
+      pendingActivityType: activityType,
+      phase: 'activity',
+      usedActivityIds: Array.from(new Set([
+        ...(session.usedActivityIds || []),
+        activityType,
+      ])),
+    })
+    setActivity({
+      id: `preview-${activityType}`,
+      state: createActivityState(entry, session, () => 0),
+      type: activityType,
+      vibe: entry.vibe,
+    })
+  }, [activity, enabled, session])
 
   useEffect(() => {
     if (!db || !couple?.activeSessionId) {
@@ -401,7 +455,7 @@ export function SessionProvider({ children }) {
             id: 'preview-activity',
             type: nextSession.pendingActivityType,
             vibe: entry.vibe,
-            state: entry.createInitialState(session.players),
+            state: createActivityState(entry, session),
           })
         }
         return
@@ -415,7 +469,7 @@ export function SessionProvider({ children }) {
           db,
           session,
           nextSession.pendingActivityType,
-          entry.createInitialState(session.players),
+          createActivityState(entry, session),
         )
       }
     } catch (nextError) {
@@ -443,7 +497,7 @@ export function SessionProvider({ children }) {
           id: 'preview-activity',
           type: activityType,
           vibe: entry.vibe,
-          state: entry.createInitialState(session.players),
+          state: createActivityState(entry, session),
         })
         return
       }
@@ -454,7 +508,7 @@ export function SessionProvider({ children }) {
         db,
         session,
         activityType,
-        entry.createInitialState(session.players),
+        createActivityState(entry, session),
       )
     } catch (nextError) {
       setError(nextError.message)

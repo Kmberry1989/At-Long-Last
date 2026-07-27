@@ -86,4 +86,113 @@ describe('JournalTimeline', () => {
     expect(screen.getByText('A night with some weight to it.')).toBeInTheDocument()
     expect(screen.getByText('Shared finish')).toBeInTheDocument()
   })
+
+  it('keeps Vault notes hidden until the matching session finale exists', () => {
+    const vaultEntry = {
+      createdAt: '2026-07-17T00:00:00.000Z',
+      id: 'vault-1',
+      payload: {
+        entries: [
+          { playerIndex: 0, text: 'A secret from Kyle.' },
+          { playerIndex: 1, text: 'A secret from Elaine.' },
+        ],
+        prompt: 'Seal something lovely.',
+        revealAt: 'finale',
+        sealed: true,
+      },
+      sessionId: 'session-vault',
+      summary: 'Two private notes were sealed.',
+      text: 'Kyle: A secret from Kyle.\nElaine: A secret from Elaine.',
+      title: 'The Vault',
+      type: 'vault',
+      vibe: 'tender',
+    }
+
+    const { rerender } = render(<JournalTimeline entries={[vaultEntry]} />)
+
+    expect(screen.getByText('Two notes are waiting inside.')).toBeInTheDocument()
+    expect(screen.queryByText('A secret from Kyle.')).not.toBeInTheDocument()
+
+    rerender(
+      <JournalTimeline
+        entries={[
+          vaultEntry,
+          {
+            createdAt: '2026-07-17T01:00:00.000Z',
+            id: 'finale-vault',
+            payload: {},
+            sessionId: 'session-vault',
+            summary: 'The night closed.',
+            text: 'Finale',
+            title: 'Night Closed Out',
+            type: 'finale',
+            vibe: 'tender',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('The Vault — Opened')).toBeInTheDocument()
+    expect(screen.getByText('A secret from Kyle.')).toBeInTheDocument()
+    expect(screen.getByText('A secret from Elaine.')).toBeInTheDocument()
+  })
+
+  it('renders slider, rhythm, and letterpress results as distinct scrapbook artifacts', () => {
+    render(
+      <JournalTimeline
+        entries={[
+          {
+            id: 'vibe-1',
+            payload: {
+              heartBonus: 5,
+              leftLabel: 'Plan every detail',
+              markers: [
+                { playerIndex: 0, value: 46 },
+                { playerIndex: 1, value: 52 },
+              ],
+              rightLabel: 'Follow the mood',
+              syncScore: 94,
+            },
+            summary: 'The two markers nearly became one.',
+            text: 'Kyle: 46/100\nElaine: 52/100',
+            title: 'Vibe Check',
+            type: 'vibe-sync',
+            vibe: 'playful',
+          },
+          {
+            id: 'tempo-1',
+            payload: {
+              averageAccuracy: 90,
+              heartBonus: 5,
+            },
+            summary: 'Two steady heartbeats.',
+            text: 'Kyle: 92% rhythm\nElaine: 88% rhythm',
+            title: 'Tempo Tap',
+            type: 'tempo',
+            vibe: 'playful',
+          },
+          {
+            id: 'word-1',
+            payload: {
+              combinedWordCount: 3,
+              heartBonus: 2,
+              letters: ['H', 'E', 'A', 'R', 'T', 'S'],
+            },
+            summary: 'Three words emerged.',
+            text: 'Kyle: heart, star\nElaine: earth, star',
+            title: 'Word Weaver',
+            type: 'word',
+            vibe: 'playful',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Marker Reveal')).toBeInTheDocument()
+    expect(screen.getByText('94%')).toBeInTheDocument()
+    expect(screen.getByText('Rhythm Replay')).toBeInTheDocument()
+    expect(screen.getByText('90%')).toBeInTheDocument()
+    expect(screen.getByText('Letterpress Page')).toBeInTheDocument()
+    expect(screen.getByText('3 words')).toBeInTheDocument()
+  })
 })

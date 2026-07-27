@@ -247,6 +247,7 @@ service cloud.firestore {
     function isValidPublicLobby(data, lobbyId) {
       return data.keys().hasAll([
           'coupleId',
+          'hostAvatar',
           'hostId',
           'hostName',
           'inviteCode',
@@ -258,6 +259,7 @@ service cloud.firestore {
         ])
         && data.keys().hasOnly([
           'coupleId',
+          'hostAvatar',
           'hostId',
           'hostName',
           'inviteCode',
@@ -268,6 +270,8 @@ service cloud.firestore {
           'updatedAt'
         ])
         && data.coupleId == lobbyId
+        && isBoundedString(data.hostAvatar, 1, 160)
+        && data.hostAvatar.matches('^/assets/players/[a-zA-Z0-9._-]+$')
         && isBoundedString(data.hostId, 1, 128)
         && isBoundedString(data.hostName, 1, 60)
         && isInviteCode(data.inviteCode)
@@ -282,6 +286,7 @@ service cloud.firestore {
       return couple.status == 'waiting'
         && hasNoActiveSession(couple)
         && couple.playerIds.size() == 1
+        && data.hostAvatar == couple.players[0].avatar
         && data.hostId == couple.playerIds[0]
         && data.hostName == couple.players[0].displayName
         && data.inviteCode == couple.inviteCode
@@ -482,6 +487,7 @@ service cloud.firestore {
         && resource.data.playerCount == 1
         && couple.status == 'paired'
         && couple.playerIds.size() == 2
+        && couple.players[0].avatar == resource.data.hostAvatar
         && couple.playerIds[0] == resource.data.hostId
         && couple.playerIds[1] == request.auth.uid
         && couple.players[0].displayName == resource.data.hostName
@@ -509,6 +515,8 @@ service cloud.firestore {
         'alternate-job', 'apocalypse-role', 'pet-peeve-love-letter',
         'conspiracy-us', 'wikipedia-us', 'theme-song', 'bad-advice',
         'villain-origin', 'nudge-wars', 'sound-capsule',
+        'mind-meld', 'prediction-box', 'the-vault',
+        'vibe-check', 'tempo-tap', 'word-weaver',
         'replay-favorite-kiss', 'wanted-list', 'slow-morning',
         'confidence-fit', 'whisper-line', 'scent-memory',
         'favorite-way-held', 'look-you-love', 'flirt-resume',
@@ -716,6 +724,32 @@ service cloud.firestore {
             ? isValidDuelResultSubmission()
             : true
         );
+    }
+
+    // Historical sessions created before the spotlight/momentum arc can be
+    // terminally detached, but cannot otherwise be edited or modernized.
+    function isValidLegacySessionAbandon(sessionId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let changed = after.diff(before).affectedKeys();
+      return isBoundedString(before.coupleId, 1, 128)
+        && isParticipant(before.coupleId)
+        && coupleData(before.coupleId).activeSessionId == sessionId
+        && changed.hasOnly([
+          'status', 'endedAt', 'lastActionAt', 'updatedAt'
+        ])
+        && before.status == 'active'
+        && before.endedAt == null
+        && after.status == 'abandoned'
+        && after.endedAt == request.time
+        && after.lastActionAt == request.time
+        && after.updatedAt == request.time
+        && existsAfter(
+          /databases/$(database)/documents/couples/$(before.coupleId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/couples/$(before.coupleId)
+        ).data.activeSessionId == null;
     }
 
     function isValidActivity(data) {
@@ -959,7 +993,10 @@ service cloud.firestore {
       allow read: if isParticipant(resource.data.coupleId);
 
       allow update: if isAuthenticated()
-        && isValidSessionUpdateCompact();
+        && (
+          isValidSessionUpdateCompact()
+          || isValidLegacySessionAbandon(sessionId)
+        );
 
       allow delete: if false;
     }

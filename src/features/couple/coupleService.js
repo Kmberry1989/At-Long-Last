@@ -12,21 +12,14 @@ import {
 } from 'firebase/firestore'
 import { getSessionPreset } from '../session/sessionPresets.js'
 import { createDefaultBoardState } from '../session/sessionWiring.js'
+import {
+  PLAYER_THEMES,
+  resolvePlayerAvatar,
+} from './playerAvatar.js'
 
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
-export const PLAYER_THEMES = [
-  {
-    color: '#ff7a97',
-    accent: '#ff5478',
-    avatar: '/assets/players/rochelle.glb',
-  },
-  {
-    color: '#59b5ff',
-    accent: '#2aa1ff',
-    avatar: '/assets/players/kyle.glb',
-  },
-]
+export { PLAYER_THEMES } from './playerAvatar.js'
 
 export function normalizeInviteCode(value = '') {
   return value.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6)
@@ -44,6 +37,7 @@ export function buildShareLink(origin, inviteCode) {
 }
 
 export function buildCreateCouplePayload({
+  avatar,
   displayName,
   userId,
   inviteCode,
@@ -61,6 +55,7 @@ export function buildCreateCouplePayload({
         uid: userId,
         displayName: displayName.trim(),
         ...PLAYER_THEMES[0],
+        avatar: resolvePlayerAvatar(avatar),
       },
     ],
     activeSessionId: null,
@@ -82,6 +77,7 @@ export function buildPlayerCoupleLinkPayload({ coupleId }) {
 
 export function buildPublicLobbyPayload({
   coupleId,
+  hostAvatar,
   hostId,
   hostName,
   inviteCode,
@@ -89,6 +85,7 @@ export function buildPublicLobbyPayload({
 }) {
   return {
     coupleId,
+    hostAvatar: resolvePlayerAvatar(hostAvatar),
     hostId,
     hostName: hostName.trim(),
     inviteCode,
@@ -112,7 +109,7 @@ export function buildLobbyMessagePayload({
   }
 }
 
-export function buildJoinCouplePatch(couple, { displayName, userId }) {
+export function buildJoinCouplePatch(couple, { avatar, displayName, userId }) {
   if (couple.playerIds.includes(userId)) {
     return couple
   }
@@ -126,13 +123,14 @@ export function buildJoinCouplePatch(couple, { displayName, userId }) {
         uid: userId,
         displayName: displayName.trim(),
         ...PLAYER_THEMES[1],
+        avatar: resolvePlayerAvatar(avatar),
       },
     ],
     status: 'paired',
   }
 }
 
-export function buildJoinFromPublicLobbyPatch(lobby, { displayName, userId }) {
+export function buildJoinFromPublicLobbyPatch(lobby, { avatar, displayName, userId }) {
   return {
     playerIds: [lobby.hostId, userId],
     players: [
@@ -140,11 +138,13 @@ export function buildJoinFromPublicLobbyPatch(lobby, { displayName, userId }) {
         uid: lobby.hostId,
         displayName: lobby.hostName.trim(),
         ...PLAYER_THEMES[0],
+        avatar: resolvePlayerAvatar(lobby.hostAvatar),
       },
       {
         uid: userId,
         displayName: displayName.trim(),
         ...PLAYER_THEMES[1],
+        avatar: resolvePlayerAvatar(avatar),
       },
     ],
     status: 'paired',
@@ -172,6 +172,7 @@ function buildPublicLobbyFromCouple(couple) {
 
   return buildPublicLobbyPayload({
     coupleId: couple.id,
+    hostAvatar: host.avatar,
     hostId: host.uid,
     hostName: host.displayName,
     inviteCode: couple.inviteCode,
@@ -182,6 +183,7 @@ function buildPublicLobbyFromCouple(couple) {
 const INVITE_CODE_COLLISION_ERROR = 'invite-code-collision'
 
 export async function createCoupleDocument({
+  avatar,
   db,
   displayName,
   origin,
@@ -195,6 +197,7 @@ export async function createCoupleDocument({
     const inviteRef = doc(db, 'coupleInvites', inviteCode)
     const playerLinkRef = doc(db, 'playerCouples', userId)
     const payload = buildCreateCouplePayload({
+      avatar,
       displayName,
       userId,
       inviteCode,
@@ -226,6 +229,7 @@ export async function createCoupleDocument({
         transaction.set(publicLobbyRef, {
           ...buildPublicLobbyPayload({
             coupleId: coupleRef.id,
+            hostAvatar: payload.players[0].avatar,
             hostId: userId,
             hostName: displayName,
             inviteCode,
@@ -250,6 +254,7 @@ export async function createCoupleDocument({
 }
 
 export async function joinCoupleByInviteCode({
+  avatar,
   code,
   db,
   displayName,
@@ -270,6 +275,7 @@ export async function joinCoupleByInviteCode({
   }
 
   return joinOpenLobby({
+    avatar,
     db,
     displayName,
     lobby: { id: lobbySnapshot.id, ...lobbySnapshot.data() },
@@ -278,6 +284,7 @@ export async function joinCoupleByInviteCode({
 }
 
 export async function joinPublicLobby({
+  avatar,
   db,
   displayName,
   lobbyId,
@@ -289,6 +296,7 @@ export async function joinPublicLobby({
   }
 
   return joinOpenLobby({
+    avatar,
     db,
     displayName,
     lobby: { id: lobbySnapshot.id, ...lobbySnapshot.data() },
@@ -297,6 +305,7 @@ export async function joinPublicLobby({
 }
 
 async function joinOpenLobby({
+  avatar,
   db,
   displayName,
   lobby,
@@ -325,6 +334,7 @@ async function joinOpenLobby({
     }
 
     const patch = buildJoinFromPublicLobbyPatch(currentLobby, {
+      avatar,
       displayName,
       userId,
     })

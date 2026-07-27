@@ -16,6 +16,7 @@ import {
   updateCoupleSessionPreset as updateCoupleSessionPresetDocument,
 } from './coupleService.js'
 import { createDefaultBoardState } from '../session/sessionWiring.js'
+import { PLAYER_THEMES, resolvePlayerAvatar } from './playerAvatar.js'
 
 const CoupleContext = createContext(null)
 
@@ -219,7 +220,7 @@ export function CoupleProvider({ children }) {
     return displayName?.trim() || profile?.displayName?.trim() || user?.displayName?.trim() || 'Player'
   }
 
-  async function createCouple(displayName, sessionPreset) {
+  async function createCouple(displayName, sessionPreset, avatar) {
     if (!db || !userId) {
       return
     }
@@ -229,6 +230,7 @@ export function CoupleProvider({ children }) {
     setSelectedPublicLobbyId(null)
     try {
       await createCoupleDocument({
+        avatar,
         db,
         displayName: getPreferredName(displayName),
         origin,
@@ -240,7 +242,7 @@ export function CoupleProvider({ children }) {
     }
   }
 
-  async function joinCouple(displayName, inviteCode) {
+  async function joinCouple(displayName, inviteCode, avatar) {
     if (!db || !userId) {
       return
     }
@@ -250,6 +252,7 @@ export function CoupleProvider({ children }) {
     setSelectedPublicLobbyId(null)
     try {
       await joinCoupleByInviteCode({
+        avatar,
         code: inviteCode,
         db,
         displayName: getPreferredName(displayName),
@@ -279,7 +282,7 @@ export function CoupleProvider({ children }) {
     }
   }
 
-  async function switchCouple(displayName, inviteCode) {
+  async function switchCouple(displayName, inviteCode, avatar) {
     if (!db || !userId || !couple) {
       return
     }
@@ -296,6 +299,7 @@ export function CoupleProvider({ children }) {
       })
 
       await joinCoupleByInviteCode({
+        avatar,
         code: inviteCode,
         db,
         displayName: getPreferredName(displayName),
@@ -306,7 +310,7 @@ export function CoupleProvider({ children }) {
     }
   }
 
-  function launchPreview(displayName) {
+  function launchPreview(displayName, avatar) {
     const name = displayName.trim() || 'You'
     const nextPreviewCouple = {
       id: 'preview-couple',
@@ -319,16 +323,13 @@ export function CoupleProvider({ children }) {
         {
           uid: 'preview-you',
           displayName: name,
-          color: '#ff7a97',
-          accent: '#ff5478',
-          avatar: '/assets/players/kyle.glb',
+          ...PLAYER_THEMES[0],
+          avatar: resolvePlayerAvatar(avatar),
         },
         {
           uid: 'preview-echo',
           displayName: 'Echo',
-          color: '#59b5ff',
-          accent: '#2aa1ff',
-          avatar: '/assets/players/kyle.glb',
+          ...PLAYER_THEMES[1],
         },
       ],
       activeSessionId: 'preview-session',
@@ -357,7 +358,7 @@ export function CoupleProvider({ children }) {
     }
   }
 
-  async function joinPublicLobby(lobbyId) {
+  async function joinPublicLobby(lobbyId, avatar) {
     if (!db || !userId) {
       return
     }
@@ -367,6 +368,7 @@ export function CoupleProvider({ children }) {
 
     try {
       await joinPublicLobbyDocument({
+        avatar,
         db,
         displayName: getPreferredName(),
         lobbyId,
@@ -378,7 +380,7 @@ export function CoupleProvider({ children }) {
     }
   }
 
-  async function switchPublicLobby(lobbyId) {
+  async function switchPublicLobby(lobbyId, avatar) {
     if (!db || !userId || !couple) {
       return
     }
@@ -393,6 +395,7 @@ export function CoupleProvider({ children }) {
         userId,
       })
       await joinPublicLobbyDocument({
+        avatar,
         db,
         displayName: getPreferredName(),
         lobbyId,

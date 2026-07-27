@@ -3,8 +3,14 @@ const ENTRY_LABELS = {
   finale: 'Closing Poster',
   journal: 'Time Capsule',
   keepsake: 'Prize Pocket',
+  match: 'Matched Instincts',
+  prediction: 'Prediction Reveal',
   prompt: 'Conversation Slip',
   ritual: 'Shared Ritual',
+  tempo: 'Rhythm Replay',
+  vault: 'The Vault',
+  'vibe-sync': 'Marker Reveal',
+  word: 'Letterpress Page',
 }
 
 const VIBE_LABELS = {
@@ -192,6 +198,158 @@ function ActivityEntryCard({ entry }) {
   )
 }
 
+function ChoiceRevealCard({ entry }) {
+  const matched = Boolean(entry.payload?.matched)
+  const revealLabel = entry.type === 'prediction'
+    ? matched
+      ? 'Called it'
+      : 'Surprise reveal'
+    : matched
+      ? 'Mind meld'
+      : 'Different instincts'
+  const answers = entry.type === 'prediction'
+    ? [
+        {
+          label: 'Prediction',
+          text: entry.payload?.prediction?.label,
+        },
+        {
+          label: 'Actual answer',
+          text: entry.payload?.actual?.label,
+        },
+      ]
+    : (entry.payload?.answers || []).map((answer, index) => ({
+        label: index === 0 ? 'First answer' : 'Second answer',
+        text: answer.label,
+      }))
+
+  return (
+    <>
+      <div className="scrapbook-headline">
+        <strong>{entry.title}</strong>
+        <p>{entry.summary}</p>
+      </div>
+      <div className={`scrapbook-match-banner${matched ? ' matched' : ''}`}>
+        <span>{revealLabel}</span>
+        <strong>+{entry.payload?.heartBonus || 0} hearts</strong>
+      </div>
+      <div className="scrapbook-prompt">
+        <span>Prompt</span>
+        <p>{entry.payload?.prompt}</p>
+      </div>
+      <div className="scrapbook-response-grid">
+        {answers.map((answer, index) => (
+          <div className="scrapbook-response-card" key={`${answer.label}-${index}`}>
+            <span>{answer.label}</span>
+            <p>{answer.text}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function VaultEntryCard({ entry, revealed }) {
+  if (!revealed) {
+    return (
+      <div className="scrapbook-vault-sealed">
+        <div className="vault-seal-mark" aria-hidden="true">ALL</div>
+        <span>Sealed for this night’s finale</span>
+        <strong>Two notes are waiting inside.</strong>
+        <p>The words stay hidden until both players reach the closing poster.</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="scrapbook-headline">
+        <strong>{entry.title} — Opened</strong>
+        <p>The finale broke the seal. Keep these somewhere close.</p>
+      </div>
+      <div className="scrapbook-prompt">
+        <span>What you sealed</span>
+        <p>{entry.payload?.prompt}</p>
+      </div>
+      <div className="scrapbook-response-grid">
+        {getResponseRows(entry).map((response, index) => (
+          <div className="scrapbook-response-card" key={`${response.speaker}-${index}`}>
+            <span>{response.speaker}</span>
+            <p>{response.text}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function WaveTwoResultCard({ entry }) {
+  const responses = getResponseRows(entry)
+  let bannerLabel = 'Shared result'
+  let bannerValue = `+${entry.payload?.heartBonus || 0} hearts`
+
+  if (entry.type === 'vibe-sync') {
+    bannerLabel = 'Alignment'
+    bannerValue = `${entry.payload?.syncScore || 0}%`
+  } else if (entry.type === 'tempo') {
+    bannerLabel = 'Combined rhythm'
+    bannerValue = `${entry.payload?.averageAccuracy || 0}%`
+  } else if (entry.type === 'word') {
+    bannerLabel = 'Combined dictionary'
+    bannerValue = `${entry.payload?.combinedWordCount || 0} words`
+  }
+
+  return (
+    <>
+      <div className="scrapbook-headline">
+        <strong>{entry.title}</strong>
+        <p>{entry.summary}</p>
+      </div>
+      <div className="scrapbook-match-banner matched">
+        <span>{bannerLabel}</span>
+        <strong>{bannerValue}</strong>
+      </div>
+
+      {entry.type === 'vibe-sync' && (
+        <div className="scrapbook-continuum">
+          <div>
+            <span>{entry.payload?.leftLabel}</span>
+            <span>{entry.payload?.rightLabel}</span>
+          </div>
+          <div className="scrapbook-continuum-track">
+            {(entry.payload?.markers || []).map((marker, index) => (
+              <i
+                className={`marker-${index}`}
+                key={`${marker.playerIndex}-${marker.value}`}
+                style={{ left: `${marker.value}%` }}
+              >
+                {marker.value}
+              </i>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {entry.type === 'word' && (
+        <div className="scrapbook-letter-row">
+          {(entry.payload?.letters || []).map((letter, index) => (
+            <span key={`${letter}-${index}`}>{letter}</span>
+          ))}
+        </div>
+      )}
+
+      <div className="scrapbook-response-grid">
+        {responses.map((response, index) => (
+          <div className="scrapbook-response-card" key={`${response.speaker}-${index}`}>
+            <span>{response.speaker}</span>
+            <p>{response.text}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 function DuelEntryCard({ entry }) {
   const duelRows = getDuelRows(entry)
   const imageDataUrl = entry.payload?.imageDataUrl || null
@@ -298,7 +456,7 @@ function DefaultEntryCard({ entry }) {
   )
 }
 
-function ScrapbookEntry({ entry, index }) {
+function ScrapbookEntry({ entry, index, vaultRevealed }) {
   let body = <DefaultEntryCard entry={entry} />
 
   if (entry.type === 'duel') {
@@ -307,6 +465,16 @@ function ScrapbookEntry({ entry, index }) {
     body = <KeepsakeEntryCard entry={entry} />
   } else if (entry.type === 'finale') {
     body = <FinaleEntryCard entry={entry} />
+  } else if (entry.type === 'match' || entry.type === 'prediction') {
+    body = <ChoiceRevealCard entry={entry} />
+  } else if (entry.type === 'vault') {
+    body = <VaultEntryCard entry={entry} revealed={vaultRevealed} />
+  } else if (
+    entry.type === 'vibe-sync' ||
+    entry.type === 'tempo' ||
+    entry.type === 'word'
+  ) {
+    body = <WaveTwoResultCard entry={entry} />
   } else if (entry.type === 'prompt' || entry.type === 'ritual' || entry.type === 'journal') {
     body = <ActivityEntryCard entry={entry} />
   }
@@ -326,10 +494,25 @@ export function JournalTimeline({ entries }) {
     return <JournalEmptyState />
   }
 
+  const finaleSessionIds = new Set(
+    entries
+      .filter((entry) => entry.type === 'finale' && entry.sessionId)
+      .map((entry) => entry.sessionId),
+  )
+
   return (
     <div className="journal-timeline scrapbook-flow">
       {entries.map((entry, index) => (
-        <ScrapbookEntry entry={entry} index={index} key={entry.id} />
+        <ScrapbookEntry
+          entry={entry}
+          index={index}
+          key={entry.id}
+          vaultRevealed={
+            entry.type === 'vault' &&
+            Boolean(entry.sessionId) &&
+            finaleSessionIds.has(entry.sessionId)
+          }
+        />
       ))}
     </div>
   )

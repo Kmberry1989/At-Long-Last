@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { activityDefinitions } from './contentPackData.js'
+import { createConnectionGameEntry } from './connectionGameRegistry.jsx'
+import { createWaveTwoGameEntry } from './waveTwoGameRegistry.jsx'
 
 function buildEntrySummary(definition, entries, players) {
   if (entries.length < 2) {
@@ -25,36 +27,43 @@ function buildOpenAt(definition) {
   return openAt.toISOString()
 }
 
-function ActivityCard({ activity, disabled, onSkip, onSubmit, players }) {
+function ActivityCard({
+  activity,
+  definition,
+  disabled,
+  onSkip,
+  onSubmit,
+  players,
+}) {
   const [text, setText] = useState('')
   const activeName =
     activity.state.turnIndex >= 0
       ? players[activity.state.turnIndex]?.displayName
       : null
   const responsePlaceholder = useMemo(() => {
-    if (activity.type === 'ritual') {
+    if (definition.type === 'ritual') {
       return 'Describe what you left, chose, or imagined.'
     }
 
-    if (activity.type === 'journal') {
+    if (definition.type === 'journal') {
       return 'Write a couple of lines worth keeping.'
     }
 
     return 'One or two sentences is enough.'
-  }, [activity.type])
+  }, [definition.type])
 
   return (
-    <div className={`overlay-card activity-card vibe-${activity.vibe}`}>
+    <div className={`overlay-card activity-card vibe-${definition.vibe}`}>
       <div className="overlay-head">
-        <p className="eyebrow">{activity.vibe} {activity.type}</p>
-        {activity.skippable && (
+        <p className="eyebrow">{definition.vibe} {definition.type}</p>
+        {definition.skippable && (
           <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
             Skip This
           </button>
         )}
       </div>
-      <h3>{activity.label}</h3>
-      <p className="support-copy">{activity.intro}</p>
+      <h3>{definition.label}</h3>
+      <p className="support-copy">{definition.description}</p>
       <div className="activity-prompt">
         <p>{activity.state.prompt}</p>
       </div>
@@ -122,7 +131,9 @@ function createRegistryEntry(definition) {
         },
       }
     },
-    render: ActivityCard,
+    render(props) {
+      return <ActivityCard {...props} definition={definition} />
+    },
     resolve(state, players) {
       const openAt = buildOpenAt(definition)
       return {
@@ -148,7 +159,9 @@ function createRegistryEntry(definition) {
 export const activityRegistry = Object.fromEntries(
   activityDefinitions.map((definition) => [
     definition.id,
-    createRegistryEntry(definition),
+    createConnectionGameEntry(definition) ||
+      createWaveTwoGameEntry(definition) ||
+      createRegistryEntry(definition),
   ]),
 )
 

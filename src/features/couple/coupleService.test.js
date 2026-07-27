@@ -32,6 +32,7 @@ describe('coupleService', () => {
 
   it('builds the initial couple payload', () => {
     const payload = buildCreateCouplePayload({
+      avatar: '/assets/players/owl.glb',
       displayName: 'Kyle',
       inviteCode: 'ABC123',
       origin: 'https://example.com',
@@ -43,6 +44,7 @@ describe('coupleService', () => {
     expect(payload.playerIds).toEqual(['u1'])
     expect(payload.shareLink).toBe('https://example.com/?code=ABC123')
     expect(payload.sessionPreset).toBe('quick')
+    expect(payload.players[0].avatar).toBe('/assets/players/owl.glb')
     expect(payload.boardState).toEqual({
       playfulStickerIds: [],
       spicyGlowLevel: 0,
@@ -66,6 +68,7 @@ describe('coupleService', () => {
     expect(
       buildPublicLobbyPayload({
         coupleId: 'couple-1',
+        hostAvatar: '/assets/players/heart.glb',
         hostId: 'u1',
         hostName: 'Kyle',
         inviteCode: 'ABC123',
@@ -73,6 +76,7 @@ describe('coupleService', () => {
       }),
     ).toEqual({
       coupleId: 'couple-1',
+      hostAvatar: '/assets/players/heart.glb',
       hostId: 'u1',
       hostName: 'Kyle',
       inviteCode: 'ABC123',
@@ -105,26 +109,38 @@ describe('coupleService', () => {
         players: [{ uid: 'u1', displayName: 'One' }],
         status: 'waiting',
       },
-      { displayName: 'Two', userId: 'u2' },
+      {
+        avatar: '/assets/players/rabbit.glb',
+        displayName: 'Two',
+        userId: 'u2',
+      },
     )
 
     expect(patch.playerIds).toEqual(['u1', 'u2'])
     expect(patch.players[1].displayName).toBe('Two')
+    expect(patch.players[1].avatar).toBe('/assets/players/rabbit.glb')
     expect(patch.status).toBe('paired')
   })
 
   it('builds a paired couple patch from an open public lobby', () => {
     const patch = buildJoinFromPublicLobbyPatch(
       {
+        hostAvatar: '/assets/players/owl.glb',
         hostId: 'u1',
         hostName: 'One',
       },
-      { displayName: 'Two', userId: 'u2' },
+      {
+        avatar: '/assets/players/motorcycle.glb',
+        displayName: 'Two',
+        userId: 'u2',
+      },
     )
 
     expect(patch.playerIds).toEqual(['u1', 'u2'])
     expect(patch.players[0].displayName).toBe('One')
+    expect(patch.players[0].avatar).toBe('/assets/players/owl.glb')
     expect(patch.players[1].displayName).toBe('Two')
+    expect(patch.players[1].avatar).toBe('/assets/players/motorcycle.glb')
     expect(patch.status).toBe('paired')
   })
 

@@ -5,6 +5,7 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing'
 import {
+  addDoc,
   doc,
   getDoc,
   getDocs,
@@ -23,6 +24,7 @@ import {
 import {
   applyCoupleBoardReward,
   abandonSession,
+  createActivityRecord,
   ensureActiveSession,
 } from '../src/features/session/sessionService.js'
 
@@ -30,6 +32,7 @@ const PROJECT_ID = 'demo-at-long-last'
 const HOST_UID = 'host-account'
 const GUEST_UID = 'guest-account'
 const OUTSIDER_UID = 'outsider-account'
+const LEGACY_SESSION_ID = 'legacy-session'
 
 let testEnv
 
@@ -42,6 +45,9 @@ function authedDb(uid) {
 
 async function createRoom(db, userId = HOST_UID) {
   const coupleId = await createCoupleDocument({
+    avatar: userId === HOST_UID
+      ? '/assets/players/owl.glb'
+      : '/assets/players/rabbit.glb',
     db,
     displayName: userId === HOST_UID ? 'Host' : 'Guest',
     origin: 'http://127.0.0.1:4173',
@@ -61,6 +67,7 @@ async function createAndJoinRoom() {
   const created = await createRoom(hostDb)
 
   await joinCoupleByInviteCode({
+    avatar: '/assets/players/rabbit.glb',
     code: created.inviteCode,
     db: guestDb,
     displayName: 'Guest',
@@ -77,6 +84,88 @@ async function createAndJoinRoom() {
     hostDb,
     inviteCode: created.inviteCode,
   }
+}
+
+async function seedLegacyActiveSession() {
+  const hostDb = authedDb(HOST_UID)
+  const guestDb = authedDb(GUEST_UID)
+  const coupleId = 'legacy-couple'
+  const createdAt = new Date('2026-07-18T07:08:56.546Z')
+  const startedAt = new Date('2026-07-18T07:15:16.810Z')
+  const players = [
+    {
+      accent: '#ff5478',
+      avatar: '/assets/players/heart.glb',
+      color: '#ff7a97',
+      displayName: 'Host',
+      uid: HOST_UID,
+    },
+    {
+      accent: '#2aa1ff',
+      avatar: '/assets/players/globe-classic.glb',
+      color: '#59b5ff',
+      displayName: 'Guest',
+      uid: GUEST_UID,
+    },
+  ]
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const adminDb = context.firestore()
+    await setDoc(doc(adminDb, 'couples', coupleId), {
+      activeSessionId: LEGACY_SESSION_ID,
+      boardState: {
+        playfulStickerIds: [],
+        spicyGlowLevel: 0,
+        tenderStars: 0,
+      },
+      createdAt,
+      inviteCode: 'ABC234',
+      playerIds: [HOST_UID, GUEST_UID],
+      players,
+      sessionPreset: 'quick',
+      shareLink: 'https://example.test/?code=ABC234',
+      status: 'paired',
+      updatedAt: createdAt,
+    })
+    await setDoc(doc(adminDb, 'sessions', LEGACY_SESSION_ID), {
+      actionText: 'Set the vibe together before the first roll.',
+      activePlayerIndex: 0,
+      coupleId,
+      createdAt: startedAt,
+      currentDuel: null,
+      duelResults: {},
+      endedAt: null,
+      goals: ['Reach round 4', 'Save one keepsake'],
+      hearts: 6,
+      hostId: HOST_UID,
+      keepsakes: [],
+      lastActionAt: startedAt,
+      lastDuelOutcome: null,
+      lastMove: null,
+      lastRoll: null,
+      pendingActivityId: null,
+      pendingActivityType: null,
+      pendingKeepsake: null,
+      phase: 'vibeSetup',
+      players,
+      positions: [0, 0],
+      preset: 'quick',
+      round: 1,
+      roundDuelBonus: 0,
+      startedAt,
+      startingPlayerIndex: 0,
+      status: 'active',
+      totalRounds: 4,
+      turnsTakenThisRound: 0,
+      updatedAt: startedAt,
+      usedActivityIds: [],
+      usedDuelIds: [],
+      vibeVotes: {},
+      vibeWeights: null,
+    })
+  })
+
+  return { coupleId, guestDb, hostDb }
 }
 
 beforeAll(async () => {
@@ -99,6 +188,56 @@ afterAll(async () => {
 })
 
 describe('verified two-account lifecycle', () => {
+  it('allows the three connection games only inside the couple session', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    const sessionSnapshot = await getDoc(doc(hostDb, 'sessions', sessionId))
+    const session = { id: sessionSnapshot.id, ...sessionSnapshot.data() }
+
+    for (const activityType of [
+      'mind-meld',
+      'prediction-box',
+      'the-vault',
+      'vibe-check',
+      'tempo-tap',
+      'word-weaver',
+    ]) {
+      const activityId = await assertSucceeds(
+        createActivityRecord(
+          hostDb,
+          session,
+          activityType,
+          {
+            activityId: activityType,
+            prompt: 'A bounded connection-game prompt.',
+            turnIndex: 0,
+          },
+        ),
+      )
+      const activitySnapshot = await getDoc(
+        doc(hostDb, 'activities', activityId),
+      )
+      expect(activitySnapshot.data().type).toBe(activityType)
+    }
+
+    const outsiderDb = authedDb(OUTSIDER_UID)
+    await assertFails(
+      addDoc(collection(outsiderDb, 'activities'), {
+        coupleId: couple.id,
+        createdAt: serverTimestamp(),
+        sessionId,
+        state: {
+          activityId: 'mind-meld',
+          prompt: 'Forged prompt.',
+          turnIndex: 0,
+        },
+        status: 'in_progress',
+        type: 'mind-meld',
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
+
   it('creates an invite, joins it, starts a shared session, and abandons it', async () => {
     const {
       couple,
@@ -108,6 +247,10 @@ describe('verified two-account lifecycle', () => {
     } = await createAndJoinRoom()
 
     expect(couple.playerIds).toEqual([HOST_UID, GUEST_UID])
+    expect(couple.players.map((player) => player.avatar)).toEqual([
+      '/assets/players/owl.glb',
+      '/assets/players/rabbit.glb',
+    ])
     expect(couple.status).toBe('paired')
 
     const guestLink = await getDoc(doc(guestDb, 'playerCouples', GUEST_UID))
@@ -229,7 +372,7 @@ describe('couple authorization boundaries', () => {
         players: [
           {
             accent: '#2aa1ff',
-            avatar: '/assets/players/kyle.glb',
+            avatar: '/assets/players/owl.glb',
             color: '#59b5ff',
             displayName: 'Outsider',
             uid: OUTSIDER_UID,
@@ -253,6 +396,39 @@ describe('couple authorization boundaries', () => {
     expect(waitingCouple.data().playerIds).toEqual([HOST_UID])
     expect(waitingCouple.data().status).toBe('waiting')
     expect(reopenedLobby.data().hostId).toBe(HOST_UID)
+  })
+
+  it('allows the final participant to remove the reopened waiting room', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+
+    await abandonSession(guestDb, {
+      coupleId: couple.id,
+      sessionId,
+    })
+    const detached = await getDoc(doc(hostDb, 'couples', couple.id))
+    await leaveCoupleDocument({
+      couple: { id: detached.id, ...detached.data() },
+      db: guestDb,
+      userId: GUEST_UID,
+    })
+    const waiting = await getDoc(doc(hostDb, 'couples', couple.id))
+
+    await assertSucceeds(
+      leaveCoupleDocument({
+        couple: { id: waiting.id, ...waiting.data() },
+        db: hostDb,
+        userId: HOST_UID,
+      }),
+    )
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore()
+      expect((await getDoc(doc(adminDb, 'couples', couple.id))).exists()).toBe(false)
+      expect((await getDoc(doc(adminDb, 'playerCouples', HOST_UID))).exists()).toBe(false)
+      expect((await getDoc(doc(adminDb, 'coupleInvites', couple.inviteCode))).exists()).toBe(false)
+      expect((await getDoc(doc(adminDb, 'publicLobbies', couple.id))).exists()).toBe(false)
+    })
   })
 
   it('allows one bounded board reward but rejects a forged jump', async () => {
@@ -281,6 +457,97 @@ describe('couple authorization boundaries', () => {
 })
 
 describe('session lifecycle boundaries', () => {
+  it('allows a participant to atomically abandon a pre-arc legacy session', async () => {
+    const { coupleId, guestDb } = await seedLegacyActiveSession()
+
+    await assertSucceeds(
+      abandonSession(guestDb, {
+        coupleId,
+        sessionId: LEGACY_SESSION_ID,
+      }),
+    )
+
+    const abandoned = await getDoc(
+      doc(guestDb, 'sessions', LEGACY_SESSION_ID),
+    )
+    const detachedCouple = await getDoc(doc(guestDb, 'couples', coupleId))
+    expect(abandoned.data().status).toBe('abandoned')
+    expect(detachedCouple.data().activeSessionId).toBeNull()
+
+    await assertFails(
+      updateDoc(doc(guestDb, 'sessions', LEGACY_SESSION_ID), {
+        endedAt: null,
+        status: 'active',
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
+
+  it('denies one-sided, outsider, and field-smuggling legacy cleanup', async () => {
+    const { coupleId, guestDb, hostDb } = await seedLegacyActiveSession()
+    const outsiderDb = authedDb(OUTSIDER_UID)
+
+    await assertFails(
+      updateDoc(doc(hostDb, 'sessions', LEGACY_SESSION_ID), {
+        endedAt: serverTimestamp(),
+        lastActionAt: serverTimestamp(),
+        status: 'abandoned',
+        updatedAt: serverTimestamp(),
+      }),
+    )
+
+    await assertFails(
+      abandonSession(outsiderDb, {
+        coupleId,
+        sessionId: LEGACY_SESSION_ID,
+      }),
+    )
+
+    await assertFails(
+      runTransaction(guestDb, async (transaction) => {
+        const coupleRef = doc(guestDb, 'couples', coupleId)
+        const sessionRef = doc(guestDb, 'sessions', LEGACY_SESSION_ID)
+        await Promise.all([
+          transaction.get(coupleRef),
+          transaction.get(sessionRef),
+        ])
+        transaction.update(coupleRef, {
+          activeSessionId: null,
+          updatedAt: serverTimestamp(),
+        })
+        transaction.update(sessionRef, {
+          endedAt: serverTimestamp(),
+          extraData: 'schema pollution',
+          lastActionAt: serverTimestamp(),
+          status: 'abandoned',
+          updatedAt: serverTimestamp(),
+        })
+      }),
+    )
+
+    await assertFails(
+      runTransaction(guestDb, async (transaction) => {
+        const coupleRef = doc(guestDb, 'couples', coupleId)
+        const sessionRef = doc(guestDb, 'sessions', LEGACY_SESSION_ID)
+        await Promise.all([
+          transaction.get(coupleRef),
+          transaction.get(sessionRef),
+        ])
+        transaction.update(coupleRef, {
+          activeSessionId: null,
+          inviteCode: 'ZZZZZZ',
+          updatedAt: serverTimestamp(),
+        })
+        transaction.update(sessionRef, {
+          endedAt: serverTimestamp(),
+          lastActionAt: serverTimestamp(),
+          status: 'abandoned',
+          updatedAt: serverTimestamp(),
+        })
+      }),
+    )
+  })
+
   it('protects immutable identity and oversized fields', async () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)

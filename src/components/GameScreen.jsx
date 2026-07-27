@@ -1,4 +1,4 @@
-import { Suspense, lazy, startTransition, useState } from 'react'
+import { Suspense, lazy, startTransition, useEffect, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
@@ -32,6 +32,17 @@ function capitalize(value = '') {
   }
 
   return value[0].toUpperCase() + value.slice(1)
+}
+
+function getActivitySubmissionCount(state) {
+  return Math.max(
+    Object.keys(state?.answers || {}).length,
+    Object.keys(state?.values || {}).length,
+    Object.keys(state?.results || {}).length,
+    Object.keys(state?.submissions || {}).length,
+    state?.entries?.length || 0,
+    state?.predictionId ? 1 : 0,
+  )
 }
 
 export function GameScreen() {
@@ -73,12 +84,76 @@ export function GameScreen() {
 
   useSynth(session)
 
+  const activityEntry = activity ? activityRegistry[activity.type] : null
+
+  useEffect(() => {
+    if (!session) {
+      delete window.__atLongLastGameState
+      return undefined
+    }
+
+    const activityState = activity?.state || null
+    const exposedState = {
+      activity: activity && activityEntry
+        ? {
+            id: activity.type,
+            label: activityEntry.label,
+            options: activityState?.options?.map((option) => ({
+              id: option.id,
+              label: option.label,
+            })) || [],
+            ownSubmissionSealed: Boolean(
+              activityState?.answers?.[String(playerIndex)] ||
+              Number.isFinite(activityState?.values?.[String(playerIndex)]) ||
+              activityState?.results?.[String(playerIndex)] ||
+              activityState?.submissions?.[String(playerIndex)] ||
+              (playerIndex === activityState?.predictorIndex && activityState?.predictionId) ||
+              (playerIndex === activityState?.subjectIndex && activityState?.actualId) ||
+              activityState?.entries?.some((entry) => entry.playerIndex === playerIndex),
+            ),
+            letters: activityState?.letters || [],
+            leftLabel: activityState?.leftLabel || null,
+            prompt: activityState?.prompt || null,
+            rightLabel: activityState?.rightLabel || null,
+            sealedCount: getActivitySubmissionCount(activityState),
+            stage: activityState?.phase || activityState?.mode || null,
+            targetIntervalMs: activityState?.targetIntervalMs || null,
+            timeLimitSec: activityState?.timeLimitSec || null,
+            turnIndex: activityState?.turnIndex ?? null,
+          }
+        : null,
+      canAct:
+        session.phase === 'activity'
+          ? activityState?.turnIndex === playerIndex && !working
+          : session.phase === 'turn'
+            ? canRoll
+            : false,
+      phase: session.phase,
+      playerIndex,
+      round: session.round,
+    }
+    window.__atLongLastGameState = exposedState
+
+    return () => {
+      if (window.__atLongLastGameState === exposedState) {
+        delete window.__atLongLastGameState
+      }
+    }
+  }, [
+    activity,
+    activityEntry,
+    canRoll,
+    playerIndex,
+    session?.phase,
+    session?.round,
+    working,
+  ])
+
   if (!hasPartner || !couple || !readyToPlay || !session) {
     return null
   }
 
   const activePlayer = session.players[session.activePlayerIndex]
-  const activityEntry = activity ? activityRegistry[activity.type] : null
   const ActivityComponent = activityEntry?.render ?? null
   const duelEntry = session.currentDuel ? duelRegistry[session.currentDuel.id] : null
   const DuelComponent = duelEntry?.start ?? null
@@ -307,6 +382,7 @@ export function GameScreen() {
               skipActivity()
             }}
             onSubmit={submitActivityTurn}
+            playerIndex={playerIndex}
             players={session.players}
           />
         </div>

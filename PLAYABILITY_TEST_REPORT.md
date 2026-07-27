@@ -3,17 +3,39 @@
 ## Current Run Summary
 
 - **Run date:** 2026-07-26 (America/Indiana/Indianapolis)
-- **Result:** PASS — hardened Firestore rules passed the production service-layer invite/join/session path with two isolated authenticated emulator accounts and focused adversarial coverage.
-- **Release decision:** Firestore rules only were deployed to `at-long-last` after the pre-deploy gate passed. The application bundle and existing Firestore data were not changed.
+- **Result:** PASS — the hardened rules support the current two-account lifecycle and narrowly recover the reported pre-arc session; the missing avatar request and WebGL teardown fault are also fixed.
+- **Release decision:** Firestore rules and the frontend bundle were deployed only after the emulator, unit, static, and local browser gates passed.
 - **Branch:** `main`
 - **Local URL:** `http://127.0.0.1:4173/`
 - **Production URL:** `https://atlonglast.vercel.app/`
 - **Runtime:** Node `v22.23.1`, npm `10.9.8`, macOS `26.5.2`
-- **Firebase mode:** Standard Firestore emulator for deterministic two-account coverage; production rules deployment to `at-long-last` (`nam5`)
+- **Firebase mode:** Standard Firestore emulator for deterministic two-account coverage; production rules and exact legacy recovery verified against `at-long-last` (`nam5`)
 
-The existing dirty worktree was preserved. This run verifies the security-rules
-critical path; the older two-phone/mobile-finale endurance evidence below
-remains historical and separate.
+The older two-phone/mobile-finale endurance evidence below remains historical
+and separate.
+
+## 2026-07-26 Legacy Recovery and Renderer Hotfix
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Legacy lifecycle root cause | PASS | The reported session used the pre-arc schema and lacked the newer spotlight, momentum, activity-option, and keepsake-perk fields required by the modern validator. |
+| Narrow compatibility rule | PASS | Only an existing participant can change `status`, `endedAt`, `lastActionAt`, and `updatedAt` for the matching active session, and only when the same atomic commit clears the couple pointer. |
+| Focused adversarial coverage | PASS | Rules tests deny outsider cleanup, one-sided writes, terminal reopen, session field smuggling, and invite mutation during detach; final-participant room cleanup is also covered. |
+| Two-account pre-deploy gate | PASS | Two distinct authenticated emulator contexts completed invite creation, code join, shared session start, atomic abandon, and terminal-reopen denial through the production service functions. |
+| Live two-account critical path | PASS | Two temporary isolated Firebase identities created and joined a production room, shared one session, atomically abandoned it, completed guest/final-host leave cleanup, and then deleted both temporary auth identities. |
+| Exact production recovery | PASS | After the rules release, the previously denied `Start Fresh` action abandoned the July 18 session, created a new round-1 session for the same paired players, and retained three scrapbook artifacts. |
+| Player pieces | LOCAL PASS / UNRELEASED | The local build offers 53 named GLB pieces with generated previews. An Owl selection and the second-player Classic Globe both decoded and rendered on the board; production has not been redeployed or retested for this asset update. |
+| Renderer lifecycle | PASS | The required web-game client and browser flow exercised preview entry, vibe vote, roll, response, `390×844`/`1040×732` resizing, and repeated remounts with zero new console errors. |
+| App unit suite | PASS | `npm test`: 9 files / 49 tests passed. |
+| Rules suite | PASS | `npm run test:rules`: 1 file / 14 tests passed. |
+| Static validation | PASS | `npm run lint`, `npm run build`, `git diff --check`, and the Firebase rules dry-run passed. |
+| Rules deployment | PASS | Firebase CLI compiled and released `firestore.rules` to `at-long-last`. |
+| Frontend deployment | PASS | Vercel production deployment `dist-c58ysh0i0-kyle-matthew-berry-s-projects.vercel.app` is Ready and aliased to `https://atlonglast.vercel.app/`. |
+
+Only one of the previously authenticated Chrome profiles was available, so the
+exact legacy document was recovered through that existing profile and the live
+two-account transaction was repeated with temporary isolated Firebase
+identities. Those temporary room and auth records were removed afterward.
 
 ## 2026-07-26 Firestore Rules Hardening
 
@@ -26,8 +48,8 @@ remains historical and separate.
 | Session termination | PASS | The real `abandonSession` service atomically marked the session `abandoned` and cleared the couple pointer; reopening the terminal session was denied. |
 | Legitimate leave/reopen | PASS | The joining participant left through `leaveCoupleDocument`; the host remained and the waiting lobby reopened with matching identity. |
 | Bounded board reward | PASS | One production board-reward transition succeeded; a forged jump to 100 stars was denied. |
-| Adversarial rules suite | PASS | 11/11 rules tests passed, including unauthenticated access, invite enumeration, outsider reads, third-player injection, invite/schema mutation, forged couple links, arbitrary session attachment, identity/timestamp mutation, premature completion, cross-player duel-result tampering, and unpaired abandon/detach writes. |
-| App unit suite | PASS | `npm test`: 8 files / 47 tests passed. |
+| Adversarial rules suite | PASS | 14/14 rules tests passed, including unauthenticated access, invite enumeration, outsider reads, third-player injection, invite/schema mutation, forged couple links, arbitrary session attachment, legacy cleanup abuse, final-participant cleanup, identity/timestamp mutation, premature completion, cross-player duel-result tampering, and unpaired abandon/detach writes. |
+| App unit suite | PASS | `npm test`: 9 files / 49 tests passed. |
 | Static validation | PASS | `npm run lint`, `npm run build`, and `git diff --check` passed. |
 | Production rules deploy | PASS | Firebase CLI released `firestore.rules` to Cloud Firestore for `at-long-last`; no application deployment was made. |
 
@@ -41,7 +63,7 @@ write.
 ```json
 {
   "score": 4,
-  "summary": "Couple and session authority now comes from authenticated identity, existing resource state, and atomic after-state checks. Invite creation/join, participant leave, preset selection, active-session attach/detach, bounded board rewards, terminal session transitions, immutable session identity, and per-player duel results are constrained and emulator-covered. Remaining risk is limited to storage-abuse validation inside flexible nested gameplay, activity-state, and journal payload maps.",
+  "summary": "Couple and session authority comes from authenticated identity, existing resource state, and atomic after-state checks. The legacy compatibility path permits only an identity-preserving active-to-abandoned transition with the matching couple detach. Invite creation/join, participant leave, active-session attach/detach, bounded board rewards, modern session transitions, immutable session identity, and per-player duel results remain constrained and emulator-covered. Remaining risk is limited to storage-abuse validation inside flexible nested gameplay, activity-state, and journal payload maps.",
   "findings": [
     {
       "check": "Storage Abuse",
