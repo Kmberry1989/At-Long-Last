@@ -4,6 +4,7 @@ import {
   DRACOLoader,
   DRACO_GLTF_CONFIG,
 } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import { BOARD_SPACES } from '../features/session/boardConfig.js'
@@ -40,11 +41,34 @@ const BOARD_DECORATIONS = [
   {
     id: 'little-photo',
     model: '/assets/board/deco-photo.glb',
-    position: [0.2, -0.02, -0.1],
+    position: [3, 0.06, 0.7],
     rotation: 0.16,
     size: 2.2,
   },
 ]
+
+const TILE_STYLES = {
+  connection: {
+    texture: 'rose',
+    tint: '#eadde8',
+  },
+  duel: {
+    texture: 'wine',
+    tint: '#cdd5ee',
+  },
+  heart: {
+    texture: 'rose',
+    tint: '#ffe6e9',
+  },
+  keepsake: {
+    texture: 'wine',
+    tint: '#ead9ef',
+  },
+  oops: {
+    texture: 'wine',
+    tint: '#f1d5dc',
+  },
+}
 
 function buildBoardPath() {
   return BOARD_SPACES.map((space, index) => {
@@ -62,33 +86,17 @@ function buildBoardPath() {
   })
 }
 
-function makeLabelTexture(label, type) {
+function makeTileMarkTexture(label, type) {
   const canvas = document.createElement('canvas')
   canvas.width = 320
   canvas.height = 320
   const ctx = canvas.getContext('2d')
-  const backgrounds = {
-    connection: '#fff4d8',
-    duel: '#dff2ff',
-    heart: '#ffe1e8',
-    keepsake: '#f1e7ff',
-    oops: '#ffeccc',
-  }
-  const accents = {
-    connection: '#ff9d00',
-    duel: '#2aa1ff',
-    heart: '#ff5478',
-    keepsake: '#7b4ef7',
-    oops: '#d87831',
-  }
 
-  ctx.fillStyle = backgrounds[type]
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.strokeStyle = 'rgba(18, 26, 56, 0.14)'
-  ctx.lineWidth = 16
-  ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32)
-  ctx.fillStyle = accents[type]
-  ctx.font = "900 72px 'Avenir Next', sans-serif"
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.strokeStyle = 'rgba(54, 20, 40, 0.72)'
+  ctx.lineWidth = 10
+  ctx.fillStyle = '#f1cf91'
+  ctx.font = "900 88px 'Avenir Next', sans-serif"
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const symbol =
@@ -99,21 +107,98 @@ function makeLabelTexture(label, type) {
         : type === 'duel'
           ? '✦'
           : type === 'keepsake'
-            ? '♫'
-            : '☏'
-  ctx.fillText(symbol, canvas.width / 2, 104)
+            ? '◆'
+            : '∞'
+  ctx.strokeText(symbol, canvas.width / 2, 105)
+  ctx.fillText(symbol, canvas.width / 2, 105)
 
-  ctx.fillStyle = '#1b1f35'
-  ctx.font = "700 36px 'Avenir Next', sans-serif"
+  ctx.strokeStyle = 'rgba(54, 20, 40, 0.78)'
+  ctx.lineWidth = 7
+  ctx.fillStyle = '#fff5df'
+  ctx.font = "800 34px 'Avenir Next', sans-serif"
 
   const words = label.split(' ')
   words.forEach((word, index) => {
-    ctx.fillText(word, canvas.width / 2, 184 + index * 42)
+    const y = 192 + index * 42
+    ctx.strokeText(word, canvas.width / 2, y)
+    ctx.fillText(word, canvas.width / 2, y)
   })
 
   const texture = new THREE.CanvasTexture(canvas)
   texture.anisotropy = 8
+  texture.colorSpace = THREE.SRGBColorSpace
   return texture
+}
+
+function configureVelvetTexture(texture, repeatX, repeatY) {
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(repeatX, repeatY)
+  texture.anisotropy = 8
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+function createPrimitiveDie(value, velvetTexture) {
+  const die = new THREE.Group()
+  const body = new THREE.Mesh(
+    new RoundedBoxGeometry(1.04, 1.04, 1.04, 5, 0.18),
+    new THREE.MeshStandardMaterial({
+      color: '#f7dce3',
+      map: velvetTexture,
+      metalness: 0.04,
+      roughness: 0.86,
+    }),
+  )
+  body.castShadow = true
+  body.receiveShadow = true
+  die.add(body)
+
+  const pipLayouts = {
+    1: [[0, 0]],
+    2: [[-0.23, -0.23], [0.23, 0.23]],
+    3: [[-0.25, -0.25], [0, 0], [0.25, 0.25]],
+    4: [[-0.23, -0.23], [0.23, -0.23], [-0.23, 0.23], [0.23, 0.23]],
+    5: [[-0.25, -0.25], [0.25, -0.25], [0, 0], [-0.25, 0.25], [0.25, 0.25]],
+    6: [[-0.25, -0.28], [-0.25, 0], [-0.25, 0.28], [0.25, -0.28], [0.25, 0], [0.25, 0.28]],
+  }
+  const pipMaterial = new THREE.MeshStandardMaterial({
+    color: '#f3ce83',
+    metalness: 0.72,
+    roughness: 0.28,
+  })
+  const pipGeometry = new THREE.SphereGeometry(0.075, 14, 10)
+
+  const pipGroups = {}
+  Object.entries(pipLayouts).forEach(([faceValue, layout]) => {
+    const group = new THREE.Group()
+    layout.forEach(([x, z]) => {
+      const pip = new THREE.Mesh(pipGeometry, pipMaterial)
+      pip.position.set(x, 0.515, z)
+      pip.castShadow = true
+      group.add(pip)
+    })
+    pipGroups[faceValue] = group
+    die.add(group)
+  })
+  die.userData.pipGroups = pipGroups
+
+  die.position.set(-2.8, 0.66, 0.5)
+  die.rotation.set(-0.04, 0.3, -0.08)
+  setPrimitiveDieValue(die, value)
+  return die
+}
+
+function setPrimitiveDieValue(die, value) {
+  if (!die) {
+    return
+  }
+
+  const resolvedValue = Math.min(6, Math.max(1, Number(value) || 1))
+  Object.entries(die.userData.pipGroups || {}).forEach(([faceValue, group]) => {
+    group.visible = Number(faceValue) === resolvedValue
+  })
+  die.userData.value = resolvedValue
 }
 
 function createFallbackPawn(color) {
@@ -208,8 +293,16 @@ function fitModel(model, targetSize) {
   model.position.z -= center.z
 }
 
-export function BoardScene({ players, positions, activePlayerIndex, boardState }) {
+export function BoardScene({
+  players,
+  positions,
+  activePlayerIndex,
+  boardState,
+  lastRoll,
+}) {
   const mountRef = useRef(null)
+  const dieRef = useRef(null)
+  const lastRollRef = useRef(lastRoll)
   const boardPath = useMemo(() => buildBoardPath(), [])
   const targetIndicesRef = useRef(positions)
   const activePlayerIndexRef = useRef(activePlayerIndex)
@@ -232,13 +325,18 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
   }, [activePlayerIndex])
 
   useEffect(() => {
+    lastRollRef.current = lastRoll
+    setPrimitiveDieValue(dieRef.current, lastRoll || 1)
+  }, [lastRoll])
+
+  useEffect(() => {
     const mount = mountRef.current
     if (!mount) {
       return undefined
     }
 
     const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2('#dbe8ff', 0.03)
+    scene.fog = new THREE.FogExp2('#321725', 0.027)
 
     const camera = new THREE.PerspectiveCamera(
       46,
@@ -262,7 +360,7 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
     let animationFrameId = null
     let manualTimeOffset = 0
 
-    const ambient = new THREE.AmbientLight('#fff8ed', 1.5)
+    const ambient = new THREE.AmbientLight('#ffece2', 1.6)
     scene.add(ambient)
 
     const key = new THREE.DirectionalLight('#ffffff', 2)
@@ -271,59 +369,118 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
     key.shadow.mapSize.set(1024, 1024)
     scene.add(key)
 
-    const fill = new THREE.PointLight('#ffda78', 1.8, 40)
+    const fill = new THREE.PointLight('#ffc7a7', 1.8, 40)
     fill.position.set(-10, 8, -2)
     scene.add(fill)
 
     const textureLoader = new THREE.TextureLoader()
-    const grass = textureLoader.load('/assets/board/grass_texture.png')
-    grass.wrapS = THREE.RepeatWrapping
-    grass.wrapT = THREE.RepeatWrapping
-    grass.repeat.set(3, 3)
+    const wineVelvet = configureVelvetTexture(
+      textureLoader.load('/assets/board/wine-velvet-texture.jpg'),
+      3.2,
+      3.2,
+    )
+    const roseVelvet = configureVelvetTexture(
+      textureLoader.load('/assets/board/rose-velvet-texture.jpg'),
+      3,
+      3,
+    )
 
     const floor = new THREE.Mesh(
       new THREE.CylinderGeometry(16, 16, 1.2, 40),
       new THREE.MeshStandardMaterial({
-        map: grass,
-        color: '#9bd77a',
-        roughness: 0.92,
+        map: wineVelvet,
+        color: '#fff2f4',
+        metalness: 0.02,
+        roughness: 0.94,
       }),
     )
     floor.receiveShadow = true
     floor.position.y = -0.65
     scene.add(floor)
 
+    const velvetInset = new THREE.Mesh(
+      new THREE.CylinderGeometry(8.5, 8.5, 0.2, 64),
+      new THREE.MeshStandardMaterial({
+        map: roseVelvet,
+        color: '#f4d8dc',
+        metalness: 0.02,
+        roughness: 0.9,
+      }),
+    )
+    velvetInset.position.y = 0.02
+    velvetInset.scale.z = 0.72
+    velvetInset.receiveShadow = true
+    scene.add(velvetInset)
+
+    const insetPiping = new THREE.Mesh(
+      new THREE.TorusGeometry(8.52, 0.08, 12, 96),
+      new THREE.MeshStandardMaterial({
+        color: '#d8aa61',
+        metalness: 0.68,
+        roughness: 0.32,
+      }),
+    )
+    insetPiping.rotation.x = Math.PI / 2
+    insetPiping.scale.y = 0.72
+    insetPiping.position.y = 0.14
+    insetPiping.castShadow = true
+    scene.add(insetPiping)
+
+    const die = createPrimitiveDie(lastRollRef.current || 1, roseVelvet)
+    dieRef.current = die
+    scene.add(die)
+
     const boardGroup = new THREE.Group()
     scene.add(boardGroup)
 
-    const tileTextures = new Map()
+    const tileMarks = new Map()
     boardPath.forEach((space) => {
-      tileTextures.set(space.type, makeLabelTexture(space.label, space.type))
+      tileMarks.set(space.id, makeTileMarkTexture(space.label, space.type))
     })
 
     boardPath.forEach((space) => {
-      const geometry = new THREE.BoxGeometry(2.2, 0.4, 2.2)
-      const topTexture = tileTextures.get(space.type)
-      const sideMaterial = new THREE.MeshStandardMaterial({
-        color: '#fffaf2',
-        roughness: 0.7,
-      })
-      const topMaterial = new THREE.MeshStandardMaterial({
-        map: topTexture,
-        roughness: 0.56,
-      })
-      const mesh = new THREE.Mesh(geometry, [
-        sideMaterial,
-        sideMaterial,
-        topMaterial,
-        sideMaterial,
-        sideMaterial,
-        sideMaterial,
-      ])
-      mesh.receiveShadow = true
-      mesh.castShadow = true
-      mesh.position.copy(space.position)
-      boardGroup.add(mesh)
+      const tile = new THREE.Group()
+      const style = TILE_STYLES[space.type]
+      const base = new THREE.Mesh(
+        new RoundedBoxGeometry(2.2, 0.4, 2.2, 4, 0.15),
+        new THREE.MeshStandardMaterial({
+          color: '#fff7e9',
+          metalness: 0.03,
+          roughness: 0.68,
+        }),
+      )
+      base.receiveShadow = true
+      base.castShadow = true
+      tile.add(base)
+
+      const panel = new THREE.Mesh(
+        new RoundedBoxGeometry(1.92, 0.09, 1.92, 4, 0.14),
+        new THREE.MeshStandardMaterial({
+          color: style.tint,
+          map: style.texture === 'rose' ? roseVelvet : wineVelvet,
+          metalness: 0.02,
+          roughness: 0.9,
+        }),
+      )
+      panel.position.y = 0.24
+      panel.receiveShadow = true
+      panel.castShadow = true
+      tile.add(panel)
+
+      const mark = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.76, 1.76),
+        new THREE.MeshBasicMaterial({
+          alphaTest: 0.08,
+          map: tileMarks.get(space.id),
+          transparent: true,
+        }),
+      )
+      mark.position.y = 0.291
+      mark.rotation.x = -Math.PI / 2
+      tile.add(mark)
+
+      tile.position.copy(space.position)
+      boardGroup.add(tile)
     })
 
     const homeTile = boardPath[0]?.position || new THREE.Vector3(0, 0.35, 0)
@@ -394,7 +551,7 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
       const fallback = createFallbackPawn(player.color)
       group.add(fallback)
       group.position.copy(boardPath[targetIndicesRef.current[index]].position)
-      group.position.y = 0.58
+      group.position.y = 0.7
       group.userData.fallback = fallback
       scene.add(group)
       return group
@@ -492,12 +649,11 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
         const target = boardPath[targetIndicesRef.current[index]].position
         token.position.x = THREE.MathUtils.lerp(token.position.x, target.x, 0.12)
         token.position.z = THREE.MathUtils.lerp(token.position.z, target.z, 0.12)
-        token.position.y = 0.58 + Math.sin(elapsed * 3 + index) * 0.06
+        token.position.y = 0.7 + Math.sin(elapsed * 3 + index) * 0.06
         token.rotation.y = elapsed * 0.35
         token.scale.setScalar(index === activePlayerIndexRef.current ? 1.04 : 0.96)
       })
 
-      floor.rotation.y = elapsed * 0.02
       renderer.render(scene, camera)
     }
 
@@ -520,6 +676,10 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
           id: decoration.id,
           loaded: loadedDecorations.has(decoration.id),
         })),
+        die: {
+          construction: 'rounded-box-and-sphere primitives',
+          value: die.userData.value,
+        },
         gameplay: gameplay
           ? {
               ...gameplay,
@@ -532,6 +692,11 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
             }
           : null,
         mode: 'board',
+        surfaces: {
+          boardInset: 'rose velvet',
+          tabletop: 'wine velvet',
+          tiles: 'rounded primitive bases with velvet inset panels',
+        },
         players: players.map((player, index) => ({
           avatar: resolvePlayerAvatar(player.avatar),
           avatarLoaded: loadedPlayerAvatars.has(index),
@@ -566,6 +731,9 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
         delete window.advanceTime
       }
       dracoLoader.dispose()
+      if (dieRef.current === die) {
+        dieRef.current = null
+      }
       disposeObject3D(scene)
       renderer.renderLists.dispose()
       renderer.dispose()

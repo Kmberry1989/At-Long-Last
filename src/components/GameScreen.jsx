@@ -190,6 +190,7 @@ export function GameScreen() {
           <BoardScene
             activePlayerIndex={session.activePlayerIndex}
             boardState={boardState}
+            lastRoll={session.lastRoll}
             players={session.players}
             positions={session.positions}
             round={session.round}

@@ -101,3 +101,14 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - The sound control now sits below gameplay overlays and hides while activity/recovery modals or the scrapbook drawer are open, leaving their Close controls unobstructed.
 - Mobile browser verification at 390×844 confirmed the scrapbook Close control is visible and clickable. The final required web-game client run completed without an application console error.
 - Validation passes: 9 app test files / 65 tests, 16/16 Firestore rules tests, lint, production build, and diff whitespace check.
+
+## 2026-07-27 — romantic velvet board and primitive art kit
+
+- Replaced the retired grass and wood images with generated wine and rose velvet texture maps; both new materials are visibly used in the Three.js board.
+- Rebuilt the five tile types from reusable rounded-box primitives with ivory bodies, textured velvet inset panels, and separate label/icon planes.
+- Added a rose-velvet primitive die made from one rounded box, one shared sphere geometry, and six visibility-switched pip groups. A roll changes the displayed face without tearing down or reloading the board scene.
+- Added a brass-piped rose velvet center inset and warmer fog/fill lighting while preserving readable player pieces and the existing five decorations.
+- Created `ART_CONCEPT_HANDOFF.md` plus three generated 2D modeling-reference sheets for the tile kit and the full mini-game prop wishlist.
+- Browser verification completed the Vibe setup, rendered both player GLBs and all five decorations, rolled from one to six, confirmed the same WebGL canvas remained mounted, and inspected the clear board at mobile and desktop sizes.
+- Final verification passes: 9 app test files / 65 tests, lint, production build, diff whitespace check, and the required web-game client with explicit velvet-surface and primitive-die state.
+- This art-direction pass remains local and is not yet committed or deployed.
