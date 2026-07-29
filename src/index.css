@@ -221,14 +221,12 @@ p {
   -webkit-backdrop-filter: blur(10px);
 }
 
-.brand-script {
-  font-family: 'Petit Formal Script', cursive;
-  font-size: clamp(28px, 8.8vw, 48px);
-  line-height: 0.96;
-  color: #ffe6c5;
-  text-shadow:
-    0 12px 26px rgba(0, 0, 0, 0.34),
-    0 2px 8px rgba(0, 0, 0, 0.28);
+.brand-logo {
+  width: clamp(72px, 20vw, 112px);
+  aspect-ratio: 1;
+  object-fit: contain;
+  object-position: left center;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.34));
 }
 
 .title-kicker,
@@ -442,8 +440,8 @@ p {
   border-radius: 22px;
 }
 
-.auth-title-band .brand-script {
-  font-size: 28px;
+.auth-title-band .brand-logo {
+  width: 96px;
 }
 
 .auth-title-band .title-kicker {
@@ -3691,8 +3689,12 @@ p {
     padding: 14px 56px 16px 14px;
   }
 
-  .brand-script {
-    font-size: 28px;
+  .brand-logo {
+    width: 72px;
+  }
+
+  .auth-title-band .brand-logo {
+    width: 96px;
   }
 
   .title-band h1 {
@@ -3851,8 +3853,8 @@ p {
     padding-block: 9px;
   }
 
-  .brand-script {
-    font-size: 26px;
+  .brand-logo {
+    width: 64px;
   }
 
   .title-band h1 {

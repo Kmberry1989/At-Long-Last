@@ -163,3 +163,25 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Final local validation passes: 12 app test files / 82 tests, 17/17 Firestore rules tests, lint, production build, and diff whitespace check.
 - Committed as `aafd74c`, pushed to `main`, and deployed to Vercel production `https://dist-n6f0tszii-kyle-matthew-berry-s-projects.vercel.app`, aliased to `https://atlonglast.vercel.app`.
 - Production smoke at 390×844 rendered the compact Google/email sign-in screen and reported no console errors. The supplemental claimable-preview endpoint returned an incomplete building response, but the linked Vercel production deployment succeeded and is live.
+
+## 2026-07-29 — home logo
+
+- Replaced the home-screen “At Long Last” text wordmark with the supplied transparent `public/assets/ui/atlonglast.png` logo.
+- Sized the logo for legibility at 390×844, with a shorter-screen override that keeps the full Google/email sign-in card visible at 390×667.
+- Browser and required web-game-client screenshots were visually inspected with no console-error artifact. Lint, production build, and 82 app tests pass.
+
+## 2026-07-29 — themed board decorations
+
+- Reviewed the new city, beach, holiday, cozy, and garden GLB collections in a rendered asset gallery, then gave the curated board pieces durable, human-readable filenames and in-game labels.
+- Added five board themes that advance with the game round: Cozy Night In, Secret Garden, Seaside Date, City Date Night, and Holiday Sparkle. Each places five themed props around the velvet board without replacing the primitive tiles, die, or player pieces.
+- The deterministic board text now reports the current theme plus every named decoration and whether its model loaded or failed, making model regressions visible to browser checks.
+- A 390×844 local preview visibly rendered the Cozy Night In scene; the board state confirmed all five cozy models loaded, alongside both selected player pieces.
+- Validation passes: 13 app test files / 84 tests, lint, production build, diff whitespace check, and mobile browser inspection with no application console errors.
+
+## 2026-07-29 — generated theme velvet textures
+
+- Generated six new 1254px square velvet texture maps: upgraded rose and wine base velvets plus bespoke Secret Garden, Seaside Date, City Date Night, and Holiday Sparkle tabletops.
+- Kept the original JPEG textures intact and introduced the generated assets as non-destructive versioned PNGs.
+- Board surfaces now select the round’s matching tabletop texture while retaining the new rose velvet as the inset, tile-panel, and primitive-die material; the result keeps labels readable while making each board theme feel materially distinct.
+- Browser board state confirmed the new Cozy Night In rose/wine assets loaded from their final project paths alongside all five theme decorations and both player pieces. All six texture URLs returned HTTP 200 from the local app.
+- Validation passes: lint, production build, 13 app test files / 84 tests, texture-dimension checks, and diff whitespace check. Browser screenshot capture timed out during the continuously animating WebGL board, while the generated texture outputs were visually inspected before integration.

@@ -643,7 +643,11 @@ export function LobbyScreen() {
       <DecorativePath />
       <div className="lobby-content">
         <div className={`title-band${authScreenActive ? ' auth-title-band' : ''}`}>
-          <p className="brand-script">At Long Last</p>
+          <img
+            alt="At Long Last"
+            className="brand-logo"
+            src="/assets/ui/atlonglast.png"
+          />
           <p className="title-kicker">A private board game night for two phones.</p>
           {!authScreenActive && (
             <>

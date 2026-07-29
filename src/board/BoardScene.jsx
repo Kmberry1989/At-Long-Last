@@ -9,44 +9,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import { BOARD_SPACES } from '../features/session/boardConfig.js'
-
-const BOARD_DECORATIONS = [
-  {
-    id: 'trinket-box',
-    model: '/assets/board/deco-box_of_trinkets.glb',
-    position: [-6.4, -0.02, -3.8],
-    rotation: -0.38,
-    size: 2.1,
-  },
-  {
-    id: 'pressed-flower',
-    model: '/assets/board/deco-flower.glb',
-    position: [6.4, -0.02, -3.6],
-    rotation: 0.48,
-    size: 2,
-  },
-  {
-    id: 'keepsake-candle',
-    model: '/assets/board/deco-candle.glb',
-    position: [-5.1, -0.02, 3.2],
-    rotation: 0.24,
-    size: 1.6,
-  },
-  {
-    id: 'date-night-candle',
-    model: '/assets/board/deco-candle2.glb',
-    position: [5.2, -0.02, 3.4],
-    rotation: -0.2,
-    size: 1.5,
-  },
-  {
-    id: 'little-photo',
-    model: '/assets/board/deco-photo.glb',
-    position: [3, 0.06, 0.7],
-    rotation: 0.16,
-    size: 2.2,
-  },
-]
+import { getBoardThemeForRound } from './boardThemes.js'
 
 const TILE_STYLES = {
   connection: {
@@ -362,6 +325,7 @@ export function BoardScene({
   activePlayerIndex,
   boardState,
   lastRoll,
+  round,
   rolling = false,
 }) {
   const mountRef = useRef(null)
@@ -369,6 +333,7 @@ export function BoardScene({
   const resetViewRef = useRef(null)
   const lastRollRef = useRef(lastRoll)
   const boardPath = useMemo(() => buildBoardPath(), [])
+  const boardTheme = useMemo(() => getBoardThemeForRound(round), [round])
   const targetIndicesRef = useRef(positions)
   const activePlayerIndexRef = useRef(activePlayerIndex)
   const boardStateKey = useMemo(
@@ -474,22 +439,20 @@ export function BoardScene({
     scene.add(fill)
 
     const textureLoader = new THREE.TextureLoader()
-    const wineVelvet = configureVelvetTexture(
-      textureLoader.load('/assets/board/wine-velvet-texture.jpg'),
-      3.2,
-      3.2,
+    const tabletopVelvet = configureVelvetTexture(
+      textureLoader.load(boardTheme.surfaces.tabletop.texture),
+      ...boardTheme.surfaces.tabletop.repeat,
     )
-    const roseVelvet = configureVelvetTexture(
-      textureLoader.load('/assets/board/rose-velvet-texture.jpg'),
-      3,
-      3,
+    const insetVelvet = configureVelvetTexture(
+      textureLoader.load(boardTheme.surfaces.inset.texture),
+      ...boardTheme.surfaces.inset.repeat,
     )
 
     const floor = new THREE.Mesh(
       new THREE.CylinderGeometry(16, 16, 1.2, 40),
       new THREE.MeshStandardMaterial({
-        map: wineVelvet,
-        color: '#fff2f4',
+        map: tabletopVelvet,
+        color: boardTheme.surfaces.tabletop.color,
         metalness: 0.02,
         roughness: 0.94,
       }),
@@ -501,8 +464,8 @@ export function BoardScene({
     const velvetInset = new THREE.Mesh(
       new THREE.CylinderGeometry(8.5, 8.5, 0.2, 64),
       new THREE.MeshStandardMaterial({
-        map: roseVelvet,
-        color: '#f4d8dc',
+        map: insetVelvet,
+        color: boardTheme.surfaces.inset.color,
         metalness: 0.02,
         roughness: 0.9,
       }),
@@ -526,7 +489,7 @@ export function BoardScene({
     insetPiping.castShadow = true
     scene.add(insetPiping)
 
-    const die = createPrimitiveDie(lastRollRef.current || 1, roseVelvet)
+    const die = createPrimitiveDie(lastRollRef.current || 1, insetVelvet)
     let dieRoll = null
     die.userData.startRoll = (value) => {
       dieRoll = {
@@ -568,7 +531,7 @@ export function BoardScene({
         new RoundedBoxGeometry(1.92, 0.09, 1.92, 4, 0.14),
         new THREE.MeshStandardMaterial({
           color: style.tint,
-          map: style.texture === 'rose' ? roseVelvet : wineVelvet,
+          map: style.texture === 'rose' ? insetVelvet : tabletopVelvet,
           metalness: 0.02,
           roughness: 0.9,
         }),
@@ -679,9 +642,10 @@ export function BoardScene({
     const loader = new GLTFLoader()
     loader.setDRACOLoader(dracoLoader)
     const loadedDecorations = new Set()
+    const failedDecorations = new Set()
     const loadedPlayerAvatars = new Set()
 
-    BOARD_DECORATIONS.forEach((decoration) => {
+    boardTheme.decorations.forEach((decoration) => {
       loader.load(
         decoration.model,
         (gltf) => {
@@ -705,7 +669,9 @@ export function BoardScene({
           loadedDecorations.add(decoration.id)
         },
         undefined,
-        () => undefined,
+        () => {
+          failedDecorations.add(decoration.id)
+        },
       )
     })
 
@@ -831,8 +797,15 @@ export function BoardScene({
           },
         },
         coordinateSystem: 'board-space index increases clockwise from top',
-        decorations: BOARD_DECORATIONS.map((decoration) => ({
+        theme: {
+          id: boardTheme.id,
+          label: boardTheme.label,
+          round,
+        },
+        decorations: boardTheme.decorations.map((decoration) => ({
           id: decoration.id,
+          label: decoration.label,
+          failed: failedDecorations.has(decoration.id),
           loaded: loadedDecorations.has(decoration.id),
         })),
         die: {
@@ -853,8 +826,8 @@ export function BoardScene({
           : null,
         mode: 'board',
         surfaces: {
-          boardInset: 'rose velvet',
-          tabletop: 'wine velvet',
+          boardInset: boardTheme.surfaces.inset.texture,
+          tabletop: boardTheme.surfaces.tabletop.texture,
           tiles: 'rounded primitive bases with velvet inset panels',
         },
         toneSelector: window.__atLongLastVibeDialState || null,
@@ -930,7 +903,7 @@ export function BoardScene({
         mount.removeChild(renderer.domElement)
       }
     }
-  }, [boardPath, boardStateKey, players])
+  }, [boardPath, boardStateKey, boardTheme, players, round])
 
   return (
     <>
