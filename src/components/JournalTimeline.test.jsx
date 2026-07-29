@@ -1,11 +1,13 @@
 /* @vitest-environment jsdom */
 
 import '@testing-library/jest-dom/vitest'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 import { JournalTimeline } from './JournalTimeline.jsx'
 
 describe('JournalTimeline', () => {
+  afterEach(cleanup)
+
   it('renders scrapbook cards for activities, duels, keepsakes, and the finale', () => {
     render(
       <JournalTimeline
@@ -135,6 +137,51 @@ describe('JournalTimeline', () => {
     expect(screen.getByText('The Vault — Opened')).toBeInTheDocument()
     expect(screen.getByText('A secret from Kyle.')).toBeInTheDocument()
     expect(screen.getByText('A secret from Elaine.')).toBeInTheDocument()
+  })
+
+  it('renders setup ballots and passed duels as visible response records', () => {
+    const { container } = render(
+      <JournalTimeline
+        entries={[
+          {
+            id: 'vibe-setup-1',
+            payload: {
+              vibeVotes: {
+                u1: { playful: 0.3, spicy: 0.2, tender: 0.5 },
+                u2: { playful: 0.4, spicy: 0.1, tender: 0.5 },
+              },
+            },
+            summary: 'You both set the tone for this night.',
+            text: 'Kyle: Tender 50% · Playful 30% · Spicy 20%\nElaine: Tender 50% · Playful 40% · Spicy 10%',
+            title: 'Tonight’s Vibe',
+            type: 'vibe-setup',
+            vibe: 'tender',
+          },
+          {
+            id: 'duel-pass-1',
+            payload: {
+              heartBonus: 0,
+              outcomeStatus: 'noContest',
+              results: {
+                u1: { highlight: 'skipped the duel', skipped: true },
+                u2: { highlight: 'skipped the duel', skipped: true },
+              },
+            },
+            summary: 'You both passed Reaction Heart. No hearts were added, but the choice was saved.',
+            text: 'Kyle: skipped the duel\nElaine: skipped the duel',
+            title: 'Reaction Heart',
+            type: 'duel',
+            vibe: 'playful',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Vibe Ballot')).toBeInTheDocument()
+    expect(screen.getByText('Tender 50% · Playful 30% · Spicy 20%')).toBeInTheDocument()
+    expect(screen.getByText('You both passed Reaction Heart. No hearts were added, but the choice was saved.')).toBeInTheDocument()
+    expect(screen.getByText('Shared hearts')).toBeInTheDocument()
+    expect(container.querySelector('.scrapbook-duel-banner strong')).toHaveTextContent('+0')
   })
 
   it('renders slider, rhythm, and letterpress results as distinct scrapbook artifacts', () => {

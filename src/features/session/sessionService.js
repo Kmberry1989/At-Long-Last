@@ -12,6 +12,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { finalizeVibeSetup, buildInitialSession } from './sessionLogic.js'
+import { buildVibeSetupJournalEntry } from './journalHelpers.js'
 import {
   averageVibeVotes,
   buildBoardRewardPatch,
@@ -156,6 +157,9 @@ export async function finalizeActivity({
 }) {
   const sessionRef = doc(db, 'sessions', sessionId)
   const activityRef = doc(db, 'activities', activityId)
+  const journalRef = journalEntry
+    ? doc(collection(db, 'journalEntries'))
+    : null
 
   await runTransaction(db, async (transaction) => {
     const fresh = await transaction.get(sessionRef)
@@ -174,15 +178,15 @@ export async function finalizeActivity({
     transaction.update(sessionRef, {
       ...buildSessionWritePayload(nextSession),
     })
-  })
 
-  if (journalEntry) {
-    await addDoc(collection(db, 'journalEntries'), {
-      ...journalEntry,
-      createdAt: serverTimestamp(),
-      sessionId,
-    })
-  }
+    if (journalRef) {
+      transaction.set(journalRef, {
+        ...journalEntry,
+        createdAt: serverTimestamp(),
+        sessionId,
+      })
+    }
+  })
 }
 
 export async function appendJournalEntry(db, payload) {
@@ -198,8 +202,38 @@ export async function updateSessionState(db, sessionId, nextSession) {
   })
 }
 
+export async function updateSessionStateWithJournal(
+  db,
+  sessionId,
+  nextSession,
+  journalEntries,
+) {
+  const sessionRef = doc(db, 'sessions', sessionId)
+  const entries = (journalEntries || []).filter(Boolean)
+  const journalRefs = entries.map(() => doc(collection(db, 'journalEntries')))
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(sessionRef)
+    if (!snapshot.exists()) {
+      throw new Error('Session disappeared.')
+    }
+
+    transaction.update(sessionRef, {
+      ...buildSessionWritePayload(nextSession),
+    })
+    entries.forEach((entry, index) => {
+      transaction.set(journalRefs[index], {
+        ...entry,
+        createdAt: serverTimestamp(),
+        sessionId,
+      })
+    })
+  })
+}
+
 export async function submitVibeVote(db, sessionId, userId, vote) {
   const sessionRef = doc(db, 'sessions', sessionId)
+  const journalRef = doc(collection(db, 'journalEntries'))
 
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(sessionRef)
@@ -215,8 +249,19 @@ export async function submitVibeVote(db, sessionId, userId, vote) {
 
     if (Object.keys(vibeVotes).length >= session.players.length) {
       const vibeWeights = averageVibeVotes(vibeVotes)
+      const journalEntry = buildVibeSetupJournalEntry({
+        coupleId: session.coupleId,
+        players: session.players,
+        sessionId,
+        vibeVotes,
+        vibeWeights,
+      })
       transaction.update(sessionRef, {
         ...buildSessionWritePayload(finalizeVibeSetup(session, vibeWeights)),
+      })
+      transaction.set(journalRef, {
+        ...journalEntry,
+        createdAt: serverTimestamp(),
       })
       return
     }

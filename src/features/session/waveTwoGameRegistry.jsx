@@ -320,13 +320,6 @@ function TempoTapCard({
   )
 }
 
-function scoreWords(words) {
-  return words.reduce(
-    (score, word) => score + word.length + (word.length >= 5 ? 3 : 0),
-    0,
-  )
-}
-
 function WordWeaverCard({
   activity,
   definition,
@@ -345,7 +338,6 @@ function WordWeaverCard({
   const activeName = getPlayerName(players, state.turnIndex)
   const ownSubmission = state.submissions?.[String(playerIndex)]
   const allowedWords = useMemo(() => new Set(state.allowedWords), [state.allowedWords])
-  const score = scoreWords(words)
 
   useEffect(() => {
     setDraft('')
@@ -376,8 +368,8 @@ function WordWeaverCard({
     draft,
     letters: state.letters,
     remainingSeconds: remaining,
-    score,
-  }), [draft, remaining, score, state.letters, words]))
+    wordCount: words.length,
+  }), [draft, remaining, state.letters, words]))
 
   function addWord(event) {
     event.preventDefault()
@@ -442,7 +434,7 @@ function WordWeaverCard({
           </div>
           <div className="word-weaver-score">
             <span><strong>{remaining}</strong> seconds</span>
-            <span><strong>{score}</strong> points</span>
+            <span><strong>{words.length}</strong> words found</span>
           </div>
           <form className="word-weaver-form" onSubmit={addWord}>
             <input
@@ -693,7 +685,6 @@ function createWordWeaverEntry(definition) {
 
       const submission = {
         longest: [...uniqueWords].sort((left, right) => right.length - left.length)[0] || '',
-        score: scoreWords(uniqueWords),
         words: uniqueWords,
       }
       const submissions = {

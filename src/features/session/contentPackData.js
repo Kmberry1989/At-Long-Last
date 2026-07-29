@@ -9,6 +9,7 @@ export const activityDefinitions = [
   ...RAW_ACTIVITIES.map((activity) => ({
     ...activity,
     label: activity.title,
+    savesToJournal: true,
   })),
   ...CONNECTION_ACTIVITY_DEFINITIONS,
   ...WAVE_TWO_ACTIVITY_DEFINITIONS,

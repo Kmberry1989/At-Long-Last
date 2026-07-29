@@ -39,4 +39,27 @@ describe('duelRegistry', () => {
 
     expect(outcome).toEqual({ retry: true })
   })
+
+  it('treats creative and closeness challenges as shared completions', () => {
+    const sharedIds = [
+      'constellation-home',
+      'doodle-duel-memory',
+      'emoji-court',
+      'fever-dream-date',
+      'gratitude-duel',
+      'letterpress-one-word',
+      'portrait-panic-directed',
+      'slow-draw-portrait-romantic',
+      'temperature-check',
+      'voice-note-trailer',
+      'wavelength-slider',
+    ]
+
+    sharedIds.forEach((id) => {
+      expect(duelRegistry[id].resolveTie(
+        { score: 1, time: 9, value: 2, won: true },
+        { score: 99, time: 1, value: 10, won: true },
+      )).toEqual({ shared: true })
+    })
+  })
 })

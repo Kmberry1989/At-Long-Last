@@ -1149,6 +1149,57 @@ p {
   inset: 0;
 }
 
+.board-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.board-canvas canvas:active {
+  cursor: grabbing;
+}
+
+.board-view-controls {
+  position: absolute;
+  z-index: 7;
+  top: max(10px, env(safe-area-inset-top));
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 112px);
+  padding: 7px 8px 7px 11px;
+  border: 1px solid rgba(255, 243, 233, 0.18);
+  border-radius: 999px;
+  background: rgba(21, 26, 38, 0.58);
+  color: var(--app-cream);
+  box-shadow: 0 12px 28px rgba(6, 8, 12, 0.2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.board-view-controls span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.board-view-controls button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgba(255, 249, 242, 0.94);
+  color: var(--app-ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .hud {
   position: absolute;
   left: 18px;
@@ -1232,6 +1283,17 @@ p {
 .chip.heart {
   background:
     linear-gradient(180deg, rgba(255, 222, 229, 0.96) 0%, rgba(232, 170, 181, 0.86) 100%);
+}
+
+.heart-guide-chip {
+  border: 0;
+  text-align: left;
+}
+
+.heart-guide-chip:focus-visible,
+.board-view-controls button:focus-visible {
+  outline: 3px solid rgba(255, 246, 238, 0.86);
+  outline-offset: 2px;
 }
 
 .spotlight-chip {
@@ -1403,11 +1465,48 @@ p {
   display: grid;
   place-items: start center;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding:
     max(18px, calc(env(safe-area-inset-top) + 18px))
     18px
     max(18px, calc(env(safe-area-inset-bottom) + 18px));
   animation: overlayFade 260ms var(--app-ease);
+}
+
+.heart-guide-overlay {
+  z-index: 18;
+  background: rgba(39, 30, 31, 0.72);
+}
+
+.heart-guide-card {
+  display: grid;
+  gap: 14px;
+}
+
+.heart-rule-list {
+  display: grid;
+  gap: 9px;
+}
+
+.heart-rule-list div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 13px;
+  border: 1px solid rgba(35, 28, 29, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 252, 249, 0.74);
+}
+
+.heart-rule-list strong {
+  color: #7a4f41;
+}
+
+.heart-rule-list span {
+  color: var(--app-ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .overlay-card {
@@ -1639,11 +1738,17 @@ p {
 }
 
 .journal-header {
+  position: sticky;
+  z-index: 3;
+  top: -1px;
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: start;
   margin-bottom: 16px;
+  padding: 10px 0 12px;
+  background:
+    linear-gradient(180deg, rgba(252, 244, 236, 0.99) 0%, rgba(248, 237, 227, 0.96) 84%, rgba(248, 237, 227, 0) 100%);
 }
 
 .journal-header h3 {
@@ -1745,15 +1850,25 @@ p {
 }
 
 .vibe-triangle {
-  position: relative;
-  width: min(100%, 260px);
-  aspect-ratio: 1 / 0.92;
-  margin: 16px auto 10px;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
   background:
     linear-gradient(180deg, rgba(217, 111, 123, 0.8) 0%, rgba(239, 197, 137, 0.78) 55%, rgba(124, 168, 201, 0.78) 100%);
   border-radius: 22px;
   box-shadow: inset 0 0 0 1px rgba(255, 248, 242, 0.44);
+}
+
+.vibe-triangle-stage {
+  position: relative;
+  width: min(100%, 260px);
+  aspect-ratio: 1 / 0.92;
+  margin: 16px auto 10px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .vibe-label {
@@ -1783,12 +1898,25 @@ p {
 
 .vibe-handle {
   position: absolute;
+  z-index: 2;
   width: 26px;
   height: 26px;
   border-radius: 999px;
   background: #fff9f3;
   border: 3px solid #d6717e;
   box-shadow: 0 14px 24px rgba(10, 11, 17, 0.22);
+  cursor: grab;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+}
+
+.vibe-handle:active {
+  cursor: grabbing;
+}
+
+.vibe-handle:focus-visible {
+  outline: 3px solid rgba(255, 249, 243, 0.92);
+  outline-offset: 3px;
 }
 
 .vibe-handle.dominant-playful {
@@ -1801,8 +1929,16 @@ p {
 
 .vibe-summary {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(90px, auto) 1fr;
+  gap: 4px 14px;
+  align-items: start;
+}
+
+.vibe-summary small {
+  grid-column: 1 / -1;
+  color: var(--app-ink-soft);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .vibe-meter {
@@ -3561,6 +3697,14 @@ p {
     left: 10px;
     right: 10px;
     gap: 5px;
+  }
+
+  .board-view-controls {
+    max-width: calc(100% - 104px);
+  }
+
+  .board-view-controls span {
+    max-width: 104px;
   }
 
   .hud.momentum-hud {

@@ -12,6 +12,7 @@ import {
   buildDuelJournalEntry,
   buildFinaleJournalEntry,
   buildSkippedActivityJournalEntry,
+  buildVibeSetupJournalEntry,
 } from './journalHelpers.js'
 import { KEEPSAKES } from './boardConfig.js'
 import { duelRegistry } from './duelRegistry.jsx'
@@ -42,6 +43,7 @@ import {
   subscribeToJournal,
   subscribeToSession,
   updateSessionState,
+  updateSessionStateWithJournal,
 } from './sessionService.js'
 import { getSessionPreset } from './sessionPresets.js'
 import {
@@ -357,7 +359,25 @@ export function SessionProvider({ children }) {
     const skippedOutcome = getSkippedDuelOutcome(session)
     if (skippedOutcome?.status === 'repick') {
       resolvingDuelRef.current = true
-      updateSessionState(db, session.id, buildSkippedDuelRepick(session))
+      const duel = duelRegistry[session.currentDuel.id]
+      const duelJournalEntry = buildDuelJournalEntry({
+        coupleId: couple.id,
+        duel,
+        duelResults: session.duelResults,
+        heartBonus: session.currentDuel.heartBonus,
+        outcome: skippedOutcome,
+        players: session.players,
+        sessionId: session.id,
+      })
+      Promise.resolve()
+        .then(async () => {
+          await updateSessionStateWithJournal(
+            db,
+            session.id,
+            buildSkippedDuelRepick(session),
+            [duelJournalEntry],
+          )
+        })
         .catch((nextError) => setError(nextError.message))
         .finally(() => {
           resolvingDuelRef.current = false
@@ -395,19 +415,16 @@ export function SessionProvider({ children }) {
 
     Promise.resolve()
       .then(async () => {
-        await updateSessionState(db, session.id, nextSession)
+        await updateSessionStateWithJournal(
+          db,
+          session.id,
+          nextSession,
+          [duelJournalEntry, finaleJournalEntry],
+        )
 
         if (outcome.status !== 'noContest') {
           await applyCoupleBoardReward(db, couple.id, duel.vibe, duel.id)
           setBoardState((current) => buildBoardRewardPatch(current, duel.vibe, duel.id))
-        }
-
-        if (duelJournalEntry) {
-          await appendJournalEntry(db, duelJournalEntry)
-        }
-
-        if (finaleJournalEntry) {
-          await appendJournalEntry(db, finaleJournalEntry)
         }
       })
       .catch((nextError) => setError(nextError.message))
@@ -604,6 +621,17 @@ export function SessionProvider({ children }) {
           [partnerId]: createPreviewPartnerVote(vote),
         }
         const vibeWeights = averageVibeVotes(vibeVotes)
+        const journalEntry = buildVibeSetupJournalEntry({
+          coupleId: couple.id,
+          players: session.players,
+          sessionId: session.id,
+          vibeVotes,
+          vibeWeights,
+        })
+        setJournalEntries((current) => [
+          buildPreviewJournalRecord(journalEntry, 'vibe-setup', current.length),
+          ...current,
+        ])
         setSession(finalizeVibeSetup({ ...session, vibeVotes }, vibeWeights))
         return
       }
@@ -700,19 +728,20 @@ export function SessionProvider({ children }) {
     setError('')
 
     const nextSession = resolveSkippedActivity(session, activityRegistry[activity.type].label)
-    const skipJournalEntry =
+    const usedPocketLoveNote =
       !session.usedKeepsakePerks?.includes('pocket-love-note') &&
       nextSession.usedKeepsakePerks?.includes('pocket-love-note')
-        ? buildSkippedActivityJournalEntry({
-            activity: {
-              ...activity,
-              label: activityRegistry[activity.type].label,
-              vibe: activityRegistry[activity.type].vibe,
-            },
-            coupleId: couple.id,
-            sessionId: session.id,
-          })
-        : null
+    const skipJournalEntry =
+      buildSkippedActivityJournalEntry({
+        activity: {
+          ...activity,
+          label: activityRegistry[activity.type].label,
+          vibe: activityRegistry[activity.type].vibe,
+        },
+        coupleId: couple.id,
+        sessionId: session.id,
+        usedPocketLoveNote,
+      })
 
     try {
       if (!enabled) {
@@ -734,15 +763,12 @@ export function SessionProvider({ children }) {
           title: activityRegistry[activity.type].label,
         },
         db,
-        journalEntry: null,
+        journalEntry: skipJournalEntry,
         nextSession,
         sessionId: session.id,
         state: activity.state,
         status: 'skipped',
       })
-      if (skipJournalEntry) {
-        await appendJournalEntry(db, skipJournalEntry)
-      }
     } catch (nextError) {
       setError(nextError.message)
     } finally {
@@ -780,13 +806,7 @@ export function SessionProvider({ children }) {
         },
       }
       const skippedOutcome = getSkippedDuelOutcome(previewSession)
-      if (skippedOutcome?.status === 'repick') {
-        setSession(buildSkippedDuelRepick(previewSession))
-        return
-      }
-
       const outcome = skippedOutcome || evaluateDuelRound(previewSession, duelRegistry)
-      const nextSession = advanceAfterDuel(previewSession, outcome, duel)
       const duel = duelRegistry[session.currentDuel.id]
       const journalEntry = buildDuelJournalEntry({
         coupleId: couple.id,
@@ -797,6 +817,17 @@ export function SessionProvider({ children }) {
         players: session.players,
         sessionId: session.id,
       })
+
+      if (outcome.status === 'repick') {
+        setSession(buildSkippedDuelRepick(previewSession))
+        setJournalEntries((current) => [
+          buildPreviewJournalRecord(journalEntry, 'duel-pass', current.length),
+          ...current,
+        ])
+        return
+      }
+
+      const nextSession = advanceAfterDuel(previewSession, outcome, duel)
 
       if (outcome.status !== 'noContest') {
         setBoardState((current) => buildBoardRewardPatch(current, duel.vibe, duel.id))

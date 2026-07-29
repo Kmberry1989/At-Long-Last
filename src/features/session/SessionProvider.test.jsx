@@ -53,6 +53,8 @@ function Probe() {
       <div data-testid="momentum-playful">{session.session.momentum?.playful}</div>
       <div data-testid="pending-activity">{session.session.pendingActivityType || 'none'}</div>
       <div data-testid="activity-type">{session.activity?.type || 'none'}</div>
+      <div data-testid="journal-count">{session.journalEntries.length}</div>
+      <div data-testid="journal-title">{session.journalEntries[0]?.title || 'none'}</div>
       <button
         onClick={() =>
           session.submitVibeVote({
@@ -113,6 +115,8 @@ describe('SessionProvider', () => {
 
     await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('turn'))
     expect(screen.getByTestId('spotlight')).toHaveTextContent('warmup')
+    expect(screen.getByTestId('journal-count')).toHaveTextContent('1')
+    expect(screen.getByTestId('journal-title')).toHaveTextContent('Tonight’s Vibe')
   })
 
   it('handles activity-choice selection in local preview mode', async () => {

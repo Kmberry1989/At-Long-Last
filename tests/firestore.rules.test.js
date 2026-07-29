@@ -10,10 +10,12 @@ import {
   getDoc,
   getDocs,
   collection,
+  query,
   runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -26,6 +28,7 @@ import {
   abandonSession,
   createActivityRecord,
   ensureActiveSession,
+  finalizeActivity,
   submitVibeVote,
 } from '../src/features/session/sessionService.js'
 
@@ -185,7 +188,7 @@ beforeEach(async () => {
 })
 
 afterAll(async () => {
-  await testEnv.cleanup()
+  await testEnv?.cleanup()
 })
 
 describe('verified two-account lifecycle', () => {
@@ -215,6 +218,20 @@ describe('verified two-account lifecycle', () => {
       },
     })
     expect(sessionSnapshot.data()).not.toHaveProperty('id')
+
+    const journalSnapshot = await getDocs(query(
+      collection(guestDb, 'journalEntries'),
+      where('coupleId', '==', couple.id),
+    ))
+    expect(journalSnapshot.docs).toHaveLength(1)
+    expect(journalSnapshot.docs[0].data()).toMatchObject({
+      coupleId: couple.id,
+      sessionId,
+      title: 'Tonight’s Vibe',
+      type: 'vibe-setup',
+    })
+    expect(journalSnapshot.docs[0].data().text).toContain('Host: Tender 40%')
+    expect(journalSnapshot.docs[0].data().text).toContain('Guest: Tender 50%')
   })
 
   it('allows the three connection games only inside the couple session', async () => {
@@ -270,6 +287,83 @@ describe('verified two-account lifecycle', () => {
         updatedAt: serverTimestamp(),
       }),
     )
+  })
+
+  it('commits a completed response and its scrapbook page together', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+
+    await submitVibeVote(hostDb, sessionId, HOST_UID, {
+      playful: 0.4,
+      spicy: 0.2,
+      tender: 0.4,
+    })
+    await submitVibeVote(guestDb, sessionId, GUEST_UID, {
+      playful: 0.3,
+      spicy: 0.2,
+      tender: 0.5,
+    })
+
+    const sessionSnapshot = await getDoc(doc(hostDb, 'sessions', sessionId))
+    const session = { id: sessionSnapshot.id, ...sessionSnapshot.data() }
+    const activityState = {
+      activityId: 'weather-report',
+      entries: [
+        { playerIndex: 0, text: 'Cloudy, but clearing.' },
+        { playerIndex: 1, text: 'Sunny after lunch.' },
+      ],
+      prompt: 'What is your internal weather?',
+      turnIndex: 0,
+    }
+    const activityId = await createActivityRecord(
+      hostDb,
+      session,
+      'weather-report',
+      activityState,
+    )
+
+    await assertSucceeds(finalizeActivity({
+      activityId,
+      activityResult: {
+        payload: activityState,
+        savesToJournal: true,
+        summary: 'A playful prompt beat was saved.',
+        text: 'Host: Cloudy, but clearing.\nGuest: Sunny after lunch.',
+        title: 'Weather Report',
+        type: 'prompt',
+        vibe: 'playful',
+      },
+      db: hostDb,
+      journalEntry: {
+        coupleId: couple.id,
+        payload: activityState,
+        sessionId,
+        summary: 'A playful prompt beat was saved.',
+        text: 'Host: Cloudy, but clearing.\nGuest: Sunny after lunch.',
+        title: 'Weather Report',
+        type: 'prompt',
+        vibe: 'playful',
+      },
+      nextSession: {
+        ...session,
+        pendingActivityId: null,
+        pendingActivityType: null,
+      },
+      sessionId,
+      state: activityState,
+    }))
+
+    const activitySnapshot = await getDoc(doc(guestDb, 'activities', activityId))
+    expect(activitySnapshot.data().status).toBe('completed')
+
+    const journalSnapshot = await getDocs(query(
+      collection(guestDb, 'journalEntries'),
+      where('coupleId', '==', couple.id),
+    ))
+    expect(journalSnapshot.docs).toHaveLength(2)
+    expect(journalSnapshot.docs.some(
+      (entry) => entry.data().title === 'Weather Report',
+    )).toBe(true)
   })
 
   it('creates an invite, joins it, starts a shared session, and abandons it', async () => {

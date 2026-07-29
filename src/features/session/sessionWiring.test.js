@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { activityDefinitions, duelDefinitions } from './contentPackData.js'
 import {
   averageVibeVotes,
   buildBoardRewardPatch,
@@ -51,6 +52,26 @@ describe('sessionWiring', () => {
     expect(picks).toHaveLength(2)
     expect(new Set(picks).size).toBe(2)
   })
+
+  it.each(['tender', 'playful', 'spicy'])(
+    'uses a dominant %s vote to favor matching activities and duels',
+    (vibe) => {
+      const weights = {
+        playful: vibe === 'playful' ? 1 : 0,
+        spicy: vibe === 'spicy' ? 1 : 0,
+        tender: vibe === 'tender' ? 1 : 0,
+      }
+      const activityId = pickWeightedActivityId(weights, [], () => 0)
+      const duelId = pickWeightedDuelId(weights, [], () => 0)
+
+      expect(
+        activityDefinitions.find((entry) => entry.id === activityId)?.vibe,
+      ).toBe(vibe)
+      expect(
+        duelDefinitions.find((entry) => entry.id === duelId)?.vibe,
+      ).toBe(vibe)
+    },
+  )
 
   it('updates board rewards by vibe', () => {
     const initial = createDefaultBoardState()

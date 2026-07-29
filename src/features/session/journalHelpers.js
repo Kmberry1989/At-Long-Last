@@ -5,7 +5,7 @@ function getFirstImageDataUrl(results = {}) {
 }
 
 export function buildActivityJournalEntry({ coupleId, result, sessionId }) {
-  if (!result?.savesToJournal) {
+  if (!result) {
     return null
   }
 
@@ -26,6 +26,7 @@ export function buildSkippedActivityJournalEntry({
   activity,
   coupleId,
   sessionId,
+  usedPocketLoveNote = false,
 }) {
   if (!activity) {
     return null
@@ -34,17 +35,66 @@ export function buildSkippedActivityJournalEntry({
   return {
     coupleId,
     payload: {
+      originalType: activity.type,
       prompt: activity.state?.prompt || null,
       skipped: true,
     },
     sessionId,
-    summary: `${activity.label} got skipped, but Pocket Love Note still saved a tiny trace of it.`,
+    summary: usedPocketLoveNote
+      ? `${activity.label} got passed, and Pocket Love Note kept a tiny trace of it.`
+      : `${activity.label} was passed this time.`,
     text: activity.state?.prompt
-      ? `Saved anyway: ${activity.state.prompt}`
-      : 'Saved anyway: you skipped it, but still wanted the page.',
-    title: `${activity.label} (Saved Anyway)`,
-    type: activity.type,
+      ? `Passed on: ${activity.state.prompt}`
+      : 'Passed this time.',
+    title: usedPocketLoveNote
+      ? `${activity.label} (Saved Anyway)`
+      : `${activity.label} (Passed)`,
+    type: 'activity-pass',
     vibe: activity.vibe,
+  }
+}
+
+function formatVibeVote(vote = {}) {
+  return [
+    `Tender ${Math.round((vote.tender || 0) * 100)}%`,
+    `Playful ${Math.round((vote.playful || 0) * 100)}%`,
+    `Spicy ${Math.round((vote.spicy || 0) * 100)}%`,
+  ].join(' · ')
+}
+
+export function buildVibeSetupJournalEntry({
+  coupleId,
+  players,
+  sessionId,
+  vibeVotes,
+  vibeWeights,
+}) {
+  if (!players?.length || !vibeVotes || !vibeWeights) {
+    return null
+  }
+
+  const leadingVibe = Object.entries(vibeWeights)
+    .sort(([, left], [, right]) => right - left)[0]?.[0] || 'tender'
+  const text = players
+    .map((player) => `${player.displayName}: ${formatVibeVote(vibeVotes[player.uid])}`)
+    .join('\n')
+
+  return {
+    coupleId,
+    payload: {
+      players: players.map((player) => ({
+        displayName: player.displayName,
+        uid: player.uid,
+      })),
+      vibeVotes,
+      vibeWeights,
+    },
+    sessionId,
+    summary: 'You both set the tone for this night.',
+    text,
+    title: 'Tonight’s Vibe',
+    type: 'vibe-setup',
+    vibe: leadingVibe,
   }
 }
 
@@ -57,7 +107,7 @@ export function buildDuelJournalEntry({
   players,
   sessionId,
 }) {
-  if (!duel || outcome.status === 'noContest') {
+  if (!duel || !outcome) {
     return null
   }
 
@@ -69,17 +119,28 @@ export function buildDuelJournalEntry({
     })
     .join('\n')
 
-  const summary =
-    outcome.status === 'shared'
-      ? `You both landed ${duel.label} and banked ${heartBonus} shared hearts.`
-      : `${players[outcome.winnerIndex].displayName} won ${duel.label} and banked ${heartBonus} shared hearts.`
+  let summary
+  let awardedHeartBonus = heartBonus
+  if (outcome.status === 'shared') {
+    summary = `You both landed ${duel.label} and banked ${heartBonus} shared hearts.`
+  } else if (outcome.status === 'noContest') {
+    summary = `You both passed ${duel.label}. No hearts were added, but the choice was saved.`
+    awardedHeartBonus = 0
+  } else if (outcome.status === 'repick') {
+    summary = `${duel.label} was passed, so you picked another duel.`
+    awardedHeartBonus = 0
+  } else {
+    const winner = players[outcome.winnerIndex]
+    summary = `${winner?.displayName || 'One player'} won ${duel.label} and banked ${heartBonus} shared hearts.`
+  }
 
   return {
     coupleId,
     payload: {
       duelId: duel.id,
-      heartBonus,
+      heartBonus: awardedHeartBonus,
       imageDataUrl,
+      outcomeStatus: outcome.status,
       results: duelResults,
     },
     sessionId,

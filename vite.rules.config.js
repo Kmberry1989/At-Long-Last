@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     fileParallelism: false,
+    hookTimeout: 30000,
     include: ['tests/firestore.rules.test.js'],
     maxWorkers: 1,
     testTimeout: 20000,

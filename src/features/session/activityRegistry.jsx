@@ -4,6 +4,7 @@ import { createConnectionGameEntry } from './connectionGameRegistry.jsx'
 import { createWaveTwoGameEntry } from './waveTwoGameRegistry.jsx'
 import { createWaveThreeGameEntry } from './waveThreeGameRegistry.jsx'
 import { createWaveFourGameEntry } from './waveFourGameRegistry.jsx'
+import { pickActivityPrompt } from './expandedPromptData.js'
 
 function buildEntrySummary(definition, entries, players) {
   if (entries.length < 2) {
@@ -107,11 +108,11 @@ function ActivityCard({
 function createRegistryEntry(definition) {
   return {
     ...definition,
-    createInitialState() {
+    createInitialState(_players, { random = Math.random } = {}) {
       return {
         activityId: definition.id,
         entries: [],
-        prompt: definition.prompt,
+        prompt: pickActivityPrompt(definition, random),
         turnIndex: 0,
       }
     },

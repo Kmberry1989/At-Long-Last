@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { JournalTimeline } from './JournalTimeline.jsx'
 
 const FILTERS = [
@@ -10,7 +10,7 @@ const FILTERS = [
 
 function matchesFilter(entry, filterId) {
   if (filterId === 'activities') {
-    return ['journal', 'prompt', 'ritual'].includes(entry.type)
+    return !['duel', 'finale', 'keepsake'].includes(entry.type)
   }
 
   if (filterId === 'duels') {
@@ -26,6 +26,7 @@ function matchesFilter(entry, filterId) {
 
 export function JournalDrawer({ entries, open, onClose }) {
   const [activeFilter, setActiveFilter] = useState('all')
+  const drawerRef = useRef(null)
   const finaleEntry = entries.find((entry) => entry.type === 'finale')
   const momentsCount = entries.filter((entry) => entry.type !== 'finale').length
   const duelCount = entries.filter((entry) => entry.type === 'duel').length
@@ -39,8 +40,14 @@ export function JournalDrawer({ entries, open, onClose }) {
     [activeFilter, entries],
   )
 
+  useEffect(() => {
+    if (open) {
+      drawerRef.current?.scrollTo({ top: 0 })
+    }
+  }, [open])
+
   return (
-    <aside className={`journal-drawer${open ? ' open' : ''}`}>
+    <aside className={`journal-drawer${open ? ' open' : ''}`} ref={drawerRef}>
       <div className="journal-header">
         <div className="journal-heading">
           <p className="eyebrow">Shared Scrapbook</p>
@@ -48,7 +55,7 @@ export function JournalDrawer({ entries, open, onClose }) {
           <p className="support-copy">{headline}</p>
         </div>
         <button className="ghost-btn" onClick={onClose} type="button">
-          Close
+          Back To Board
         </button>
       </div>
       <div className="scrapbook-overview">

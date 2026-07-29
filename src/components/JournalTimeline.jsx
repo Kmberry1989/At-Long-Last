@@ -1,4 +1,5 @@
 const ENTRY_LABELS = {
+  'activity-pass': 'Passed Prompt',
   bluff: 'Bidding Receipt',
   canvas: 'Merged Canvas',
   duel: 'Duel Replay',
@@ -14,6 +15,7 @@ const ENTRY_LABELS = {
   ritual: 'Shared Ritual',
   tempo: 'Rhythm Replay',
   vault: 'The Vault',
+  'vibe-setup': 'Vibe Ballot',
   'vibe-sync': 'Marker Reveal',
   word: 'Letterpress Page',
 }
@@ -121,10 +123,6 @@ function getDuelRows(entry) {
 
     if (typeof result.time === 'number' && result.time < 90) {
       metrics.push(`${result.time.toFixed(2)}s`)
-    }
-
-    if (typeof result.score === 'number') {
-      metrics.push(`${result.score} pts`)
     }
 
     if (typeof result.value === 'number') {
@@ -603,7 +601,13 @@ function ScrapbookEntry({ entry, index, vaultRevealed }) {
     body = <CooperativeResultCard entry={entry} />
   } else if (entry.type === 'bluff' || entry.type === 'photo') {
     body = <WaveFourResultCard entry={entry} />
-  } else if (entry.type === 'prompt' || entry.type === 'ritual' || entry.type === 'journal') {
+  } else if (
+    entry.type === 'activity-pass' ||
+    entry.type === 'prompt' ||
+    entry.type === 'ritual' ||
+    entry.type === 'journal' ||
+    entry.type === 'vibe-setup'
+  ) {
     body = <ActivityEntryCard entry={entry} />
   }
 

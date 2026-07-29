@@ -6,6 +6,7 @@ import {
 } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import { BOARD_SPACES } from '../features/session/boardConfig.js'
 
@@ -84,6 +85,44 @@ function buildBoardPath() {
       ),
     }
   })
+}
+
+export function getTokenTargetPosition(boardPath, positionIndices, playerIndex) {
+  const rawSpaceIndex = Number(positionIndices?.[playerIndex]) || 0
+  const spaceIndex =
+    ((Math.round(rawSpaceIndex) % boardPath.length) + boardPath.length) %
+    boardPath.length
+  const basePosition = boardPath[spaceIndex].position.clone()
+  const colocatedPlayerIndices = (positionIndices || [])
+    .map((positionIndex, index) => ({
+      index,
+      positionIndex: Number(positionIndex) || 0,
+    }))
+    .filter(({ positionIndex }) => positionIndex === rawSpaceIndex)
+    .map(({ index }) => index)
+
+  if (colocatedPlayerIndices.length < 2) {
+    return basePosition
+  }
+
+  const previousPosition =
+    boardPath[(spaceIndex - 1 + boardPath.length) % boardPath.length].position
+  const nextPosition =
+    boardPath[(spaceIndex + 1) % boardPath.length].position
+  const tangent = nextPosition
+    .clone()
+    .sub(previousPosition)
+    .setY(0)
+
+  if (tangent.lengthSq() === 0) {
+    tangent.set(-basePosition.z, 0, basePosition.x)
+  }
+  tangent.normalize()
+
+  const colocatedRank = colocatedPlayerIndices.indexOf(playerIndex)
+  const centeredRank =
+    colocatedRank - (colocatedPlayerIndices.length - 1) / 2
+  return basePosition.addScaledVector(tangent, centeredRank * 1.28)
 }
 
 function makeTileMarkTexture(label, type) {
@@ -201,6 +240,13 @@ function setPrimitiveDieValue(die, value) {
   die.userData.value = resolvedValue
 }
 
+function settlePrimitiveDie(die, value) {
+  setPrimitiveDieValue(die, value)
+  die.position.set(-2.8, 0.66, 0.5)
+  die.rotation.set(-0.04, 0.3, -0.08)
+  die.scale.setScalar(1)
+}
+
 function createFallbackPawn(color) {
   const group = new THREE.Group()
   const base = new THREE.Mesh(
@@ -220,6 +266,23 @@ function createFallbackPawn(color) {
   group.add(body)
 
   return group
+}
+
+function createPlayerPositionRing(color) {
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.48, 0.075, 10, 28),
+    new THREE.MeshStandardMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.34,
+      metalness: 0.18,
+      roughness: 0.3,
+    }),
+  )
+  ring.position.y = 0.04
+  ring.rotation.x = Math.PI / 2
+  ring.castShadow = true
+  return ring
 }
 
 function disposeObject3D(root) {
@@ -299,9 +362,11 @@ export function BoardScene({
   activePlayerIndex,
   boardState,
   lastRoll,
+  rolling = false,
 }) {
   const mountRef = useRef(null)
   const dieRef = useRef(null)
+  const resetViewRef = useRef(null)
   const lastRollRef = useRef(lastRoll)
   const boardPath = useMemo(() => buildBoardPath(), [])
   const targetIndicesRef = useRef(positions)
@@ -326,8 +391,17 @@ export function BoardScene({
 
   useEffect(() => {
     lastRollRef.current = lastRoll
-    setPrimitiveDieValue(dieRef.current, lastRoll || 1)
-  }, [lastRoll])
+    const die = dieRef.current
+    if (!die) {
+      return
+    }
+
+    if (rolling) {
+      die.userData.startRoll?.(lastRoll || die.userData.value || 1)
+    } else {
+      die.userData.finishRoll?.(lastRoll || die.userData.value || 1)
+    }
+  }, [lastRoll, rolling])
 
   useEffect(() => {
     const mount = mountRef.current
@@ -359,6 +433,32 @@ export function BoardScene({
     let disposed = false
     let animationFrameId = null
     let manualTimeOffset = 0
+    let latestSceneTime = performance.now()
+    let manualView = false
+
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.075
+    controls.enablePan = true
+    controls.enableRotate = true
+    controls.enableZoom = true
+    controls.minDistance = 9
+    controls.maxDistance = 34
+    controls.minPolarAngle = 0.28
+    controls.maxPolarAngle = 1.46
+    controls.panSpeed = 0.72
+    controls.rotateSpeed = 0.68
+    controls.zoomSpeed = 0.82
+    controls.screenSpacePanning = true
+    controls.target.set(0, 0, 0)
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY
+    controls.mouseButtons.RIGHT = THREE.MOUSE.PAN
+    controls.touches.ONE = THREE.TOUCH.ROTATE
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN
+    controls.addEventListener('start', () => {
+      manualView = true
+    })
 
     const ambient = new THREE.AmbientLight('#ffece2', 1.6)
     scene.add(ambient)
@@ -427,6 +527,17 @@ export function BoardScene({
     scene.add(insetPiping)
 
     const die = createPrimitiveDie(lastRollRef.current || 1, roseVelvet)
+    let dieRoll = null
+    die.userData.startRoll = (value) => {
+      dieRoll = {
+        finalValue: Math.min(6, Math.max(1, Number(value) || 1)),
+        startedAt: latestSceneTime,
+      }
+    }
+    die.userData.finishRoll = (value) => {
+      dieRoll = null
+      settlePrimitiveDie(die, value)
+    }
     dieRef.current = die
     scene.add(die)
 
@@ -548,11 +659,17 @@ export function BoardScene({
 
     const tokenGroups = players.map((player, index) => {
       const group = new THREE.Group()
+      const positionRing = createPlayerPositionRing(player.color)
       const fallback = createFallbackPawn(player.color)
+      group.add(positionRing)
       group.add(fallback)
-      group.position.copy(boardPath[targetIndicesRef.current[index]].position)
+      group.position.copy(
+        getTokenTargetPosition(boardPath, targetIndicesRef.current, index),
+      )
       group.position.y = 0.7
+      group.userData.avatar = resolvePlayerAvatar(player.avatar)
       group.userData.fallback = fallback
+      group.userData.positionRing = positionRing
       scene.add(group)
       return group
     })
@@ -631,22 +748,53 @@ export function BoardScene({
     const startedAt = performance.now()
 
     function renderFrame(now = performance.now()) {
-      const elapsed = (now - startedAt + manualTimeOffset) / 1000
+      latestSceneTime = now + manualTimeOffset
+      const elapsed = (latestSceneTime - startedAt) / 1000
       const focus = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
-      camera.position.x = THREE.MathUtils.lerp(
-        camera.position.x,
-        focus.x * 0.22,
-        0.03,
-      )
-      camera.position.z = THREE.MathUtils.lerp(
-        camera.position.z,
-        18 + focus.z * 0.2,
-        0.03,
-      )
-      camera.lookAt(focus.x * 0.2, 0, focus.z * 0.22)
+      if (!manualView) {
+        camera.position.x = THREE.MathUtils.lerp(
+          camera.position.x,
+          focus.x * 0.22,
+          0.03,
+        )
+        camera.position.y = THREE.MathUtils.lerp(camera.position.y, 16, 0.03)
+        camera.position.z = THREE.MathUtils.lerp(
+          camera.position.z,
+          18 + focus.z * 0.2,
+          0.03,
+        )
+        controls.target.x = THREE.MathUtils.lerp(controls.target.x, focus.x * 0.2, 0.03)
+        controls.target.y = THREE.MathUtils.lerp(controls.target.y, 0, 0.03)
+        controls.target.z = THREE.MathUtils.lerp(controls.target.z, focus.z * 0.38, 0.03)
+      }
+
+      if (dieRoll) {
+        const duration = 1.35
+        const progress = Math.min(1, (latestSceneTime - dieRoll.startedAt) / 1000 / duration)
+        const eased = 1 - (1 - progress) ** 3
+        const lift = Math.sin(progress * Math.PI)
+        const tumbleFace = 1 + ((Math.floor(progress * 18) + dieRoll.finalValue) % 6)
+        setPrimitiveDieValue(die, progress >= 1 ? dieRoll.finalValue : tumbleFace)
+        die.position.x = -2.8 + lift * 2.8 + Math.sin(progress * Math.PI * 2) * 0.32
+        die.position.y = 0.66 + lift * 2.5
+        die.position.z = 0.5 + lift * 0.5
+        die.rotation.x = -0.04 + eased * (Math.PI * 4 + dieRoll.finalValue * 0.17)
+        die.rotation.y = 0.3 + eased * (Math.PI * 5 + dieRoll.finalValue * 0.23)
+        die.rotation.z = -0.08 + eased * Math.PI * 3
+        die.scale.setScalar(1 + lift * 1.15)
+        if (progress >= 1) {
+          const finalValue = dieRoll.finalValue
+          dieRoll = null
+          settlePrimitiveDie(die, finalValue)
+        }
+      }
 
       tokenGroups.forEach((token, index) => {
-        const target = boardPath[targetIndicesRef.current[index]].position
+        const target = getTokenTargetPosition(
+          boardPath,
+          targetIndicesRef.current,
+          index,
+        )
         token.position.x = THREE.MathUtils.lerp(token.position.x, target.x, 0.12)
         token.position.z = THREE.MathUtils.lerp(token.position.z, target.z, 0.12)
         token.position.y = 0.7 + Math.sin(elapsed * 3 + index) * 0.06
@@ -654,6 +802,7 @@ export function BoardScene({
         token.scale.setScalar(index === activePlayerIndexRef.current ? 1.04 : 0.96)
       })
 
+      controls.update()
       renderer.render(scene, camera)
     }
 
@@ -671,6 +820,16 @@ export function BoardScene({
       return JSON.stringify({
         activePlayerIndex: activePlayerIndexRef.current,
         boardState: parsedBoardState,
+        camera: {
+          mode: manualView ? 'gesture' : 'follow',
+          position: camera.position.toArray().map((value) => Number(value.toFixed(2))),
+          target: controls.target.toArray().map((value) => Number(value.toFixed(2))),
+          gestures: {
+            pan: 'two-finger drag or right drag',
+            rotate: 'one-finger drag or left drag',
+            zoom: 'pinch or wheel',
+          },
+        },
         coordinateSystem: 'board-space index increases clockwise from top',
         decorations: BOARD_DECORATIONS.map((decoration) => ({
           id: decoration.id,
@@ -678,6 +837,7 @@ export function BoardScene({
         })),
         die: {
           construction: 'rounded-box-and-sphere primitives',
+          rolling: Boolean(dieRoll),
           value: die.userData.value,
         },
         gameplay: gameplay
@@ -697,13 +857,30 @@ export function BoardScene({
           tabletop: 'wine velvet',
           tiles: 'rounded primitive bases with velvet inset panels',
         },
-        players: players.map((player, index) => ({
-          avatar: resolvePlayerAvatar(player.avatar),
-          avatarLoaded: loadedPlayerAvatars.has(index),
-          color: player.color,
-          displayName: player.displayName,
-          positionIndex: targetIndicesRef.current[index],
-        })),
+        toneSelector: window.__atLongLastVibeDialState || null,
+        players: players.map((player, index) => {
+          const positionIndex = targetIndicesRef.current[index]
+          const target = getTokenTargetPosition(
+            boardPath,
+            targetIndicesRef.current,
+            index,
+          )
+          return {
+            avatar: resolvePlayerAvatar(player.avatar),
+            avatarLoaded: loadedPlayerAvatars.has(index),
+            boardPosition: [target.x, target.z].map((value) =>
+              Number(value.toFixed(2)),
+            ),
+            colocated:
+              targetIndicesRef.current.filter(
+                (candidate) => candidate === positionIndex,
+              ).length > 1,
+            color: player.color,
+            displayName: player.displayName,
+            positionIndex,
+            positionMarker: 'player-colored illuminated ring',
+          }
+        }),
       })
     }
     const advanceTime = (milliseconds) => {
@@ -715,6 +892,16 @@ export function BoardScene({
     }
     window.render_game_to_text = renderGameToText
     window.advanceTime = advanceTime
+    resetViewRef.current = () => {
+      const focus = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
+      manualView = false
+      controls.enableDamping = false
+      controls.reset()
+      camera.position.set(focus.x * 0.22, 16, 18 + focus.z * 0.2)
+      controls.target.set(focus.x * 0.2, 0, focus.z * 0.38)
+      controls.update()
+      controls.enableDamping = true
+    }
 
     animate()
 
@@ -724,6 +911,7 @@ export function BoardScene({
         cancelAnimationFrame(animationFrameId)
       }
       resizeObserver.disconnect()
+      controls.dispose()
       if (window.render_game_to_text === renderGameToText) {
         delete window.render_game_to_text
       }
@@ -734,6 +922,7 @@ export function BoardScene({
       if (dieRef.current === die) {
         dieRef.current = null
       }
+      resetViewRef.current = null
       disposeObject3D(scene)
       renderer.renderLists.dispose()
       renderer.dispose()
@@ -743,5 +932,18 @@ export function BoardScene({
     }
   }, [boardPath, boardStateKey, players])
 
-  return <div className="board-canvas" ref={mountRef} />
+  return (
+    <>
+      <div className="board-canvas" ref={mountRef} />
+      <div className="board-view-controls" aria-label="3D board view controls">
+        <span>Drag to rotate · pinch to zoom · two-finger pan</span>
+        <button
+          onClick={() => resetViewRef.current?.()}
+          type="button"
+        >
+          Reset view
+        </button>
+      </div>
+    </>
+  )
 }

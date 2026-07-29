@@ -54,6 +54,25 @@ describe('activityRegistry', () => {
     expect(result.payload.openAt).toBe(result.openAt)
   })
 
+  it('normalizes every original two-player response into a scrapbook result', () => {
+    const entry = activityRegistry['weather-report']
+    let state = entry.createInitialState()
+
+    state = entry.advance(state, {
+      input: { text: 'Cloudy, but clearing.' },
+      playerIndex: 0,
+    }).state
+    const completed = entry.advance(state, {
+      input: { text: 'Sunny with a chance of snacks.' },
+      playerIndex: 1,
+    })
+    const result = entry.resolve(completed.state, players)
+
+    expect(result.savesToJournal).toBe(true)
+    expect(result.text).toContain('Cloudy, but clearing.')
+    expect(result.text).toContain('Sunny with a chance of snacks.')
+  })
+
   it('keeps all spicy activities skippable', () => {
     const spicyEntries = Object.values(activityRegistry).filter((entry) => entry.vibe === 'spicy')
     expect(spicyEntries).toHaveLength(15)

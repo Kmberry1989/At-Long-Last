@@ -22,6 +22,17 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 
 - When a second persistent browser profile is available, repeat the two-phone quick preset through finale for UI endurance; the live two-account service lifecycle and exact legacy recovery are verified.
 
+## 2026-07-27 — scoring, navigation, board gestures, and visible dice
+
+- Started the requested usability pass: replace arbitrary creative-duel scoring, keep scrapbook exit navigation available after long scrolling, add rotate/pan/zoom gestures plus a reset view, and let the 3D die visibly tumble before the next overlay opens.
+- Reframed hearts as one explained shared keepsake stash instead of an overall score. Creative, drawing, text, slider, and closeness duels now resolve as shared completions; only actual speed/precision contests pick a winner.
+- Removed the unused arbitrary Word Weaver point formula in favor of the exact word count that determines its shared reward, and removed opaque internal score values from scrapbook duel rows.
+- Added damped OrbitControls with one-finger/left-drag rotate, pinch/wheel zoom, two-finger/right-drag pan, bounded camera distance/tilt, and an immediate Reset View back to the active-player follow camera.
+- Added a staged 1.35-second primitive-die tumble that cycles visible faces, lifts and enlarges over the velvet center, then settles on the synchronized result before the next activity/duel overlay returns on either phone.
+- Made the scrapbook header sticky and renamed its persistent exit to Back To Board; opening the drawer starts at its top.
+- Browser verification at 390×844 passed real touch rotation, pinch zoom, two-finger pan, body-scroll isolation, reset-to-follow, mid-roll/final die state, the sticky bottom-scroll exit, the shared-heart guide, and the simplified Word Weaver count with no application errors.
+- Final validation passes: 9 app test files / 66 tests, lint, production build, diff whitespace check, and the required web-game client with camera gesture metadata and die state. This usability pass is local and not deployed.
+
 ## 2026-07-27 — player pieces and board decorations
 
 - Replaced the retired single-player model path with 53 normalized, named player-piece GLBs and generated lightweight WebP previews for the selection UI.
@@ -112,3 +123,32 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Browser verification completed the Vibe setup, rendered both player GLBs and all five decorations, rolled from one to six, confirmed the same WebGL canvas remained mounted, and inspected the clear board at mobile and desktop sizes.
 - Final verification passes: 9 app test files / 65 tests, lint, production build, diff whitespace check, and the required web-game client with explicit velvet-surface and primitive-die state.
 - This art-direction pass remains local and is not yet committed or deployed.
+
+## 2026-07-28 — complete player-response scrapbook
+
+- Started a scrapbook persistence pass so every completed two-player activity, setup vote, duel result, and explicit pass leaves a durable page instead of relying on the old per-prompt `savesToJournal` opt-in.
+- Preserving reveal boundaries: completed Vault notes remain finale-sealed, while passed activities record the pass and prompt without exposing an unfinished private response.
+- Normalized all 36 original prompt definitions to save both players' completed answers. Setup vibe ballots now create the first scrapbook page, and activity passes, duel repicks, and mutual duel passes each leave their own zero-heart trace.
+- Activity completion now commits the activity, session transition, and scrapbook entry together in one Firestore transaction. Duel transitions and their response pages use the same atomic pattern.
+- The Activities filter now includes every specialized mini-game and setup ballot instead of only the three legacy prompt types.
+- Mobile browser QA at 390×844 visually confirmed both vibe ballots and both answers from the formerly omitted Weather Report page. `render_game_to_text` matched the visible scrapbook count/title, and both scenarios completed without browser errors.
+- Pre-deployment validation passes: 9 app test files / 72 tests, 17/17 Firestore rules tests (including atomic activity-plus-scrapbook persistence), lint, production build, diff whitespace check, and the required web-game client.
+
+## 2026-07-28 — production deployment
+
+- Deployed the complete current workspace, including the board usability work, remaining connection mini-games, velvet art pass, condensed sign-in, and complete player-response scrapbook, to Vercel production deployment `dpl_43Jq8pX52epnSwZ7zUceS9rJDxJV`.
+- Production is ready at `https://dist-c1y4b7kwv-kyle-matthew-berry-s-projects.vercel.app` and aliased to `https://atlonglast.vercel.app`.
+- The canonical alias returned HTTP 200 with the new `index-DBNgoyty.js` bundle; the live bundle contains the `Tonight’s Vibe` and `activity-pass` scrapbook paths.
+- A clean 390×844 production browser smoke rendered the compact Google/email sign-in screen with no page or console errors.
+
+## 2026-07-29 — bounded tone selector, expanded prompts, and positional player pieces
+
+- Rebuilt the tone selector around inset triangle geometry so pointer, touch, tap, and keyboard input all project onto the valid triangular area while keeping the complete circular handle inside its edges.
+- Clarified in the interface that both ballots are averaged to weight activities, duels, and the Spark spotlight; the existing 50% shared-Spicy gate still controls intensity-three content.
+- Added 60 new prompt variants, evenly divided across Tender, Playful, and Spicy, without creating new activity IDs or changing the synchronized activity contract.
+- Added deterministic coverage proving dominant Tender, Playful, and Spicy mixes select matching activity and duel content.
+- Player-piece GLBs selected in the lobby now remain the board tokens, sit on persistent player-colored illuminated position rings, and follow each player's board-space index. Co-located players are offset symmetrically so neither model hides the other.
+- Shifted the automatic camera focus toward the active tile so starting pieces remain visible below the compact mobile HUD.
+- Mobile browser QA selected the Owl, advanced through tone setup, and confirmed the Owl and partner Globe both loaded at distinct coordinates on the same starting tile. All five decorations loaded and the clean pass emitted no console errors.
+- The required web-game client reported `withinTriangle: true`, loaded player avatars, distinct co-located board positions, and no console-error artifact; its screenshot was visually inspected.
+- Final validation passes: 12 app test files / 82 tests, 17/17 Firestore rules tests, lint, production build, and diff whitespace check. The rules harness now allows 30 seconds for emulator initialization on slower starts.

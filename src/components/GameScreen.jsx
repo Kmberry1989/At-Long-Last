@@ -1,4 +1,4 @@
-import { Suspense, lazy, startTransition, useEffect, useState } from 'react'
+import { Suspense, lazy, startTransition, useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
@@ -83,6 +83,26 @@ export function GameScreen() {
     working,
   } = useSession()
   const [journalOpen, setJournalOpen] = useState(false)
+  const [heartGuideOpen, setHeartGuideOpen] = useState(false)
+  const [diceRolling, setDiceRolling] = useState(false)
+  const diceSettleTimerRef = useRef(null)
+  const lastMoveKey = session?.lastMove
+    ? [
+        session.lastMove.playerIndex,
+        session.lastMove.from,
+        session.lastMove.to,
+        session.lastMove.steps,
+      ].join(':')
+    : null
+  const animatedSessionIdRef = useRef(session?.id)
+  const animatedMoveKeyRef = useRef(lastMoveKey)
+  const syncedRollNeedsAnimation = Boolean(
+    session?.id &&
+    session.id === animatedSessionIdRef.current &&
+    lastMoveKey &&
+    lastMoveKey !== animatedMoveKeyRef.current,
+  )
+  const diceAnimating = diceRolling || syncedRollNeedsAnimation
 
   useSynth(session)
 
@@ -141,6 +161,18 @@ export function GameScreen() {
       phase: session.phase,
       playerIndex,
       round: session.round,
+      scrapbook: {
+        count: journalEntries.length,
+        latestTitle: journalEntries[0]?.title || null,
+        latestType: journalEntries[0]?.type || null,
+      },
+      tone: session.vibeWeights
+        ? {
+            dominant: Object.entries(session.vibeWeights)
+              .sort((left, right) => right[1] - left[1])[0]?.[0] || null,
+            weights: session.vibeWeights,
+          }
+        : null,
     }
     window.__atLongLastGameState = exposedState
 
@@ -153,11 +185,48 @@ export function GameScreen() {
     activity,
     activityEntry,
     canRoll,
+    journalEntries,
     playerIndex,
     session?.phase,
     session?.round,
+    session?.vibeWeights,
     working,
   ])
+
+  useEffect(
+    () => () => {
+      if (diceSettleTimerRef.current) {
+        window.clearTimeout(diceSettleTimerRef.current)
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (session?.id !== animatedSessionIdRef.current) {
+      animatedSessionIdRef.current = session?.id
+      animatedMoveKeyRef.current = lastMoveKey
+      return
+    }
+
+    if (!lastMoveKey || lastMoveKey === animatedMoveKeyRef.current) {
+      return
+    }
+
+    animatedMoveKeyRef.current = lastMoveKey
+    if (diceSettleTimerRef.current) {
+      window.clearTimeout(diceSettleTimerRef.current)
+    }
+    setDiceRolling(true)
+    diceSettleTimerRef.current = window.setTimeout(() => {
+      setDiceRolling(false)
+      diceSettleTimerRef.current = null
+    }, 1450)
+  }, [lastMoveKey, session?.id])
+
+  useEffect(() => {
+    setHeartGuideOpen(false)
+  }, [session?.phase])
 
   if (!hasPartner || !couple || !readyToPlay || !session) {
     return null
@@ -182,6 +251,37 @@ export function GameScreen() {
     value: session.momentum?.[vibe] || 0,
     vibe,
   }))
+  const gameplayOverlayOpen =
+    !diceAnimating &&
+    (
+      session.phase === 'keepsake' ||
+      session.phase === 'vibeSetup' ||
+      session.phase === 'activityChoice' ||
+      session.phase === 'activity' ||
+      session.phase === 'duelWheel' ||
+      session.phase === 'duel' ||
+      session.phase === 'finale'
+    )
+
+  async function handleDiceRoll() {
+    if (!canRoll || working || diceAnimating) {
+      return
+    }
+
+    if (diceSettleTimerRef.current) {
+      window.clearTimeout(diceSettleTimerRef.current)
+    }
+
+    setDiceRolling(true)
+    try {
+      await rollTurn()
+    } finally {
+      diceSettleTimerRef.current = window.setTimeout(() => {
+        setDiceRolling(false)
+        diceSettleTimerRef.current = null
+      }, 1450)
+    }
+  }
 
   return (
     <section className="screen active game-screen">
@@ -194,12 +294,19 @@ export function GameScreen() {
             players={session.players}
             positions={session.positions}
             round={session.round}
+            rolling={diceAnimating}
           />
         </Suspense>
         <div className="hud top">
-          <div className="chip heart">
-            <span>Hearts</span><strong>{session.hearts}</strong>
-          </div>
+          <button
+            aria-label={`Shared heart stash: ${session.hearts}. Open guide.`}
+            className="chip heart heart-guide-chip"
+            disabled={diceAnimating}
+            onClick={() => setHeartGuideOpen(true)}
+            type="button"
+          >
+            <span>Shared Stash</span><strong>♥ {session.hearts}</strong>
+          </button>
           <div className="chip">
             <span>Round</span><strong>{session.round}<small>/{session.totalRounds}</small></strong>
           </div>
@@ -259,26 +366,34 @@ export function GameScreen() {
           <div className="button-row">
             <button
               className="primary-btn pulse"
-              disabled={!canRoll || working}
+              disabled={!canRoll || working || diceAnimating}
               onClick={() => {
                 playAction?.()
-                rollTurn()
+                handleDiceRoll()
               }}
               type="button"
             >
-              {canRoll ? 'Roll Dice' : `Waiting on ${activePlayer.displayName}`}
+              {diceAnimating
+                ? 'Rolling…'
+                : canRoll
+                  ? 'Roll Dice'
+                  : `Waiting on ${activePlayer.displayName}`}
             </button>
             {session.phase === 'duelWheel' && (
               <button
                 className="primary-btn alt"
-                disabled={!canSpinDuel}
+                disabled={!canSpinDuel || diceAnimating}
                 onClick={() => {
                   playAction?.()
                   spinDuelWheel()
                 }}
                 type="button"
               >
-                {canSpinDuel ? 'Spin Duel Wheel' : 'Waiting For Spin'}
+                {diceAnimating
+                  ? 'Waiting For Dice'
+                  : canSpinDuel
+                    ? 'Spin Duel Wheel'
+                    : 'Waiting For Spin'}
               </button>
             )}
           </div>
@@ -293,7 +408,7 @@ export function GameScreen() {
         </div>
       </div>
 
-      {session.phase === 'keepsake' && session.pendingKeepsake && (
+      {!diceAnimating && session.phase === 'keepsake' && session.pendingKeepsake && (
         <div className="overlay-screen">
           <div className="overlay-card">
             <p className="eyebrow">Keepsake Stop</p>
@@ -333,7 +448,7 @@ export function GameScreen() {
         </div>
       )}
 
-      {session.phase === 'vibeSetup' && (
+      {!diceAnimating && session.phase === 'vibeSetup' && (
         <div className="overlay-screen">
           <VibeDial
             defaultWeights={myVibeVote || session.vibeWeights || undefined}
@@ -353,7 +468,7 @@ export function GameScreen() {
         </div>
       )}
 
-      {session.phase === 'activityChoice' && (
+      {!diceAnimating && session.phase === 'activityChoice' && (
         <div className="overlay-screen">
           <div className="overlay-card">
             <p className="eyebrow">Momentum Pick</p>
@@ -383,7 +498,7 @@ export function GameScreen() {
         </div>
       )}
 
-      {session.phase === 'activity' && activity && ActivityComponent && (
+      {!diceAnimating && session.phase === 'activity' && activity && ActivityComponent && (
         <div className="overlay-screen">
           <ActivityComponent
             activity={activity}
@@ -399,7 +514,7 @@ export function GameScreen() {
         </div>
       )}
 
-      {session.phase === 'duelWheel' && (
+      {!diceAnimating && session.phase === 'duelWheel' && (
         <div className="overlay-screen">
           <div className="overlay-card">
             <p className="eyebrow">Round Duel</p>
@@ -429,7 +544,7 @@ export function GameScreen() {
         </div>
       )}
 
-      {session.phase === 'duel' && DuelComponent && (
+      {!diceAnimating && session.phase === 'duel' && DuelComponent && (
         <div className="overlay-screen">
           {myDuelResult ? (
             <div className="overlay-card">
@@ -452,7 +567,7 @@ export function GameScreen() {
         </div>
       )}
 
-      {session.phase === 'finale' && finalSummary && (
+      {!diceAnimating && session.phase === 'finale' && finalSummary && (
         <div className="overlay-screen">
           <div className="overlay-card finale-card">
             <p className="eyebrow">Finale</p>
@@ -465,7 +580,7 @@ export function GameScreen() {
             <div className="summary-grid">
               <div>
                 <strong>{session.hearts}</strong>
-                <span>Hearts Left</span>
+                <span>Shared Hearts</span>
               </div>
               <div>
                 <strong>{session.keepsakes.length}</strong>
@@ -516,6 +631,31 @@ export function GameScreen() {
           open={journalOpen}
         />
       </Suspense>
+
+      {heartGuideOpen && !diceAnimating && !gameplayOverlayOpen && (
+        <div className="overlay-screen heart-guide-overlay">
+          <div className="overlay-card heart-guide-card">
+            <p className="eyebrow">No Scoreboard</p>
+            <h3>One stash, shared by both of you.</h3>
+            <p className="support-copy">
+              Hearts are a keepsake currency, not points and not a player-versus-player score.
+            </p>
+            <div className="heart-rule-list">
+              <div><strong>Start</strong><span>Begin every night with 6 shared hearts.</span></div>
+              <div><strong>Earn</strong><span>Connection moments, duels, heart spaces, and spotlights add to the same stash.</span></div>
+              <div><strong>Spend</strong><span>Only keepsakes cost hearts, and their perks help both players.</span></div>
+              <div><strong>Finish</strong><span>The scrapbook is the outcome. Nobody wins the night overall.</span></div>
+            </div>
+            <button
+              className="primary-btn"
+              onClick={() => setHeartGuideOpen(false)}
+              type="button"
+            >
+              Back To The Board
+            </button>
+          </div>
+        </div>
+      )}
 
       {needsSessionRecovery && (
         <div className="overlay-screen session-recovery-overlay">

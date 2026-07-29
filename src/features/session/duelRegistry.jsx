@@ -269,11 +269,11 @@ function TextSprintDuel({ disabled, duel, onComplete, onSkip }) {
     }
 
     const time = (performance.now() - startedAtRef.current) / 1000
-    const score = Math.min(200, text.trim().length)
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length
     onComplete({
       excerpt: text.trim().slice(0, 80),
-      highlight: `locked a ${score}-point answer in ${time.toFixed(2)}s`,
-      score,
+      highlight: `shared ${wordCount} ${wordCount === 1 ? 'word' : 'words'} in ${time.toFixed(2)}s`,
+      score: wordCount,
       time,
       won: true,
     })
@@ -438,14 +438,6 @@ function resolveTieByTime(resultA, resultB) {
   return { retry: true }
 }
 
-function resolveByScore(resultA, resultB) {
-  if (resultA.score === resultB.score) {
-    return resolveTieByTime(resultA, resultB)
-  }
-
-  return { winnerIndex: resultA.score > resultB.score ? 0 : 1 }
-}
-
 function resolveSharedByDelta(resultA, resultB, threshold = 0.2) {
   const delta = Math.abs((resultA.delta ?? 99) - (resultB.delta ?? 99))
   if (resultA.delta <= threshold && resultB.delta <= threshold && delta <= threshold) {
@@ -455,51 +447,30 @@ function resolveSharedByDelta(resultA, resultB, threshold = 0.2) {
   return { winnerIndex: (resultA.delta ?? 99) < (resultB.delta ?? 99) ? 0 : 1 }
 }
 
-function resolveSharedByValue(resultA, resultB, threshold = 1) {
-  const delta = Math.abs((resultA.value ?? 0) - (resultB.value ?? 0))
-  if (delta <= threshold) {
-    return { shared: true }
-  }
-
-  return { winnerIndex: (resultA.value ?? 0) > (resultB.value ?? 0) ? 0 : 1 }
-}
-
-function resolveConstellation(resultA, resultB) {
-  if (!resultA.center || !resultB.center) {
-    return { retry: true }
-  }
-
-  const distance = Math.hypot(
-    resultA.center.x - resultB.center.x,
-    resultA.center.y - resultB.center.y,
-  )
-  if (distance <= 48) {
-    return { shared: true }
-  }
-
-  return { winnerIndex: (resultA.spread ?? 99) < (resultB.spread ?? 99) ? 0 : 1 }
+function resolveSharedCompletion() {
+  return { shared: true }
 }
 
 const duelComponentMap = {
   'constellation-home': {
     component: ConstellationDuel,
-    resolveTie: resolveConstellation,
+    resolveTie: resolveSharedCompletion,
   },
   'doodle-duel-memory': {
     component: DoodleDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'emoji-court': {
     component: TextSprintDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'fever-dream-date': {
     component: TextSprintDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'gratitude-duel': {
     component: TextSprintDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'heartbeat-hold-tender': {
     component: HoldSyncDuel,
@@ -511,11 +482,11 @@ const duelComponentMap = {
   },
   'letterpress-one-word': {
     component: TextSprintDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'portrait-panic-directed': {
     component: DoodleDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'reaction-heart': {
     component: QuickFlipDuel,
@@ -523,7 +494,7 @@ const duelComponentMap = {
   },
   'slow-draw-portrait-romantic': {
     component: DoodleDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'sync-breath': {
     component: HoldSyncDuel,
@@ -531,15 +502,15 @@ const duelComponentMap = {
   },
   'temperature-check': {
     component: SliderMatchDuel,
-    resolveTie: (a, b) => resolveSharedByValue(a, b, 1),
+    resolveTie: resolveSharedCompletion,
   },
   'voice-note-trailer': {
     component: TextSprintDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
   'wavelength-slider': {
     component: SliderMatchDuel,
-    resolveTie: resolveByScore,
+    resolveTie: resolveSharedCompletion,
   },
 }
 
