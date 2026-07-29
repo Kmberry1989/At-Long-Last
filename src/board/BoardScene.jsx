@@ -935,13 +935,17 @@ export function BoardScene({
   return (
     <>
       <div className="board-canvas" ref={mountRef} />
-      <div className="board-view-controls" aria-label="3D board view controls">
-        <span>Drag to rotate · pinch to zoom · two-finger pan</span>
+      <div
+        aria-label="Board view controls. Drag to look around, pinch to zoom, and use two fingers to move the board."
+        className="board-view-controls"
+      >
+        <span aria-hidden="true">↻</span>
         <button
+          aria-label="Center the board on the current player"
           onClick={() => resetViewRef.current?.()}
           type="button"
         >
-          Reset view
+          Center
         </button>
       </div>
     </>

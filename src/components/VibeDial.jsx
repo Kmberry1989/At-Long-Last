@@ -305,16 +305,10 @@ export function VibeDial({
         <span className="vibe-label spicy">Spicy {Math.round(weights.spicy * 100)}%</span>
       </div>
 
-      <div className="vibe-meter">
-        <span className="vibe-fill tender" style={{ width: `${weights.tender * 100}%` }} />
-        <span className="vibe-fill playful" style={{ width: `${weights.playful * 100}%` }} />
-        <span className="vibe-fill spicy" style={{ width: `${weights.spicy * 100}%` }} />
-      </div>
-
       <div className="vibe-summary">
         <strong>{dominant} leads.</strong>
-        <span>Your two votes are averaged to weight prompts, duels, and the Spark spotlight.</span>
-        <small>Spicy intensity 3 unlocks only when the shared Spicy mix reaches 50%.</small>
+        <span>Both votes shape what comes next.</span>
+        <small>Reach 50% Spicy to unlock a bolder choice.</small>
       </div>
 
       <button

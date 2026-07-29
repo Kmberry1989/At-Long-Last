@@ -14,16 +14,16 @@ const JournalDrawer = lazy(() =>
   import('./JournalDrawer.jsx').then((module) => ({ default: module.JournalDrawer })),
 )
 
-const ACT_LABELS = {
-  finale: 'Finale',
-  spark: 'Spark',
-  warmup: 'Warmup',
-}
-
 const MOMENTUM_BONUS_COPY = {
   playful: 'Double pick armed',
   spicy: 'Heat boost armed',
   tender: 'Soft landing armed',
+}
+
+const MOMENTUM_SYMBOLS = {
+  playful: '✦',
+  spicy: '♨',
+  tender: '♡',
 }
 
 function capitalize(value = '') {
@@ -243,7 +243,6 @@ export function GameScreen() {
   const activityOptions = (session.pendingActivityOptions || [])
     .map((activityId) => activityRegistry[activityId])
     .filter(Boolean)
-  const spotlightActLabel = ACT_LABELS[session.spotlight?.act] || 'Warmup'
   const needsSessionRecovery = connectionState === 'syncing' || isSessionStale || Boolean(error)
   const momentumCards = ['tender', 'playful', 'spicy'].map((vibe) => ({
     active: Boolean(session.momentum?.unlocked?.[vibe] && !session.momentum?.consumed?.[vibe]),
@@ -262,6 +261,15 @@ export function GameScreen() {
       session.phase === 'duel' ||
       session.phase === 'finale'
     )
+  const rollButtonLabel = diceAnimating
+    ? 'Rolling…'
+    : canRoll
+      ? 'Roll dice'
+      : session.phase === 'turn'
+        ? `${activePlayer.displayName}'s turn`
+        : session.phase === 'vibeSetup'
+          ? 'Choosing the mood…'
+          : 'Waiting…'
 
   async function handleDiceRoll() {
     if (!canRoll || working || diceAnimating) {
@@ -305,21 +313,19 @@ export function GameScreen() {
             onClick={() => setHeartGuideOpen(true)}
             type="button"
           >
-            <span>Shared Stash</span><strong>♥ {session.hearts}</strong>
+            <span aria-hidden="true">♥</span><strong>{session.hearts}</strong>
           </button>
-          <div className="chip">
-            <span>Round</span><strong>{session.round}<small>/{session.totalRounds}</small></strong>
+          <div className="chip" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
+            <span aria-hidden="true">◷</span><strong>{session.round}/{session.totalRounds}</strong>
           </div>
-          <div className="chip spotlight-chip">
-            <span>Spotlight</span>
-            <strong>{spotlightActLabel}</strong>
+          <div
+            aria-label={dominantVibe ? `Tonight feels ${dominantVibe}` : 'Choose tonight’s mood together'}
+            className="chip vibe-chip"
+          >
+            <span aria-hidden="true">☼</span><strong>{dominantVibe || 'Mood'}</strong>
           </div>
-          {dominantVibe && (
-            <div className="chip vibe-chip">
-              <span>Vibe</span><strong>{dominantVibe}</strong>
-            </div>
-          )}
           <button
+            aria-label={`Open scrapbook. ${journalEntries.length} saved moments.`}
             className="chip button-chip"
             onClick={() => {
               playAction?.()
@@ -327,12 +333,12 @@ export function GameScreen() {
             }}
             type="button"
           >
-            <span>Scrapbook</span><strong>{journalEntries.length}</strong>
+            <span>Book</span><strong>▤ {journalEntries.length}</strong>
           </button>
         </div>
         <div className="hud momentum-hud">
           <div className="spotlight-banner">
-            <span className="spotlight-kicker">{spotlightActLabel} Spotlight</span>
+            <span className="spotlight-kicker">✦ Next</span>
             <strong>{session.spotlight?.label}</strong>
             <p>{session.spotlight?.description}</p>
           </div>
@@ -340,11 +346,13 @@ export function GameScreen() {
             {momentumCards.map((card) => (
               <div
                 key={card.vibe}
+                aria-label={`${card.label}: ${Math.min(card.value, 2)} of 2. ${card.active ? MOMENTUM_BONUS_COPY[card.vibe] : 'In progress'}.`}
                 className={`momentum-pill${card.active ? ' active' : ''} vibe-${card.vibe}`}
+                title={`${card.label}: ${card.active ? MOMENTUM_BONUS_COPY[card.vibe] : 'In progress'}`}
               >
-                <span>{card.label}</span>
-                <strong>{Math.min(card.value, 2)} / 2</strong>
-                <small>{card.active ? MOMENTUM_BONUS_COPY[card.vibe] : 'Building'}</small>
+                <span aria-hidden="true">{MOMENTUM_SYMBOLS[card.vibe]}</span>
+                <strong>{Math.min(card.value, 2)}/2</strong>
+                <small>{card.active ? 'Ready' : 'In progress'}</small>
               </div>
             ))}
           </div>
@@ -356,56 +364,53 @@ export function GameScreen() {
               className={`player-strip${index === session.activePlayerIndex ? ' active' : ''}${index === playerIndex ? ' mine' : ''}`}
             >
               <span className="dot" style={{ background: player.color }} />
-              <strong>{player.displayName}</strong>
-              <span>{session.positions[index] + 1}</span>
+              <strong title={player.displayName}>{player.displayName}</strong>
             </div>
           ))}
         </div>
-        <div className="bottom-tray">
-          {!needsSessionRecovery && <p className="status-line">{sessionStatusMessage}</p>}
-          <div className="button-row">
-            <button
-              className="primary-btn pulse"
-              disabled={!canRoll || working || diceAnimating}
-              onClick={() => {
-                playAction?.()
-                handleDiceRoll()
-              }}
-              type="button"
-            >
-              {diceAnimating
-                ? 'Rolling…'
-                : canRoll
-                  ? 'Roll Dice'
-                  : `Waiting on ${activePlayer.displayName}`}
-            </button>
-            {session.phase === 'duelWheel' && (
+        {!gameplayOverlayOpen && (
+          <div className="bottom-tray">
+            {!needsSessionRecovery && <p className="status-line">{sessionStatusMessage}</p>}
+            <div className="button-row">
               <button
-                className="primary-btn alt"
-                disabled={!canSpinDuel || diceAnimating}
+                className="primary-btn pulse"
+                disabled={!canRoll || working || diceAnimating}
                 onClick={() => {
                   playAction?.()
-                  spinDuelWheel()
+                  handleDiceRoll()
                 }}
                 type="button"
               >
-                {diceAnimating
-                  ? 'Waiting For Dice'
-                  : canSpinDuel
-                    ? 'Spin Duel Wheel'
-                    : 'Waiting For Spin'}
+                {rollButtonLabel}
               </button>
-            )}
+              {session.phase === 'duelWheel' && (
+                <button
+                  className="primary-btn alt"
+                  disabled={!canSpinDuel || diceAnimating}
+                  onClick={() => {
+                    playAction?.()
+                    spinDuelWheel()
+                  }}
+                  type="button"
+                >
+                  {diceAnimating
+                    ? 'Waiting For Dice'
+                    : canSpinDuel
+                      ? 'Spin Duel Wheel'
+                      : 'Waiting For Spin'}
+                </button>
+              )}
+            </div>
+            <div className="keepsake-row">
+              {session.keepsakes.map((keepsake) => (
+                <span key={`${keepsake.id}-${keepsake.label}`} className="keepsake-pill">
+                  {keepsake.label}
+                </span>
+              ))}
+            </div>
+            {error && <p className="error-copy">{error}</p>}
           </div>
-          <div className="keepsake-row">
-            {session.keepsakes.map((keepsake) => (
-              <span key={`${keepsake.id}-${keepsake.label}`} className="keepsake-pill">
-                {keepsake.label}
-              </span>
-            ))}
-          </div>
-          {error && <p className="error-copy">{error}</p>}
-        </div>
+        )}
       </div>
 
       {!diceAnimating && session.phase === 'keepsake' && session.pendingKeepsake && (

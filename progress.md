@@ -152,3 +152,12 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Mobile browser QA selected the Owl, advanced through tone setup, and confirmed the Owl and partner Globe both loaded at distinct coordinates on the same starting tile. All five decorations loaded and the clean pass emitted no console errors.
 - The required web-game client reported `withinTriangle: true`, loaded player avatars, distinct co-located board positions, and no console-error artifact; its screenshot was visually inspected.
 - Final validation passes: 12 app test files / 82 tests, 17/17 Firestore rules tests, lint, production build, and diff whitespace check. The rules harness now allows 30 seconds for emulator initialization on slower starts.
+
+## 2026-07-29 — plain-language mobile HUD
+
+- Replaced the crowded five-card header with four compact status cards: shared hearts, round, tonight's mood, and the scrapbook. The current spotlight now reads simply as “Next,” and momentum uses three recognizable symbols with a concise progress count.
+- Removed ambiguous board-space numbers from player cards; the selected 3D pieces remain the visible position markers on the board.
+- Shortened the board camera control to an icon plus “Center,” simplified the tone explanation, and removed the redundant tone meter bars.
+- Hid the bottom action tray whenever a mood, activity, duel, keepsake, or finale overlay is open, eliminating the disabled “Waiting on …” control behind the active dialog.
+- Direct mobile QA at 344×640 proved the board and bottom action fit without page scrolling, the full tone card fits without scrolling, the bottom tray is absent while the tone card is open, and a completed preview roll advances the selected player's board position. The required web-game client has a visually inspected screenshot and no console-error artifact.
+- Final local validation passes: 12 app test files / 82 tests, 17/17 Firestore rules tests, lint, production build, and diff whitespace check.

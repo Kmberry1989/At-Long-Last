@@ -1168,9 +1168,8 @@ p {
   left: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: calc(100% - 112px);
-  padding: 7px 8px 7px 11px;
+  gap: 6px;
+  padding: 5px 6px 5px 8px;
   border: 1px solid rgba(255, 243, 233, 0.18);
   border-radius: 999px;
   background: rgba(21, 26, 38, 0.58);
@@ -1181,19 +1180,15 @@ p {
 }
 
 .board-view-controls span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .board-view-controls button {
   flex: 0 0 auto;
   border: 0;
   border-radius: 999px;
-  padding: 6px 9px;
+  padding: 5px 8px;
   background: rgba(255, 249, 242, 0.94);
   color: var(--app-ink);
   font-size: 10px;
@@ -1212,7 +1207,7 @@ p {
 .hud.top {
   top: 66px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
 }
 
@@ -1239,7 +1234,7 @@ p {
 }
 
 .chip {
-  height: 54px;
+  height: 50px;
   padding: 8px 12px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1267,7 +1262,7 @@ p {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: 'Fraunces', Georgia, serif;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   letter-spacing: 0;
   text-transform: none;
@@ -1283,6 +1278,11 @@ p {
 .chip.heart {
   background:
     linear-gradient(180deg, rgba(255, 222, 229, 0.96) 0%, rgba(232, 170, 181, 0.86) 100%);
+}
+
+.heart-guide-chip > span {
+  font-size: 18px;
+  color: #7d2436;
 }
 
 .heart-guide-chip {
@@ -1373,6 +1373,11 @@ p {
   gap: 1px 6px;
 }
 
+.momentum-pill > span {
+  font-size: 17px;
+  line-height: 1;
+}
+
 .momentum-pill strong {
   font-family: 'Fraunces', Georgia, serif;
   font-size: 16px;
@@ -1398,12 +1403,26 @@ p {
 
 .player-strip {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   color: var(--app-ink);
   padding: 9px 11px;
   border-radius: 16px;
+}
+
+.player-strip strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-position {
+  color: var(--app-ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .player-strip.active {
@@ -1425,7 +1444,7 @@ p {
   position: absolute;
   left: 50%;
   right: auto;
-  width: min(560px, calc(100vw - 24px));
+  width: min(460px, calc(100vw - 24px));
   transform: translateX(-50%);
   bottom: 12px;
   z-index: 8;
@@ -3700,27 +3719,27 @@ p {
   }
 
   .board-view-controls {
-    max-width: calc(100% - 104px);
+    max-width: none;
   }
 
   .board-view-controls span {
-    max-width: 104px;
+    font-size: 15px;
   }
 
   .hud.momentum-hud {
-    top: 118px;
+    top: 112px;
     left: 10px;
     width: min(220px, 54vw);
   }
 
   .hud.players {
-    top: 118px;
+    top: 112px;
     right: 10px;
     width: min(150px, 42vw);
   }
 
   .chip {
-    height: 50px;
+    height: 44px;
     padding: 7px 8px;
     font-size: 9px;
   }
@@ -3788,7 +3807,6 @@ p {
     gap: 8px;
   }
 
-  .chip,
   .player-strip {
     padding: 10px 12px;
     border-radius: 18px;
@@ -3859,7 +3877,7 @@ p {
   }
 
   .chip {
-    font-size: 13px;
+    font-size: 9px;
   }
 
   .player-strip {
@@ -3894,6 +3912,36 @@ p {
 @media (max-height: 640px) {
   .screen {
     overflow-y: auto;
+  }
+
+  .game-screen {
+    overflow: hidden;
+  }
+
+  .overlay-screen {
+    padding: 10px 12px;
+  }
+
+  .overlay-card {
+    padding: 14px;
+  }
+
+  .vibe-card {
+    gap: 10px;
+  }
+
+  .vibe-surface {
+    min-height: 214px;
+    padding: 12px;
+  }
+
+  .vibe-triangle-stage {
+    width: min(100%, 236px);
+    margin: 10px auto 6px;
+  }
+
+  .vibe-summary small {
+    font-size: 10px;
   }
 
   .hud.top {
@@ -3934,6 +3982,46 @@ p {
   .summary-grid {
     gap: 8px;
     margin: 12px 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .hud.top {
+    gap: 4px;
+  }
+
+  .chip {
+    padding-inline: 6px;
+  }
+
+  .chip > strong {
+    font-size: 13px;
+  }
+
+  .hud.momentum-hud {
+    width: calc(58% - 10px);
+  }
+
+  .hud.players {
+    width: calc(42% - 10px);
+  }
+
+  .spotlight-banner {
+    padding: 9px 10px;
+  }
+
+  .spotlight-banner strong {
+    font-size: 15px;
+  }
+
+  .player-strip {
+    gap: 5px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .player-position {
+    font-size: 10px;
   }
 }
 
