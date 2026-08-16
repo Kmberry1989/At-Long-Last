@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
 import { JournalTimeline } from './JournalTimeline.jsx'
 
 const FILTERS = [
@@ -28,7 +29,7 @@ export function JournalDrawer({ entries, open, onClose }) {
   const [activeFilter, setActiveFilter] = useState('all')
   const drawerRef = useRef(null)
   const finaleEntry = entries.find((entry) => entry.type === 'finale')
-  const momentsCount = entries.filter((entry) => entry.type !== 'finale').length
+  const momentsCount = getScrapbookMomentCount(entries)
   const duelCount = entries.filter((entry) => entry.type === 'duel').length
   const keepsakeCount = entries.filter((entry) => entry.type === 'keepsake').length
   const headline = finaleEntry?.payload?.headline || 'Every good round deserves its own page.'

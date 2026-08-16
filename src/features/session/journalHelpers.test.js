@@ -5,9 +5,18 @@ import {
   buildFinaleJournalEntry,
   buildSkippedActivityJournalEntry,
   buildVibeSetupJournalEntry,
+  getScrapbookMomentCount,
 } from './journalHelpers.js'
 
 describe('journalHelpers', () => {
+  it('does not count the hidden finale metadata page as a scrapbook moment', () => {
+    expect(getScrapbookMomentCount([
+      { id: 'finale', type: 'finale' },
+      { id: 'activity', type: 'prompt' },
+      { id: 'duel', type: 'duel' },
+    ])).toBe(2)
+  })
+
   it('builds a normal prompt journal entry', () => {
     const entry = buildActivityJournalEntry({
       coupleId: 'couple-1',

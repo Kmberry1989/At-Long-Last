@@ -106,6 +106,7 @@ export function LobbyScreen() {
   const [password, setPassword] = useState('')
   const [entryMode, setEntryMode] = useState('start')
   const [authMode, setAuthMode] = useState('signin')
+  const [draftSessionPreset, setDraftSessionPreset] = useState(sessionPreset)
   const [lobbyChatDraft, setLobbyChatDraft] = useState('')
   const [notice, setNotice] = useState('')
   const [editingProfile, setEditingProfile] = useState(false)
@@ -145,6 +146,12 @@ export function LobbyScreen() {
   useEffect(() => {
     setLobbyChatDraft('')
   }, [activePublicLobbyId])
+
+  useEffect(() => {
+    if (couple) {
+      setDraftSessionPreset(sessionPreset)
+    }
+  }, [couple, sessionPreset])
 
   useEffect(() => {
     try {
@@ -250,6 +257,11 @@ export function LobbyScreen() {
   }
 
   async function handlePresetChange(nextPreset) {
+    if (!couple) {
+      setDraftSessionPreset(nextPreset)
+      return
+    }
+
     if (!updateSessionPreset) {
       return
     }
@@ -469,6 +481,8 @@ export function LobbyScreen() {
     heading = 'Choose tonight’s length.',
     support = 'This sets how many rounds the shared board will run before the finale.',
   } = {}) {
+    const selectedPreset = couple ? sessionPreset : draftSessionPreset
+
     return (
       <div className="preset-card">
         <p className="eyebrow">Session Preset</p>
@@ -477,7 +491,7 @@ export function LobbyScreen() {
         <div className="preset-grid">
           {SESSION_PRESET_OPTIONS.map((preset) => (
             <button
-              className={`public-lobby-card${sessionPreset === preset.id ? ' active' : ''}`}
+              className={`public-lobby-card${selectedPreset === preset.id ? ' active' : ''}`}
               disabled={disabled}
               key={preset.id}
               onClick={() => handlePresetChange(preset.id)}
@@ -888,7 +902,7 @@ export function LobbyScreen() {
                     <button
                       className="primary-btn"
                       disabled={!profileName || working}
-                      onClick={() => handleCreate(sessionPreset)}
+                      onClick={() => handleCreate(draftSessionPreset)}
                       type="button"
                     >
                       Open Private Room

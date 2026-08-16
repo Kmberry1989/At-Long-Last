@@ -38,6 +38,7 @@ export default defineConfig({
     fileParallelism: false,
     include: ['src/**/*.test.{js,jsx}'],
     maxWorkers: 1,
+    pool: 'forks',
     setupFiles: './src/test/setup.js',
     coverage: {
       provider: 'v8',

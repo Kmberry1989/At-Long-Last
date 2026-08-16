@@ -7,6 +7,7 @@ export default defineConfig({
     hookTimeout: 30000,
     include: ['tests/firestore.rules.test.js'],
     maxWorkers: 1,
+    pool: 'forks',
     testTimeout: 20000,
   },
 })

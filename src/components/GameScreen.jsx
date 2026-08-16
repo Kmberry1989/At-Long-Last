@@ -4,6 +4,7 @@ import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
+import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { useSynth } from './useSynth.js'
 
@@ -86,6 +87,7 @@ export function GameScreen() {
   const [heartGuideOpen, setHeartGuideOpen] = useState(false)
   const [diceRolling, setDiceRolling] = useState(false)
   const diceSettleTimerRef = useRef(null)
+  const scrapbookMomentCount = getScrapbookMomentCount(journalEntries)
   const lastMoveKey = session?.lastMove
     ? [
         session.lastMove.playerIndex,
@@ -162,7 +164,7 @@ export function GameScreen() {
       playerIndex,
       round: session.round,
       scrapbook: {
-        count: journalEntries.length,
+        count: scrapbookMomentCount,
         latestTitle: journalEntries[0]?.title || null,
         latestType: journalEntries[0]?.type || null,
       },
@@ -186,6 +188,7 @@ export function GameScreen() {
     activityEntry,
     canRoll,
     journalEntries,
+    scrapbookMomentCount,
     playerIndex,
     session?.phase,
     session?.round,
@@ -325,7 +328,7 @@ export function GameScreen() {
             <span aria-hidden="true">☼</span><strong>{dominantVibe || 'Mood'}</strong>
           </div>
           <button
-            aria-label={`Open scrapbook. ${journalEntries.length} saved moments.`}
+            aria-label={`Open scrapbook. ${scrapbookMomentCount} saved moments.`}
             className="chip button-chip"
             onClick={() => {
               playAction?.()
@@ -333,7 +336,7 @@ export function GameScreen() {
             }}
             type="button"
           >
-            <span>Book</span><strong>▤ {journalEntries.length}</strong>
+            <span>Book</span><strong>▤ {scrapbookMomentCount}</strong>
           </button>
         </div>
         <div className="hud momentum-hud">

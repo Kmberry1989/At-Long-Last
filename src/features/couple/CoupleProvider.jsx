@@ -71,10 +71,16 @@ export function CoupleProvider({ children }) {
 
     if (!enabled || !db || !userId || !user) {
       setLoading(false)
+      setError('')
+      setLinkedCoupleId(null)
+      setBlockedCoupleId(null)
+      setSelectedPublicLobbyId(null)
+      setPublicLobbyMessages([])
       setCouple(previewCouple)
       return undefined
     }
 
+    setError('')
     setLoading(true)
 
     const unsubscribe = onSnapshot(
@@ -115,7 +121,7 @@ export function CoupleProvider({ children }) {
       return undefined
     }
 
-    if (!enabled || !db || !linkedCoupleId) {
+    if (!enabled || !db || !userId || !user || !linkedCoupleId) {
       return undefined
     }
 
@@ -140,7 +146,7 @@ export function CoupleProvider({ children }) {
     )
 
     return () => unsubscribe()
-  }, [db, enabled, linkedCoupleId, ready, userId])
+  }, [db, enabled, linkedCoupleId, ready, user, userId])
 
   useEffect(() => {
     if (!ready || !enabled || !db || !userId || !user) {

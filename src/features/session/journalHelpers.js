@@ -1,5 +1,9 @@
 import { buildFinalSummary } from './sessionLogic.js'
 
+export function getScrapbookMomentCount(entries = []) {
+  return entries.filter((entry) => entry?.type !== 'finale').length
+}
+
 function getFirstImageDataUrl(results = {}) {
   return Object.values(results).find((result) => result?.dataUrl)?.dataUrl ?? null
 }

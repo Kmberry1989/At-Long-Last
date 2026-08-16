@@ -1,18 +1,80 @@
 # At Long Last — Two-Player Playability Test Report
 
+## 2026-08-15 Main Reconciliation and Release Validation
+
+- **Source reconciliation:** Before the release-only test/helper changes, a clean local `npm run build` reproduced the current production alias asset hashes (`index-CyYC8spE.js`, `index-ByFzTVw3.css`, and the same lazy chunks), confirming that the verified sign-out, auth-listener teardown, pre-room Quick preset, and finale journal-count fixes were present in the source behind the live Vercel deployment.
+- **Preserved fixes:** The release keeps the authenticated sign-out escape, clears couple-derived state and tears down room listeners when auth becomes signed out, retains a selected Quick preset before room creation, and excludes the hidden finale metadata page from scrapbook counts.
+- **Focused regressions:** Added component/helper coverage for all four fixes, including auth-driven listener cleanup and Quick preset propagation into room creation.
+- **Vitest:** PASS — 16 test files, 89 tests. The runner uses Vitest-native single-worker settings so startup does not depend on unsupported `--runInBand` behavior.
+- **Firestore rules:** PASS — 19 tests under the local `firebase-tools` CLI and Firestore emulator. The rules test no longer bootstraps Firebase CLI through an unpinned `npx` install.
+- **Static checks:** PASS — `npm run lint`, `npm run build`, and `git diff --check`.
+- **Deployment decision:** No Vercel deployment was made for this release. The existing production alias remains the prior verified deployment; this commit is the reconciled source and test release for push, with any future deployment requiring explicit approval.
+
 ## Current Run Summary
 
-- **Run date:** 2026-07-26 (America/Indiana/Indianapolis)
-- **Result:** PASS — the hardened rules support the current two-account lifecycle and narrowly recover the reported pre-arc session; the missing avatar request and WebGL teardown fault are also fixed.
-- **Release decision:** Firestore rules and the frontend bundle were deployed only after the emulator, unit, static, and local browser gates passed.
+- **Run date:** 2026-08-08 (America/Indiana/Indianapolis)
+- **Result:** PASS — two isolated authenticated Chrome profiles completed a new Quick night on the production alias from private invite through the finale, then both reloaded into the same completed session with the same 12 scrapbook moments and response text.
+- **Release decision:** Five defects found during the live run were fixed, linted, built, deployed, and retested against the production alias before this report was updated.
 - **Branch:** `main`
-- **Local URL:** `http://127.0.0.1:4173/`
 - **Production URL:** `https://atlonglast.vercel.app/`
-- **Runtime:** Node `v22.23.1`, npm `10.9.8`, macOS `26.5.2`
-- **Firebase mode:** Standard Firestore emulator for deterministic two-account coverage; production rules and exact legacy recovery verified against `at-long-last` (`nam5`)
+- **Verified deployment:** `https://dist-2c1o8h0ai-kyle-matthew-berry-s-projects.vercel.app`
+- **Phone One:** isolated authenticated Chrome profile at `390 × 844`
+- **Phone Two:** separate isolated authenticated Chrome profile at `393 × 852`
+- **Firebase mode:** live production Authentication and Firestore; temporary test credentials are intentionally omitted
 
-The older two-phone/mobile-finale endurance evidence below remains historical
-and separate.
+## 2026-08-08 Production Play-by-Play
+
+| Step | Phone One | Phone Two | Shared proof |
+| --- | --- | --- | --- |
+| Account isolation | Signed into a disposable email/password identity in the first Chrome profile. | Signed into a different disposable identity in the second Chrome profile. | Each profile retained its own authenticated user across production reloads. |
+| Private invite | Selected **Quick** and opened a private room. | Joined with the displayed six-character invite. | Both phones entered the same new 4-round session with 6 hearts, 0 scrapbook moments, and the same player order. |
+| Mood ballot | Locked Tender 50 / Playful 30 / Spicy 20. | Locked the same preset ballot. | Both phones saved `Tonight’s Vibe` as scrapbook moment 1 and assigned the first turn to Phone One. |
+| Round 1 movement | Rolled to a heart space. | Observed the synchronized roll animation, then rolled to `Unsent Draft`. | Hearts synchronized from 6 to 8 before the activity. |
+| Round 1 activity | Submitted “I almost sent: thank you for making ordinary errands feel like part of our story.” | Submitted “I almost sent: I still smile when your name lights up my phone.” | `Unsent Draft` stored both responses as moment 2; hearts moved to 14 and Tender momentum to 1/2. |
+| Round 1 duel | Spun `Letterpress` and completed it. | Completed the same duel. | Both phones rendered the same replay and timings; +3 hearts, 17 total, round 2, Tender 2/2, moment 3. |
+| Round 2 | Observed Phone Two's heart-space roll, then passed `Postcard From Next Year`. | Rolled to the heart space and participated in the pass. | Hearts reached 18; the passed prompt became moment 4. `Constellation` and the repicked `Sync Breath` were jointly passed into moments 5 and 6 before round 3. |
+| Round 3 | Rolled to a heart space, then participated in the passes. | Landed on `Word Weaver` and passed it. | Hearts reached 19. `Word Weaver`, `Gratitude Duel`, and the repicked `Portrait Panic` were stored as moments 7–9 before round 4. |
+| Round 4 activity 1 | Answered “We watered the shared seed and named it Steady.” | Answered “We left it by the sunny window for tomorrow.” | `Shared Seed` stored both responses as moment 10 and moved hearts from 19 to 22. |
+| Round 4 activity 2 | Answered “Late summer, seventy-two degrees, with one bright cloud moving east.” | Answered “Early fall, sixty-eight degrees, with a quiet moon crossing the sky.” | `Weather Report` stored both responses as moment 11 and moved hearts from 22 to 25. |
+| Finale duel | Spun `Emoji Court` and locked an answer. | Locked a separate answer. | Both phones completed the no-skip finale gate. The duel replay became moment 12; duel and spotlight rewards produced 30 shared hearts and the same finale on both devices. |
+| Reload and recovery | Reloaded production at `390 × 844`, reopened the scrapbook, and navigated to `Weather Report`. | Reloaded independently at `393 × 852`, reopened the scrapbook, and navigated to the same page. | Both restored Quick night, 30 hearts, 12 journal beats, 6 duels, 0 keepsakes, the finale metadata, and both `Weather Report` and `Shared Seed` response pairs. |
+
+## 2026-08-08 Defects Found and Fixed
+
+| Defect | Fix | Production retest |
+| --- | --- | --- |
+| An authenticated player in an active session had no visible account escape. | Added a compact authenticated **Sign Out** control that does not mutate or abandon couple/session data. | Both real profiles could safely leave the existing session before the disposable-account run; mobile placement remained reachable throughout the game. |
+| Signing out left the old couple/session listeners alive, exposing the previous board and a permission error behind the auth transition. | `CoupleProvider` now clears couple-derived state on auth teardown and prevents the couple listener from running without the current authenticated user. | Both profiles reloaded to a clean auth screen without the old board, old couple data, or application permission overlay. |
+| Selecting **Quick** before opening a room was a no-op because preset updates required an existing couple document. | Added a pre-room local preset draft and used it when creating the private room. | The active picker changed from Standard to Quick and the newly paired production session was exactly 4 rounds. |
+| The finale's board badge counted the hidden finale metadata document as a saved moment, showing 13 while the scrapbook and finale summary showed 12. | The HUD and exposed scrapbook count now exclude `type: finale`, matching `JournalDrawer` and the finale summary. | After deploying and reloading both phones, the HUD, scrapbook overview, and finale all showed 12. |
+| The new account pill remained above the finale and open scrapbook, competing with their mobile headers. | Added the same overlay/drawer visibility transition used by the sound control while retaining the account escape on the active board and lobby. | At both phone sizes, final captures show clean finale/scrapbook headers; the control remained reachable throughout the live board and lobby states earlier in the run. |
+
+## 2026-08-08 Evidence and Checks
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Full production invite-to-finale run | PASS | Two isolated authenticated profiles completed a fresh Quick preset through a no-skip finale on `https://atlonglast.vercel.app/`. |
+| Live two-phone synchronization | PASS | Player turns, roll animations, activity ownership, response handoff, hearts, momentum, round transitions, journal counts, duel results, and finale state matched on both phones. |
+| Response-page persistence | PASS | After independent reloads, both profiles showed the same 12 moments and both players' exact `Weather Report`, `Shared Seed`, and `Unsent Draft` responses. |
+| Mobile layout | PASS | Primary HUD, overlays, response fields, finale, filters, journal cards, and back controls remained usable at `390 × 844` and `393 × 852`; no horizontal interaction blocker was observed. |
+| Post-reload browser console | PASS | Phone One had no error/warn entries. Phone Two had only installed-extension message-channel/Grammarly entries; no Firebase, React, Vite, or application-origin runtime defect occurred after the final reload. |
+| `npm run lint` | PASS | `oxlint src` exited 0. |
+| `npm run build` | PASS | Vite 8.1.4 transformed 83 modules and produced the production bundle. |
+| `git diff --check` | PASS | No whitespace errors. |
+| `npm test` | BLOCKED | Vitest 4.1.10 reached `RUN` with V8 coverage enabled but did not execute or report test files; the stalled process was stopped after the single diagnostic attempt. |
+| `npm run test:rules` | BLOCKED | The current `npx firebase-tools@latest` bootstrap emitted dependency deprecation notices but never started the emulator/test runner; it was stopped after the single bounded attempt. No Firestore rules changed in this run. |
+| Vercel production build/alias | PASS | Deployment `dist-2c1o8h0ai-kyle-matthew-berry-s-projects.vercel.app` built successfully and was aliased to the production URL. |
+
+### Screenshot Evidence
+
+- Finale after independent reload, Phone One: `/Users/kyleberry/.codex/visualizations/2026/08/08/019fe2fd-1cd5-7751-a32f-e4ed000e3805/03-finale-phone-one-after-reload.png`
+- Finale after independent reload, Phone Two: `/Users/kyleberry/.codex/visualizations/2026/08/08/019fe2fd-1cd5-7751-a32f-e4ed000e3805/04-finale-phone-two-after-reload.png`
+- Persisted scrapbook overview, Phone One: `/Users/kyleberry/.codex/visualizations/2026/08/08/019fe2fd-1cd5-7751-a32f-e4ed000e3805/05-persisted-scrapbook-phone-one.png`
+- Persisted `Weather Report` responses, Phone One: `/Users/kyleberry/.codex/visualizations/2026/08/08/019fe2fd-1cd5-7751-a32f-e4ed000e3805/07-persisted-weather-report-phone-one.png`
+- Persisted `Weather Report` and `Shared Seed`, Phone Two: `/Users/kyleberry/.codex/visualizations/2026/08/08/019fe2fd-1cd5-7751-a32f-e4ed000e3805/09-persisted-weather-report-phone-two-both-responses.png`
+
+The 2026-07-26 and earlier evidence below is historical and separate from this
+production endurance run.
 
 ## 2026-07-26 Legacy Recovery and Renderer Hotfix
 

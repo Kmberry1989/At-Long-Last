@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { AudioProvider } from './audio/AudioProvider.jsx'
+import { AccountToggle } from './components/AccountToggle.jsx'
 import { AudioToggle } from './components/AudioToggle.jsx'
 import { FirebaseAppProvider } from './features/couple/FirebaseAppContext.jsx'
 import { CoupleProvider } from './features/couple/CoupleProvider.jsx'
@@ -16,6 +17,7 @@ function AppContent() {
   return (
     <div className="app-shell">
       <AudioToggle />
+      <AccountToggle />
       <Suspense fallback={null}>
         <LobbyScreen />
         <GameScreen />

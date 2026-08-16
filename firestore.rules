@@ -527,6 +527,109 @@ service cloud.firestore {
       ];
     }
 
+    function miniGameIds() {
+      return [
+        'mind-meld', 'prediction-box', 'the-vault',
+        'vibe-check', 'tempo-tap', 'word-weaver',
+        'dual-axis-maze', 'blind-canvas', 'harmonic-lock',
+        'bluff-bidding', 'photo-flashback'
+      ];
+    }
+
+    function isBaseActivityId(activityId) {
+      return activityId in activityIds() && !(activityId in miniGameIds());
+    }
+
+    function isBoundedInt(value, minValue, maxValue) {
+      return value is int
+        && value >= minValue
+        && value <= maxValue;
+    }
+
+    function isPlayerIndex(value) {
+      return isBoundedInt(value, 0, 1);
+    }
+
+    function isValidImageDataUrl(value, maxSize) {
+      return value is string
+        && value.size() <= maxSize
+        && value.matches('^data:image/(webp|jpeg|png);base64,.{1,}$');
+    }
+
+    function isValidActivityStateMinimal(activityId, data) {
+      return data is map
+        && data.keys().hasAll(['activityId', 'turnIndex'])
+        && data.activityId == activityId
+        && (
+          ('prompt' in data && isBoundedString(data.prompt, 1, 500))
+          || ('topic' in data && isBoundedString(data.topic, 1, 200))
+        )
+        && isPlayerIndex(data.turnIndex)
+        && data.keys().size() <= 16
+        && (!('imageDataUrl' in data) || data.imageDataUrl == null || isValidImageDataUrl(data.imageDataUrl, 350000));
+    }
+
+    function isValidStoredActivityResult(activityId, data) {
+      return data is map
+        && data.keys().size() <= 11
+        && data.payload is map
+        && isValidArtifactPayloadBudget(activityId, data.payload)
+        && (!('heartBonus' in data) || isBoundedInt(data.heartBonus, 0, 10))
+        && (!('title' in data) || isBoundedString(data.title, 1, 160))
+        && (!('text' in data) || isBoundedString(data.text, 1, 4000))
+        && (!('type' in data) || isBoundedString(data.type, 1, 64));
+    }
+
+    function isValidArtifactPayloadBudget(activityId, data) {
+      return data is map
+        && (
+          (isBaseActivityId(activityId) && data.keys().size() <= 6)
+          || (activityId in ['mind-meld', 'the-vault', 'harmonic-lock'] && data.keys().size() <= 7)
+          || (activityId in ['prediction-box', 'vibe-check', 'tempo-tap', 'word-weaver', 'dual-axis-maze', 'blind-canvas', 'bluff-bidding', 'photo-flashback'] && data.keys().size() <= 8)
+        )
+        && (!('imageDataUrl' in data) || data.imageDataUrl == null || isValidImageDataUrl(data.imageDataUrl, 350000))
+        && (!('entries' in data) || data.entries is list && data.entries.size() <= 2)
+        && (!('answers' in data) || data.answers is list && data.answers.size() <= 12)
+        && (!('options' in data) || data.options is list && data.options.size() <= 4)
+        && (!('results' in data) || data.results is list && data.results.size() == 2)
+        && (!('submissions' in data) || data.submissions is list && data.submissions.size() == 2)
+        && (!('halves' in data) || data.halves is list && data.halves.size() == 2)
+        && (!('history' in data) || data.history is list && data.history.size() <= 8);
+    }
+
+    function isValidSkippedActivityResult(data) {
+      return data is map
+        && data.keys().hasAll(['skipped', 'title'])
+        && data.keys().hasOnly(['skipped', 'title'])
+        && data.skipped == true
+        && isBoundedString(data.title, 1, 160);
+    }
+
+    function isValidJournalPayloadBudget(type, data) {
+      return data is map
+        && (
+          (type in ['prompt', 'journal', 'ritual'] && data.keys().size() <= 6)
+          || (type in ['match', 'vault', 'harmonic'] && data.keys().size() <= 7)
+          || (type in ['prediction', 'vibe-sync', 'tempo', 'word', 'maze', 'canvas', 'bluff', 'photo'] && data.keys().size() <= 8)
+          || (type in ['activity-pass', 'duel', 'finale', 'keepsake', 'vibe-setup'] && data.keys().size() <= 40)
+        )
+        && (!('imageDataUrl' in data) || data.imageDataUrl == null || isValidImageDataUrl(data.imageDataUrl, 750000))
+        && (!('entries' in data) || data.entries is list && data.entries.size() <= 2)
+        && (!('answers' in data) || data.answers is list && data.answers.size() <= 12)
+        && (!('results' in data) || data.results is map || data.results is list)
+        && (!('halves' in data) || data.halves is list && data.halves.size() <= 2)
+        && (!('history' in data) || data.history is list && data.history.size() <= 8)
+        && (!('sharedWords' in data) || data.sharedWords is list && data.sharedWords.size() <= 40)
+        && (
+          type in [
+            'activity-pass', 'bluff', 'canvas', 'duel', 'finale', 'harmonic',
+            'journal', 'keepsake', 'match', 'maze', 'photo', 'prediction',
+            'prompt', 'ritual', 'tempo', 'vault', 'vibe-setup', 'vibe-sync',
+            'word'
+          ]
+        );
+    }
+
     function isValidDuelResult(data) {
       return data is map
         && data.keys().hasAll(['highlight', 'time', 'won'])
@@ -754,8 +857,45 @@ service cloud.firestore {
         ).data.activeSessionId == null;
     }
 
+    // Normal active-session writes need a small fast path because an activity
+    // completion transaction also writes its activity and scrapbook artifact.
+    // The existing lifecycle validator remains the fallback for terminal and
+    // legacy transitions, while this path keeps the three-write transaction
+    // under Firestore's per-request expression budget.
+    function isValidActiveSessionMutationBudget() {
+      let after = request.resource.data;
+      let changed = after.diff(resource.data).affectedKeys();
+      return isParticipant(resource.data.coupleId)
+        && after.keys().size() == resource.data.keys().size()
+        && after.keys().hasOnly(resource.data.keys())
+        && resource.data.status == 'active'
+        && after.status == 'active'
+        && after.endedAt == null
+        && after.coupleId == resource.data.coupleId
+        && after.players == resource.data.players
+        && after.preset == resource.data.preset
+        && after.totalRounds == resource.data.totalRounds
+        && after.goals == resource.data.goals
+        && after.createdAt == resource.data.createdAt
+        && after.startedAt == resource.data.startedAt
+        && after.actionText is string
+        && after.actionText.size() >= 1
+        && after.actionText.size() <= 500
+        && after.updatedAt == request.time
+        && (
+          after.lastActionAt == resource.data.lastActionAt
+          || after.lastActionAt == request.time
+        )
+        && (
+          changed.hasOnly(['duelResults', 'updatedAt'])
+            ? isValidDuelResultSubmission()
+            : true
+        );
+    }
+
     function isValidActivity(data) {
-      return data.keys().hasAll([
+      return data is map
+        && data.keys().hasAll([
           'coupleId', 'sessionId', 'state', 'status', 'type',
           'createdAt', 'updatedAt'
         ])
@@ -765,11 +905,15 @@ service cloud.firestore {
         ])
         && isBoundedString(data.coupleId, 1, 128)
         && isBoundedString(data.sessionId, 1, 128)
-        && data.state is map
-        && data.state.keys().size() <= 24
+        && isValidActivityStateMinimal(data.type, data.state)
         && data.status in ['in_progress', 'completed', 'skipped']
         && data.type in activityIds()
-        && (!('result' in data) || data.result == null || (data.result is map && data.result.keys().size() <= 30))
+        && (
+          !('result' in data)
+          || data.result == null
+          || isValidSkippedActivityResult(data.result)
+          || isValidStoredActivityResult(data.type, data.result)
+        )
         && (!('resolvedAt' in data) || data.resolvedAt is timestamp)
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
@@ -821,7 +965,8 @@ service cloud.firestore {
     }
 
     function isValidJournalEntry(data) {
-      return data.keys().hasAll([
+      return data is map
+        && data.keys().hasAll([
           'coupleId', 'sessionId', 'payload', 'summary',
           'text', 'title', 'type', 'vibe', 'createdAt'
         ])
@@ -832,11 +977,16 @@ service cloud.firestore {
         && isBoundedString(data.coupleId, 1, 128)
         && isBoundedString(data.sessionId, 1, 128)
         && data.payload is map
-        && data.payload.keys().size() <= 40
+        && isValidJournalPayloadBudget(data.type, data.payload)
         && isBoundedString(data.summary, 1, 1200)
         && isBoundedString(data.text, 1, 4000)
         && isBoundedString(data.title, 1, 160)
-        && isBoundedString(data.type, 1, 64)
+        && data.type in [
+          'activity-pass', 'bluff', 'canvas', 'duel', 'finale', 'harmonic',
+          'journal', 'keepsake', 'match', 'maze', 'photo', 'prediction',
+          'prompt', 'ritual', 'tempo', 'vault', 'vibe-setup', 'vibe-sync',
+          'word'
+        ]
         && isVibe(data.vibe)
         && isOptionalBoundedString(data, 'openAt', 40)
         && data.createdAt == request.time;
@@ -996,7 +1146,8 @@ service cloud.firestore {
 
       allow update: if isAuthenticated()
         && (
-          isValidSessionUpdateCompact()
+          isValidActiveSessionMutationBudget()
+          || isValidSessionUpdateCompact()
           || isValidLegacySessionAbandon(sessionId)
         );
 

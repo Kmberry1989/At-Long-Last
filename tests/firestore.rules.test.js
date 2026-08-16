@@ -31,6 +31,7 @@ import {
   finalizeActivity,
   submitVibeVote,
 } from '../src/features/session/sessionService.js'
+import { activityRegistry } from '../src/features/session/activityRegistry.jsx'
 
 const PROJECT_ID = 'demo-at-long-last'
 const HOST_UID = 'host-account'
@@ -289,6 +290,36 @@ describe('verified two-account lifecycle', () => {
     )
   })
 
+  it('accepts the bounded initial state for every registered mini-game', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    const sessionSnapshot = await getDoc(doc(hostDb, 'sessions', sessionId))
+    const session = { id: sessionSnapshot.id, ...sessionSnapshot.data() }
+
+    for (const activityType of [
+      'mind-meld',
+      'prediction-box',
+      'the-vault',
+      'vibe-check',
+      'tempo-tap',
+      'word-weaver',
+      'dual-axis-maze',
+      'blind-canvas',
+      'harmonic-lock',
+      'bluff-bidding',
+      'photo-flashback',
+    ]) {
+      const state = activityRegistry[activityType].createInitialState(
+        session.players,
+        { activePlayerIndex: 0, random: () => 0 },
+      )
+
+      await assertSucceeds(
+        createActivityRecord(hostDb, session, activityType, state),
+      )
+    }
+  })
+
   it('commits a completed response and its scrapbook page together', async () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
@@ -364,6 +395,106 @@ describe('verified two-account lifecycle', () => {
     expect(journalSnapshot.docs.some(
       (entry) => entry.data().title === 'Weather Report',
     )).toBe(true)
+  })
+
+  it('rejects mini-game schema expansion and rolls back an oversized scrapbook artifact', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    const sessionSnapshot = await getDoc(doc(hostDb, 'sessions', sessionId))
+    const session = { id: sessionSnapshot.id, ...sessionSnapshot.data() }
+    const mindMeldState = activityRegistry['mind-meld'].createInitialState(
+      session.players,
+      { activePlayerIndex: 0, random: () => 0 },
+    )
+    const mindMeldId = await createActivityRecord(
+      hostDb,
+      session,
+      'mind-meld',
+      mindMeldState,
+    )
+
+    await assertFails(
+      updateDoc(doc(hostDb, 'activities', mindMeldId), {
+        state: {
+          ...mindMeldState,
+          extraData: 'schema pollution',
+          extraDataTwo: 'second forged field',
+          extraDataThree: 'third forged field',
+          extraDataFour: 'fourth forged field',
+          extraDataFive: 'fifth forged field',
+          extraDataSix: 'sixth forged field',
+          extraDataSeven: 'seventh forged field',
+          extraDataEight: 'eighth forged field',
+          extraDataNine: 'ninth forged field',
+          extraDataTen: 'tenth forged field',
+        },
+        updatedAt: serverTimestamp(),
+      }),
+    )
+
+    const photoState = activityRegistry['photo-flashback'].createInitialState(
+      session.players,
+      { activePlayerIndex: 0, random: () => 0 },
+    )
+    const photoId = await createActivityRecord(
+      hostDb,
+      session,
+      'photo-flashback',
+      photoState,
+    )
+    const oversizedImage = `data:image/webp;base64,${'A'.repeat(350001)}`
+    const photoPayload = {
+      captions: [
+        { label: 'Host', playerIndex: 0, text: 'A saved detail.' },
+        { label: 'Guest', playerIndex: 1, text: 'Another saved detail.' },
+      ],
+      heartBonus: 4,
+      imageDataUrl: oversizedImage,
+      prompt: photoState.prompt,
+      promptId: photoState.promptId,
+    }
+
+    await assertFails(finalizeActivity({
+      activityId: photoId,
+      activityResult: {
+        heartBonus: 4,
+        label: 'Photo Flashback',
+        payload: photoPayload,
+        savesToJournal: true,
+        summary: 'An oversized photo must not be stored.',
+        text: 'Host: A saved detail.\nGuest: Another saved detail.',
+        title: 'Photo Flashback',
+        type: 'photo',
+        vibe: 'tender',
+      },
+      db: hostDb,
+      journalEntry: {
+        coupleId: couple.id,
+        payload: photoPayload,
+        sessionId,
+        summary: 'An oversized photo must not be stored.',
+        text: 'Host: A saved detail.\nGuest: Another saved detail.',
+        title: 'Photo Flashback',
+        type: 'photo',
+        vibe: 'tender',
+      },
+      nextSession: {
+        ...session,
+        pendingActivityId: null,
+        pendingActivityType: null,
+      },
+      sessionId,
+      state: photoState,
+    }))
+
+    const photoSnapshot = await getDoc(doc(hostDb, 'activities', photoId))
+    expect(photoSnapshot.data().status).toBe('in_progress')
+    expect(photoSnapshot.data()).not.toHaveProperty('result')
+    const journalSnapshot = await getDocs(query(
+      collection(hostDb, 'journalEntries'),
+      where('coupleId', '==', couple.id),
+    ))
+    expect(journalSnapshot.docs).toHaveLength(0)
   })
 
   it('creates an invite, joins it, starts a shared session, and abandons it', async () => {
