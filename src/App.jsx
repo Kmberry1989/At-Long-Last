@@ -18,7 +18,14 @@ function AppContent() {
     <div className="app-shell">
       <AudioToggle />
       <AccountToggle />
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={(
+          <div aria-live="polite" className="app-loading" role="status">
+            <span aria-hidden="true" className="app-loading-mark">♥</span>
+            <span>Setting the room…</span>
+          </div>
+        )}
+      >
         <LobbyScreen />
         <GameScreen />
       </Suspense>

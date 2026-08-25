@@ -88,4 +88,58 @@ describe('LobbyScreen', () => {
       expect.stringContaining('/assets/players/'),
     )
   })
+
+  it('supports labeled auth fields, password visibility, and Enter-to-submit', () => {
+    const signInWithEmail = vi.fn()
+    mockState.coupleContext = {
+      couple: null,
+      createCouple: vi.fn(),
+      error: '',
+      hasPartner: false,
+      joinCouple: vi.fn(),
+      joinPublicLobby: vi.fn(),
+      leaveCouple: vi.fn(),
+      launchPreview: vi.fn(),
+      loading: false,
+      postLobbyMessage: vi.fn(),
+      profile: null,
+      publicLobbyMessages: [],
+      publicLobbies: [],
+      sessionPreset: 'standard',
+      selectedPublicLobbyId: null,
+      selectPublicLobby: vi.fn(),
+      switchCouple: vi.fn(),
+      switchPublicLobby: vi.fn(),
+      updateSessionPreset: vi.fn(),
+    }
+    mockState.firebaseContext = {
+      authError: '',
+      authWorking: false,
+      createAccount: vi.fn(),
+      enabled: true,
+      isSignedIn: false,
+      ready: true,
+      signInWithEmail,
+      signInWithProvider: vi.fn(),
+      signOutUser: vi.fn(),
+      updateDisplayName: vi.fn(),
+      user: null,
+    }
+
+    render(<LobbyScreen />)
+
+    const email = screen.getByRole('textbox', { name: 'Email' })
+    const password = screen.getByLabelText('Password')
+    fireEvent.change(email, { target: { value: 'kyle@example.test' } })
+    fireEvent.change(password, { target: { value: 'secret123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }))
+
+    expect(password).toHaveAttribute('type', 'text')
+    fireEvent.submit(password)
+
+    expect(signInWithEmail).toHaveBeenCalledWith({
+      email: 'kyle@example.test',
+      password: 'secret123',
+    })
+  })
 })

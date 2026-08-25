@@ -122,6 +122,41 @@ p {
   background: radial-gradient(circle, rgba(124, 168, 201, 0.22) 0%, transparent 72%);
 }
 
+.app-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  color: var(--app-cream);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.app-loading-mark {
+  color: var(--app-gold);
+  font-size: 30px;
+  line-height: 1;
+  animation: loading-pulse 1200ms ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
 .screen {
   position: absolute;
   inset: 0;
@@ -527,6 +562,48 @@ p {
 .auth-email-fields {
   display: grid;
   gap: 9px;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field .text-input {
+  padding-right: 68px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  min-width: 48px;
+  border: 0;
+  border-radius: 10px;
+  padding: 7px 6px;
+  color: var(--app-blue-deep);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  background: rgba(124, 168, 201, 0.16);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .auth-card .text-input {

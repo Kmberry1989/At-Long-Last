@@ -104,6 +104,7 @@ export function LobbyScreen() {
   const [inviteCode, setInviteCode] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [entryMode, setEntryMode] = useState('start')
   const [authMode, setAuthMode] = useState('signin')
   const [draftSessionPreset, setDraftSessionPreset] = useState(sessionPreset)
@@ -115,6 +116,10 @@ export function LobbyScreen() {
   useEffect(() => {
     setStage?.('lobby')
   }, [setStage])
+
+  useEffect(() => {
+    setShowPassword(false)
+  }, [authMode])
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -392,15 +397,19 @@ export function LobbyScreen() {
         <div className="divider-label">or use email</div>
         <div className="mode-toggle" role="tablist" aria-label="Auth mode">
           <button
+            aria-selected={authMode === 'create'}
             className={`mode-pill${authMode === 'create' ? ' active' : ''}`}
             onClick={() => setAuthMode('create')}
+            role="tab"
             type="button"
           >
             Create Account
           </button>
           <button
+            aria-selected={authMode === 'signin'}
             className={`mode-pill${authMode === 'signin' ? ' active' : ''}`}
             onClick={() => setAuthMode('signin')}
+            role="tab"
             type="button"
           >
             Sign In
@@ -408,69 +417,115 @@ export function LobbyScreen() {
         </div>
 
         {authMode === 'create' ? (
-          <div className="auth-email-fields">
+          <form
+            className="auth-email-fields"
+            onSubmit={(event) => {
+              event.preventDefault()
+              handleCreateAccount()
+            }}
+          >
+            <label className="sr-only" htmlFor="auth-display-name">Display name</label>
             <input
+              autoComplete="name"
               className="text-input"
+              id="auth-display-name"
               onChange={(event) => setDisplayName(event.target.value)}
               placeholder="Display name"
               value={displayName}
             />
+            <label className="sr-only" htmlFor="auth-email">Email</label>
             <input
               autoComplete="email"
               className="text-input"
+              id="auth-email"
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Email"
+              required
               type="email"
               value={email}
             />
-            <input
-              autoComplete="new-password"
-              className="text-input"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password (6+ characters)"
-              type="password"
-              value={password}
-            />
+            <div className="password-field">
+              <label className="sr-only" htmlFor="auth-password">Password</label>
+              <input
+                autoComplete="new-password"
+                className="text-input"
+                id="auth-password"
+                minLength={6}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Password (6+ characters)"
+                required
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="password-toggle"
+                onClick={() => setShowPassword((current) => !current)}
+                type="button"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
             <div className="button-row">
               <button
                 className="primary-btn"
                 disabled={!canCreateAccount || working}
-                onClick={handleCreateAccount}
-                type="button"
+                type="submit"
               >
                 Create My Profile
               </button>
             </div>
-          </div>
+          </form>
         ) : (
-          <div className="auth-email-fields">
+          <form
+            className="auth-email-fields"
+            onSubmit={(event) => {
+              event.preventDefault()
+              handleSignIn()
+            }}
+          >
+            <label className="sr-only" htmlFor="auth-email">Email</label>
             <input
               autoComplete="email"
               className="text-input"
+              id="auth-email"
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Email"
+              required
               type="email"
               value={email}
             />
-            <input
-              autoComplete="current-password"
-              className="text-input"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password"
-              type="password"
-              value={password}
-            />
+            <div className="password-field">
+              <label className="sr-only" htmlFor="auth-password">Password</label>
+              <input
+                autoComplete="current-password"
+                className="text-input"
+                id="auth-password"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Password"
+                required
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="password-toggle"
+                onClick={() => setShowPassword((current) => !current)}
+                type="button"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
             <div className="button-row">
               <button
                 className="primary-btn"
                 disabled={!canSignIn || working}
-                onClick={handleSignIn}
-                type="button"
+                type="submit"
               >
                 Sign In
               </button>
             </div>
-          </div>
+          </form>
         )}
       </>
     )
@@ -941,7 +996,11 @@ export function LobbyScreen() {
           )}
 
           {(authNotice) && (
-            <p className={authError || error ? 'error-copy' : 'notice-copy'}>
+            <p
+              aria-live={authError || error ? 'assertive' : 'polite'}
+              className={authError || error ? 'error-copy' : 'notice-copy'}
+              role={authError || error ? 'alert' : 'status'}
+            >
               {authNotice}
             </p>
           )}
