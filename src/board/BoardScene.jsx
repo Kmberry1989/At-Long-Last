@@ -181,12 +181,12 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
 
     const tileTextures = new Map()
     boardPath.forEach((space) => {
-      tileTextures.set(space.type, makeLabelTexture(space.label, space.type))
+      tileTextures.set(space.id, makeLabelTexture(space.label, space.type))
     })
 
     boardPath.forEach((space) => {
       const geometry = new THREE.BoxGeometry(2.2, 0.4, 2.2)
-      const topTexture = tileTextures.get(space.type)
+      const topTexture = tileTextures.get(space.id)
       const sideMaterial = new THREE.MeshStandardMaterial({
         color: '#fffaf2',
         roughness: 0.7,
@@ -318,6 +318,8 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
 
     const startedAt = performance.now()
 
+    let animationFrame = 0
+
     function animate() {
       const elapsed = (performance.now() - startedAt) / 1000
       const focus = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
@@ -344,12 +346,13 @@ export function BoardScene({ players, positions, activePlayerIndex, boardState }
 
       floor.rotation.y = elapsed * 0.02
       renderer.render(scene, camera)
-      requestAnimationFrame(animate)
+      animationFrame = requestAnimationFrame(animate)
     }
 
     animate()
 
     return () => {
+      cancelAnimationFrame(animationFrame)
       resizeObserver.disconnect()
       renderer.dispose()
       mount.removeChild(renderer.domElement)

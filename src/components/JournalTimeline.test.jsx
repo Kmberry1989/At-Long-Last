@@ -82,7 +82,7 @@ describe('JournalTimeline', () => {
 
     expect(screen.getByText('Conversation Slip')).toBeInTheDocument()
     expect(screen.getByText('Shared hearts')).toBeInTheDocument()
-    expect(screen.getByText('Pocket Love Note')).toBeInTheDocument()
+    expect(screen.getAllByText('Pocket Love Note')).toHaveLength(2)
     expect(screen.getByText('A night with some weight to it.')).toBeInTheDocument()
     expect(screen.getByText('Shared finish')).toBeInTheDocument()
   })

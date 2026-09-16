@@ -57,6 +57,28 @@ export function VibeDial({
     setWeights(positionToWeights(clampedX, clampedY))
   }
 
+  function updatePosition(nextPosition) {
+    const next = {
+      x: Math.max(8, Math.min(92, nextPosition.x)),
+      y: Math.max(8, Math.min(92, nextPosition.y)),
+    }
+    setPosition(next)
+    setWeights(positionToWeights(next.x, next.y))
+  }
+
+  function handleKeyDown(event) {
+    if (disabled || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      return
+    }
+
+    event.preventDefault()
+    const step = event.shiftKey ? 12 : 6
+    updatePosition({
+      x: position.x + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0),
+      y: position.y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0),
+    })
+  }
+
   const dominant = useMemo(() => {
     if (weights.tender >= weights.playful && weights.tender >= weights.spicy) {
       return 'Tender'
@@ -75,8 +97,8 @@ export function VibeDial({
       <h3>How should tonight feel?</h3>
       <p className="support-copy">
         {playerName
-          ? `${playerName}, drag toward the energy you want more of.`
-          : 'Drag toward the energy you want more of tonight.'}
+          ? `${playerName}, drag or use the arrow keys toward the energy you want more of.`
+          : 'Drag or use the arrow keys toward the energy you want more of tonight.'}
       </p>
 
       <div className="vibe-surface" ref={surfaceRef}>
@@ -88,12 +110,14 @@ export function VibeDial({
         <span className="vibe-label spicy">Spicy {Math.round(weights.spicy * 100)}%</span>
         <motion.button
           aria-label="Move the vibe mix"
+          aria-valuetext={`Tender ${Math.round(weights.tender * 100)}%, playful ${Math.round(weights.playful * 100)}%, spicy ${Math.round(weights.spicy * 100)}%`}
           className={`vibe-handle dominant-${dominant.toLowerCase()}`}
           drag={!disabled}
           dragConstraints={surfaceRef}
           dragElastic={0}
           dragMomentum={false}
           onDrag={handleDrag}
+          onKeyDown={handleKeyDown}
           style={{
             left: `${position.x}%`,
             top: `${position.y}%`,

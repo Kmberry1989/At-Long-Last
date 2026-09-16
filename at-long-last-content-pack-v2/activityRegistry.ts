@@ -1,7 +1,7 @@
 /**
  * At Long Last - Activity Registry
  * Drop this into src/features/session/activityRegistry.ts
- * 45 activities across tender / playful / spicy
+ * 63 activities across tender / playful / spicy
  */
 
 export type Vibe = 'tender' | 'playful' | 'spicy';
@@ -611,5 +611,245 @@ export const ACTIVITIES: Activity[] = [
     skippable: true,
     savesToJournal: true,
     tags: ['touch', 'memory']
+  },
+
+  // EXPANSION - TENDER
+  {
+    id: 'rose-thorn-seed',
+    vibe: 'tender',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Rose, Thorn, Seed',
+    prompt: 'Share one bright spot, one hard spot, and one small thing you hope grows before we play again.',
+    description: 'A compact check-in with somewhere hopeful to land.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['check-in', 'hope', 'growth']
+  },
+  {
+    id: 'ordinary-treasure',
+    vibe: 'tender',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Ordinary Treasure',
+    prompt: 'Which completely ordinary moment with us would you freeze and keep exactly as it was?',
+    description: 'Notice the quiet moments that became important.',
+    durationSec: 75,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['memory', 'noticing', 'everyday']
+  },
+  {
+    id: 'invisible-backpack',
+    vibe: 'tender',
+    type: 'prompt',
+    intensity: 2,
+    title: 'Invisible Backpack',
+    prompt: 'What have you been carrying quietly lately, and what would make it feel one notch lighter?',
+    description: 'Offer context and one practical form of care without trying to fix everything.',
+    durationSec: 120,
+    skippable: true,
+    savesToJournal: false,
+    tags: ['support', 'needs', 'vulnerability']
+  },
+  {
+    id: 'gentle-signal',
+    vibe: 'tender',
+    type: 'ritual',
+    intensity: 1,
+    title: 'Gentle Signal',
+    prompt: 'Invent a tiny phrase or gesture that means "I want to reconnect, but I do not have the perfect words yet."',
+    description: 'Create a low-pressure repair signal for future moments.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['repair', 'communication', 'ritual']
+  },
+  {
+    id: 'five-minute-tradition',
+    vibe: 'tender',
+    type: 'ritual',
+    intensity: 1,
+    title: 'Five-Minute Tradition',
+    prompt: 'Design a five-minute tradition we could actually repeat this week. Give it a name and one simple rule.',
+    description: 'Turn affection into a tiny repeatable ritual.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['tradition', 'co-care', 'future']
+  },
+  {
+    id: 'museum-of-us',
+    vibe: 'tender',
+    type: 'journal',
+    intensity: 2,
+    title: 'Museum of Us',
+    prompt: 'Choose one everyday object from our relationship and write its museum label: title, year, and why it mattered.',
+    description: 'Give an ordinary artifact the importance it deserves.',
+    durationSec: 120,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['artifact', 'memory', 'story']
+  },
+
+  // EXPANSION - PLAYFUL
+  {
+    id: 'wrong-answers-only',
+    vibe: 'playful',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Wrong Answers Only',
+    prompt: 'Why are we obviously the most suspicious couple in town? Give the least believable explanation possible.',
+    description: 'Build a ridiculous shared alibi.',
+    durationSec: 60,
+    skippable: true,
+    savesToJournal: false,
+    tags: ['improv', 'funny', 'story']
+  },
+  {
+    id: 'couple-mascot',
+    vibe: 'playful',
+    type: 'journal',
+    intensity: 1,
+    title: 'Couple Mascot',
+    prompt: 'Invent our official mascot. What creature is it, what is it wearing, and what chaotic advice does it give us?',
+    description: 'Create a recurring character for your shared lore.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['lore', 'character', 'creativity']
+  },
+  {
+    id: 'tiny-shark-tank',
+    vibe: 'playful',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Tiny Shark Tank',
+    prompt: 'Pitch one unnecessary invention that would improve our relationship by exactly 3%. Name it and sell it.',
+    description: 'Make a one-minute pitch for a gloriously minor solution.',
+    durationSec: 75,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['improv', 'invention', 'funny']
+  },
+  {
+    id: 'plot-twist',
+    vibe: 'playful',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Plot Twist',
+    prompt: 'Retell one real memory of us, but add one dramatic plot twist. Your partner has to identify the fake detail.',
+    description: 'Turn shared history into a guessing game.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: false,
+    tags: ['game', 'memory', 'guessing']
+  },
+  {
+    id: 'soundtrack-shuffle',
+    vibe: 'playful',
+    type: 'ritual',
+    intensity: 1,
+    title: 'Soundtrack Shuffle',
+    prompt: 'Choose three songs: our opening credits, tonight\'s montage, and the song playing over the bloopers.',
+    description: 'Build a tiny soundtrack for this chapter.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['music', 'ritual', 'story']
+  },
+  {
+    id: 'emoji-forecast',
+    vibe: 'playful',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Emoji Forecast',
+    prompt: 'Describe our next week using exactly five emoji, then explain the weirdest one.',
+    description: 'Make a tiny prediction and compare interpretations.',
+    durationSec: 60,
+    skippable: true,
+    savesToJournal: false,
+    tags: ['emoji', 'future', 'quick']
+  },
+
+  // EXPANSION - SPICY (tasteful, romantic, opt-in)
+  {
+    id: 'closer-than-words',
+    vibe: 'spicy',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Closer Than Words',
+    prompt: 'What small thing makes you feel instantly closer to me: a look, a phrase, a touch, or something else?',
+    description: 'Name an easy invitation to closeness.',
+    durationSec: 75,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['closeness', 'noticing', 'affection']
+  },
+  {
+    id: 'date-trailer',
+    vibe: 'spicy',
+    type: 'journal',
+    intensity: 2,
+    title: 'Date Trailer',
+    prompt: 'Write the voice-over for a 20-second trailer teasing our next ideal date without revealing the ending.',
+    description: 'Build anticipation with a cinematic invitation.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['date', 'anticipation', 'story']
+  },
+  {
+    id: 'favorite-detail',
+    vibe: 'spicy',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Favorite Detail',
+    prompt: 'Name one tiny detail about me you could recognize anywhere, and tell me why you notice it.',
+    description: 'Trade specific, grounded admiration.',
+    durationSec: 75,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['admiration', 'noticing', 'romantic']
+  },
+  {
+    id: 'green-light-tonight',
+    vibe: 'spicy',
+    type: 'ritual',
+    intensity: 2,
+    title: 'Green Light Tonight',
+    prompt: 'What kind of affection would feel especially welcome tonight? Offer one option, and "not tonight" is always a complete answer.',
+    description: 'Make room for a clear, low-pressure invitation and an equally easy pass.',
+    durationSec: 90,
+    skippable: true,
+    savesToJournal: false,
+    tags: ['consent', 'affection', 'communication']
+  },
+  {
+    id: 'chemistry-recipe',
+    vibe: 'spicy',
+    type: 'prompt',
+    intensity: 1,
+    title: 'Chemistry Recipe',
+    prompt: 'Our chemistry is two parts ___, one part ___, plus a dangerous amount of ___. Fill in the recipe.',
+    description: 'Describe your spark without taking it too seriously.',
+    durationSec: 60,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['chemistry', 'funny', 'flirty']
+  },
+  {
+    id: 'doorstep-scene',
+    vibe: 'spicy',
+    type: 'journal',
+    intensity: 2,
+    title: 'Doorstep Scene',
+    prompt: 'Imagine we have not seen each other for a month. Write the first three lines of the scene when the door finally opens.',
+    description: 'Capture anticipation and reunion without scripting beyond your comfort.',
+    durationSec: 120,
+    skippable: true,
+    savesToJournal: true,
+    tags: ['reunion', 'longing', 'story']
   }
 ];

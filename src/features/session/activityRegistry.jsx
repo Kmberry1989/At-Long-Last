@@ -27,34 +27,39 @@ function buildOpenAt(definition) {
 
 function ActivityCard({ activity, disabled, onSkip, onSubmit, players }) {
   const [text, setText] = useState('')
+  const definition = useMemo(
+    () => activityDefinitions.find((entry) => entry.id === activity.type),
+    [activity.type],
+  )
+  const activityType = definition?.type || 'prompt'
   const activeName =
     activity.state.turnIndex >= 0
       ? players[activity.state.turnIndex]?.displayName
       : null
   const responsePlaceholder = useMemo(() => {
-    if (activity.type === 'ritual') {
+    if (activityType === 'ritual') {
       return 'Describe what you left, chose, or imagined.'
     }
 
-    if (activity.type === 'journal') {
+    if (activityType === 'journal') {
       return 'Write a couple of lines worth keeping.'
     }
 
     return 'One or two sentences is enough.'
-  }, [activity.type])
+  }, [activityType])
 
   return (
     <div className={`overlay-card activity-card vibe-${activity.vibe}`}>
       <div className="overlay-head">
-        <p className="eyebrow">{activity.vibe} {activity.type}</p>
+        <p className="eyebrow">{activity.vibe} {activityType}</p>
         {activity.skippable && (
           <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
             Skip This
           </button>
         )}
       </div>
-      <h3>{activity.label}</h3>
-      <p className="support-copy">{activity.intro}</p>
+      <h3>{definition?.label || definition?.title || 'Shared Moment'}</h3>
+      <p className="support-copy">{definition?.description}</p>
       <div className="activity-prompt">
         <p>{activity.state.prompt}</p>
       </div>

@@ -113,7 +113,8 @@ function getDuelRows(entry) {
     }
 
     if (typeof result.score === 'number') {
-      metrics.push(`${result.score} pts`)
+      const score = Number.isInteger(result.score) ? result.score : result.score.toFixed(1)
+      metrics.push(`${score} pts`)
     }
 
     if (typeof result.value === 'number') {

@@ -595,6 +595,22 @@ p {
   font-weight: 600;
 }
 
+.overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+}
+
+.overlay-head .eyebrow {
+  margin: 0;
+}
+
+.overlay-head .secondary-link {
+  flex: 0 0 auto;
+}
+
 .entry-copy {
   display: grid;
   gap: 6px;
@@ -1938,10 +1954,27 @@ p {
 
   .hud.top {
     top: 58px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .hud.top .chip {
+    min-height: 42px;
+    padding: 9px 8px;
+    justify-content: center;
+    gap: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .hud.top .button-chip {
+    grid-column: span 2;
   }
 
   .hud.players {
-    top: 126px;
+    top: 158px;
     width: min(184px, 50vw);
   }
 
@@ -1992,6 +2025,12 @@ p {
     top: 114px;
     width: min(196px, 50vw);
     gap: 8px;
+  }
+
+  @media (max-width: 460px) {
+    .hud.players {
+      top: 150px;
+    }
   }
 
   .chip,

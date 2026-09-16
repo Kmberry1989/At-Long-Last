@@ -1,4 +1,4 @@
-import { Suspense, lazy, startTransition, useState } from 'react'
+import { Suspense, lazy, startTransition, useEffect, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
@@ -52,6 +52,35 @@ export function GameScreen() {
   const [journalOpen, setJournalOpen] = useState(false)
 
   useSynth(session)
+
+  useEffect(() => {
+    if (!session) {
+      return undefined
+    }
+
+    window.render_game_to_text = () => JSON.stringify({
+      activity: activity ? {
+        activePlayerIndex: activity.state.turnIndex,
+        id: activity.type,
+        prompt: activity.state.prompt,
+      } : null,
+      currentDuel: session.currentDuel?.id || null,
+      hearts: session.hearts,
+      journalMoments: journalEntries.length,
+      phase: session.phase,
+      players: session.players.map((player, index) => ({
+        active: index === session.activePlayerIndex,
+        name: player.displayName,
+        space: session.positions[index] + 1,
+      })),
+      round: session.round,
+      totalRounds: session.totalRounds,
+    })
+
+    return () => {
+      delete window.render_game_to_text
+    }
+  }, [activity, journalEntries.length, session])
 
   if (!hasPartner || !couple || !readyToPlay || !session) {
     return null
@@ -328,16 +357,31 @@ export function GameScreen() {
               </div>
             )}
             <p className="support-copy finale-vibes">{finalSummary.vibes}</p>
-            <button
-              className="primary-btn"
-              onClick={() => {
-                playAction?.()
-                startTransition(() => setJournalOpen(true))
-              }}
-              type="button"
-            >
-              Open Scrapbook
-            </button>
+            <div className="button-row finale-actions">
+              <button
+                className="primary-btn"
+                onClick={() => {
+                  playAction?.()
+                  startTransition(() => setJournalOpen(true))
+                }}
+                type="button"
+              >
+                Open Scrapbook
+              </button>
+              {canRecoverSession && (
+                <button
+                  className="primary-btn alt"
+                  disabled={working}
+                  onClick={() => {
+                    playAction?.()
+                    startFreshSession()
+                  }}
+                  type="button"
+                >
+                  Play Another Night
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
