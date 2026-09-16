@@ -125,6 +125,11 @@ function getDuelRows(entry) {
       metrics.push(`${result.time.toFixed(2)}s`)
     }
 
+    if (typeof result.score === 'number') {
+      const score = Number.isInteger(result.score) ? result.score : result.score.toFixed(1)
+      metrics.push(`${score} pts`)
+    }
+
     if (typeof result.value === 'number') {
       metrics.push(`Match ${result.value}`)
     }

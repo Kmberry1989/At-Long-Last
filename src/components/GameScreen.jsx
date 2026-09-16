@@ -1,5 +1,6 @@
 import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import { DuelRevealOverlay } from './DuelRevealOverlay.jsx'
+
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { ChecklistRail } from './ChecklistRail.jsx'
 import { LoveTank } from './LoveTank.jsx'
@@ -254,6 +255,7 @@ export function GameScreen() {
   useEffect(() => {
     setHeartGuideOpen(false)
   }, [session?.phase])
+
 
   if (!hasPartner || !couple || !readyToPlay || !session) {
     return null
@@ -748,16 +750,31 @@ export function GameScreen() {
               </div>
             )}
             <p className="support-copy finale-vibes">{finalSummary.vibes}</p>
-            <button
-              className="primary-btn"
-              onClick={() => {
-                playAction?.()
-                startTransition(() => setJournalOpen(true))
-              }}
-              type="button"
-            >
-              Open Scrapbook
-            </button>
+            <div className="button-row finale-actions">
+              <button
+                className="primary-btn"
+                onClick={() => {
+                  playAction?.()
+                  startTransition(() => setJournalOpen(true))
+                }}
+                type="button"
+              >
+                Open Scrapbook
+              </button>
+              {canRecoverSession && (
+                <button
+                  className="primary-btn alt"
+                  disabled={working}
+                  onClick={() => {
+                    playAction?.()
+                    startFreshSession()
+                  }}
+                  type="button"
+                >
+                  Play Another Night
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

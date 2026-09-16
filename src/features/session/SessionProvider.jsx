@@ -178,7 +178,9 @@ export function SessionProvider({ children }) {
 
   const localUserId = enabled ? userId : couple?.players?.[playerIndex]?.uid
   const sessionHostId = resolveSessionHostId(session, couple)
-  const isHost = localUserId ? sessionHostId === localUserId : playerIndex === 0
+  // Local preview represents both phones on one screen, so it must be allowed
+  // to perform host-only transitions regardless of whose turn just ended.
+  const isHost = !enabled || (localUserId ? sessionHostId === localUserId : playerIndex === 0)
   const canRoll = session?.phase === 'turn' && session.activePlayerIndex === playerIndex
   const canSpinDuel = isHost && session?.phase === 'duelWheel'
   const myDuelResult = useMemo(
@@ -427,7 +429,7 @@ export function SessionProvider({ children }) {
     lastActionAt &&
     Date.now() - lastActionAt.getTime() > SESSION_STALE_MS,
   )
-  const canRecoverSession = Boolean(enabled && session && (isHost || isSessionStale))
+  const canRecoverSession = Boolean(session && (!enabled || isHost || isSessionStale))
 
   const sessionStatusMessage = useMemo(() => {
     if (!session) {
@@ -1150,13 +1152,23 @@ export function SessionProvider({ children }) {
   }
 
   async function startFreshSession() {
-    if (!enabled || !db || !couple?.id || !session?.id || working || !canRecoverSession) {
+    if (!couple?.id || working || !canRecoverSession) {
       return
     }
 
     setWorking(true)
     setError('')
     try {
+      if (!enabled) {
+        setActivity(null)
+        setSession(buildInitialSession(couple))
+        return
+      }
+
+      if (!db || !session?.id) {
+        return
+      }
+
       await abandonSession(db, {
         coupleId: couple.id,
         sessionId: session.id,

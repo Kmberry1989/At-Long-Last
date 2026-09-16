@@ -9,6 +9,7 @@ import {
   pickWeightedActivityOptions,
   pickWeightedDuelId,
 } from './sessionWiring.js'
+import { activityDefinitions } from './contentPackData.js'
 
 describe('sessionWiring', () => {
   it('averages vibe votes and normalizes the result', () => {
@@ -32,6 +33,27 @@ describe('sessionWiring', () => {
     const second = pickWeightedActivityId({ tender: 1, playful: 0, spicy: 0 }, [first], () => 0)
 
     expect(second).not.toBe(first)
+  })
+
+  it('selects from the expansion after earlier tender prompts are used', () => {
+    const expansionIds = new Set([
+      'rose-thorn-seed',
+      'ordinary-treasure',
+      'invisible-backpack',
+      'gentle-signal',
+      'five-minute-tradition',
+      'museum-of-us',
+    ])
+    const usedTenderIds = activityDefinitions
+      .filter((entry) => entry.vibe === 'tender' && !expansionIds.has(entry.id))
+      .map((entry) => entry.id)
+    const picked = pickWeightedActivityId(
+      { tender: 1, playful: 0, spicy: 0 },
+      usedTenderIds,
+      () => 0,
+    )
+
+    expect(expansionIds.has(picked)).toBe(true)
   })
 
   it('avoids duplicate duels until the pool is exhausted', () => {

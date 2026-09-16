@@ -7,9 +7,15 @@ const players = [
 ]
 
 describe('activityRegistry', () => {
-  it('contains the original pack plus connection games and sealed activities with unique ids', () => {
-    expect(activityIds).toHaveLength(58)
-    expect(new Set(activityIds).size).toBe(58)
+  it('contains the full 63-item activity pack with balanced vibes and unique content', () => {
+    expect(activityIds).toHaveLength(63)
+    expect(new Set(activityIds).size).toBe(63)
+    const entries = Object.values(activityRegistry)
+    expect(entries.filter((entry) => entry.vibe === 'tender')).toHaveLength(21)
+    expect(entries.filter((entry) => entry.vibe === 'playful')).toHaveLength(21)
+    expect(entries.filter((entry) => entry.vibe === 'spicy')).toHaveLength(21)
+    expect(new Set(entries.map((entry) => entry.prompt)).size).toBe(63)
+
   })
 
   it('completes a normal two-turn activity and produces journal-ready text', () => {
@@ -75,7 +81,8 @@ describe('activityRegistry', () => {
 
   it('keeps all spicy activities skippable', () => {
     const spicyEntries = Object.values(activityRegistry).filter((entry) => entry.vibe === 'spicy')
-    expect(spicyEntries).toHaveLength(16)
+    expect(spicyEntries).toHaveLength(21)
+
     expect(spicyEntries.every((entry) => entry.skippable)).toBe(true)
   })
 

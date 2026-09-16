@@ -41,35 +41,40 @@ function ActivityCard({
   players,
 }) {
   const [text, setText] = useState('')
+  const definition = useMemo(
+    () => activityDefinitions.find((entry) => entry.id === activity.type),
+    [activity.type],
+  )
+  const activityType = definition?.type || 'prompt'
   const activeName =
     activity.state.turnIndex >= 0
       ? players[activity.state.turnIndex]?.displayName
       : null
   const revealed = activity.state.entries.length >= 2
   const responsePlaceholder = useMemo(() => {
-    if (definition.type === 'ritual') {
+    if (activityType === 'ritual') {
       return 'Describe what you left, chose, or imagined.'
     }
 
-    if (definition.type === 'journal') {
+    if (activityType === 'journal') {
       return 'Write a couple of lines worth keeping.'
     }
 
     return 'One or two sentences is enough.'
-  }, [definition.type])
+  }, [activityType])
 
   return (
     <div className={`overlay-card activity-card vibe-${definition.vibe}`}>
       <div className="overlay-head">
-        <p className="eyebrow">{definition.vibe} {definition.type}</p>
-        {definition.skippable && (
+        <p className="eyebrow">{activity.vibe} {activityType}</p>
+        {activity.skippable && (
           <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
             Skip This
           </button>
         )}
       </div>
-      <h3>{definition.label}</h3>
-      <p className="support-copy">{definition.description}</p>
+      <h3>{definition?.label || definition?.title || 'Shared Moment'}</h3>
+      <p className="support-copy">{definition?.description}</p>
       <div className="activity-prompt">
         <p>{activity.state.prompt}</p>
       </div>

@@ -559,6 +559,7 @@ export function BoardScene({
 
       tile.position.copy(space.position)
       boardGroup.add(tile)
+
     })
 
     const homeTile = boardPath[0]?.position || new THREE.Vector3(0, 0.35, 0)
@@ -720,6 +721,7 @@ export function BoardScene({
     function renderFrame(now = performance.now()) {
       latestSceneTime = now + manualTimeOffset
       const elapsed = (latestSceneTime - startedAt) / 1000
+
       const focus = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
       if (!manualView) {
         camera.position.x = THREE.MathUtils.lerp(
@@ -878,6 +880,7 @@ export function BoardScene({
       controls.target.set(focus.x * 0.2, 0, focus.z * 0.38)
       controls.update()
       controls.enableDamping = true
+
     }
 
     animate()
@@ -887,6 +890,7 @@ export function BoardScene({
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId)
       }
+
       resizeObserver.disconnect()
       controls.dispose()
       if (window.render_game_to_text === renderGameToText) {

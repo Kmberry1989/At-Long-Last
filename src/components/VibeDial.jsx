@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { DEFAULT_VIBE_WEIGHTS, normalizeVibeWeights } from '../features/session/sessionWiring.js'
 
 const DEFAULT_TRIANGLE_SIZE = {
@@ -154,10 +155,13 @@ export function VibeDial({
     () => getInsetTriangle(triangleSize.width, triangleSize.height),
     [triangleSize],
   )
-  const position = useMemo(
+  const surfaceRef = useRef(null)
+  const initialPosition = useMemo(
     () => weightsToPosition(weights, triangle),
-    [triangle, weights],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   )
+  const [position, setPosition] = useState(initialPosition)
 
   useEffect(() => {
     const exposedState = {
@@ -229,26 +233,41 @@ export function VibeDial({
     }
   }
 
+  function handleDrag(_, info) {
+    if (!surfaceRef.current) {
+      return
+    }
+
+    const rect = surfaceRef.current.getBoundingClientRect()
+    const x = ((info.point.x - rect.left) / rect.width) * 100
+    const y = ((info.point.y - rect.top) / rect.height) * 100
+    const clampedX = Math.max(8, Math.min(92, x))
+    const clampedY = Math.max(8, Math.min(92, y))
+
+    setPosition({ x: clampedX, y: clampedY })
+    setWeights(positionToWeights(clampedX, clampedY))
+  }
+
+  function updatePosition(nextPosition) {
+    const next = {
+      x: Math.max(8, Math.min(92, nextPosition.x)),
+      y: Math.max(8, Math.min(92, nextPosition.y)),
+    }
+    setPosition(next)
+    setWeights(positionToWeights(next.x, next.y))
+  }
+
   function handleKeyDown(event) {
-    const movement = {
-      ArrowDown: { x: 0, y: 8 },
-      ArrowLeft: { x: -8, y: 0 },
-      ArrowRight: { x: 8, y: 0 },
-      ArrowUp: { x: 0, y: -8 },
-    }[event.key]
-    if (disabled || !movement) {
+    if (disabled || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       return
     }
 
     event.preventDefault()
-    const point = clampPointToTriangle(
-      {
-        x: position.x + movement.x,
-        y: position.y + movement.y,
-      },
-      triangle,
-    )
-    setWeights(positionToWeights(point.x, point.y, triangle))
+    const step = event.shiftKey ? 12 : 6
+    updatePosition({
+      x: position.x + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0),
+      y: position.y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0),
+    })
   }
 
   const dominant = useMemo(() => {
@@ -269,11 +288,11 @@ export function VibeDial({
       <h3>How should tonight feel?</h3>
       <p className="support-copy">
         {playerName
-          ? `${playerName}, drag toward the energy you want more of.`
-          : 'Drag toward the energy you want more of tonight.'}
+          ? `${playerName}, drag or use the arrow keys toward the energy you want more of.`
+          : 'Drag or use the arrow keys toward the energy you want more of tonight.'}
       </p>
 
-      <div className="vibe-surface">
+      <div className="vibe-surface" ref={surfaceRef}>
         <div
           className="vibe-triangle-stage"
           onPointerCancel={handlePointerUp}
@@ -303,6 +322,30 @@ export function VibeDial({
         <span className="vibe-label tender">Tender {Math.round(weights.tender * 100)}%</span>
         <span className="vibe-label playful">Playful {Math.round(weights.playful * 100)}%</span>
         <span className="vibe-label spicy">Spicy {Math.round(weights.spicy * 100)}%</span>
+        <motion.button
+          aria-label="Move the vibe mix"
+          aria-valuetext={`Tender ${Math.round(weights.tender * 100)}%, playful ${Math.round(weights.playful * 100)}%, spicy ${Math.round(weights.spicy * 100)}%`}
+          className={`vibe-handle dominant-${dominant.toLowerCase()}`}
+          drag={!disabled}
+          dragConstraints={surfaceRef}
+          dragElastic={0}
+          dragMomentum={false}
+          onDrag={handleDrag}
+          onKeyDown={handleKeyDown}
+          style={{
+            left: `${position.x}%`,
+            top: `${position.y}%`,
+          }}
+          type="button"
+        >
+          <span />
+        </motion.button>
+      </div>
+
+      <div className="vibe-meter">
+        <span className="vibe-fill tender" style={{ width: `${weights.tender * 100}%` }} />
+        <span className="vibe-fill playful" style={{ width: `${weights.playful * 100}%` }} />
+        <span className="vibe-fill spicy" style={{ width: `${weights.spicy * 100}%` }} />
       </div>
 
       <div className="vibe-summary">
