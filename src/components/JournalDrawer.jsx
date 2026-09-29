@@ -83,7 +83,7 @@ export function JournalDrawer({ entries, open, onClose }) {
         <div className="scrapbook-tonight-card">
           <div className="scrapbook-tonight-head">
             <span>Tonight</span>
-            <strong>{finaleEntry.payload.presetLabel} night</strong>
+            <strong>{finaleEntry.payload.presetLabel}</strong>
           </div>
           <p>{finaleEntry.payload.duelOutcomeLabel}</p>
           {finaleEntry.payload.goalBadges?.length > 0 && (

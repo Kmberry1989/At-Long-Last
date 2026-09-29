@@ -42,7 +42,7 @@ describe('coupleService', () => {
 
     expect(payload.players).toHaveLength(1)
     expect(payload.playerIds).toEqual(['u1'])
-    expect(payload.shareLink).toBe('https://example.com/?code=ABC123')
+    expect(payload.shareLink).toBe('https://example.com/?invite=ABC123')
     expect(payload.sessionPreset).toBe('quick')
     expect(payload.players[0].avatar).toBe('/assets/players/owl.glb')
     expect(payload.boardState).toEqual({
@@ -50,6 +50,19 @@ describe('coupleService', () => {
       spicyGlowLevel: 0,
       tenderStars: 0,
     })
+  })
+
+  it('defaults new couples to the quick preset with an invite deep link', () => {
+    const payload = buildCreateCouplePayload({
+      avatar: '/assets/players/heart.glb',
+      displayName: 'Kyle',
+      inviteCode: 'XYZ789',
+      origin: 'https://example.com',
+      userId: 'u1',
+    })
+
+    expect(payload.sessionPreset).toBe('quick')
+    expect(payload.shareLink).toBe('https://example.com/?invite=XYZ789')
   })
 
   it('builds a minimal invite lookup payload', () => {
@@ -72,7 +85,7 @@ describe('coupleService', () => {
         hostId: 'u1',
         hostName: 'Kyle',
         inviteCode: 'ABC123',
-        shareLink: 'https://example.com/?code=ABC123',
+        shareLink: 'https://example.com/?invite=ABC123',
       }),
     ).toEqual({
       coupleId: 'couple-1',
@@ -81,7 +94,7 @@ describe('coupleService', () => {
       hostName: 'Kyle',
       inviteCode: 'ABC123',
       playerCount: 1,
-      shareLink: 'https://example.com/?code=ABC123',
+      shareLink: 'https://example.com/?invite=ABC123',
       status: 'open',
     })
   })

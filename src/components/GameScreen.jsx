@@ -7,6 +7,12 @@ import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { useSynth } from './useSynth.js'
+import {
+  ActiveTurnState,
+  PartnerAwayState,
+  ReadyToRevealState,
+  WaitingState,
+} from './PlayStates.jsx'
 
 const BoardScene = lazy(() =>
   import('../board/BoardScene.jsx').then((module) => ({ default: module.BoardScene })),
@@ -247,6 +253,63 @@ export function GameScreen() {
     .map((activityId) => activityRegistry[activityId])
     .filter(Boolean)
   const needsSessionRecovery = connectionState === 'syncing' || isSessionStale || Boolean(error)
+
+  /**
+   * Shared two-phone state contract: the non-active phone always sees who is
+   * acting, what is private, and what happens next — never a dead spinner.
+   */
+  function renderPlayState() {
+    if (isSessionStale) {
+      return <PartnerAwayState />
+    }
+
+    if (session.phase === 'turn') {
+      if (canRoll) {
+        return <ActiveTurnState hint="One roll, then your partner takes over." />
+      }
+
+      return (
+        <WaitingState
+          actorName={activePlayer?.displayName || 'Your partner'}
+          activityVerb="taking their turn"
+          nextHint="You are up right after their roll."
+          privateNote="Private: their card stays hidden until it lands on the board."
+        />
+      )
+    }
+
+    return null
+  }
+  const otherPlayer = session.players[playerIndex === 0 ? 1 : 0]
+  const otherPlayerName = otherPlayer?.displayName || 'Your partner'
+  const duelResultCount = Object.keys(session.duelResults || {}).length
+
+  /**
+   * Shared two-phone state contract: the non-active phone always sees who is
+   * acting, what is private, and what happens next — never a dead spinner.
+   */
+  function renderPlayState() {
+    if (isSessionStale) {
+      return <PartnerAwayState />
+    }
+
+    if (session.phase === 'turn') {
+      if (canRoll) {
+        return <ActiveTurnState hint="One roll, then your partner takes over." />
+      }
+
+      return (
+        <WaitingState
+          actorName={activePlayer?.displayName || 'Your partner'}
+          activityVerb="taking their turn"
+          nextHint="You are up right after their roll."
+          privateNote="Private: their card stays hidden until it lands on the board."
+        />
+      )
+    }
+
+    return null
+  }
   const momentumCards = ['tender', 'playful', 'spicy'].map((vibe) => ({
     active: Boolean(session.momentum?.unlocked?.[vibe] && !session.momentum?.consumed?.[vibe]),
     label: capitalize(vibe),
@@ -373,6 +436,7 @@ export function GameScreen() {
         </div>
         {!gameplayOverlayOpen && (
           <div className="bottom-tray">
+            {renderPlayState()}
             {!needsSessionRecovery && <p className="status-line">{sessionStatusMessage}</p>}
             <div className="button-row">
               <button
@@ -469,8 +533,12 @@ export function GameScreen() {
           />
           {myVibeVote && (
             <div className="overlay-note">
-              <p className="eyebrow">Vote Locked</p>
-              <p className="support-copy">Waiting for the other phone to lock the mood.</p>
+              <WaitingState
+                actorName={otherPlayerName}
+                activityVerb="locking in the mood"
+                nextHint="The board opens once both moods are locked."
+                privateNote="Private: their vote stays hidden."
+              />
             </div>
           )}
         </div>
@@ -555,13 +623,19 @@ export function GameScreen() {
       {!diceAnimating && session.phase === 'duel' && DuelComponent && (
         <div className="overlay-screen">
           {myDuelResult ? (
-            <div className="overlay-card">
-              <p className="eyebrow">Result Sent</p>
-              <h3>Locked In</h3>
-              <p className="support-copy">
-                {myDuelResult.highlight}. Waiting on the other phone.
-              </p>
-            </div>
+            duelResultCount >= 2 ? (
+              <ReadyToRevealState
+                actorName={otherPlayerName}
+                nextHint="Opening both answers together…"
+              />
+            ) : (
+              <WaitingState
+                actorName={otherPlayerName}
+                activityVerb="locking in their answer"
+                nextHint="The reveal opens when both answers are in."
+                privateNote="Private: answers stay hidden until the reveal."
+              />
+            )
           ) : (
             <DuelComponent
               disabled={working}

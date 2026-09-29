@@ -10,7 +10,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore'
-import { getSessionPreset } from '../session/sessionPresets.js'
+import { getSessionPreset, DEFAULT_SESSION_PRESET } from '../session/sessionPresets.js'
 import { createDefaultBoardState } from '../session/sessionWiring.js'
 import {
   PLAYER_THEMES,
@@ -33,7 +33,48 @@ export function createInviteCode(random = Math.random) {
 }
 
 export function buildShareLink(origin, inviteCode) {
-  return `${origin}/?code=${inviteCode}`
+  return `${origin}/?invite=${inviteCode}`
+}
+
+/**
+ * Resolves an invite code to a lightweight room preview without joining.
+ * Used by the deep-link join screen so the partner sees host identity and
+ * room privacy before supplying a nickname. Authenticated reads of
+ * coupleInvites and publicLobbies are permitted by the security rules.
+ */
+export async function resolveInviteRoom({ code, db }) {
+  const normalized = normalizeInviteCode(code)
+
+  if (!normalized) {
+    throw new Error('That invite link is missing its code. Ask your partner to send a fresh link.')
+  }
+
+  const inviteSnapshot = await getDoc(doc(db, 'coupleInvites', normalized))
+
+  if (!inviteSnapshot.exists()) {
+    throw new Error('Invite not found. Ask your partner to send a fresh link.')
+  }
+
+  const lobbySnapshot = await getDoc(
+    doc(db, 'publicLobbies', inviteSnapshot.data().coupleId),
+  )
+
+  if (
+    !lobbySnapshot.exists() ||
+    lobbySnapshot.data().status !== 'open' ||
+    lobbySnapshot.data().playerCount !== 1
+  ) {
+    throw new Error('That room is no longer open. Ask your partner to send a fresh link.')
+  }
+
+  const lobby = lobbySnapshot.data()
+
+  return {
+    coupleId: inviteSnapshot.data().coupleId,
+    hostName: lobby.hostName,
+    inviteCode: lobby.inviteCode || normalized,
+    status: lobby.status,
+  }
 }
 
 export function buildCreateCouplePayload({
@@ -42,7 +83,7 @@ export function buildCreateCouplePayload({
   userId,
   inviteCode,
   origin,
-  sessionPreset = 'standard',
+  sessionPreset = DEFAULT_SESSION_PRESET,
 }) {
   return {
     inviteCode,
@@ -187,7 +228,7 @@ export async function createCoupleDocument({
   db,
   displayName,
   origin,
-  sessionPreset = 'standard',
+  sessionPreset = DEFAULT_SESSION_PRESET,
   userId,
 }) {
   for (let attempt = 0; attempt < 5; attempt += 1) {

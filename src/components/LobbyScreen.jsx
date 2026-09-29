@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import {
   DEFAULT_PLAYER_AVATAR,
+  PLAYER_THEMES,
   resolvePlayerAvatar,
 } from '../features/couple/playerAvatar.js'
-import { SESSION_PRESET_OPTIONS } from '../features/session/sessionPresets.js'
+import {
+  DEFAULT_SESSION_PRESET,
+  SESSION_PRESET_OPTIONS,
+} from '../features/session/sessionPresets.js'
+import { Disclosure } from './Disclosure.jsx'
+import { InviteJoinScreen } from './InviteJoinScreen.jsx'
 import { PlayerPiecePicker } from './PlayerPiecePicker.jsx'
 
 const PLAYER_PIECE_STORAGE_KEY = 'at-long-last:player-piece:v1'
@@ -90,6 +96,7 @@ export function LobbyScreen() {
     authError,
     authWorking,
     createAccount,
+    db,
     enabled,
     isSignedIn,
     ready,
@@ -107,11 +114,27 @@ export function LobbyScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [entryMode, setEntryMode] = useState('start')
   const [authMode, setAuthMode] = useState('signin')
-  const [draftSessionPreset, setDraftSessionPreset] = useState(sessionPreset)
+  const [draftSessionPreset, setDraftSessionPreset] = useState(DEFAULT_SESSION_PRESET)
+  const [deepLinkCode, setDeepLinkCode] = useState('')
+  const [inviteNickname, setInviteNickname] = useState('')
   const [lobbyChatDraft, setLobbyChatDraft] = useState('')
   const [notice, setNotice] = useState('')
   const [editingProfile, setEditingProfile] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState(getSavedPlayerPiece)
+  // Whether the player had already chosen a piece before this visit. The
+  // invite join path assigns the joiner-side default piece only when there
+  // is no saved choice to respect. Captured on first render, before the
+  // save effect below writes the current selection.
+  const hadSavedPlayerPieceRef = useRef(null)
+  if (hadSavedPlayerPieceRef.current === null) {
+    try {
+      hadSavedPlayerPieceRef.current = Boolean(
+        window.localStorage.getItem(PLAYER_PIECE_STORAGE_KEY),
+      )
+    } catch {
+      hadSavedPlayerPieceRef.current = false
+    }
+  }
 
   useEffect(() => {
     setStage?.('lobby')
@@ -123,9 +146,11 @@ export function LobbyScreen() {
 
   useEffect(() => {
     const url = new URL(window.location.href)
-    const code = url.searchParams.get('code')
+    const code = url.searchParams.get('invite') || url.searchParams.get('code')
     if (code) {
-      setInviteCode(code.toUpperCase())
+      const normalized = code.toUpperCase()
+      setInviteCode(normalized)
+      setDeepLinkCode(normalized)
       setEntryMode('join')
     }
   }, [])
@@ -181,6 +206,15 @@ export function LobbyScreen() {
   const isActive = !hasPartner
   const waitingForPartner = Boolean(couple && !hasPartner)
   const authScreenActive = Boolean(ready && enabled && !isSignedIn)
+  const showInviteJoin = Boolean(
+    ready && enabled && isSignedIn && deepLinkCode && !couple && !loading,
+  )
+
+  useEffect(() => {
+    if (!inviteNickname && profileName) {
+      setInviteNickname(profileName)
+    }
+  }, [inviteNickname, profileName])
   const alternatePublicLobbies = waitingForPartner
     ? publicLobbies.filter((entry) => entry.id !== couple?.id)
     : publicLobbies
@@ -236,6 +270,20 @@ export function LobbyScreen() {
     playAction?.()
     setNotice('')
     await createCouple(profileName, preset, selectedAvatar)
+  }
+
+  async function handleInviteJoin(nickname) {
+    playAction?.()
+    setNotice('')
+    const avatar = hadSavedPlayerPieceRef.current
+      ? selectedAvatar
+      : PLAYER_THEMES[1].avatar
+    await joinCouple(nickname, deepLinkCode, avatar)
+  }
+
+  function handleUseCodeInstead() {
+    setDeepLinkCode('')
+    setEntryMode('join')
   }
 
   async function handleJoin() {
@@ -534,7 +582,7 @@ export function LobbyScreen() {
   function renderPresetPicker({
     disabled = false,
     heading = 'Choose tonight’s length.',
-    support = 'This sets how many rounds the shared board will run before the finale.',
+    support = 'Pick how much time you have tonight. The board sets its own pace to fit.',
   } = {}) {
     const selectedPreset = couple ? sessionPreset : draftSessionPreset
 
@@ -553,7 +601,7 @@ export function LobbyScreen() {
               type="button"
             >
               <strong>{preset.label}</strong>
-              <span>{preset.totalRounds} rounds</span>
+              <span>{preset.minutesLabel}</span>
               <span>{preset.description}</span>
             </button>
           ))}
@@ -766,7 +814,19 @@ export function LobbyScreen() {
               </div>
             </>
           ) : !isSignedIn ? (
-            renderAuthCard()
+            <>
+              {deepLinkCode && (
+                <div className="invite-context">
+                  <p className="eyebrow">Private Invite</p>
+                  <h2>You&apos;ve been invited.</h2>
+                  <p className="support-copy">
+                    Sign in once — no code to type. Your night is waiting on the
+                    next screen.
+                  </p>
+                </div>
+              )}
+              {renderAuthCard()}
+            </>
           ) : waitingForPartner ? (
             <>
               {renderAccountStrip()}
@@ -824,21 +884,22 @@ export function LobbyScreen() {
                 <span>3. Play</span>
               </div>
 
-              {renderLobbyChat({
-                emptyCopy: 'Your lobby is live. Messages will show up here.',
-                headline: activePublicLobbyId === couple.id
-                  ? 'Optional room chat before the board starts.'
-                  : `${selectedPublicLobby?.hostName || 'Another player'}'s public lobby`,
-                kicker: activePublicLobbyId === couple.id ? 'Optional Public Listing' : 'Open Room',
-              })}
+              <Disclosure label="Other ways to join">
+                {renderLobbyChat({
+                  emptyCopy: 'Your lobby is live. Messages will show up here.',
+                  headline: activePublicLobbyId === couple.id
+                    ? 'Optional room chat before the board starts.'
+                    : `${selectedPublicLobby?.hostName || 'Another player'}'s public lobby`,
+                  kicker: activePublicLobbyId === couple.id ? 'Optional Public Listing' : 'Open Room',
+                })}
 
-              <div className="entry-copy room-help">
-                <h3>Switch into another room instead.</h3>
-                <p className="support-copy">
-                  If both of you opened rooms by accident, pick the other room here,
-                  chat first if you want, then switch directly.
-                </p>
-              </div>
+                <div className="entry-copy room-help">
+                  <h3>Switch into another room instead.</h3>
+                  <p className="support-copy">
+                    If both of you opened rooms by accident, pick the other room here,
+                    chat first if you want, then switch directly.
+                  </p>
+                </div>
 
               <div className="public-lobby-list">
                 {alternatePublicLobbies.length ? (
@@ -883,6 +944,7 @@ export function LobbyScreen() {
                   Switch
                 </button>
               </div>
+              </Disclosure>
 
               <div className="button-row split-row">
                 <button className="ghost-btn" disabled={working} onClick={handleLeave} type="button">
@@ -892,6 +954,19 @@ export function LobbyScreen() {
                   Sign Out
                 </button>
               </div>
+            </>
+          ) : showInviteJoin ? (
+            <>
+              {renderAccountStrip()}
+              <InviteJoinScreen
+                db={db}
+                inviteCode={deepLinkCode}
+                nickname={inviteNickname}
+                onJoin={handleInviteJoin}
+                onNicknameChange={setInviteNickname}
+                onUseCodeInstead={handleUseCodeInstead}
+                working={working}
+              />
             </>
           ) : (
             <>
@@ -917,11 +992,13 @@ export function LobbyScreen() {
                 </div>
               )}
 
-              <PlayerPiecePicker
-                disabled={working}
-                onChange={setSelectedAvatar}
-                value={selectedAvatar}
-              />
+              <Disclosure label="Choose your piece (optional)">
+                <PlayerPiecePicker
+                  disabled={working}
+                  onChange={setSelectedAvatar}
+                  value={selectedAvatar}
+                />
+              </Disclosure>
 
               <div className="mode-toggle" role="tablist" aria-label="Entry mode">
                 <button
@@ -989,7 +1066,9 @@ export function LobbyScreen() {
                       Join
                     </button>
                   </div>
-                  {renderPublicLobbyBrowser()}
+                  <Disclosure label="Other ways to join">
+                    {renderPublicLobbyBrowser()}
+                  </Disclosure>
                 </>
               )}
             </>
