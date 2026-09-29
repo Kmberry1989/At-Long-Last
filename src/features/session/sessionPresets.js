@@ -1,23 +1,28 @@
 export const SESSION_PRESETS = {
   quick: {
-    description: 'Four rounds with a tight, replayable pace.',
     id: 'quick',
-    label: 'Quick',
+    label: 'Quick spark',
+    minutesLabel: '~10 min',
+    description: 'A short, sweet warm-up night: one laugh, one connection, one warm close.',
     totalRounds: 4,
   },
   standard: {
-    description: 'Six rounds with the default board-night rhythm.',
     id: 'standard',
-    label: 'Standard',
+    label: 'Date night',
+    minutesLabel: '~25 min',
+    description: 'The full board-night rhythm: warm-up, variety, and a meaningful close.',
     totalRounds: 6,
   },
   long: {
-    description: 'Eight rounds with more room for keepsakes and variety.',
     id: 'long',
-    label: 'Long',
+    label: 'Stay awhile',
+    minutesLabel: '~40 min',
+    description: 'A longer night with two mini-arcs and more room for keepsakes.',
     totalRounds: 8,
   },
 }
+
+export const DEFAULT_SESSION_PRESET = 'quick'
 
 export const SESSION_PRESET_OPTIONS = Object.values(SESSION_PRESETS)
 
@@ -66,11 +71,11 @@ function countActivityVibes(entries = []) {
   ).size
 }
 
-export function getSessionPreset(presetId = 'standard') {
-  return SESSION_PRESETS[presetId] || SESSION_PRESETS.standard
+export function getSessionPreset(presetId = DEFAULT_SESSION_PRESET) {
+  return SESSION_PRESETS[presetId] || SESSION_PRESETS[DEFAULT_SESSION_PRESET]
 }
 
-export function getPresetGoals(presetId = 'standard') {
+export function getPresetGoals(presetId = DEFAULT_SESSION_PRESET) {
   return getGoalIdsForPreset(getSessionPreset(presetId).id).map((goalId) => ({
     ...GOAL_LIBRARY[goalId],
   }))

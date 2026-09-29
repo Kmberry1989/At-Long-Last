@@ -4149,3 +4149,133 @@ p {
     scroll-behavior: auto !important;
   }
 }
+
+/* Milestone 1: fast private arrival — invite join, disclosure, play states */
+
+.invite-context {
+  margin: 10px auto 0;
+  max-width: 380px;
+  text-align: center;
+}
+
+.invite-join {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  margin: 6px auto 0;
+  max-width: 400px;
+  text-align: center;
+}
+
+.invite-join h2 {
+  margin: 2px 0 0;
+}
+
+.invite-join-field {
+  max-width: 300px;
+  width: 100%;
+}
+
+.invite-join-field .text-input {
+  text-align: center;
+}
+
+.invite-join .button-row {
+  max-width: 300px;
+  width: 100%;
+}
+
+.invite-fallback {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.disclosure {
+  margin: 14px 0 0;
+}
+
+.disclosure-toggle {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+}
+
+.disclosure-panel {
+  padding-top: 10px;
+}
+
+.play-state {
+  background: var(--app-glass-strong);
+  border-left: 4px solid var(--app-blue);
+  border-radius: var(--app-radius-sm);
+  box-shadow: var(--app-shadow);
+  color: var(--app-ink);
+  margin: 0 0 8px;
+  padding: 10px 14px;
+  text-align: center;
+}
+
+.play-state-kicker {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 2px;
+}
+
+.play-state-copy {
+  color: var(--app-ink-soft);
+  font-size: 13.5px;
+  margin: 0;
+}
+
+.play-state-private {
+  color: var(--app-ink-soft);
+  font-size: 12.5px;
+  font-style: italic;
+  margin: 4px 0 0;
+}
+
+.play-state-next {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+
+.play-state-pulse {
+  animation: play-state-breathe 2.4s ease-in-out infinite;
+  display: inline-block;
+}
+
+.play-state-active {
+  border-left-color: var(--app-green);
+}
+
+.play-state-waiting {
+  border-left-color: var(--app-blue);
+}
+
+.play-state-reveal {
+  border-left-color: var(--app-gold);
+}
+
+.play-state-away {
+  border-left-color: var(--app-rose);
+}
+
+.play-state .ghost-btn {
+  margin-top: 6px;
+}
+
+@keyframes play-state-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}

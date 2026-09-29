@@ -163,7 +163,7 @@ export function buildFinaleJournalEntry({ coupleId, journalEntries, session, ses
     payload: summary,
     sessionId,
     summary: summary.vibes,
-    text: `${summary.presetLabel} night, ${summary.keepsakeCount} keepsakes, ${summary.journalCount} journal beats, ${summary.hearts} hearts left, ${summary.completedGoalCount}/${summary.goalCount} goals hit, ${summary.completedSpotlightCount} spotlights cleared, ${summary.momentumUnlockedCount} momentum bonuses armed.`,
+    text: `${summary.presetLabel}, ${summary.keepsakeCount} keepsakes, ${summary.journalCount} journal beats, ${summary.hearts} hearts left, ${summary.completedGoalCount}/${summary.goalCount} goals hit, ${summary.completedSpotlightCount} spotlights cleared, ${summary.momentumUnlockedCount} momentum bonuses armed.`,
     title: 'Night Closed Out',
     type: 'finale',
     vibe: session.vibeWeights?.spicy >= 0.5 ? 'spicy' : session.vibeWeights?.playful >= 0.34 ? 'playful' : 'tender',

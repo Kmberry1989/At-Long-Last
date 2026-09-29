@@ -229,7 +229,7 @@ describe('journalHelpers', () => {
     expect(entry?.payload.headline).toBeTruthy()
     expect(entry?.payload.keepsakeLabels).toEqual(['Pocket Love Note', 'Sparkler Photo'])
     expect(entry?.payload.duelOutcomeLabel).toContain('Elaine')
-    expect(entry?.payload.presetLabel).toBe('Standard')
+    expect(entry?.payload.presetLabel).toBe('Quick spark')
     expect(entry?.payload.goalBadges).toContain('10+ hearts')
     expect(entry?.payload.completedSpotlightCount).toBe(2)
     expect(entry?.payload.momentumLabels).toContain('Soft landing armed')
