@@ -275,6 +275,29 @@ export async function submitVibeVote(db, sessionId, userId, vote) {
   })
 }
 
+export async function submitMoodVote(db, sessionId, userId, mood) {
+  const sessionRef = doc(db, 'sessions', sessionId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(sessionRef)
+    if (!snapshot.exists()) {
+      throw new Error('Session disappeared.')
+    }
+
+    const session = { id: snapshot.id, ...snapshot.data() }
+    const moodVotes = {
+      ...session.moodVotes,
+      [userId]: mood,
+    }
+
+    transaction.update(sessionRef, {
+      lastActionAt: serverTimestamp(),
+      moodVotes,
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
 export async function applyCoupleBoardReward(db, coupleId, vibe, rewardId) {
   const coupleRef = doc(db, 'couples', coupleId)
 

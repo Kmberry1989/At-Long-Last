@@ -11,6 +11,7 @@ import {
   buildActivityJournalEntry,
   buildDuelJournalEntry,
   buildFinaleJournalEntry,
+  buildProgressJournalEntries,
   buildSkippedActivityJournalEntry,
   buildVibeSetupJournalEntry,
 } from './journalHelpers.js'
@@ -38,6 +39,7 @@ import {
   createActivityRecord,
   ensureActiveSession,
   finalizeActivity,
+  submitMoodVote as persistMoodVote,
   submitVibeVote as persistVibeVote,
   subscribeToActivity,
   subscribeToJournal,
@@ -46,6 +48,10 @@ import {
   updateSessionStateWithJournal,
 } from './sessionService.js'
 import { getSessionPreset } from './sessionPresets.js'
+import {
+  localDateStr,
+  recordNightComplete,
+} from '../couple/progressService.js'
 import {
   averageVibeVotes,
   buildBoardRewardPatch,
@@ -146,6 +152,7 @@ export function SessionProvider({ children }) {
   const [connectionState, setConnectionState] = useState(enabled ? 'connecting' : 'local-preview')
   const resolvingDuelRef = useRef(false)
   const previewActivityStartedRef = useRef(false)
+  const progressRecordedRef = useRef(false)
 
   const playerIndex = useMemo(() => {
     if (!enabled && session) {
@@ -170,6 +177,10 @@ export function SessionProvider({ children }) {
   const myVibeVote = useMemo(
     () => (localUserId ? session?.vibeVotes?.[localUserId] ?? null : null),
     [localUserId, session?.vibeVotes],
+  )
+  const myMoodVote = useMemo(
+    () => (localUserId ? session?.moodVotes?.[localUserId] ?? null : null),
+    [localUserId, session?.moodVotes],
   )
 
   useEffect(() => {
@@ -256,6 +267,63 @@ export function SessionProvider({ children }) {
       (nextError) => setError(nextError.message),
     )
   }, [couple?.activeSessionId, db, enabled])
+
+  // When a live night closes out, bank it into the couple's lifetime
+  // progress exactly once: hearts, streaks, freeze tokens, trophies, and
+  // milestone journal entries for the scrapbook. The transaction is
+  // idempotent per session, so a retry or a second phone can never
+  // double-bank the night or duplicate the journal entries.
+  useEffect(() => {
+    if (
+      !enabled ||
+      !db ||
+      !couple ||
+      session?.phase !== 'finale' ||
+      session.progressRecorded ||
+      progressRecordedRef.current
+    ) {
+      return undefined
+    }
+
+    progressRecordedRef.current = true
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        await recordNightComplete(db, couple.id, {
+          buildEntries: (events) =>
+            buildProgressJournalEntries({
+              coupleId: couple.id,
+              events,
+              sessionId: session.id,
+            }),
+          dateStr: localDateStr(),
+          heartsEarned: session.hearts || 0,
+          sessionId: session.id,
+          stats: {
+            keepsakes: session.keepsakes?.length || 0,
+            mutualYesMatches: session.mutualYesMatches || 0,
+            preset: session.preset,
+            sealedMatches: session.sealedMatches || 0,
+            sharedDuelWins: session.sharedDuelWins || 0,
+          },
+        })
+
+        if (cancelled) {
+          progressRecordedRef.current = false
+        }
+      } catch (nextError) {
+        if (!cancelled) {
+          progressRecordedRef.current = false
+          setError(nextError.message)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [couple, db, enabled, session])
 
   useEffect(() => {
     if (!enabled) {
@@ -644,6 +712,35 @@ export function SessionProvider({ children }) {
     }
   }
 
+  async function submitMoodVote(mood) {
+    if (!session || working || myMoodVote) {
+      return
+    }
+
+    setWorking(true)
+    setError('')
+
+    try {
+      if (!enabled) {
+        const selfId = session.players[playerIndex]?.uid || 'preview-you'
+        setSession({
+          ...session,
+          moodVotes: {
+            ...session.moodVotes,
+            [selfId]: mood,
+          },
+        })
+        return
+      }
+
+      await persistMoodVote(db, session.id, userId, mood)
+    } catch (nextError) {
+      setError(nextError.message)
+    } finally {
+      setWorking(false)
+    }
+  }
+
   async function submitActivityTurn(input) {
     if (!activity || !session || playerIndex < 0 || working) {
       return
@@ -950,6 +1047,7 @@ export function SessionProvider({ children }) {
       isSessionStale,
       journalEntries,
       myDuelResult,
+      myMoodVote,
       myVibeVote,
       playerIndex,
       readyToPlay: (!enabled || ready) && hasPartner && Boolean(session),
@@ -965,6 +1063,7 @@ export function SessionProvider({ children }) {
       startFreshSession,
       submitActivityTurn,
       submitDuelResult,
+      submitMoodVote,
       submitVibeVote,
       working,
     }),
@@ -983,6 +1082,7 @@ export function SessionProvider({ children }) {
       isSessionStale,
       journalEntries,
       myDuelResult,
+      myMoodVote,
       myVibeVote,
       playerIndex,
       ready,

@@ -4,6 +4,7 @@ import {
   buildInviteLookupPayload,
   buildJoinCouplePatch,
   buildJoinFromPublicLobbyPatch,
+  buildJoinPrivateCouplePatch,
   buildLobbyMessagePayload,
   buildLeaveCouplePatch,
   buildPlayerCoupleLinkPayload,
@@ -30,7 +31,7 @@ describe('coupleService', () => {
     expect(createInviteCode(random)).toHaveLength(6)
   })
 
-  it('builds the initial couple payload', () => {
+  it('builds the initial couple payload as private by default', () => {
     const payload = buildCreateCouplePayload({
       avatar: '/assets/players/owl.glb',
       displayName: 'Kyle',
@@ -44,12 +45,26 @@ describe('coupleService', () => {
     expect(payload.playerIds).toEqual(['u1'])
     expect(payload.shareLink).toBe('https://example.com/?invite=ABC123')
     expect(payload.sessionPreset).toBe('quick')
+    expect(payload.visibility).toBe('private')
     expect(payload.players[0].avatar).toBe('/assets/players/owl.glb')
     expect(payload.boardState).toEqual({
       playfulStickerIds: [],
       spicyGlowLevel: 0,
       tenderStars: 0,
     })
+  })
+
+  it('marks couples public when the host opts in', () => {
+    const payload = buildCreateCouplePayload({
+      avatar: '/assets/players/owl.glb',
+      displayName: 'Kyle',
+      inviteCode: 'ABC123',
+      isPublic: true,
+      origin: 'https://example.com',
+      userId: 'u1',
+    })
+
+    expect(payload.visibility).toBe('public')
   })
 
   it('defaults new couples to the quick preset with an invite deep link', () => {
@@ -69,6 +84,40 @@ describe('coupleService', () => {
     expect(buildInviteLookupPayload({ coupleId: 'couple-1' })).toEqual({
       coupleId: 'couple-1',
     })
+  })
+
+  it('carries the host preview on the invite lookup payload', () => {
+    expect(
+      buildInviteLookupPayload({
+        coupleId: 'couple-1',
+        hostAvatar: '/assets/players/owl.glb',
+        hostName: ' Kyle ',
+      }),
+    ).toEqual({
+      coupleId: 'couple-1',
+      hostAvatar: '/assets/players/owl.glb',
+      hostName: 'Kyle',
+    })
+  })
+
+  it('builds a private-room join patch that preserves the host player', () => {
+    const host = {
+      uid: 'u1',
+      displayName: 'Kyle',
+      color: '#ff7a97',
+      accent: '#ff5478',
+      avatar: '/assets/players/owl.glb',
+    }
+    const patch = buildJoinPrivateCouplePatch(
+      { players: [host], playerIds: ['u1'] },
+      { avatar: '/assets/players/rabbit.glb', displayName: ' Robin ', userId: 'u2' },
+    )
+
+    expect(patch.status).toBe('paired')
+    expect(patch.playerIds).toEqual(['u1', 'u2'])
+    expect(patch.players[0]).toBe(host)
+    expect(patch.players[1].displayName).toBe('Robin')
+    expect(patch.players[1].uid).toBe('u2')
   })
 
   it('builds a player-to-couple link payload', () => {

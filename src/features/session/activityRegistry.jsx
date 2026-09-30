@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { activityDefinitions } from './contentPackData.js'
 import { createConnectionGameEntry } from './connectionGameRegistry.jsx'
+import { createSealedActivityEntry } from './sealedActivityRegistry.jsx'
 import { createWaveTwoGameEntry } from './waveTwoGameRegistry.jsx'
 import { createWaveThreeGameEntry } from './waveThreeGameRegistry.jsx'
 import { createWaveFourGameEntry } from './waveFourGameRegistry.jsx'
@@ -36,6 +37,7 @@ function ActivityCard({
   disabled,
   onSkip,
   onSubmit,
+  playerIndex,
   players,
 }) {
   const [text, setText] = useState('')
@@ -43,6 +45,7 @@ function ActivityCard({
     activity.state.turnIndex >= 0
       ? players[activity.state.turnIndex]?.displayName
       : null
+  const revealed = activity.state.entries.length >= 2
   const responsePlaceholder = useMemo(() => {
     if (definition.type === 'ritual') {
       return 'Describe what you left, chose, or imagined.'
@@ -73,6 +76,7 @@ function ActivityCard({
       <div className="turn-badge">
         <strong>{activeName}</strong>
         <span>is up now</span>
+        <span className="sealed-chip">{activity.state.entries.length}/2 sealed</span>
       </div>
       <textarea
         className="text-entry"
@@ -94,12 +98,24 @@ function ActivityCard({
         Send It
       </button>
       <div className="activity-log">
-        {activity.state.entries.map((entry, index) => (
-          <div key={`${entry.playerIndex}-${index}`} className="activity-log-card">
-            <strong>{players[entry.playerIndex].displayName}</strong>
-            <p>{entry.text}</p>
-          </div>
-        ))}
+        {revealed && (
+          <p className="reveal-flourish" aria-live="polite">✨ revealed together</p>
+        )}
+        {activity.state.entries.map((entry, index) => {
+          const isMine = entry.playerIndex === playerIndex
+          const showText = revealed || isMine
+
+          return (
+            <div key={`${entry.playerIndex}-${index}`} className="activity-log-card">
+              <strong>{players[entry.playerIndex].displayName}</strong>
+              {showText ? (
+                <p>{entry.text}</p>
+              ) : (
+                <p className="sealed-answer">✉️ Sealed — reveals when you both answer.</p>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -162,7 +178,8 @@ function createRegistryEntry(definition) {
 export const activityRegistry = Object.fromEntries(
   activityDefinitions.map((definition) => [
     definition.id,
-    createConnectionGameEntry(definition) ||
+    createSealedActivityEntry(definition) ||
+      createConnectionGameEntry(definition) ||
       createWaveTwoGameEntry(definition) ||
       createWaveThreeGameEntry(definition) ||
       createWaveFourGameEntry(definition) ||

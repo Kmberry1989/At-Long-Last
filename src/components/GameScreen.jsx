@@ -1,5 +1,7 @@
 import { Suspense, lazy, startTransition, useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
+import { ChecklistRail } from './ChecklistRail.jsx'
+import { LoveTank } from './LoveTank.jsx'
 import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
@@ -44,6 +46,8 @@ function capitalize(value = '') {
 function getActivitySubmissionCount(state) {
   return Math.max(
     Object.keys(state?.answers || {}).length,
+    Object.keys(state?.choices || {}).length,
+    Object.keys(state?.sealed || {}).length,
     Object.keys(state?.values || {}).length,
     Object.keys(state?.results || {}).length,
     Object.keys(state?.submissions || {}).length,
@@ -134,6 +138,8 @@ export function GameScreen() {
             })) || [],
             ownSubmissionSealed: Boolean(
               activityState?.answers?.[String(playerIndex)] ||
+              activityState?.choices?.[String(playerIndex)] ||
+              activityState?.sealed?.[String(playerIndex)] ||
               Number.isFinite(activityState?.values?.[String(playerIndex)]) ||
               activityState?.results?.[String(playerIndex)] ||
               activityState?.submissions?.[String(playerIndex)] ||
@@ -372,15 +378,7 @@ export function GameScreen() {
           />
         </Suspense>
         <div className="hud top">
-          <button
-            aria-label={`Shared heart stash: ${session.hearts}. Open guide.`}
-            className="chip heart heart-guide-chip"
-            disabled={diceAnimating}
-            onClick={() => setHeartGuideOpen(true)}
-            type="button"
-          >
-            <span aria-hidden="true">♥</span><strong>{session.hearts}</strong>
-          </button>
+          <LoveTank hearts={session.hearts} onOpenGuide={() => setHeartGuideOpen(true)} />
           <div className="chip" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
             <span aria-hidden="true">◷</span><strong>{session.round}/{session.totalRounds}</strong>
           </div>
@@ -402,6 +400,7 @@ export function GameScreen() {
             <span>Book</span><strong>▤ {scrapbookMomentCount}</strong>
           </button>
         </div>
+        <ChecklistRail session={session} />
         <div className="hud momentum-hud">
           <div className="spotlight-banner">
             <span className="spotlight-kicker">✦ Next</span>

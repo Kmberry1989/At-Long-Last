@@ -3,7 +3,10 @@ import {
   buildActivityJournalEntry,
   buildDuelJournalEntry,
   buildFinaleJournalEntry,
+  buildMilestoneJournalEntry,
+  buildProgressJournalEntries,
   buildSkippedActivityJournalEntry,
+  buildTrophyJournalEntry,
   buildVibeSetupJournalEntry,
   getScrapbookMomentCount,
 } from './journalHelpers.js'
@@ -234,5 +237,55 @@ describe('journalHelpers', () => {
     expect(entry?.payload.completedSpotlightCount).toBe(2)
     expect(entry?.payload.momentumLabels).toContain('Soft landing armed')
     expect(entry?.text).toContain('spotlights cleared')
+  })
+})
+
+describe('progression journal entries', () => {
+  it('builds a milestone entry for a milestone night', () => {
+    const entry = buildMilestoneJournalEntry({
+      coupleId: 'couple-1',
+      nights: 10,
+      sessionId: 'session-1',
+    })
+
+    expect(entry.type).toBe('milestone')
+    expect(entry.title).toBe('Night 10 Together')
+    expect(entry.payload.nights).toBe(10)
+  })
+
+  it('builds a trophy entry for a known trophy', () => {
+    const entry = buildTrophyJournalEntry({
+      coupleId: 'couple-1',
+      sessionId: 'session-1',
+      trophyId: 'first-night',
+    })
+
+    expect(entry.type).toBe('trophy')
+    expect(entry.title).toContain('First Night')
+    expect(entry.payload.trophyId).toBe('first-night')
+  })
+
+  it('returns null for an unknown trophy', () => {
+    expect(
+      buildTrophyJournalEntry({
+        coupleId: 'couple-1',
+        sessionId: 'session-1',
+        trophyId: 'nope',
+      }),
+    ).toBeNull()
+  })
+
+  it('maps progression events to journal entries', () => {
+    const entries = buildProgressJournalEntries({
+      coupleId: 'couple-1',
+      events: [
+        { nights: 25, type: 'milestone' },
+        { trophyId: 'streak-7', type: 'trophy' },
+        { type: 'freeze-used' },
+      ],
+      sessionId: 'session-1',
+    })
+
+    expect(entries.map((entry) => entry.type)).toEqual(['milestone', 'trophy'])
   })
 })

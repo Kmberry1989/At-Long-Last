@@ -7,9 +7,9 @@ const players = [
 ]
 
 describe('activityRegistry', () => {
-  it('contains the original pack plus eleven connection games with unique ids', () => {
-    expect(activityIds).toHaveLength(56)
-    expect(new Set(activityIds).size).toBe(56)
+  it('contains the original pack plus connection games and sealed activities with unique ids', () => {
+    expect(activityIds).toHaveLength(58)
+    expect(new Set(activityIds).size).toBe(58)
   })
 
   it('completes a normal two-turn activity and produces journal-ready text', () => {
@@ -75,7 +75,7 @@ describe('activityRegistry', () => {
 
   it('keeps all spicy activities skippable', () => {
     const spicyEntries = Object.values(activityRegistry).filter((entry) => entry.vibe === 'spicy')
-    expect(spicyEntries).toHaveLength(15)
+    expect(spicyEntries).toHaveLength(16)
     expect(spicyEntries.every((entry) => entry.skippable)).toBe(true)
   })
 

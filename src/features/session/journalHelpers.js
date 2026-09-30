@@ -1,4 +1,5 @@
 import { buildFinalSummary } from './sessionLogic.js'
+import { TROPHIES } from '../couple/progressService.js'
 
 export function getScrapbookMomentCount(entries = []) {
   return entries.filter((entry) => entry?.type !== 'finale').length
@@ -154,6 +155,54 @@ export function buildDuelJournalEntry({
     type: 'duel',
     vibe: duel.vibe,
   }
+}
+
+export function buildMilestoneJournalEntry({ coupleId, nights, sessionId }) {
+  return {
+    coupleId,
+    payload: { nights },
+    sessionId,
+    summary: `Night ${nights} together.`,
+    text: `Night ${nights} of game nights together. Same team, new memories.`,
+    title: `Night ${nights} Together`,
+    type: 'milestone',
+    vibe: 'tender',
+  }
+}
+
+export function buildTrophyJournalEntry({ coupleId, sessionId, trophyId }) {
+  const trophy = TROPHIES.find((entry) => entry.id === trophyId)
+
+  if (!trophy) {
+    return null
+  }
+
+  return {
+    coupleId,
+    payload: { trophyId },
+    sessionId,
+    summary: trophy.detail,
+    text: `Trophy earned: ${trophy.label}. ${trophy.detail}`,
+    title: `🏆 ${trophy.label}`,
+    type: 'trophy',
+    vibe: 'playful',
+  }
+}
+
+export function buildProgressJournalEntries({ coupleId, events, sessionId }) {
+  return (events || [])
+    .map((event) => {
+      if (event.type === 'milestone') {
+        return buildMilestoneJournalEntry({ coupleId, nights: event.nights, sessionId })
+      }
+
+      if (event.type === 'trophy') {
+        return buildTrophyJournalEntry({ coupleId, sessionId, trophyId: event.trophyId })
+      }
+
+      return null
+    })
+    .filter(Boolean)
 }
 
 export function buildFinaleJournalEntry({ coupleId, journalEntries, session, sessionId }) {

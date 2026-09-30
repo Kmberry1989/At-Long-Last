@@ -11,10 +11,22 @@ import {
   joinCoupleByInviteCode,
   leaveCoupleDocument,
   sendLobbyMessage as sendLobbyMessageDocument,
+  setRoomVisibility as setRoomVisibilityDocument,
   subscribeToLobbyMessages,
   subscribeToPublicLobbies,
   updateCoupleSessionPreset as updateCoupleSessionPresetDocument,
 } from './coupleService.js'
+import {
+  ensureCoupleProgress,
+  fulfillKoupon as fulfillKouponDocument,
+  redeemKoupon as redeemKouponDocument,
+  renameCompanion as renameCompanionDocument,
+  selectTheme as selectThemeDocument,
+  sendNudge as sendNudgeDocument,
+  setAnniversary as setAnniversaryDocument,
+  subscribeToCoupleProgress,
+  unlockThemeWithHearts as unlockThemeWithHeartsDocument,
+} from './progressService.js'
 import { createDefaultBoardState } from '../session/sessionWiring.js'
 import { PLAYER_THEMES, resolvePlayerAvatar } from './playerAvatar.js'
 
@@ -39,6 +51,7 @@ export function CoupleProvider({ children }) {
   const [publicLobbies, setPublicLobbies] = useState([])
   const [selectedPublicLobbyId, setSelectedPublicLobbyId] = useState(null)
   const [publicLobbyMessages, setPublicLobbyMessages] = useState([])
+  const [progress, setProgress] = useState(null)
 
   async function recoverFromStaleCoupleLink(nextError) {
     if (!db || !userId || nextError?.code !== 'permission-denied') {
@@ -226,7 +239,7 @@ export function CoupleProvider({ children }) {
     return displayName?.trim() || profile?.displayName?.trim() || user?.displayName?.trim() || 'Player'
   }
 
-  async function createCouple(displayName, sessionPreset, avatar) {
+  async function createCouple(displayName, sessionPreset, avatar, { isPublic = false } = {}) {
     if (!db || !userId) {
       return
     }
@@ -239,8 +252,28 @@ export function CoupleProvider({ children }) {
         avatar,
         db,
         displayName: getPreferredName(displayName),
+        isPublic,
         origin,
         sessionPreset,
+        userId,
+      })
+    } catch (nextError) {
+      setError(nextError.message)
+    }
+  }
+
+  async function setRoomVisibility(isPublic) {
+    if (!db || !userId || !couple) {
+      return
+    }
+
+    setError('')
+
+    try {
+      await setRoomVisibilityDocument({
+        coupleId: couple.id,
+        db,
+        isPublic,
         userId,
       })
     } catch (nextError) {
@@ -433,6 +466,98 @@ export function CoupleProvider({ children }) {
     }
   }
 
+  // Lifetime couple progress: hearts, streaks, trophies, koupons, companion,
+  // themes. The doc is created on first read so a fresh couple starts empty
+  // and real usage fills it in.
+  useEffect(() => {
+    if (!ready || !enabled || !db || !couple?.id) {
+      setProgress(null)
+      return undefined
+    }
+
+    let cancelled = false
+    let unsubscribe = null
+
+    ensureCoupleProgress(db, couple.id)
+      .then(() => {
+        if (cancelled) {
+          return
+        }
+
+        unsubscribe = subscribeToCoupleProgress(
+          db,
+          couple.id,
+          (nextProgress) => {
+            if (!cancelled) {
+              setProgress(nextProgress)
+            }
+          },
+          (nextError) => {
+            if (!cancelled) {
+              setError(nextError.message)
+            }
+          },
+        )
+      })
+      .catch((nextError) => {
+        if (!cancelled) {
+          setError(nextError.message)
+        }
+      })
+
+    return () => {
+      cancelled = true
+      if (unsubscribe) {
+        unsubscribe()
+      }
+    }
+  }, [couple?.id, db, enabled, ready])
+
+  async function runProgressAction(action, ...args) {
+    if (!db || !couple?.id) {
+      return
+    }
+
+    setError('')
+
+    try {
+      await action(db, couple.id, ...args)
+    } catch (nextError) {
+      setError(nextError.message)
+    }
+  }
+
+  function unlockTheme(themeId) {
+    return runProgressAction(unlockThemeWithHeartsDocument, themeId)
+  }
+
+  function selectTheme(themeId) {
+    return runProgressAction(selectThemeDocument, themeId)
+  }
+
+  function redeemKoupon(kouponId) {
+    return runProgressAction(redeemKouponDocument, kouponId)
+  }
+
+  function fulfillKoupon(kouponId) {
+    return runProgressAction(fulfillKouponDocument, kouponId)
+  }
+
+  function renameCompanion(name) {
+    return runProgressAction(renameCompanionDocument, name)
+  }
+
+  function setAnniversary(dateStr) {
+    return runProgressAction(setAnniversaryDocument, dateStr)
+  }
+
+  function sendNudge() {
+    return runProgressAction(sendNudgeDocument, {
+      byName: getPreferredName(),
+      byUid: userId,
+    })
+  }
+
   const value = useMemo(
     () => ({
       activePublicLobbyId,
@@ -448,9 +573,19 @@ export function CoupleProvider({ children }) {
       postLobbyMessage,
       profile,
       previewMode: !enabled,
+      progress,
+      fulfillKoupon,
+      renameCompanion,
+      redeemKoupon,
+      selectTheme,
+      sendNudge,
+      setAnniversary,
+      unlockTheme,
       publicLobbyMessages,
       publicLobbies,
       sessionPreset: couple?.sessionPreset || 'standard',
+      roomVisibility: couple?.visibility ?? 'private',
+      setRoomVisibility,
       selectedPublicLobbyId,
       selectPublicLobby: setSelectedPublicLobbyId,
       setError,
@@ -465,6 +600,7 @@ export function CoupleProvider({ children }) {
       error,
       loading,
       profile,
+      progress,
       publicLobbyMessages,
       publicLobbies,
       couple?.sessionPreset,

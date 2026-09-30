@@ -4279,3 +4279,302 @@ p {
     transform: scale(1.08);
   }
 }
+
+/* ---- Love Tank (shared night meter) ---- */
+.chip.love-tank {
+  position: relative;
+  overflow: hidden;
+  min-width: 76px;
+  border: 0;
+  background: linear-gradient(180deg, rgba(255, 240, 244, 0.96) 0%, rgba(240, 205, 214, 0.9) 100%);
+  cursor: pointer;
+}
+
+.love-tank-liquid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 130, 160, 0.75) 0%, rgba(214, 69, 105, 0.85) 100%);
+  transition: height 0.6s ease;
+  border-radius: 0 0 10px 10px;
+}
+
+.love-tank-label,
+.love-tank strong {
+  position: relative;
+  z-index: 1;
+}
+
+.love-tank-label {
+  font-size: 18px;
+  color: #7d2436;
+}
+
+.love-tank:focus-visible {
+  outline: 3px solid rgba(255, 246, 238, 0.86);
+  outline-offset: 2px;
+}
+
+/* ---- Night checklist rail ---- */
+.checklist-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  padding: 6px 12px;
+  pointer-events: none;
+}
+
+.checklist-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(24, 14, 22, 0.42);
+  color: rgba(255, 244, 238, 0.72);
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+
+.checklist-item.done {
+  background: rgba(46, 110, 72, 0.55);
+  color: #fff;
+}
+
+.checklist-item.done .checklist-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* ---- Progress hub (lobby "Our collection") ---- */
+.progress-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.progress-hub h2 {
+  margin: 0;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.streak-flame {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.streak-flame strong {
+  font-size: 22px;
+}
+
+.freeze-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(140, 190, 230, 0.25);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.nudge-zone {
+  margin-left: auto;
+}
+
+.nudge-incoming {
+  margin: 0;
+  font-size: 14px;
+}
+
+.love-tank-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.love-tank-mini strong {
+  font-size: 22px;
+}
+
+.lifetime-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.progress-section h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.theme-card {
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.theme-card.selected {
+  border-color: #ffb3c6;
+  background: rgba(255, 179, 198, 0.16);
+}
+
+.theme-card.locked {
+  opacity: 0.85;
+}
+
+.theme-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.theme-blurb {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.theme-check {
+  font-weight: 800;
+  color: #8fd6a4;
+}
+
+.companion-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.companion-emoji {
+  font-size: 34px;
+}
+
+.companion-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.companion-stage {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.companion-progress {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.secondary-link {
+  background: none;
+  border: 0;
+  color: #ffb3c6;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 0;
+  text-decoration: underline;
+}
+
+.trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.trophy {
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.trophy strong {
+  font-size: 13px;
+}
+
+.trophy.locked {
+  opacity: 0.55;
+}
+
+.trophy.earned {
+  background: rgba(255, 205, 120, 0.14);
+}
+
+.koupon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.koupon {
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.koupon > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.visibility-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-top: 12px;
+}
+
+.visibility-label {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.inline-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}

@@ -19,7 +19,32 @@ describe('resolveInviteRoom', () => {
     getDoc.mockReset()
   })
 
-  it('resolves an open room with host identity before joining', async () => {
+  it('resolves a private room from the invite host preview', async () => {
+    getDoc
+      .mockResolvedValueOnce(
+        docSnapshot({
+          coupleId: 'couple-1',
+          hostAvatar: '/assets/players/owl.glb',
+          hostName: 'Robin',
+        }),
+      )
+      .mockResolvedValueOnce(docSnapshot(null))
+
+    const room = await resolveInviteRoom({ code: 'abc234', db: {} })
+
+    expect(room).toEqual({
+      coupleId: 'couple-1',
+      hostAvatar: '/assets/players/owl.glb',
+      hostName: 'Robin',
+      inviteCode: 'ABC234',
+      isPublic: false,
+    })
+    expect(getDoc.mock.calls[0][0].collectionPath).toBe('coupleInvites')
+    expect(getDoc.mock.calls[0][0].docId).toBe('ABC234')
+    expect(getDoc.mock.calls[1][0].collectionPath).toBe('publicLobbies')
+  })
+
+  it('resolves a public room with its lobby row', async () => {
     getDoc
       .mockResolvedValueOnce(docSnapshot({ coupleId: 'couple-1' }))
       .mockResolvedValueOnce(
@@ -35,13 +60,11 @@ describe('resolveInviteRoom', () => {
 
     expect(room).toEqual({
       coupleId: 'couple-1',
+      hostAvatar: null,
       hostName: 'Robin',
       inviteCode: 'ABC234',
-      status: 'open',
+      isPublic: true,
     })
-    expect(getDoc.mock.calls[0][0].collectionPath).toBe('coupleInvites')
-    expect(getDoc.mock.calls[0][0].docId).toBe('ABC234')
-    expect(getDoc.mock.calls[1][0].collectionPath).toBe('publicLobbies')
   })
 
   it('rejects when the invite code is blank', async () => {
@@ -59,7 +82,7 @@ describe('resolveInviteRoom', () => {
     )
   })
 
-  it('rejects when the room is no longer open', async () => {
+  it('rejects when the public room is no longer open', async () => {
     getDoc
       .mockResolvedValueOnce(docSnapshot({ coupleId: 'couple-1' }))
       .mockResolvedValueOnce(

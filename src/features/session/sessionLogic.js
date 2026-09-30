@@ -301,6 +301,8 @@ export function buildInitialSession(couple) {
     lastMove: null,
     lastRoll: null,
     momentum: createMomentumState(),
+    moodVotes: {},
+    mutualYesMatches: 0,
     pendingActivityId: null,
     pendingActivityOptions: null,
     pendingActivityType: null,
@@ -309,8 +311,11 @@ export function buildInitialSession(couple) {
     players: couple.players,
     positions: [0, 0],
     preset: preset.id,
+    progressRecorded: false,
     round: 1,
     roundDuelBonus: 0,
+    sealedMatches: 0,
+    sharedDuelWins: 0,
     startingPlayerIndex: 0,
     totalRounds: preset.totalRounds,
     turnsTakenThisRound: 0,
@@ -332,6 +337,67 @@ export function finalizeVibeSetup(session, vibeWeights = DEFAULT_VIBE_WEIGHTS) {
   })
 
   return syncSpotlightToRound(nextSession)
+}
+
+export const MOOD_OPTIONS = [
+  { emoji: '🛋️', id: 'cozy', label: 'Cozy' },
+  { emoji: '🎉', id: 'playful', label: 'Playful' },
+  { emoji: '💋', id: 'flirty', label: 'Flirty' },
+  { emoji: '🌙', id: 'dreamy', label: 'Dreamy' },
+  { emoji: '🔥', id: 'wild', label: 'Wild' },
+]
+
+export function isValidMood(mood) {
+  return MOOD_OPTIONS.some((option) => option.id === mood)
+}
+
+export function buildNightChecklist() {
+  return [
+    { done: false, id: 'set-mood', label: 'Share your mood' },
+    { done: false, id: 'set-vibe', label: "Set the night's vibe" },
+    { done: false, id: 'first-roll', label: 'Take the first roll' },
+    { done: false, id: 'duel-night', label: 'Face a duel together' },
+    { done: false, id: 'keepsake', label: 'Pocket a keepsake' },
+  ]
+}
+
+/**
+ * The night checklist completes itself from live session state — both
+ * players voting their mood, the vibe locking in, the first roll, a duel
+ * result, and a pocketed keepsake.
+ */
+export function evaluateNightChecklist(session) {
+  if (!session) {
+    return buildNightChecklist()
+  }
+
+  const players = session.players || []
+  const moodVotes = session.moodVotes || {}
+  const moodDone = players.length > 0 && players.every((player) => moodVotes[player.uid])
+
+  return buildNightChecklist().map((item) => {
+    switch (item.id) {
+      case 'set-mood':
+        return { ...item, done: moodDone }
+      case 'set-vibe':
+        return { ...item, done: Boolean(session.vibeWeights) }
+      case 'first-roll':
+        return { ...item, done: session.lastRoll != null }
+      case 'duel-night':
+        return { ...item, done: Boolean(session.lastDuelOutcome) }
+      case 'keepsake':
+        return { ...item, done: (session.keepsakes || []).length > 0 }
+      default:
+        return item
+    }
+  })
+}
+
+export function nightChecklistProgress(session) {
+  const items = evaluateNightChecklist(session)
+  const done = items.filter((item) => item.done).length
+
+  return { done, items, total: items.length }
 }
 
 export function getTurnPlayerIndex(startingPlayerIndex, turnsTaken, count = 2) {
@@ -533,6 +599,20 @@ export function resolveActivityCompletion(session, result) {
     hearts: resolved.hearts + heartBonus,
   }
 
+  if (result.payload?.sealedMatch) {
+    resolved = {
+      ...resolved,
+      sealedMatches: (resolved.sealedMatches || 0) + 1,
+    }
+  }
+
+  if (result.payload?.mutualYes) {
+    resolved = {
+      ...resolved,
+      mutualYesMatches: (resolved.mutualYesMatches || 0) + 1,
+    }
+  }
+
   resolved = addMomentum(resolved, result.vibe)
   resolved = maybeCompleteSpotlight(resolved, {
     result,
@@ -676,6 +756,7 @@ export function advanceAfterDuel(session, outcome, duel) {
         },
         phase: 'finale',
         roundDuelBonus: 0,
+        sharedDuelWins: (nextSession.sharedDuelWins || 0) + 1,
       }
     }
 
@@ -697,6 +778,7 @@ export function advanceAfterDuel(session, outcome, duel) {
       phase: 'turn',
       round,
       roundDuelBonus: 0,
+      sharedDuelWins: (nextSession.sharedDuelWins || 0) + 1,
       startingPlayerIndex,
       turnsTakenThisRound: 0,
     }, round)

@@ -15,14 +15,25 @@ service cloud.firestore {
     //
     // coupleInvites/{sixCharacterCode}
     //   Exact-document invite lookup linked to a couple with the same code.
-    //   Invite collection listing is intentionally denied.
+    //   Invite collection listing is intentionally denied. Carries the host's
+    //   display name and avatar so private rooms can preview an invite without
+    //   a public lobby row.
     //
     // couples/{coupleId}
     //   One or two validated players, immutable invite identity, optional
-    //   active session pointer, preset, and bounded persistent board state.
+    //   active session pointer, preset, visibility ('private' default,
+    //   'public' only with explicit host opt-in), and bounded persistent
+    //   board state.
     //
     // publicLobbies/{coupleId}
-    //   Authenticated discovery row for a one-player waiting couple.
+    //   Authenticated discovery row for a one-player PUBLIC waiting couple.
+    //   Private rooms never write this row.
+    //
+    // coupleProgress/{coupleId}
+    //   Cross-night progression for one couple: lifetime hearts, spend,
+    //   unlocked tabletop themes, night count, shared streak with freeze
+    //   tokens, trophies, koupon wallet, companion creature, anniversary,
+    //   and the latest partner nudge.
     //
     // lobbyMessages/{messageId}
     //   Immutable, bounded message authored by the authenticated user and
@@ -193,13 +204,15 @@ service cloud.firestore {
           'players',
           'activeSessionId',
           'boardState',
+          'visibility',
           'createdAt',
           'updatedAt'
         ])
         && isInviteCode(data.inviteCode)
         && isBoundedString(data.shareLink, 12, 500)
-        && data.shareLink.matches('^https?://.{1,450}/[?]code=' + data.inviteCode + '$')
+        && data.shareLink.matches('^https?://.{1,450}/[?](code|invite)=' + data.inviteCode + '$')
         && data.status in ['waiting', 'paired']
+        && (!('visibility' in data) || data.visibility in ['private', 'public'])
         && isValidPlayers(data.playerIds, data.players)
         && (
           (data.status == 'waiting' && data.playerIds.size() == 1)
@@ -230,10 +243,21 @@ service cloud.firestore {
 
     function isValidInvite(data, inviteCode) {
       return data.keys().hasAll(['coupleId', 'createdAt'])
-        && data.keys().hasOnly(['coupleId', 'createdAt'])
+        && data.keys().hasOnly(['coupleId', 'createdAt', 'hostName', 'hostAvatar'])
         && isBoundedString(data.coupleId, 1, 128)
         && data.createdAt == request.time
-        && isInviteCode(inviteCode);
+        && isInviteCode(inviteCode)
+        && isOptionalBoundedString(data, 'hostName', 60)
+        && (
+          !('hostAvatar' in data)
+          || data.hostAvatar == null
+          || (
+            data.hostAvatar is string
+            && data.hostAvatar.size() >= 1
+            && data.hostAvatar.size() <= 160
+            && data.hostAvatar.matches('^/assets/players/[a-zA-Z0-9._-]+$')
+          )
+        );
     }
 
     function isValidPlayerCoupleLink(data) {
@@ -284,6 +308,7 @@ service cloud.firestore {
 
     function lobbyMatchesCouple(data, couple) {
       return couple.status == 'waiting'
+        && couple.visibility == 'public'
         && hasNoActiveSession(couple)
         && couple.playerIds.size() == 1
         && data.hostAvatar == couple.players[0].avatar
@@ -293,12 +318,30 @@ service cloud.firestore {
         && data.shareLink == couple.shareLink;
     }
 
+    function lobbyVisibilityMatches(after, coupleId) {
+      return (
+        (
+          after.visibility == 'public'
+          && existsAfter(
+            /databases/$(database)/documents/publicLobbies/$(coupleId)
+          )
+        )
+        || (
+          after.visibility == 'private'
+          && !existsAfter(
+            /databases/$(database)/documents/publicLobbies/$(coupleId)
+          )
+        )
+      );
+    }
+
     function isValidCoupleCreate(coupleId) {
       let data = request.resource.data;
       return isValidCurrentCoupleWrite()
         && data.playerIds.size() == 1
         && data.playerIds[0] == request.auth.uid
         && data.status == 'waiting'
+        && data.visibility in ['private', 'public']
         && hasNoActiveSession(data)
         && 'sessionPreset' in data
         && 'boardState' in data
@@ -315,14 +358,25 @@ service cloud.firestore {
         && getAfter(
           /databases/$(database)/documents/coupleInvites/$(data.inviteCode)
         ).data.coupleId == coupleId
-        && existsAfter(
-          /databases/$(database)/documents/publicLobbies/$(coupleId)
-        )
-        && lobbyMatchesCouple(
-          getAfter(
-            /databases/$(database)/documents/publicLobbies/$(coupleId)
-          ).data,
-          data
+        && (
+          (
+            data.visibility == 'public'
+            && existsAfter(
+              /databases/$(database)/documents/publicLobbies/$(coupleId)
+            )
+            && lobbyMatchesCouple(
+              getAfter(
+                /databases/$(database)/documents/publicLobbies/$(coupleId)
+              ).data,
+              data
+            )
+          )
+          || (
+            data.visibility == 'private'
+            && !existsAfter(
+              /databases/$(database)/documents/publicLobbies/$(coupleId)
+            )
+          )
         );
     }
 
@@ -415,15 +469,22 @@ service cloud.firestore {
                 && !existsAfter(
                   /databases/$(database)/documents/playerCouples/$(request.auth.uid)
                 )
-                && existsAfter(
-                  /databases/$(database)/documents/publicLobbies/$(coupleId)
-                )
+                && lobbyVisibilityMatches(after, coupleId)
               )
               || (
                 changed.hasOnly(['sessionPreset', 'updatedAt'])
                 && before.playerIds[0] == request.auth.uid
                 && hasNoActiveSession(before)
                 && isPreset(after.sessionPreset)
+              )
+              || (
+                changed.hasOnly(['visibility', 'updatedAt'])
+                && before.playerIds[0] == request.auth.uid
+                && hasNoActiveSession(before)
+                && before.status == 'waiting'
+                && after.visibility in ['private', 'public']
+                && after.visibility != before.visibility
+                && lobbyVisibilityMatches(after, coupleId)
               )
               || (
                 changed.hasOnly(['boardState', 'updatedAt'])
@@ -523,7 +584,8 @@ service cloud.firestore {
         'confidence-fit', 'whisper-line', 'scent-memory',
         'favorite-way-held', 'look-you-love', 'flirt-resume',
         'what-miss-today', 'date-that-never-ends', 'secret-admiration',
-        'after-hours-tile', 'landing-lights', 'rewind-touch'
+        'after-hours-tile', 'landing-lights', 'rewind-touch',
+        'mutual-yes', 'same-wavelength',
       ];
     }
 
@@ -608,7 +670,7 @@ service cloud.firestore {
     function isValidJournalPayloadBudget(type, data) {
       return data is map
         && (
-          (type in ['prompt', 'journal', 'ritual'] && data.keys().size() <= 6)
+          (type in ['prompt', 'journal', 'ritual', 'milestone', 'trophy'] && data.keys().size() <= 6)
           || (type in ['match', 'vault', 'harmonic'] && data.keys().size() <= 7)
           || (type in ['prediction', 'vibe-sync', 'tempo', 'word', 'maze', 'canvas', 'bluff', 'photo'] && data.keys().size() <= 8)
           || (type in ['activity-pass', 'duel', 'finale', 'keepsake', 'vibe-setup'] && data.keys().size() <= 40)
@@ -625,7 +687,7 @@ service cloud.firestore {
             'activity-pass', 'bluff', 'canvas', 'duel', 'finale', 'harmonic',
             'journal', 'keepsake', 'match', 'maze', 'photo', 'prediction',
             'prompt', 'ritual', 'tempo', 'vault', 'vibe-setup', 'vibe-sync',
-            'word'
+            'word', 'milestone', 'trophy'
           ]
         );
     }
@@ -676,6 +738,8 @@ service cloud.firestore {
           'roundDuelBonus', 'spotlight', 'startingPlayerIndex', 'status',
           'totalRounds', 'turnsTakenThisRound', 'usedActivityIds',
           'usedDuelIds', 'usedKeepsakePerks', 'vibeVotes', 'vibeWeights',
+          'moodVotes', 'progressRecorded', 'sealedMatches',
+          'mutualYesMatches', 'sharedDuelWins',
           'createdAt', 'startedAt', 'endedAt', 'lastActionAt', 'updatedAt'
         ])
         && data.keys().hasOnly([
@@ -688,6 +752,8 @@ service cloud.firestore {
           'roundDuelBonus', 'spotlight', 'startingPlayerIndex', 'status',
           'totalRounds', 'turnsTakenThisRound', 'usedActivityIds',
           'usedDuelIds', 'usedKeepsakePerks', 'vibeVotes', 'vibeWeights',
+          'moodVotes', 'progressRecorded', 'sealedMatches',
+          'mutualYesMatches', 'sharedDuelWins',
           'createdAt', 'startedAt', 'endedAt', 'lastActionAt', 'updatedAt'
         ]);
     }
@@ -705,6 +771,15 @@ service cloud.firestore {
         && data.goals.size() <= 3
         && data.duelResults is map
         && data.vibeVotes is map
+        && data.moodVotes is map
+        && data.progressRecorded is bool
+        && data.progressRecorded == false
+        && data.sealedMatches is int
+        && data.sealedMatches == 0
+        && data.mutualYesMatches is int
+        && data.mutualYesMatches == 0
+        && data.sharedDuelWins is int
+        && data.sharedDuelWins == 0
         && data.momentum is map
         && data.spotlight is map
         && data.hearts is int
@@ -985,7 +1060,7 @@ service cloud.firestore {
           'activity-pass', 'bluff', 'canvas', 'duel', 'finale', 'harmonic',
           'journal', 'keepsake', 'match', 'maze', 'photo', 'prediction',
           'prompt', 'ritual', 'tempo', 'vault', 'vibe-setup', 'vibe-sync',
-          'word'
+          'word', 'milestone', 'trophy'
         ]
         && isVibe(data.vibe)
         && isOptionalBoundedString(data, 'openAt', 40)
@@ -1110,6 +1185,122 @@ service cloud.firestore {
           )
           || isCompletedLobbyJoin(lobbyId)
         );
+    }
+
+    match /coupleProgress/{coupleId} {
+      function isDateString(value) {
+        return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      }
+
+      function isValidKoupon(data) {
+        return data is map
+          && data.keys().hasAll(['id', 'label', 'status', 'createdAt'])
+          && data.keys().hasOnly([
+            'id', 'label', 'detail', 'status',
+            'createdAt', 'redeemedAt', 'fulfilledAt'
+          ])
+          && isBoundedString(data.id, 1, 64)
+          && isBoundedString(data.label, 1, 80)
+          && isOptionalBoundedString(data, 'detail', 200)
+          && data.status in ['active', 'redeemed', 'fulfilled']
+          && data.createdAt is timestamp
+          && (
+            !('redeemedAt' in data)
+            || data.redeemedAt == null
+            || data.redeemedAt is timestamp
+          )
+          && (
+            !('fulfilledAt' in data)
+            || data.fulfilledAt == null
+            || data.fulfilledAt is timestamp
+          );
+      }
+
+      function isValidCompanion(data) {
+        return data is map
+          && data.keys().hasAll(['name', 'stage', 'heartsFed'])
+          && data.keys().hasOnly(['name', 'stage', 'heartsFed'])
+          && isBoundedString(data.name, 1, 40)
+          && isBoundedInt(data.stage, 0, 3)
+          && data.heartsFed is int
+          && data.heartsFed >= 0
+          && data.heartsFed <= 1000000;
+      }
+
+      function isValidNudge(data) {
+        return data is map
+          && data.keys().hasAll(['byUid', 'byName', 'at'])
+          && data.keys().hasOnly(['byUid', 'byName', 'at'])
+          && isBoundedString(data.byUid, 1, 128)
+          && isBoundedString(data.byName, 1, 60)
+          && data.at is timestamp;
+      }
+
+      function isValidProgress(data) {
+        return data is map
+          && data.keys().hasAll([
+            'coupleId', 'lifetimeHearts', 'heartsSpent', 'lifetimeNights',
+            'unlockedThemes', 'streakCount', 'streakLastDate', 'freezeTokens',
+            'trophies', 'koupons', 'companion', 'anniversary',
+            'createdAt', 'updatedAt'
+          ])
+          && data.keys().hasOnly([
+            'coupleId', 'lifetimeHearts', 'heartsSpent', 'lifetimeNights',
+            'unlockedThemes', 'streakCount', 'streakLastDate', 'freezeTokens',
+            'trophies', 'koupons', 'companion', 'anniversary', 'nudge',
+            'selectedTheme', 'lastBankedSessionId',
+            'createdAt', 'updatedAt'
+          ])
+          && data.coupleId == coupleId
+          && data.lifetimeHearts is int
+          && data.lifetimeHearts >= 0
+          && data.lifetimeHearts <= 1000000
+          && (data.lastBankedSessionId == null || isBoundedString(data.lastBankedSessionId, 1, 128))
+          && data.heartsSpent is int
+          && data.heartsSpent >= 0
+          && data.heartsSpent <= data.lifetimeHearts
+          && data.lifetimeNights is int
+          && data.lifetimeNights >= 0
+          && data.lifetimeNights <= 1000000
+          && data.unlockedThemes is list
+          && data.unlockedThemes.size() <= 12
+          && data.streakCount is int
+          && data.streakCount >= 0
+          && data.streakCount <= 1000000
+          && (data.streakLastDate == null || isDateString(data.streakLastDate))
+          && isBoundedInt(data.freezeTokens, 0, 5)
+          && data.trophies is list
+          && data.trophies.size() <= 24
+          && data.koupons is list
+          && data.koupons.size() <= 20
+          && isValidCompanion(data.companion)
+          && (data.anniversary == null || isDateString(data.anniversary))
+          && (
+            !('selectedTheme' in data)
+            || isBoundedString(data.selectedTheme, 1, 40)
+          )
+          && (
+            !('nudge' in data)
+            || data.nudge == null
+            || isValidNudge(data.nudge)
+          )
+          && data.createdAt is timestamp
+          && data.updatedAt == request.time;
+      }
+
+      allow create: if isAuthenticated()
+        && isParticipant(coupleId)
+        && isValidProgress(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+
+      allow read: if isParticipant(coupleId);
+
+      allow update: if isAuthenticated()
+        && isParticipant(coupleId)
+        && isValidProgress(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if false;
     }
 
     match /lobbyMessages/{messageId} {

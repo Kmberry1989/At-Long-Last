@@ -41,6 +41,8 @@ export function buildShareLink(origin, inviteCode) {
  * Used by the deep-link join screen so the partner sees host identity and
  * room privacy before supplying a nickname. Authenticated reads of
  * coupleInvites and publicLobbies are permitted by the security rules.
+ * Private rooms carry the host preview on the invite itself; only public
+ * rooms have a lobby row.
  */
 export async function resolveInviteRoom({ code, db }) {
   const normalized = normalizeInviteCode(code)
@@ -55,25 +57,24 @@ export async function resolveInviteRoom({ code, db }) {
     throw new Error('Invite not found. Ask your partner to send a fresh link.')
   }
 
+  const invite = inviteSnapshot.data()
   const lobbySnapshot = await getDoc(
-    doc(db, 'publicLobbies', inviteSnapshot.data().coupleId),
+    doc(db, 'publicLobbies', invite.coupleId),
   )
+  const lobby = lobbySnapshot.exists()
+    ? { id: lobbySnapshot.id, ...lobbySnapshot.data() }
+    : null
 
-  if (
-    !lobbySnapshot.exists() ||
-    lobbySnapshot.data().status !== 'open' ||
-    lobbySnapshot.data().playerCount !== 1
-  ) {
+  if (lobby && (lobby.status !== 'open' || lobby.playerCount !== 1)) {
     throw new Error('That room is no longer open. Ask your partner to send a fresh link.')
   }
 
-  const lobby = lobbySnapshot.data()
-
   return {
-    coupleId: inviteSnapshot.data().coupleId,
-    hostName: lobby.hostName,
-    inviteCode: lobby.inviteCode || normalized,
-    status: lobby.status,
+    coupleId: invite.coupleId,
+    hostAvatar: invite.hostAvatar || lobby?.hostAvatar || null,
+    hostName: invite.hostName || lobby?.hostName || 'Your partner',
+    inviteCode: normalized,
+    isPublic: Boolean(lobby),
   }
 }
 
@@ -82,6 +83,7 @@ export function buildCreateCouplePayload({
   displayName,
   userId,
   inviteCode,
+  isPublic = false,
   origin,
   sessionPreset = DEFAULT_SESSION_PRESET,
 }) {
@@ -90,6 +92,7 @@ export function buildCreateCouplePayload({
     shareLink: buildShareLink(origin, inviteCode),
     sessionPreset: getSessionPreset(sessionPreset).id,
     status: 'waiting',
+    visibility: isPublic ? 'public' : 'private',
     playerIds: [userId],
     players: [
       {
@@ -104,10 +107,20 @@ export function buildCreateCouplePayload({
   }
 }
 
-export function buildInviteLookupPayload({ coupleId }) {
-  return {
+export function buildInviteLookupPayload({ coupleId, hostAvatar = null, hostName = '' }) {
+  const payload = {
     coupleId,
   }
+
+  if (hostName) {
+    payload.hostName = hostName.trim().slice(0, 60)
+  }
+
+  if (hostAvatar) {
+    payload.hostAvatar = resolvePlayerAvatar(hostAvatar)
+  }
+
+  return payload
 }
 
 export function buildPlayerCoupleLinkPayload({ coupleId }) {
@@ -227,6 +240,7 @@ export async function createCoupleDocument({
   avatar,
   db,
   displayName,
+  isPublic = false,
   origin,
   sessionPreset = DEFAULT_SESSION_PRESET,
   userId,
@@ -242,6 +256,7 @@ export async function createCoupleDocument({
       displayName,
       userId,
       inviteCode,
+      isPublic,
       origin,
       sessionPreset,
     })
@@ -259,7 +274,11 @@ export async function createCoupleDocument({
           updatedAt: serverTimestamp(),
         })
         transaction.set(inviteRef, {
-          ...buildInviteLookupPayload({ coupleId: coupleRef.id }),
+          ...buildInviteLookupPayload({
+            coupleId: coupleRef.id,
+            hostAvatar: payload.players[0].avatar,
+            hostName: displayName,
+          }),
           createdAt: serverTimestamp(),
         })
         transaction.set(playerLinkRef, {
@@ -267,18 +286,20 @@ export async function createCoupleDocument({
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         })
-        transaction.set(publicLobbyRef, {
-          ...buildPublicLobbyPayload({
-            coupleId: coupleRef.id,
-            hostAvatar: payload.players[0].avatar,
-            hostId: userId,
-            hostName: displayName,
-            inviteCode,
-            shareLink: payload.shareLink,
-          }),
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
+        if (isPublic) {
+          transaction.set(publicLobbyRef, {
+            ...buildPublicLobbyPayload({
+              coupleId: coupleRef.id,
+              hostAvatar: payload.players[0].avatar,
+              hostId: userId,
+              hostName: displayName,
+              inviteCode,
+              shareLink: payload.shareLink,
+            }),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        }
       })
 
       return coupleRef.id
@@ -307,19 +328,24 @@ export async function joinCoupleByInviteCode({
     throw new Error('Invite code not found.')
   }
 
-  const lobbySnapshot = await getDoc(
-    doc(db, 'publicLobbies', inviteSnapshot.data().coupleId),
-  )
+  const coupleId = inviteSnapshot.data().coupleId
+  const lobbySnapshot = await getDoc(doc(db, 'publicLobbies', coupleId))
 
-  if (!lobbySnapshot.exists()) {
-    throw new Error('That room is no longer open.')
+  if (lobbySnapshot.exists()) {
+    return joinOpenLobby({
+      avatar,
+      db,
+      displayName,
+      lobby: { id: lobbySnapshot.id, ...lobbySnapshot.data() },
+      userId,
+    })
   }
 
-  return joinOpenLobby({
+  return joinPrivateCouple({
     avatar,
+    coupleId,
     db,
     displayName,
-    lobby: { id: lobbySnapshot.id, ...lobbySnapshot.data() },
     userId,
   })
 }
@@ -343,6 +369,74 @@ export async function joinPublicLobby({
     lobby: { id: lobbySnapshot.id, ...lobbySnapshot.data() },
     userId,
   })
+}
+
+export function buildJoinPrivateCouplePatch(couple, { avatar, displayName, userId }) {
+  const host = couple.players[0]
+
+  return {
+    playerIds: [host.uid, userId],
+    players: [
+      host,
+      {
+        uid: userId,
+        displayName: displayName.trim(),
+        ...PLAYER_THEMES[1],
+        avatar: resolvePlayerAvatar(avatar),
+      },
+    ],
+    status: 'paired',
+  }
+}
+
+async function joinPrivateCouple({
+  avatar,
+  coupleId,
+  db,
+  displayName,
+  userId,
+}) {
+  const coupleRef = doc(db, 'couples', coupleId)
+  const playerLinkRef = doc(db, 'playerCouples', userId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(coupleRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('That room is no longer open.')
+    }
+
+    const couple = { id: snapshot.id, ...snapshot.data() }
+
+    if (
+      couple.status !== 'waiting' ||
+      couple.playerIds.length !== 1 ||
+      couple.playerIds[0] === userId ||
+      couple.activeSessionId
+    ) {
+      throw new Error('That room is no longer joinable.')
+    }
+
+    const patch = buildJoinPrivateCouplePatch(couple, {
+      avatar,
+      displayName,
+      userId,
+    })
+
+    transaction.update(coupleRef, {
+      playerIds: patch.playerIds,
+      players: patch.players,
+      status: patch.status,
+      updatedAt: serverTimestamp(),
+    })
+    transaction.set(playerLinkRef, {
+      ...buildPlayerCoupleLinkPayload({ coupleId }),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  })
+
+  return coupleId
 }
 
 async function joinOpenLobby({
@@ -458,9 +552,64 @@ export async function leaveCoupleDocument({
       status: nextCouple.status,
       updatedAt: serverTimestamp(),
     })
-    transaction.set(publicLobbyRef, {
-      ...buildPublicLobbyFromCouple({ id: couple.id, ...nextCouple }),
-      createdAt: serverTimestamp(),
+    if ((current.visibility ?? 'public') === 'public') {
+      transaction.set(publicLobbyRef, {
+        ...buildPublicLobbyFromCouple({ id: couple.id, ...nextCouple }),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    }
+  })
+}
+
+/**
+ * Toggles a waiting room's public listing. Private by default; the host can
+ * opt in to the public room browser and back out at any time. Runs as one
+ * transaction so the lobby row and the visibility flag never disagree.
+ */
+export async function setRoomVisibility({
+  coupleId,
+  db,
+  isPublic,
+  userId,
+}) {
+  const coupleRef = doc(db, 'couples', coupleId)
+  const publicLobbyRef = doc(db, 'publicLobbies', coupleId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(coupleRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('That room is no longer available.')
+    }
+
+    const couple = snapshot.data()
+    const nextVisibility = isPublic ? 'public' : 'private'
+
+    if (couple.playerIds?.[0] !== userId) {
+      throw new Error('Only the room owner can change the room listing.')
+    }
+
+    if (couple.status !== 'waiting' || couple.activeSessionId) {
+      throw new Error('The room listing can only change while waiting for a partner.')
+    }
+
+    if ((couple.visibility ?? 'private') === nextVisibility) {
+      return
+    }
+
+    if (isPublic) {
+      transaction.set(publicLobbyRef, {
+        ...buildPublicLobbyFromCouple({ id: coupleId, ...couple }),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    } else {
+      transaction.delete(publicLobbyRef)
+    }
+
+    transaction.update(coupleRef, {
+      visibility: nextVisibility,
       updatedAt: serverTimestamp(),
     })
   })

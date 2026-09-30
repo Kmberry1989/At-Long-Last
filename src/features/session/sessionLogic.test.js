@@ -8,8 +8,11 @@ import {
   buildInitialSession,
   choosePendingActivity,
   ensureSessionArcState,
+  evaluateNightChecklist,
   finalizeVibeSetup,
   getSessionAct,
+  isValidMood,
+  nightChecklistProgress,
   resolveActivityCompletion,
   resolveKeepsakeDecision,
   resolveSkippedActivity,
@@ -305,5 +308,68 @@ describe('sessionLogic', () => {
     expect(summary.completedSpotlightCount).toBe(2)
     expect(summary.momentumLabels).toContain('Double pick armed')
     expect(summary.momentumLabels).toContain('Soft landing armed')
+  })
+})
+
+describe('night checklist and moods', () => {
+  it('validates mood ids against the known options', () => {
+    expect(isValidMood('cozy')).toBe(true)
+    expect(isValidMood('wild')).toBe(true)
+    expect(isValidMood('sleepy')).toBe(false)
+    expect(isValidMood(null)).toBe(false)
+  })
+
+  it('starts every checklist item unchecked', () => {
+    const items = evaluateNightChecklist(buildInitialSession(buildCouple()))
+
+    expect(items).toHaveLength(5)
+    expect(items.every((item) => item.done === false)).toBe(true)
+  })
+
+  it('checks items off as the night fills in', () => {
+    const session = {
+      ...buildInitialSession(buildCouple()),
+      keepsakes: [{ id: 'k1' }],
+      lastDuelOutcome: { shared: true },
+      lastRoll: 4,
+      moodVotes: { u1: 'cozy', u2: 'playful' },
+      vibeWeights: { playful: 0.5, spicy: 0.2, tender: 0.3 },
+    }
+
+    const { done, items, total } = nightChecklistProgress(session)
+
+    expect(total).toBe(5)
+    expect(done).toBe(5)
+    expect(items.map((item) => item.id)).toEqual([
+      'set-mood',
+      'set-vibe',
+      'first-roll',
+      'duel-night',
+      'keepsake',
+    ])
+  })
+
+  it('requires both players to vote their mood', () => {
+    const session = {
+      ...buildInitialSession(buildCouple()),
+      moodVotes: { u1: 'cozy' },
+    }
+
+    const items = evaluateNightChecklist(session)
+    expect(items.find((item) => item.id === 'set-mood').done).toBe(false)
+  })
+
+  it('counts shared duel wins across the night', () => {
+    const ready = buildReadySession({ totalRounds: 1 })
+    const withDuel = beginRoundDuel(ready, 'emoji-court')
+    const duel = duelRegistry['emoji-court']
+    const next = advanceAfterDuel(
+      { ...withDuel, round: 1, totalRounds: 1 },
+      { status: 'shared' },
+      duel,
+    )
+
+    expect(next.sharedDuelWins).toBe(1)
+    expect(next.phase).toBe('finale')
   })
 })

@@ -14,6 +14,7 @@ import {
 import { Disclosure } from './Disclosure.jsx'
 import { InviteJoinScreen } from './InviteJoinScreen.jsx'
 import { PlayerPiecePicker } from './PlayerPiecePicker.jsx'
+import { ProgressHub } from './ProgressHub.jsx'
 
 const PLAYER_PIECE_STORAGE_KEY = 'at-long-last:player-piece:v1'
 
@@ -86,8 +87,10 @@ export function LobbyScreen() {
     publicLobbyMessages,
     publicLobbies,
     sessionPreset,
+    roomVisibility,
     selectedPublicLobbyId,
     selectPublicLobby,
+    setRoomVisibility,
     switchCouple,
     switchPublicLobby,
     updateSessionPreset,
@@ -869,6 +872,30 @@ export function LobbyScreen() {
                 <p>{couple.shareLink}</p>
               </div>
 
+              {couple.hostId === user?.uid && (
+                <div className="visibility-toggle">
+                  <span className="visibility-label">
+                    {roomVisibility === 'public' ? '🌐 Public room' : '🔒 Private room'}
+                  </span>
+                  <button
+                    className="secondary-btn"
+                    disabled={working}
+                    onClick={() => {
+                      playAction?.()
+                      setRoomVisibility(roomVisibility !== 'public')
+                    }}
+                    type="button"
+                  >
+                    {roomVisibility === 'public' ? 'Make private' : 'List publicly'}
+                  </button>
+                  <p className="support-copy">
+                    {roomVisibility === 'public'
+                      ? 'Strangers can see this room in the public lobby list.'
+                      : 'Only people with your invite link can find this room.'}
+                  </p>
+                </div>
+              )}
+
               <div className="button-row">
                 <button className="primary-btn" onClick={handleShareInvite} type="button">
                   Share Invite
@@ -944,6 +971,10 @@ export function LobbyScreen() {
                   Switch
                 </button>
               </div>
+              </Disclosure>
+
+              <Disclosure label="Our collection — streaks, themes, trophies">
+                <ProgressHub />
               </Disclosure>
 
               <div className="button-row split-row">
