@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { RevealBurst } from '../../components/DuelRevealOverlay.jsx'
+import { useAudio } from '../../audio/AudioProvider.jsx'
 import {
   MIND_MELD_PROMPTS,
   MUTUAL_YES_PROMPTS,
@@ -84,6 +86,58 @@ function RevealContinue({ acked, busy, onContinue, partnerName }) {
   )
 }
 
+const SEALED_COUNTDOWN_START = 3
+const SEALED_COUNTDOWN_STEP_MS = 900
+
+/**
+ * SealedRevealMoment — the synchronized reveal beat for Mind Meld and Mutual
+ * Yes. Both phones derive the reveal from the same activity state, so each
+ * runs the same short countdown, then the answers land with a heart burst,
+ * a chime, and a haptic tap.
+ */
+function SealedRevealMoment({ children }) {
+  const { playSuccess } = useAudio()
+  const [count, setCount] = useState(SEALED_COUNTDOWN_START)
+  const [revealed, setRevealed] = useState(false)
+  const firedRef = useRef(false)
+
+  useEffect(() => {
+    if (count <= 0) {
+      if (!firedRef.current) {
+        firedRef.current = true
+        setRevealed(true)
+        playSuccess?.()
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([30, 60, 30])
+        }
+      }
+      return undefined
+    }
+
+    const timer = setTimeout(() => setCount((current) => current - 1), SEALED_COUNTDOWN_STEP_MS)
+    return () => clearTimeout(timer)
+  }, [count, playSuccess])
+
+  if (!revealed) {
+    return (
+      <div className="sealed-countdown">
+        <p className="duel-countdown-label">Both sealed</p>
+        <p className="duel-countdown-number" key={count} aria-live="polite">
+          {count}
+        </p>
+        <p className="duel-countdown-sub">Revealing together</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="sealed-reveal">
+      <RevealBurst />
+      {children}
+    </div>
+  )
+}
+
 function MindMeldCard({
   activity,
   definition,
@@ -166,7 +220,7 @@ function MindMeldCard({
       )}
 
       {revealed && !decided && (
-        <div className="sealed-reveal">
+        <SealedRevealMoment>
           <p className="eyebrow">✨ revealed together</p>
           {[0, 1].map((index) => (
             <div className="activity-log-card" key={index}>
@@ -201,7 +255,7 @@ function MindMeldCard({
               <p>Did your minds meld?</p>
             </div>
           )}
-        </div>
+        </SealedRevealMoment>
       )}
 
       {revealed && decided && (
@@ -414,7 +468,7 @@ function MutualYesCard({
       )}
 
       {decided && (
-        <div className="sealed-reveal">
+        <SealedRevealMoment>
           <p className="eyebrow">
             {outcome.mutualYes ? '🔥 mutual yes' : '💛 sealed with care'}
           </p>
@@ -429,7 +483,7 @@ function MutualYesCard({
             onContinue={handleContinue}
             partnerName={partnerName}
           />
-        </div>
+        </SealedRevealMoment>
       )}
     </div>
   )

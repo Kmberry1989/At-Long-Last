@@ -13,7 +13,9 @@ import {
   getSessionAct,
   isValidMood,
   nightChecklistProgress,
+  applyMoodSeedToWeights,
   resolveActivityCompletion,
+  resolveCombinedMood,
   resolveKeepsakeDecision,
   resolveSkippedActivity,
 } from './sessionLogic.js'
@@ -246,6 +248,26 @@ describe('sessionLogic', () => {
     expect(next.spotlight.act).toBe('finale')
   })
 
+  it('resets the reveal gate when a duel goes to a retry attempt', () => {
+    const session = buildReadySession({
+      currentDuel: {
+        attempt: 1,
+        heartBonus: 3,
+        id: 'reaction-heart',
+        revealAcks: { u1: true, u2: true },
+        revealForce: true,
+      },
+      phase: 'duel',
+    })
+
+    const next = advanceAfterDuel(session, { status: 'retry' }, duelRegistry['reaction-heart'])
+
+    expect(next.phase).toBe('duel')
+    expect(next.currentDuel.attempt).toBe(2)
+    expect(next.currentDuel.revealAcks).toEqual({})
+    expect(next.currentDuel.revealForce).toBe(false)
+  })
+
   it('adds purchased perks when buying a keepsake', () => {
     let session = buildReadySession()
     session = applyRollToSession(session, {
@@ -357,6 +379,42 @@ describe('night checklist and moods', () => {
 
     const items = evaluateNightChecklist(session)
     expect(items.find((item) => item.id === 'set-mood').done).toBe(false)
+  })
+
+  it('resolves the combined mood from both votes', () => {
+    const combined = resolveCombinedMood({ u1: 'cozy', u2: 'dreamy' })
+
+    expect(combined.vibe).toBe('tender')
+    expect(combined.label).toBe('Cozy + Dreamy')
+    expect(combined.weights.tender).toBeGreaterThan(0.6)
+  })
+
+  it('blends clashing moods instead of picking a winner', () => {
+    const combined = resolveCombinedMood({ u1: 'wild', u2: 'cozy' })
+
+    expect(combined.weights.spicy).toBeGreaterThan(0.2)
+    expect(combined.weights.tender).toBeGreaterThan(0.2)
+  })
+
+  it('returns null when nobody has voted a mood', () => {
+    expect(resolveCombinedMood({})).toBeNull()
+    expect(resolveCombinedMood({ u1: 'sleepy' })).toBeNull()
+  })
+
+  it('seeds the first-roll weights toward the combined mood', () => {
+    const seeded = applyMoodSeedToWeights(
+      { playful: 0.34, spicy: 0.33, tender: 0.33 },
+      { u1: 'cozy', u2: 'cozy' },
+    )
+
+    expect(seeded.tender).toBeGreaterThan(0.5)
+    const total = seeded.playful + seeded.spicy + seeded.tender
+    expect(total).toBeCloseTo(1, 5)
+  })
+
+  it('leaves weights untouched when no mood is set', () => {
+    const weights = { playful: 0.5, spicy: 0.2, tender: 0.3 }
+    expect(applyMoodSeedToWeights(weights, {})).toEqual(weights)
   })
 
   it('counts shared duel wins across the night', () => {

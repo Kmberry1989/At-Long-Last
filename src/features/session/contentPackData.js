@@ -5,6 +5,7 @@ import { SEALED_ACTIVITY_DEFINITIONS } from './sealedActivityData.js'
 import { WAVE_TWO_ACTIVITY_DEFINITIONS } from './waveTwoGameData.js'
 import { WAVE_THREE_ACTIVITY_DEFINITIONS } from './waveThreeGameData.js'
 import { WAVE_FOUR_ACTIVITY_DEFINITIONS } from './waveFourGameData.js'
+import { WAVELENGTH_DUEL_DEFINITION } from './wavelengthDuelData.js'
 
 export const activityDefinitions = [
   ...RAW_ACTIVITIES.map((activity) => ({
@@ -19,7 +20,7 @@ export const activityDefinitions = [
   ...SEALED_ACTIVITY_DEFINITIONS,
 ]
 
-export const duelDefinitions = RAW_DUELS.map((duel) => ({
+export const duelDefinitions = [...RAW_DUELS, WAVELENGTH_DUEL_DEFINITION].map((duel) => ({
   ...duel,
   label: duel.name,
   prompt: duel.howToPlay?.[0] || duel.tagline,

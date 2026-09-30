@@ -251,6 +251,7 @@ export async function submitVibeVote(db, sessionId, userId, vote) {
       const vibeWeights = averageVibeVotes(vibeVotes)
       const journalEntry = buildVibeSetupJournalEntry({
         coupleId: session.coupleId,
+        moodVotes: session.moodVotes,
         players: session.players,
         sessionId,
         vibeVotes,

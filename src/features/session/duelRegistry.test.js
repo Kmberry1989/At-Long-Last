@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { duelIds, duelRegistry, resolveTieByTime } from './duelRegistry.jsx'
 
 describe('duelRegistry', () => {
-  it('contains the full 15-item duel pack with unique ids', () => {
-    expect(duelIds).toHaveLength(15)
-    expect(new Set(duelIds).size).toBe(15)
+  it('contains the full 16-item duel pack with unique ids', () => {
+    expect(duelIds).toHaveLength(16)
+    expect(new Set(duelIds).size).toBe(16)
+    expect(duelIds).toContain('wavelength-duel')
   })
 
   it('keeps all spicy duels skippable', () => {

@@ -1,7 +1,9 @@
 import { Suspense, lazy, startTransition, useEffect, useRef, useState } from 'react'
+import { DuelRevealOverlay } from './DuelRevealOverlay.jsx'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { ChecklistRail } from './ChecklistRail.jsx'
 import { LoveTank } from './LoveTank.jsx'
+import { MoodPulse } from './MoodPulse.jsx'
 import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
@@ -12,7 +14,6 @@ import { useSynth } from './useSynth.js'
 import {
   ActiveTurnState,
   PartnerAwayState,
-  ReadyToRevealState,
   WaitingState,
 } from './PlayStates.jsx'
 
@@ -62,6 +63,7 @@ export function GameScreen() {
   const { couple, hasPartner } = useCouple()
   const { playAction } = useAudio()
   const {
+    ackDuelReveal,
     activity,
     boardState,
     canRecoverSession,
@@ -70,12 +72,16 @@ export function GameScreen() {
     claimSessionHost,
     chooseKeepsake,
     connectionState,
+    continuePreviewDuel,
     error,
+    enabled,
     finalSummary,
+    forceDuelReveal,
     isHost,
     isSessionStale,
     journalEntries,
     myDuelResult,
+    myMoodVote,
     myVibeVote,
     playerIndex,
     readyToPlay,
@@ -90,6 +96,7 @@ export function GameScreen() {
     startFreshSession,
     submitActivityTurn,
     submitDuelResult,
+    submitMoodVote,
     submitVibeVote,
     working,
   } = useSession()
@@ -288,7 +295,11 @@ export function GameScreen() {
   }
   const otherPlayer = session.players[playerIndex === 0 ? 1 : 0]
   const otherPlayerName = otherPlayer?.displayName || 'Your partner'
-  const duelResultCount = Object.keys(session.duelResults || {}).length
+  const duelBothSubmitted =
+    session.phase === 'duel' &&
+    session.currentDuel &&
+    session.players.length === 2 &&
+    session.players.every((player) => session.duelResults?.[player.uid])
 
   /**
    * Shared two-phone state contract: the non-active phone always sees who is
@@ -521,16 +532,27 @@ export function GameScreen() {
 
       {!diceAnimating && session.phase === 'vibeSetup' && (
         <div className="overlay-screen">
-          <VibeDial
-            defaultWeights={myVibeVote || session.vibeWeights || undefined}
-            disabled={working || Boolean(myVibeVote)}
-            onConfirm={(vote) => {
-              playAction?.()
-              submitVibeVote(vote)
-            }}
-            playerName={session.players[playerIndex]?.displayName || 'You'}
-          />
-          {myVibeVote && (
+          {!myMoodVote ? (
+            <MoodPulse
+              disabled={working}
+              onConfirm={(mood) => {
+                playAction?.()
+                submitMoodVote(mood)
+              }}
+              playerName={session.players[playerIndex]?.displayName || 'You'}
+            />
+          ) : (
+            <VibeDial
+              defaultWeights={myVibeVote || session.vibeWeights || undefined}
+              disabled={working || Boolean(myVibeVote)}
+              onConfirm={(vote) => {
+                playAction?.()
+                submitVibeVote(vote)
+              }}
+              playerName={session.players[playerIndex]?.displayName || 'You'}
+            />
+          )}
+          {myMoodVote && myVibeVote && (
             <div className="overlay-note">
               <WaitingState
                 actorName={otherPlayerName}
@@ -621,20 +643,24 @@ export function GameScreen() {
 
       {!diceAnimating && session.phase === 'duel' && DuelComponent && (
         <div className="overlay-screen">
-          {myDuelResult ? (
-            duelResultCount >= 2 ? (
-              <ReadyToRevealState
-                actorName={otherPlayerName}
-                nextHint="Opening both answers together…"
-              />
-            ) : (
-              <WaitingState
-                actorName={otherPlayerName}
-                activityVerb="locking in their answer"
-                nextHint="The reveal opens when both answers are in."
-                privateNote="Private: answers stay hidden until the reveal."
-              />
-            )
+          {duelBothSubmitted ? (
+            <DuelRevealOverlay
+              isHost={isHost}
+              onAck={ackDuelReveal}
+              onForceContinue={forceDuelReveal}
+              onPreviewContinue={continuePreviewDuel}
+              playerIndex={playerIndex}
+              players={session.players}
+              preview={!enabled}
+              session={session}
+            />
+          ) : myDuelResult ? (
+            <WaitingState
+              actorName={otherPlayerName}
+              activityVerb="locking in their answer"
+              nextHint="The reveal opens when both answers are in."
+              privateNote="Private: answers stay hidden until the reveal."
+            />
           ) : (
             <DuelComponent
               disabled={working}
@@ -643,6 +669,8 @@ export function GameScreen() {
                 playAction?.()
                 skipDuel()
               }}
+              playerIndex={playerIndex}
+              players={session.players}
             />
           )}
         </div>

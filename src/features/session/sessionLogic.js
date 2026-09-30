@@ -351,6 +351,76 @@ export function isValidMood(mood) {
   return MOOD_OPTIONS.some((option) => option.id === mood)
 }
 
+/**
+ * How each pulse mood leans the board's energy. Used to seed the night's
+ * first activity from the couple's combined mood (research: mood-pulse
+ * check-ins are the lowest-effort on-ramp for the reluctant partner).
+ */
+const MOOD_VIBE_VECTORS = {
+  cozy: { playful: 0.15, spicy: 0.05, tender: 0.8 },
+  dreamy: { playful: 0.25, spicy: 0.05, tender: 0.7 },
+  flirty: { playful: 0.35, spicy: 0.55, tender: 0.1 },
+  playful: { playful: 0.8, spicy: 0.1, tender: 0.1 },
+  wild: { playful: 0.3, spicy: 0.65, tender: 0.05 },
+}
+
+export function resolveCombinedMood(moodVotes = {}) {
+  const moods = Object.values(moodVotes || {}).filter(isValidMood)
+  if (moods.length === 0) {
+    return null
+  }
+
+  const combined = { playful: 0, spicy: 0, tender: 0 }
+  moods.forEach((mood) => {
+    const vector = MOOD_VIBE_VECTORS[mood]
+    combined.playful += vector.playful
+    combined.spicy += vector.spicy
+    combined.tender += vector.tender
+  })
+
+  const total = combined.playful + combined.spicy + combined.tender || 1
+  const weights = {
+    playful: combined.playful / total,
+    spicy: combined.spicy / total,
+    tender: combined.tender / total,
+  }
+
+  const labels = moods.map(
+    (mood) => MOOD_OPTIONS.find((option) => option.id === mood)?.label || mood,
+  )
+
+  return {
+    label: labels.join(' + '),
+    moods,
+    vibe: getDominantVibe(weights),
+    weights,
+  }
+}
+
+/**
+ * Blend the couple's vibe-dial vote 50/50 with tonight's pulse for the first
+ * roll only, so the opening activity starts where they actually are.
+ */
+export function applyMoodSeedToWeights(vibeWeights = DEFAULT_VIBE_WEIGHTS, moodVotes = {}) {
+  const mood = resolveCombinedMood(moodVotes)
+  if (!mood) {
+    return vibeWeights
+  }
+
+  const blended = {
+    playful: (vibeWeights.playful || 0) * 0.5 + mood.weights.playful * 0.5,
+    spicy: (vibeWeights.spicy || 0) * 0.5 + mood.weights.spicy * 0.5,
+    tender: (vibeWeights.tender || 0) * 0.5 + mood.weights.tender * 0.5,
+  }
+  const total = blended.playful + blended.spicy + blended.tender || 1
+
+  return {
+    playful: blended.playful / total,
+    spicy: blended.spicy / total,
+    tender: blended.tender / total,
+  }
+}
+
 export function buildNightChecklist() {
   return [
     { done: false, id: 'set-mood', label: 'Share your mood' },
@@ -720,6 +790,9 @@ export function advanceAfterDuel(session, outcome, duel) {
       currentDuel: {
         ...nextSession.currentDuel,
         attempt: nextSession.currentDuel.attempt + 1,
+        // A fresh attempt gets a fresh reveal gate.
+        revealAcks: {},
+        revealForce: false,
       },
       duelResults: {},
       phase: 'duel',

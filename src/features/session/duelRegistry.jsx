@@ -2,6 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DoodleDuel } from '../../components/DoodleDuel.jsx'
 import { KissCourier } from '../../components/KissCourier.jsx'
 import { duelDefinitions } from './contentPackData.js'
+import {
+  WAVELENGTH_DUEL_ID,
+  WAVELENGTH_PROMPT_COUNT,
+  WAVELENGTH_PROMPTS,
+  encodeWavelengthSubmission,
+  isValidWavelengthSubmission,
+  scoreWavelengthDuel,
+  wavelengthHearts,
+} from './wavelengthDuelData.js'
 
 function DuelShell({ children, duel, onSkip }) {
   return (
@@ -451,6 +460,126 @@ function resolveSharedCompletion() {
   return { shared: true }
 }
 
+function resolveWavelengthHearts(resultOne, resultTwo) {
+  return wavelengthHearts(scoreWavelengthDuel(resultOne, resultTwo).matches)
+}
+
+/**
+ * Wavelength Duel — simultaneous prediction duel (research: Happy Couple's
+ * double-answer format). Each player answers for themselves and guesses their
+ * partner's answer on the same 5 prompts. Everything stays sealed until both
+ * phones submit; scoring happens cross-player at reveal time.
+ */
+function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, players = [] }) {
+  const [promptIndex, setPromptIndex] = useState(0)
+  const [stage, setStage] = useState('answer')
+  const [picked, setPicked] = useState('')
+  const [answers, setAnswers] = useState([])
+  const [guesses, setGuesses] = useState([])
+  const startAt = useRef(0)
+
+  useEffect(() => {
+    startAt.current = performance.now()
+  }, [])
+
+  const partnerName = useMemo(() => {
+    const partner = players[playerIndex === 0 ? 1 : 0]
+    return partner?.displayName || 'your partner'
+  }, [playerIndex, players])
+
+  const prompt = WAVELENGTH_PROMPTS[promptIndex]
+  const isLastPrompt = promptIndex === WAVELENGTH_PROMPT_COUNT - 1
+
+  function advance(nextPicked) {
+    if (disabled || !nextPicked) {
+      return
+    }
+
+    if (stage === 'answer') {
+      setAnswers((current) => [...current, nextPicked])
+      setStage('guess')
+      setPicked('')
+      return
+    }
+
+    const nextGuesses = [...guesses, nextPicked]
+    const nextAnswers = [...answers]
+
+    if (!isLastPrompt) {
+      setGuesses(nextGuesses)
+      setPromptIndex(promptIndex + 1)
+      setStage('answer')
+      setPicked('')
+      return
+    }
+
+    if (!isValidWavelengthSubmission(nextAnswers, nextGuesses)) {
+      return
+    }
+
+    onComplete({
+      excerpt: encodeWavelengthSubmission(nextAnswers, nextGuesses),
+      highlight: 'locked in 5 answers and 5 guesses',
+      score: 0,
+      time: Number(((performance.now() - startAt.current) / 1000).toFixed(1)),
+      won: true,
+    })
+  }
+
+  return (
+    <DuelShell duel={duel} onSkip={onSkip}>
+      <div className="wavelength-progress" aria-label={`Prompt ${promptIndex + 1} of ${WAVELENGTH_PROMPT_COUNT}`}>
+        {WAVELENGTH_PROMPTS.map((entry, index) => (
+          <span
+            className={
+              index < promptIndex || (index === promptIndex && stage === 'guess')
+                ? 'wavelength-dot done'
+                : index === promptIndex
+                  ? 'wavelength-dot current'
+                  : 'wavelength-dot'
+            }
+            key={entry.id}
+          />
+        ))}
+      </div>
+
+      <div className="wavelength-prompt">
+        <span>{stage === 'answer' ? 'Your honest answer' : `What will ${partnerName} pick?`}</span>
+        <p>{prompt.text}</p>
+      </div>
+
+      <div className="connection-choice-grid" role="radiogroup" aria-label={prompt.text}>
+        {prompt.options.map((option) => (
+          <button
+            aria-checked={picked === option.id}
+            className={`connection-choice${picked === option.id ? ' active' : ''}`}
+            disabled={disabled}
+            key={option.id}
+            onClick={() => setPicked(option.id)}
+            role="radio"
+            type="button"
+          >
+            <span>{option.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <p className="sealed-note">
+        🔒 Sealed — {partnerName} can&apos;t see this until you both finish.
+      </p>
+
+      <button
+        className="primary-btn"
+        disabled={disabled || !picked}
+        onClick={() => advance(picked)}
+        type="button"
+      >
+        {isLastPrompt && stage === 'guess' ? 'Seal My Guesses' : stage === 'answer' ? 'Lock My Answer' : 'Lock My Guess'}
+      </button>
+    </DuelShell>
+  )
+}
+
 const duelComponentMap = {
   'constellation-home': {
     component: ConstellationDuel,
@@ -507,6 +636,11 @@ const duelComponentMap = {
   'voice-note-trailer': {
     component: TextSprintDuel,
     resolveTie: resolveSharedCompletion,
+  },
+  [WAVELENGTH_DUEL_ID]: {
+    component: WavelengthDuel,
+    resolveHearts: resolveWavelengthHearts,
+    resolveTie: () => ({ shared: true }),
   },
   'wavelength-slider': {
     component: SliderMatchDuel,

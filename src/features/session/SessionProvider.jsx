@@ -17,8 +17,10 @@ import {
 } from './journalHelpers.js'
 import { KEEPSAKES } from './boardConfig.js'
 import { duelRegistry } from './duelRegistry.jsx'
+import { WAVELENGTH_DUEL_ID } from './wavelengthDuelData.js'
 import {
   advanceAfterDuel,
+  applyMoodSeedToWeights,
   applyRollToSession,
   beginRoundDuel,
   buildFinalSummary,
@@ -117,6 +119,9 @@ function buildSkippedDuelRepick(session) {
       ...session.currentDuel,
       attempt: session.currentDuel.attempt + 1,
       id: duelId,
+      // A fresh duel gets a fresh reveal gate.
+      revealAcks: {},
+      revealForce: false,
     },
     duelResults: {},
     usedDuelIds: [...session.usedDuelIds, duelId],
@@ -151,6 +156,7 @@ export function SessionProvider({ children }) {
   const [boardState, setBoardState] = useState(createDefaultBoardState())
   const [connectionState, setConnectionState] = useState(enabled ? 'connecting' : 'local-preview')
   const resolvingDuelRef = useRef(false)
+  const previewDuelContinueRef = useRef(null)
   const previewActivityStartedRef = useRef(false)
   const progressRecordedRef = useRef(false)
 
@@ -425,6 +431,19 @@ export function SessionProvider({ children }) {
     }
 
     const skippedOutcome = getSkippedDuelOutcome(session)
+    const bothSubmittedOutcome = skippedOutcome || evaluateDuelRound(session, duelRegistry)
+    if (bothSubmittedOutcome.status === 'pending') {
+      return
+    }
+
+    // The reveal overlay holds the duel until both partners acknowledge it
+    // (or the host forces the advance after the waiting window).
+    const revealAcks = session.currentDuel.revealAcks || {}
+    const bothAcked = session.players.every((player) => revealAcks[player.uid] === true)
+    if (!bothAcked && session.currentDuel.revealForce !== true) {
+      return
+    }
+
     if (skippedOutcome?.status === 'repick') {
       resolvingDuelRef.current = true
       const duel = duelRegistry[session.currentDuel.id]
@@ -453,20 +472,32 @@ export function SessionProvider({ children }) {
       return
     }
 
-    const outcome = skippedOutcome || evaluateDuelRound(session, duelRegistry)
-    if (outcome.status === 'pending') {
-      return
-    }
-
+    const outcome = bothSubmittedOutcome
     resolvingDuelRef.current = true
 
     const duel = duelRegistry[session.currentDuel.id]
-    const nextSession = advanceAfterDuel(session, outcome, duel)
+    // Duels like Wavelength award hearts from the scored result (matches),
+    // not from the fixed wheel bonus.
+    const heartBonus =
+      duel?.resolveHearts && (outcome.status === 'shared' || outcome.status === 'resolved')
+        ? duel.resolveHearts(
+            session.duelResults[session.players[0]?.uid],
+            session.duelResults[session.players[1]?.uid],
+          )
+        : session.currentDuel.heartBonus
+    const nextSession = advanceAfterDuel(
+      {
+        ...session,
+        currentDuel: { ...session.currentDuel, heartBonus },
+      },
+      outcome,
+      duel,
+    )
     const duelJournalEntry = buildDuelJournalEntry({
       coupleId: couple.id,
       duel,
       duelResults: session.duelResults,
-      heartBonus: session.currentDuel.heartBonus,
+      heartBonus,
       outcome,
       players: session.players,
       sessionId: session.id,
@@ -511,14 +542,20 @@ export function SessionProvider({ children }) {
 
     try {
       const roll = Math.floor(Math.random() * 6) + 1
+      // The night's first roll is seeded by the couple's combined mood pulse:
+      // the opening activity leans into how they actually arrived tonight.
+      const isFirstRoll = session.lastRoll == null
+      const pickWeights = isFirstRoll
+        ? applyMoodSeedToWeights(session.vibeWeights || DEFAULT_VIBE_WEIGHTS, session.moodVotes)
+        : session.vibeWeights || DEFAULT_VIBE_WEIGHTS
       const activityType = pickWeightedActivityId(
-        session.vibeWeights || DEFAULT_VIBE_WEIGHTS,
+        pickWeights,
         session.usedActivityIds,
         Math.random,
         { preset: session.preset },
       )
       const activityOptions = pickWeightedActivityOptions(
-        session.vibeWeights || DEFAULT_VIBE_WEIGHTS,
+        pickWeights,
         session.usedActivityIds,
         2,
         Math.random,
@@ -691,6 +728,7 @@ export function SessionProvider({ children }) {
         const vibeWeights = averageVibeVotes(vibeVotes)
         const journalEntry = buildVibeSetupJournalEntry({
           coupleId: couple.id,
+          moodVotes: session.moodVotes,
           players: session.players,
           sessionId: session.id,
           vibeVotes,
@@ -873,6 +911,42 @@ export function SessionProvider({ children }) {
     }
   }
 
+  async function ackDuelReveal() {
+    if (!enabled || !session?.currentDuel || !userId) {
+      return
+    }
+
+    try {
+      await updateDoc(doc(db, 'sessions', session.id), {
+        [`currentDuel.revealAcks.${userId}`]: true,
+        updatedAt: serverTimestamp(),
+      })
+    } catch (nextError) {
+      setError(nextError.message)
+    }
+  }
+
+  async function forceDuelReveal() {
+    if (!enabled || !session?.currentDuel || !isHost) {
+      return
+    }
+
+    try {
+      await updateDoc(doc(db, 'sessions', session.id), {
+        'currentDuel.revealForce': true,
+        updatedAt: serverTimestamp(),
+      })
+    } catch (nextError) {
+      setError(nextError.message)
+    }
+  }
+
+  function continuePreviewDuel() {
+    const continueDuel = previewDuelContinueRef.current
+    previewDuelContinueRef.current = null
+    continueDuel?.()
+  }
+
   async function submitDuelResult(result) {
     if (!session || !session.currentDuel || playerIndex < 0 || working) {
       return
@@ -881,6 +955,12 @@ export function SessionProvider({ children }) {
     if (!enabled) {
       const opponentIndex = playerIndex === 0 ? 1 : 0
       const opponentUid = session.players[opponentIndex].uid
+      const duel = duelRegistry[session.currentDuel.id]
+      const randomWavelengthExcerpt = () => {
+        const pick = () => 'abcd'[Math.floor(Math.random() * 4)]
+        const sequence = () => Array.from({ length: 5 }, pick).join('')
+        return `a=${sequence()};g=${sequence()}`
+      }
       const opponentResult = result.skipped
         ? {
             highlight: 'skipped the duel too',
@@ -888,13 +968,21 @@ export function SessionProvider({ children }) {
             time: 99,
             won: false,
           }
-        : {
-            highlight: 'stayed close in the preview duel',
-            score: Math.floor(40 + Math.random() * 40),
-            time: Number((0.75 + Math.random() * 0.8).toFixed(2)),
-            value: Math.floor(4 + Math.random() * 4),
-            won: Math.random() > 0.25,
-          }
+        : duel?.id === WAVELENGTH_DUEL_ID
+          ? {
+              excerpt: randomWavelengthExcerpt(),
+              highlight: 'locked in 5 answers and 5 guesses',
+              score: 0,
+              time: Number((0.75 + Math.random() * 0.8).toFixed(2)),
+              won: true,
+            }
+          : {
+              highlight: 'stayed close in the preview duel',
+              score: Math.floor(40 + Math.random() * 40),
+              time: Number((0.75 + Math.random() * 0.8).toFixed(2)),
+              value: Math.floor(4 + Math.random() * 4),
+              won: Math.random() > 0.25,
+            }
       const previewSession = {
         ...session,
         duelResults: {
@@ -904,53 +992,72 @@ export function SessionProvider({ children }) {
       }
       const skippedOutcome = getSkippedDuelOutcome(previewSession)
       const outcome = skippedOutcome || evaluateDuelRound(previewSession, duelRegistry)
-      const duel = duelRegistry[session.currentDuel.id]
+      const previewHeartBonus =
+        duel?.resolveHearts && (outcome.status === 'shared' || outcome.status === 'resolved')
+          ? duel.resolveHearts(
+              previewSession.duelResults[session.players[0]?.uid],
+              previewSession.duelResults[session.players[1]?.uid],
+            )
+          : session.currentDuel.heartBonus
       const journalEntry = buildDuelJournalEntry({
         coupleId: couple.id,
         duel,
         duelResults: previewSession.duelResults,
-        heartBonus: session.currentDuel.heartBonus,
+        heartBonus: previewHeartBonus,
         outcome,
         players: session.players,
         sessionId: session.id,
       })
 
-      if (outcome.status === 'repick') {
-        setSession(buildSkippedDuelRepick(previewSession))
-        setJournalEntries((current) => [
-          buildPreviewJournalRecord(journalEntry, 'duel-pass', current.length),
-          ...current,
-        ])
-        return
+      // Preview mode shows the same reveal overlay; the single Continue tap
+      // finishes the duel locally.
+      previewDuelContinueRef.current = () => {
+        if (outcome.status === 'repick') {
+          setSession(buildSkippedDuelRepick(previewSession))
+          setJournalEntries((current) => [
+            buildPreviewJournalRecord(journalEntry, 'duel-pass', current.length),
+            ...current,
+          ])
+          return
+        }
+
+        const nextSession = advanceAfterDuel(
+          {
+            ...previewSession,
+            currentDuel: { ...previewSession.currentDuel, heartBonus: previewHeartBonus },
+          },
+          outcome,
+          duel,
+        )
+
+        if (outcome.status !== 'noContest') {
+          setBoardState((current) => buildBoardRewardPatch(current, duel.vibe, duel.id))
+        }
+
+        setSession(nextSession)
+
+        if (journalEntry) {
+          setJournalEntries((current) => [
+            buildPreviewJournalRecord(journalEntry, 'duel', current.length),
+            ...current,
+          ])
+        }
+
+        if (nextSession.phase === 'finale') {
+          const finaleEntry = buildFinaleJournalEntry({
+            coupleId: couple.id,
+            journalEntries: journalEntry ? [journalEntry, ...journalEntries] : journalEntries,
+            session: nextSession,
+            sessionId: session.id,
+          })
+          setJournalEntries((current) => [
+            buildPreviewJournalRecord(finaleEntry, 'finale', current.length),
+            ...current,
+          ])
+        }
       }
 
-      const nextSession = advanceAfterDuel(previewSession, outcome, duel)
-
-      if (outcome.status !== 'noContest') {
-        setBoardState((current) => buildBoardRewardPatch(current, duel.vibe, duel.id))
-      }
-
-      setSession(nextSession)
-
-      if (journalEntry) {
-        setJournalEntries((current) => [
-          buildPreviewJournalRecord(journalEntry, 'duel', current.length),
-          ...current,
-        ])
-      }
-
-      if (nextSession.phase === 'finale') {
-        const finaleEntry = buildFinaleJournalEntry({
-          coupleId: couple.id,
-          journalEntries: journalEntry ? [journalEntry, ...journalEntries] : journalEntries,
-          session: nextSession,
-          sessionId: session.id,
-        })
-        setJournalEntries((current) => [
-          buildPreviewJournalRecord(finaleEntry, 'finale', current.length),
-          ...current,
-        ])
-      }
+      setSession(previewSession)
       return
     }
 
@@ -1032,6 +1139,7 @@ export function SessionProvider({ children }) {
 
   const value = useMemo(
     () => ({
+      ackDuelReveal,
       activity,
       boardState,
       canRecoverSession,
@@ -1040,8 +1148,11 @@ export function SessionProvider({ children }) {
       claimSessionHost,
       chooseKeepsake,
       connectionState,
+      continuePreviewDuel,
       error,
+      enabled,
       finalSummary,
+      forceDuelReveal,
       hasLiveSession: Boolean(session),
       isHost,
       isSessionStale,
@@ -1068,15 +1179,18 @@ export function SessionProvider({ children }) {
       working,
     }),
     [
+      ackDuelReveal,
       activity,
       boardState,
       canRecoverSession,
       canRoll,
       canSpinDuel,
       connectionState,
+      continuePreviewDuel,
       enabled,
       error,
       finalSummary,
+      forceDuelReveal,
       hasPartner,
       isHost,
       isSessionStale,

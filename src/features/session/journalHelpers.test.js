@@ -10,6 +10,7 @@ import {
   buildVibeSetupJournalEntry,
   getScrapbookMomentCount,
 } from './journalHelpers.js'
+import { encodeWavelengthSubmission } from './wavelengthDuelData.js'
 
 describe('journalHelpers', () => {
   it('does not count the hidden finale metadata page as a scrapbook moment', () => {
@@ -102,6 +103,42 @@ describe('journalHelpers', () => {
     expect(entry?.vibe).toBe('playful')
   })
 
+  it('writes a wavelength scorecard into the duel journal entry', () => {
+    const entry = buildDuelJournalEntry({
+      coupleId: 'couple-1',
+      duel: {
+        id: 'wavelength-duel',
+        label: 'Wavelength Duel',
+        vibe: 'playful',
+      },
+      duelResults: {
+        u1: {
+          excerpt: encodeWavelengthSubmission(['a', 'b', 'c', 'd', 'a'], ['b', 'c', 'd', 'a', 'b']),
+          highlight: 'locked in 5 answers and 5 guesses',
+        },
+        u2: {
+          excerpt: encodeWavelengthSubmission(['b', 'c', 'd', 'a', 'b'], ['a', 'b', 'c', 'd', 'a']),
+          highlight: 'locked in 5 answers and 5 guesses',
+        },
+      },
+      heartBonus: 10,
+      outcome: { status: 'shared' },
+      players: [
+        { uid: 'u1', displayName: 'Kyle' },
+        { uid: 'u2', displayName: 'Elaine' },
+      ],
+      sessionId: 'session-1',
+    })
+
+    expect(entry?.summary).toContain('10/10')
+    expect(entry?.summary).toContain('10 shared hearts')
+    expect(entry?.text).toContain('10/10 on the same wavelength')
+    expect(entry?.text).toContain('The ideal Friday night is…')
+    expect(entry?.text).toContain('Takeout + couch fort')
+    expect(entry?.payload.wavelength).toEqual({ matches: 10, total: 10 })
+    expect(entry?.type).toBe('duel')
+  })
+
   it('records an ordinary passed activity', () => {
     const entry = buildSkippedActivityJournalEntry({
       activity: {
@@ -143,6 +180,7 @@ describe('journalHelpers', () => {
   it('records both setup ballots as the first scrapbook interaction', () => {
     const entry = buildVibeSetupJournalEntry({
       coupleId: 'couple-1',
+      moodVotes: { u1: 'cozy', u2: 'playful' },
       players: [
         { uid: 'u1', displayName: 'Kyle' },
         { uid: 'u2', displayName: 'Elaine' },
@@ -159,6 +197,9 @@ describe('journalHelpers', () => {
     expect(entry?.vibe).toBe('tender')
     expect(entry?.text).toContain('Kyle: Tender 50%')
     expect(entry?.text).toContain('Elaine: Tender 50%')
+    expect(entry?.summary).toContain('Cozy')
+    expect(entry?.summary).toContain('Playful')
+    expect(entry?.payload.moods).toEqual({ u1: 'cozy', u2: 'playful' })
   })
 
   it('records a mutually passed duel without awarding hearts', () => {

@@ -1,4 +1,11 @@
 import { buildFinalSummary } from './sessionLogic.js'
+import { MOOD_OPTIONS } from './sessionLogic.js'
+import {
+  WAVELENGTH_DUEL_ID,
+  getWavelengthOptionLabel,
+  scoreWavelengthDuel,
+  wavelengthVerdict,
+} from './wavelengthDuelData.js'
 import { TROPHIES } from '../couple/progressService.js'
 
 export function getScrapbookMomentCount(entries = []) {
@@ -69,6 +76,7 @@ function formatVibeVote(vote = {}) {
 
 export function buildVibeSetupJournalEntry({
   coupleId,
+  moodVotes,
   players,
   sessionId,
   vibeVotes,
@@ -80,6 +88,13 @@ export function buildVibeSetupJournalEntry({
 
   const leadingVibe = Object.entries(vibeWeights)
     .sort(([, left], [, right]) => right - left)[0]?.[0] || 'tender'
+  const moodLabels = (players || [])
+    .map((player) => {
+      const moodId = moodVotes?.[player.uid]
+      const option = MOOD_OPTIONS.find((entry) => entry.id === moodId)
+      return option ? `${option.emoji} ${option.label}` : null
+    })
+    .filter(Boolean)
   const text = players
     .map((player) => `${player.displayName}: ${formatVibeVote(vibeVotes[player.uid])}`)
     .join('\n')
@@ -87,6 +102,7 @@ export function buildVibeSetupJournalEntry({
   return {
     coupleId,
     payload: {
+      moods: moodVotes || {},
       players: players.map((player) => ({
         displayName: player.displayName,
         uid: player.uid,
@@ -95,7 +111,9 @@ export function buildVibeSetupJournalEntry({
       vibeWeights,
     },
     sessionId,
-    summary: 'You both set the tone for this night.',
+    summary: moodLabels.length
+      ? `You arrived feeling ${moodLabels.join(' + ')} and set the tone for this night.`
+      : 'You both set the tone for this night.',
     text,
     title: 'Tonight’s Vibe',
     type: 'vibe-setup',
@@ -124,10 +142,22 @@ export function buildDuelJournalEntry({
     })
     .join('\n')
 
+  const isWavelength =
+    duel.id === WAVELENGTH_DUEL_ID &&
+    (outcome.status === 'shared' || outcome.status === 'resolved')
+  const wavelength = isWavelength
+    ? scoreWavelengthDuel(
+        duelResults?.[players[0]?.uid],
+        duelResults?.[players[1]?.uid],
+      )
+    : null
+
   let summary
   let awardedHeartBonus = heartBonus
   if (outcome.status === 'shared') {
-    summary = `You both landed ${duel.label} and banked ${heartBonus} shared hearts.`
+    summary = wavelength
+      ? `Wavelength Duel: ${wavelength.matches}/${wavelength.total} on the same wavelength — ${wavelengthVerdict(wavelength.matches).toLowerCase()} You banked ${heartBonus} shared hearts.`
+      : `You both landed ${duel.label} and banked ${heartBonus} shared hearts.`
   } else if (outcome.status === 'noContest') {
     summary = `You both passed ${duel.label}. No hearts were added, but the choice was saved.`
     awardedHeartBonus = 0
@@ -139,6 +169,23 @@ export function buildDuelJournalEntry({
     summary = `${winner?.displayName || 'One player'} won ${duel.label} and banked ${heartBonus} shared hearts.`
   }
 
+  const wavelengthText = wavelength
+    ? [
+        `${wavelength.matches}/${wavelength.total} on the same wavelength. ${wavelengthVerdict(wavelength.matches)}`,
+        ...wavelength.rows.map((row, index) => {
+          const nameOne = players[0]?.displayName ?? 'Player 1'
+          const nameTwo = players[1]?.displayName ?? 'Player 2'
+          const oneMark = row.oneHit ? '✓' : '✗'
+          const twoMark = row.twoHit ? '✓' : '✗'
+          return [
+            `${index + 1}. ${row.prompt.text}`,
+            `   ${nameOne} said “${getWavelengthOptionLabel(index, row.oneAnswer)}”, guessed “${getWavelengthOptionLabel(index, row.oneGuess)}” ${oneMark}`,
+            `   ${nameTwo} said “${getWavelengthOptionLabel(index, row.twoAnswer)}”, guessed “${getWavelengthOptionLabel(index, row.twoGuess)}” ${twoMark}`,
+          ].join('\n')
+        }),
+      ].join('\n')
+    : null
+
   return {
     coupleId,
     payload: {
@@ -147,10 +194,11 @@ export function buildDuelJournalEntry({
       imageDataUrl,
       outcomeStatus: outcome.status,
       results: duelResults,
+      ...(wavelength ? { wavelength: { matches: wavelength.matches, total: wavelength.total } } : {}),
     },
     sessionId,
     summary,
-    text: highlights || summary,
+    text: wavelengthText || highlights || summary,
     title: duel.label,
     type: 'duel',
     vibe: duel.vibe,
