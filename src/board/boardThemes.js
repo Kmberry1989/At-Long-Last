@@ -298,3 +298,70 @@ export function getBoardThemeForRound(round) {
   const themeId = BOARD_THEME_ORDER[(roundNumber - 1) % BOARD_THEME_ORDER.length]
   return BOARD_THEME_SETS[themeId]
 }
+
+/**
+ * Unlockable themes are ambiance remixes of the base 3D sets: same props and
+ * decorations, re-lit with new surface colors. Buying a theme pins the whole
+ * night to its look instead of rotating each round.
+ */
+const THEME_REMIXES = {
+  'starlit-rooftop': {
+    base: 'city',
+    label: 'Starlit Rooftop',
+    surfaces: {
+      inset: { color: '#2a3358' },
+      tabletop: { color: '#1c2340' },
+    },
+  },
+  'autumn-embers': {
+    base: 'garden',
+    label: 'Autumn Embers',
+    surfaces: {
+      inset: { color: '#e8a54b' },
+      tabletop: { color: '#f7e3c2' },
+    },
+  },
+  'cherry-blossom': {
+    base: 'garden',
+    label: 'Cherry Blossom',
+    surfaces: {
+      inset: { color: '#f6b8cd' },
+      tabletop: { color: '#ffe9f1' },
+    },
+  },
+  'aurora-veil': {
+    base: 'beach',
+    label: 'Aurora Veil',
+    surfaces: {
+      inset: { color: '#123c4a' },
+      tabletop: { color: '#0f2b3a' },
+    },
+  },
+}
+
+export function getBoardThemeById(themeId) {
+  if (!themeId) {
+    return null
+  }
+
+  if (BOARD_THEME_SETS[themeId]) {
+    return BOARD_THEME_SETS[themeId]
+  }
+
+  const remix = THEME_REMIXES[themeId]
+  if (!remix) {
+    return null
+  }
+
+  const base = BOARD_THEME_SETS[remix.base]
+
+  return {
+    ...base,
+    id: themeId,
+    label: remix.label,
+    surfaces: {
+      inset: { ...base.surfaces.inset, ...remix.surfaces.inset },
+      tabletop: { ...base.surfaces.tabletop, ...remix.surfaces.tabletop },
+    },
+  }
+}

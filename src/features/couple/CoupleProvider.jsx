@@ -17,6 +17,7 @@ import {
   updateCoupleSessionPreset as updateCoupleSessionPresetDocument,
 } from './coupleService.js'
 import {
+  clearNudge as clearNudgeDocument,
   ensureCoupleProgress,
   fulfillKoupon as fulfillKouponDocument,
   redeemKoupon as redeemKouponDocument,
@@ -515,15 +516,16 @@ export function CoupleProvider({ children }) {
 
   async function runProgressAction(action, ...args) {
     if (!db || !couple?.id) {
-      return
+      return null
     }
 
     setError('')
 
     try {
-      await action(db, couple.id, ...args)
+      return await action(db, couple.id, ...args)
     } catch (nextError) {
       setError(nextError.message)
+      return null
     }
   }
 
@@ -558,11 +560,16 @@ export function CoupleProvider({ children }) {
     })
   }
 
+  function clearNudge() {
+    return runProgressAction(clearNudgeDocument)
+  }
+
   const value = useMemo(
     () => ({
       activePublicLobbyId,
       couple,
       createCouple,
+      clearNudge,
       error,
       hasPartner: couple?.playerIds?.length === 2,
       joinCouple,

@@ -4706,6 +4706,12 @@ p {
   margin-left: auto;
 }
 
+.nudge-incoming-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .nudge-incoming {
   margin: 0;
   font-size: 14px;

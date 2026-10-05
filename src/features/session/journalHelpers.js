@@ -218,6 +218,32 @@ export function buildMilestoneJournalEntry({ coupleId, nights, sessionId }) {
   }
 }
 
+export function buildAnniversaryJournalEntry({ bonusHearts, coupleId, sessionId }) {
+  return {
+    coupleId,
+    payload: { bonusHearts },
+    sessionId,
+    summary: 'Anniversary night.',
+    text: `You played on your anniversary — ${bonusHearts} bonus hearts, with love.`,
+    title: 'Anniversary Night 💍',
+    type: 'milestone',
+    vibe: 'tender',
+  }
+}
+
+export function buildPromiseGrantedJournalEntry({ coupleId, detail, label, sessionId }) {
+  return {
+    coupleId,
+    payload: { detail: detail || '', label },
+    sessionId,
+    summary: `A new promise: ${label}.`,
+    text: `The deck dealt a new promise: ${label}${detail ? ` — ${detail}` : ''} It is waiting in your promise wallet.`,
+    title: 'A New Promise 💌',
+    type: 'journal',
+    vibe: 'tender',
+  }
+}
+
 export function buildTrophyJournalEntry({ coupleId, sessionId, trophyId }) {
   const trophy = TROPHIES.find((entry) => entry.id === trophyId)
 

@@ -9,7 +9,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import { BOARD_SPACES } from '../features/session/boardConfig.js'
-import { getBoardThemeForRound } from './boardThemes.js'
+import { getBoardThemeById, getBoardThemeForRound } from './boardThemes.js'
 
 const TILE_STYLES = {
   connection: {
@@ -327,13 +327,17 @@ export function BoardScene({
   lastRoll,
   round,
   rolling = false,
+  themeId = null,
 }) {
   const mountRef = useRef(null)
   const dieRef = useRef(null)
   const resetViewRef = useRef(null)
   const lastRollRef = useRef(lastRoll)
   const boardPath = useMemo(() => buildBoardPath(), [])
-  const boardTheme = useMemo(() => getBoardThemeForRound(round), [round])
+  const boardTheme = useMemo(
+    () => getBoardThemeById(themeId) || getBoardThemeForRound(round),
+    [themeId, round],
+  )
   const targetIndicesRef = useRef(positions)
   const activePlayerIndexRef = useRef(activePlayerIndex)
   const boardStateKey = useMemo(

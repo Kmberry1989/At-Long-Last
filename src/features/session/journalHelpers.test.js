@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildActivityJournalEntry,
+  buildAnniversaryJournalEntry,
   buildDuelJournalEntry,
   buildFinaleJournalEntry,
   buildMilestoneJournalEntry,
   buildProgressJournalEntries,
+  buildPromiseGrantedJournalEntry,
   buildSkippedActivityJournalEntry,
   buildTrophyJournalEntry,
   buildVibeSetupJournalEntry,
@@ -328,5 +330,38 @@ describe('progression journal entries', () => {
     })
 
     expect(entries.map((entry) => entry.type)).toEqual(['milestone', 'trophy'])
+  })
+})
+
+describe('finale extras', () => {
+  it('builds a rules-valid anniversary milestone entry', () => {
+    const entry = buildAnniversaryJournalEntry({
+      bonusHearts: 8,
+      coupleId: 'c1',
+      sessionId: 's1',
+    })
+
+    expect(entry.type).toBe('milestone')
+    expect(entry.payload).toEqual({ bonusHearts: 8 })
+    expect(entry.text).toContain('8 bonus hearts')
+    expect(Object.keys(entry).sort()).toEqual(
+      ['coupleId', 'payload', 'sessionId', 'summary', 'text', 'title', 'type', 'vibe'].sort(),
+    )
+  })
+
+  it('builds a rules-valid promise-granted journal entry', () => {
+    const entry = buildPromiseGrantedJournalEntry({
+      coupleId: 'c1',
+      detail: 'Every song, every skip, all day.',
+      label: 'Control the playlist',
+      sessionId: 's1',
+    })
+
+    expect(entry.type).toBe('journal')
+    expect(entry.payload).toEqual({
+      detail: 'Every song, every skip, all day.',
+      label: 'Control the playlist',
+    })
+    expect(entry.text).toContain('promise wallet')
   })
 })

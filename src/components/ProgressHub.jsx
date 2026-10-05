@@ -4,8 +4,12 @@ import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import {
   BASE_THEME_CARDS,
   COMPANION_STAGES,
+  COMPANION_STAGE_EMOJI,
+  NUDGE_COOLDOWN_MS,
   TROPHIES,
   UNLOCKABLE_THEMES,
+  fetchCoupleJournalExport,
+  localDateStr,
   nextAnniversaryCountdown,
   spendableHearts,
 } from '../features/couple/progressService.js'
@@ -35,10 +39,31 @@ function timeAgo(timestamp) {
 }
 
 function StreakRow() {
-  const { progress, sendNudge } = useCouple()
+  const { clearNudge, progress, sendNudge } = useCouple()
   const { userId } = useFirebaseApp()
+  const [nudging, setNudging] = useState(false)
+  const [nudgeNote, setNudgeNote] = useState('')
   const nudge = progress?.nudge
   const incomingNudge = nudge && nudge.byUid !== userId
+  const myLastNudgeAt = !incomingNudge && nudge?.at?.toDate?.()?.getTime?.()
+  const coolingDown = Boolean(myLastNudgeAt && Date.now() - myLastNudgeAt < NUDGE_COOLDOWN_MS)
+
+  async function handleNudge() {
+    if (nudging || coolingDown) {
+      return
+    }
+    setNudging(true)
+    setNudgeNote('')
+    try {
+      const result = await sendNudge()
+      if (result && result.sent === false) {
+        const hours = Math.max(1, Math.ceil((result.retryAfterMs || 0) / 3600000))
+        setNudgeNote(`Nudge sent — one love tap every 12 hours. Try again in ~${hours}h.`)
+      }
+    } finally {
+      setNudging(false)
+    }
+  }
 
   return (
     <div className="progress-row streak-row">
@@ -57,14 +82,27 @@ function StreakRow() {
       )}
       <div className="nudge-zone">
         {incomingNudge ? (
-          <p className="nudge-incoming">
-            <strong>{nudge.byName}</strong> nudged you {timeAgo(nudge.at)} — they are
-            thinking about game night.
-          </p>
+          <div className="nudge-incoming-row">
+            <p className="nudge-incoming">
+              <strong>{nudge.byName}</strong> nudged you {timeAgo(nudge.at)} — they are
+              thinking about game night.
+            </p>
+            <button className="secondary-link" onClick={clearNudge} type="button">
+              Dismiss
+            </button>
+          </div>
         ) : (
-          <button className="secondary-btn" onClick={sendNudge} type="button">
-            Nudge partner 💌
-          </button>
+          <>
+            <button
+              className="secondary-btn"
+              disabled={coolingDown || nudging}
+              onClick={handleNudge}
+              type="button"
+            >
+              {coolingDown ? 'Nudged ✓' : nudging ? 'Sending…' : 'Nudge partner 💌'}
+            </button>
+            {nudgeNote && <p className="support-copy">{nudgeNote}</p>}
+          </>
         )}
       </div>
     </div>
@@ -91,7 +129,7 @@ function ThemePicker() {
   const { progress, selectTheme, unlockTheme } = useCouple()
   const [unlockingId, setUnlockingId] = useState(null)
   const spendable = spendableHearts(progress)
-  const selected = progress?.selectedTheme || 'cozy'
+  const selected = progress?.selectedTheme || null
   const unlocked = progress?.unlockedThemes || []
 
   async function handleUnlock(theme) {
@@ -106,8 +144,17 @@ function ThemePicker() {
   return (
     <div className="progress-section">
       <h3>Tabletop themes</h3>
-      <p className="support-copy">Spend the hearts you earn together on new looks for the board.</p>
+      <p className="support-copy">Spend the hearts you earn together on new looks for the board. Picking a theme dresses the whole night in it.</p>
       <div className="theme-grid">
+        <button
+          className={`theme-card${selected === null ? ' selected' : ''}`}
+          onClick={() => selectTheme(null)}
+          type="button"
+        >
+          <span className="theme-name">Surprise us</span>
+          <span className="theme-blurb">The board changes its look every round.</span>
+          {selected === null && <span className="theme-check">✓</span>}
+        </button>
         {BASE_THEME_CARDS.map((theme) => (
           <button
             className={`theme-card${selected === theme.id ? ' selected' : ''}`}
@@ -178,7 +225,9 @@ function CompanionCard() {
     <div className="progress-section">
       <h3>Companion</h3>
       <div className="companion-card">
-        <span className="companion-emoji" aria-hidden="true">🐣</span>
+        <span className="companion-emoji" aria-hidden="true">
+          {COMPANION_STAGE_EMOJI[companion.stage] || '🥚'}
+        </span>
         <div>
           <strong>{companion.name}</strong>
           <span className="companion-stage">{stage.label}</span>
@@ -243,30 +292,31 @@ function TrophyCase() {
   )
 }
 
-function KouponWallet() {
+function PromiseWallet() {
   const { progress, redeemKoupon, fulfillKoupon } = useCouple()
-  const koupons = (progress?.koupons || []).filter((koupon) => koupon.status === 'active')
+  const promises = (progress?.koupons || []).filter((koupon) => koupon.status === 'active')
 
   return (
     <div className="progress-section">
-      <h3>Koupon wallet</h3>
-      {koupons.length === 0 ? (
+      <h3>Promise wallet</h3>
+      {promises.length === 0 ? (
         <p className="support-copy">
-          No koupons yet. Finish nights together and the deck deals you little dares to gift each other.
+          No promises yet. Finish nights together and the deck deals you little
+          promises to gift each other.
         </p>
       ) : (
         <div className="koupon-list">
-          {koupons.map((koupon) => (
-            <div className="koupon" key={koupon.id}>
+          {promises.map((promise) => (
+            <div className="koupon" key={promise.id}>
               <div>
-                <strong>{koupon.label}</strong>
-                {koupon.detail && <span>{koupon.detail}</span>}
+                <strong>{promise.label}</strong>
+                {promise.detail && <span>{promise.detail}</span>}
               </div>
               <div className="button-row">
-                <button className="primary-btn alt" onClick={() => redeemKoupon(koupon.id)} type="button">
+                <button className="primary-btn alt" onClick={() => redeemKoupon(promise.id)} type="button">
                   Redeem
                 </button>
-                <button className="secondary-link" onClick={() => fulfillKoupon(koupon.id)} type="button">
+                <button className="secondary-link" onClick={() => fulfillKoupon(promise.id)} type="button">
                   Mark fulfilled
                 </button>
               </div>
@@ -327,6 +377,82 @@ function AnniversaryRow() {
   )
 }
 
+function ExportSection() {
+  const { couple, progress } = useCouple()
+  const { db } = useFirebaseApp()
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+
+  async function handleExport() {
+    if (busy || !db || !couple?.id) {
+      return
+    }
+
+    setBusy(true)
+    setDone(false)
+
+    try {
+      const journalEntries = await fetchCoupleJournalExport(db, couple.id)
+      const companion = progress?.companion || {}
+      const payload = {
+        app: 'at-long-last',
+        couple: { id: couple.id },
+        exportedAt: new Date().toISOString(),
+        journalEntries,
+        progress: {
+          anniversary: progress?.anniversary || null,
+          companion: {
+            heartsFed: companion.heartsFed || 0,
+            name: companion.name || null,
+            stage: companion.stage || 0,
+          },
+          freezeTokens: progress?.freezeTokens || 0,
+          heartsSpent: progress?.heartsSpent || 0,
+          lifetimeHearts: progress?.lifetimeHearts || 0,
+          lifetimeNights: progress?.lifetimeNights || 0,
+          selectedTheme: progress?.selectedTheme || null,
+          streakCount: progress?.streakCount || 0,
+          trophies: progress?.trophies || [],
+          unlockedThemes: progress?.unlockedThemes || [],
+        },
+      }
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `at-long-last-memories-${localDateStr()}.json`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      setDone(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="progress-section">
+      <h3>Your memories, yours to keep</h3>
+      <p className="support-copy">
+        Download your whole story — every scrapbook entry, trophy, and streak —
+        as a JSON file. Whatever happens, your nights together are portable.
+      </p>
+      <button
+        className="secondary-btn"
+        disabled={busy}
+        onClick={handleExport}
+        type="button"
+      >
+        {busy ? 'Gathering…' : done ? '✓ Downloaded' : 'Export our memories'}
+      </button>
+    </div>
+  )
+}
+
 export function ProgressHub() {
   const { progress } = useCouple()
 
@@ -343,8 +469,9 @@ export function ProgressHub() {
       <ThemePicker />
       <CompanionCard />
       <TrophyCase />
-      <KouponWallet />
+      <PromiseWallet />
       <AnniversaryRow />
+      <ExportSection />
     </div>
   )
 }

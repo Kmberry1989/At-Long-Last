@@ -9,9 +9,11 @@ import { useCouple } from '../couple/CoupleProvider.jsx'
 import { activityRegistry } from './activityRegistry.jsx'
 import {
   buildActivityJournalEntry,
+  buildAnniversaryJournalEntry,
   buildDuelJournalEntry,
   buildFinaleJournalEntry,
   buildProgressJournalEntries,
+  buildPromiseGrantedJournalEntry,
   buildSkippedActivityJournalEntry,
   buildVibeSetupJournalEntry,
 } from './journalHelpers.js'
@@ -51,7 +53,10 @@ import {
 } from './sessionService.js'
 import { getSessionPreset } from './sessionPresets.js'
 import {
+  ensureCoupleProgress,
+  grantKoupon,
   localDateStr,
+  nextAnniversaryCountdown,
   recordNightComplete,
 } from '../couple/progressService.js'
 import {
@@ -296,15 +301,36 @@ export function SessionProvider({ children }) {
 
     ;(async () => {
       try {
-        await recordNightComplete(db, couple.id, {
+        // Anniversary nights earn bonus hearts with love. Computed before
+        // banking so the bonus lands in heartsEarned.
+        let anniversaryBonus = 0
+        try {
+          const progressDoc = await ensureCoupleProgress(db, couple.id)
+          if (nextAnniversaryCountdown(progressDoc?.anniversary)?.days === 0) {
+            anniversaryBonus = 8
+          }
+        } catch {
+          anniversaryBonus = 0
+        }
+
+        const banked = await recordNightComplete(db, couple.id, {
           buildEntries: (events) =>
-            buildProgressJournalEntries({
-              coupleId: couple.id,
-              events,
-              sessionId: session.id,
-            }),
+            [
+              ...buildProgressJournalEntries({
+                coupleId: couple.id,
+                events,
+                sessionId: session.id,
+              }),
+              anniversaryBonus > 0
+                ? buildAnniversaryJournalEntry({
+                    bonusHearts: anniversaryBonus,
+                    coupleId: couple.id,
+                    sessionId: session.id,
+                  })
+                : null,
+            ].filter(Boolean),
           dateStr: localDateStr(),
-          heartsEarned: session.hearts || 0,
+          heartsEarned: (session.hearts || 0) + anniversaryBonus,
           sessionId: session.id,
           stats: {
             keepsakes: session.keepsakes?.length || 0,
@@ -314,6 +340,28 @@ export function SessionProvider({ children }) {
             sharedDuelWins: session.sharedDuelWins || 0,
           },
         })
+
+        // Only the phone that actually banks the night deals a promise from
+        // the deck — the idempotency marker inside recordNightComplete keeps
+        // both phones from dealing one each.
+        if (!banked.alreadyRecorded) {
+          try {
+            const grant = await grantKoupon(db, couple.id)
+            if (grant?.granted) {
+              await appendJournalEntry(
+                db,
+                buildPromiseGrantedJournalEntry({
+                  coupleId: couple.id,
+                  detail: grant.granted.detail,
+                  label: grant.granted.label,
+                  sessionId: session.id,
+                }),
+              )
+            }
+          } catch {
+            // A missing promise never fails the night.
+          }
+        }
 
         if (cancelled) {
           progressRecordedRef.current = false

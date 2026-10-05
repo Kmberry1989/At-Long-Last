@@ -1,11 +1,16 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  query,
   runTransaction,
   serverTimestamp,
   setDoc,
+  where,
 } from 'firebase/firestore'
 
 export const BASE_THEME_CARDS = [
@@ -78,6 +83,12 @@ export const KOUPON_DECK = [
   { detail: 'Planned in secret, revealed with flair.', label: 'Surprise date' },
   { detail: 'Sealed, dated, opened next year.', label: 'Letter to each other' },
   { detail: 'Somewhere neither of you has been.', label: 'Day trip, your call' },
+  { detail: 'Their favorite takeout, ordered before they ask.', label: 'Takeout surprise' },
+  { detail: 'No agenda. Just us, out in the world.', label: 'Slow morning together' },
+  { detail: 'A playlist that sounds like the two of you.', label: 'Make them a playlist' },
+  { detail: 'One photo of you, printed and framed.', label: 'Framed photo' },
+  { detail: 'Their least-favorite chore, done before they notice.', label: 'Chore takeover' },
+  { detail: 'Exactly how they take it, delivered in bed.', label: 'Morning coffee run' },
 ]
 
 export const COMPANION_STAGES = [
@@ -86,6 +97,10 @@ export const COMPANION_STAGES = [
   { heartsNeeded: 150, label: 'Glowkeeper' },
   { heartsNeeded: 300, label: 'Radiant' },
 ]
+
+export const COMPANION_STAGE_EMOJI = ['🥚', '🐣', '✨', '🌟']
+
+export const NUDGE_COOLDOWN_MS = 12 * 60 * 60 * 1000
 
 export const MILESTONE_NIGHTS = [1, 10, 25, 50, 100]
 
@@ -102,7 +117,9 @@ export function buildDefaultProgress(coupleId) {
     lifetimeHearts: 0,
     lifetimeNights: 0,
     nudge: null,
-    selectedTheme: 'cozy',
+    // Absent = auto: the board rotates its look each round. Any theme id pins
+    // the whole night to that look. The key is omitted (not null) because the
+    // security rules only accept a bounded string when it is present.
     streakCount: 0,
     streakLastDate: null,
     trophies: [],
@@ -268,7 +285,7 @@ async function transactProgress(db, coupleId, mutate) {
       ? { id: snapshot.id, ...snapshot.data() }
       : { ...buildDefaultProgress(coupleId), id: coupleId }
 
-    const { events = [], progress: next } = mutate(current) || {}
+    const { events = [], progress: next, deletedFields = [], ...rest } = mutate(current) || {}
     const existed = snapshot.exists()
 
     const payload = {
@@ -278,6 +295,9 @@ async function transactProgress(db, coupleId, mutate) {
       updatedAt: serverTimestamp(),
     }
     delete payload.id
+    for (const field of deletedFields) {
+      payload[field] = deleteField()
+    }
 
     if (existed) {
       transaction.update(ref, payload)
@@ -285,7 +305,7 @@ async function transactProgress(db, coupleId, mutate) {
       transaction.set(ref, payload)
     }
 
-    return { events, progress: { id: coupleId, ...payload } }
+    return { events, progress: { id: coupleId, ...payload }, ...rest }
   })
 }
 
@@ -385,13 +405,17 @@ export async function unlockThemeWithHearts(db, coupleId, themeId) {
 }
 
 export async function selectTheme(db, coupleId, themeId) {
-  const allIds = [
-    ...BASE_THEME_CARDS.map((entry) => entry.id),
-    ...UNLOCKABLE_THEMES.map((entry) => entry.id),
-  ]
+  // null = auto: the board rotates its look each round. The field is deleted
+  // (not nulled) because the security rules only accept a bounded string.
+  if (themeId !== null) {
+    const allIds = [
+      ...BASE_THEME_CARDS.map((entry) => entry.id),
+      ...UNLOCKABLE_THEMES.map((entry) => entry.id),
+    ]
 
-  if (!allIds.includes(themeId)) {
-    throw new Error('Unknown theme.')
+    if (!allIds.includes(themeId)) {
+      throw new Error('Unknown theme.')
+    }
   }
 
   const { progress } = await transactProgress(db, coupleId, (current) => {
@@ -402,6 +426,10 @@ export async function selectTheme(db, coupleId, themeId) {
       throw new Error('Unlock that theme with hearts first.')
     }
 
+    if (themeId === null) {
+      return { deletedFields: ['selectedTheme'], events: [], progress: { ...current } }
+    }
+
     return { events: [], progress: { ...current, selectedTheme: themeId } }
   })
 
@@ -409,23 +437,26 @@ export async function selectTheme(db, coupleId, themeId) {
 }
 
 export async function grantKoupon(db, coupleId, entry = null, random = Math.random) {
-  const { progress } = await transactProgress(db, coupleId, (current) => {
+  const { granted, progress } = await transactProgress(db, coupleId, (current) => {
     const pick = entry || pickKouponForGrant(current, random)
 
     if (!pick) {
-      return { events: [], progress: current }
+      return { events: [], granted: null, progress: current }
     }
+
+    const record = buildKouponRecord(pick, random)
 
     return {
       events: [{ koupon: pick.label, type: 'koupon-granted' }],
+      granted: record,
       progress: {
         ...current,
-        koupons: [...(current.koupons || []), buildKouponRecord(pick, random)],
+        koupons: [...(current.koupons || []), record],
       },
     }
   })
 
-  return progress
+  return { granted, progress }
 }
 
 export async function redeemKoupon(db, coupleId, kouponId) {
@@ -509,11 +540,17 @@ export async function setAnniversary(db, coupleId, dateStr) {
 export async function sendNudge(db, coupleId, { byName, byUid }) {
   const ref = doc(db, 'coupleProgress', coupleId)
 
-  await runTransaction(db, async (transaction) => {
+  return runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(ref)
     const current = snapshot.exists()
       ? { id: snapshot.id, ...snapshot.data() }
       : { ...buildDefaultProgress(coupleId), id: coupleId }
+
+    // Cooldown keeps the nudge a love tap, not a nag.
+    const lastAt = current.nudge?.at?.toDate?.()?.getTime?.()
+    if (lastAt && Date.now() - lastAt < NUDGE_COOLDOWN_MS) {
+      return { retryAfterMs: NUDGE_COOLDOWN_MS - (Date.now() - lastAt), sent: false }
+    }
 
     const payload = {
       ...current,
@@ -533,6 +570,22 @@ export async function sendNudge(db, coupleId, { byName, byUid }) {
     } else {
       transaction.set(ref, payload)
     }
+
+    return { retryAfterMs: 0, sent: true }
+  })
+}
+
+export async function clearNudge(db, coupleId) {
+  const ref = doc(db, 'coupleProgress', coupleId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref)
+
+    if (!snapshot.exists()) {
+      return
+    }
+
+    transaction.update(ref, { nudge: null, updatedAt: serverTimestamp() })
   })
 }
 
@@ -549,4 +602,82 @@ export function nextAnniversaryCountdown(anniversary, now = new Date()) {
   const days = Math.round((target - now) / 86400000)
 
   return { days, label: target.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) }
+}
+
+function isoOrNull(value) {
+  try {
+    const time = value?.toDate?.()?.getTime?.()
+    return typeof time === 'number' ? new Date(time).toISOString() : null
+  } catch {
+    return null
+  }
+}
+
+function sanitizeExportValue(value) {
+  if (value === null || value === undefined) {
+    return value
+  }
+
+  if (typeof value?.toDate === 'function') {
+    return isoOrNull(value)
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizeExportValue)
+  }
+
+  if (typeof value === 'object') {
+    // Firestore internals (server-timestamp sentinels, etc.) are class
+    // instances — only plain objects survive the export.
+    const proto = Object.getPrototypeOf(value)
+    if (proto !== Object.prototype && proto !== null) {
+      return null
+    }
+
+    const out = {}
+    for (const [key, item] of Object.entries(value)) {
+      out[key] = sanitizeExportValue(item)
+    }
+    return out
+  }
+
+  return value
+}
+
+function sanitizeJournalEntryForExport(entry) {
+  return {
+    createdAt: isoOrNull(entry.createdAt),
+    id: entry.id || null,
+    payload: sanitizeExportValue(entry.payload),
+    sessionId: entry.sessionId || null,
+    summary: entry.summary ?? null,
+    text: entry.text ?? null,
+    title: entry.title ?? null,
+    type: entry.type || null,
+    vibe: entry.vibe || null,
+  }
+}
+
+/**
+ * Trust feature: the couple's whole story as one JSON file — every journal
+ * entry plus the shared progression record. Reads are participant-scoped in
+ * the security rules, so this only ever returns your own couple's data.
+ */
+export async function fetchCoupleJournalExport(db, coupleId, { limitCount = 2000 } = {}) {
+  const snapshot = await getDocs(
+    query(
+      collection(db, 'journalEntries'),
+      where('coupleId', '==', coupleId),
+      limit(limitCount),
+    ),
+  )
+
+  const entries = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+  entries.sort((a, b) => {
+    const aTime = a.createdAt?.toDate?.()?.getTime?.() || 0
+    const bTime = b.createdAt?.toDate?.()?.getTime?.() || 0
+    return bTime - aTime
+  })
+
+  return entries.map(sanitizeJournalEntryForExport)
 }

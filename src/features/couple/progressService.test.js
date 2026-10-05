@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 const firestoreStore = vi.hoisted(() => new Map())
+const mockQueryDocs = vi.hoisted(() => ({ docs: [] }))
 
 vi.mock('firebase/firestore', () => {
   function refFor(arg1, arg2, arg3) {
@@ -10,13 +11,29 @@ vi.mock('firebase/firestore', () => {
     return { _coll: arg2, _id: arg3, _path: `${arg2}/${arg3}` }
   }
 
+  function applyWrite(ref, data) {
+    const next = { ...firestoreStore.get(ref._path) }
+    for (const [key, value] of Object.entries(data)) {
+      if (value && value._deleteField) {
+        delete next[key]
+      } else {
+        next[key] = value
+      }
+    }
+    firestoreStore.set(ref._path, next)
+  }
+
   return {
     collection: (_db, name) => ({ _coll: name }),
+    deleteField: () => ({ _deleteField: true }),
     doc: (...args) => refFor(...args),
     getDoc: async () => {
       throw new Error('not used in these tests')
     },
+    getDocs: async () => ({ docs: mockQueryDocs.docs }),
+    limit: (n) => ({ _limit: n }),
     onSnapshot: () => () => {},
+    query: (...args) => ({ _query: args }),
     runTransaction: async (_db, fn) =>
       fn({
         get: async (ref) => ({
@@ -25,29 +42,35 @@ vi.mock('firebase/firestore', () => {
           data: () => firestoreStore.get(ref._path),
         }),
         set: (ref, data) => {
-          firestoreStore.set(ref._path, data)
+          applyWrite(ref, data)
         },
         update: (ref, data) => {
           if (!firestoreStore.has(ref._path)) {
             throw new Error('document does not exist')
           }
-          firestoreStore.set(ref._path, { ...firestoreStore.get(ref._path), ...data })
+          applyWrite(ref, data)
         },
       }),
     serverTimestamp: () => ({ _serverTimestamp: true }),
     setDoc: async () => {},
+    where: (field, op, value) => ({ _where: [field, op, value] }),
   }
 })
 
 import {
   applyNightComplete,
   buildDefaultProgress,
+  clearNudge,
   companionStageForHearts,
+  fetchCoupleJournalExport,
+  grantKoupon,
   localDateStr,
   nextAnniversaryCountdown,
   pickKouponForGrant,
   previousDateStr,
   recordNightComplete,
+  selectTheme,
+  sendNudge,
   spendableHearts,
 } from './progressService.js'
 
@@ -67,7 +90,8 @@ describe('progressService progression math', () => {
     expect(progress.coupleId).toBe('couple-1')
     expect(progress.lifetimeHearts).toBe(0)
     expect(progress.freezeTokens).toBe(1)
-    expect(progress.selectedTheme).toBe('cozy')
+    // No theme pinned: the board auto-rotates each round.
+    expect(progress.selectedTheme).toBeUndefined()
     expect(progress.companion.name).toBe('Ember')
     expect(spendableHearts(progress)).toBe(0)
   })
@@ -273,5 +297,142 @@ describe('recordNightComplete transaction', () => {
     expect(second.progress.lifetimeNights).toBe(2)
     expect(second.progress.lifetimeHearts).toBe(15)
     expect(second.progress.lastBankedSessionId).toBe('sess-2')
+  })
+})
+
+describe('theme selection', () => {
+  const db = {}
+
+  it('pins a base theme for the whole night', async () => {
+    firestoreStore.clear()
+
+    await selectTheme(db, 'couple-1', 'garden')
+
+    expect(firestoreStore.get('coupleProgress/couple-1').selectedTheme).toBe('garden')
+  })
+
+  it('deletes the theme field for auto-rotate instead of nulling it', async () => {
+    firestoreStore.clear()
+
+    await selectTheme(db, 'couple-1', 'garden')
+    await selectTheme(db, 'couple-1', null)
+
+    expect('selectedTheme' in firestoreStore.get('coupleProgress/couple-1')).toBe(false)
+  })
+
+  it('rejects unknown themes', async () => {
+    firestoreStore.clear()
+
+    await expect(selectTheme(db, 'couple-1', 'nope')).rejects.toThrow('Unknown theme.')
+  })
+})
+
+describe('nudge cooldown', () => {
+  const db = {}
+
+  function seedProgress(overrides = {}) {
+    firestoreStore.clear()
+    firestoreStore.set('coupleProgress/couple-1', {
+      ...buildDefaultProgress('couple-1'),
+      ...overrides,
+    })
+  }
+
+  it('sends the first nudge', async () => {
+    seedProgress()
+
+    const result = await sendNudge(db, 'couple-1', { byName: 'Alex', byUid: 'u1' })
+
+    expect(result.sent).toBe(true)
+    expect(firestoreStore.get('coupleProgress/couple-1').nudge.byName).toBe('Alex')
+  })
+
+  it('blocks a second nudge inside the cooldown window', async () => {
+    seedProgress({
+      nudge: {
+        at: { toDate: () => new Date() },
+        byName: 'Alex',
+        byUid: 'u1',
+      },
+    })
+
+    const result = await sendNudge(db, 'couple-1', { byName: 'Alex', byUid: 'u1' })
+
+    expect(result.sent).toBe(false)
+    expect(result.retryAfterMs).toBeGreaterThan(0)
+  })
+
+  it('clears an incoming nudge on dismiss', async () => {
+    seedProgress({
+      nudge: {
+        at: { toDate: () => new Date() },
+        byName: 'Alex',
+        byUid: 'u1',
+      },
+    })
+
+    await clearNudge(db, 'couple-1')
+
+    expect(firestoreStore.get('coupleProgress/couple-1').nudge).toBeNull()
+  })
+})
+
+describe('promise grants', () => {
+  const db = {}
+
+  it('returns the granted promise record', async () => {
+    firestoreStore.clear()
+
+    const { granted, progress } = await grantKoupon(db, 'couple-1')
+
+    expect(granted).not.toBeNull()
+    expect(granted.label).toBeTruthy()
+    expect(progress.koupons).toHaveLength(1)
+  })
+})
+
+describe('journal export', () => {
+  const db = {}
+
+  it('sanitizes and sorts entries newest-first', async () => {
+    mockQueryDocs.docs = [
+      {
+        id: 'e1',
+        data: () => ({
+          coupleId: 'couple-1',
+          createdAt: { toDate: () => new Date('2026-01-01T00:00:00Z') },
+          payload: { nights: 1 },
+          sessionId: 's1',
+          summary: 's',
+          text: 't',
+          title: 'Old',
+          type: 'milestone',
+          vibe: 'tender',
+        }),
+      },
+      {
+        id: 'e2',
+        data: () => ({
+          coupleId: 'couple-1',
+          createdAt: { toDate: () => new Date('2026-02-01T00:00:00Z') },
+          payload: {},
+          sessionId: 's2',
+          summary: 's',
+          text: 't',
+          title: 'New',
+          type: 'journal',
+          vibe: 'playful',
+        }),
+      },
+    ]
+
+    const entries = await fetchCoupleJournalExport(db, 'couple-1')
+
+    expect(entries).toHaveLength(2)
+    expect(entries[0].id).toBe('e2')
+    expect(entries[0].createdAt).toBe('2026-02-01T00:00:00.000Z')
+    expect(entries[1].createdAt).toBe('2026-01-01T00:00:00.000Z')
+
+    mockQueryDocs.docs = []
   })
 })

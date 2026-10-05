@@ -6,6 +6,7 @@ import { LoveTank } from './LoveTank.jsx'
 import { MoodPulse } from './MoodPulse.jsx'
 import { VibeDial } from './VibeDial.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
+import { COMPANION_STAGES, COMPANION_STAGE_EMOJI } from '../features/couple/progressService.js'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
@@ -60,7 +61,7 @@ function getActivitySubmissionCount(state) {
 }
 
 export function GameScreen() {
-  const { couple, hasPartner } = useCouple()
+  const { couple, hasPartner, progress } = useCouple()
   const { playAction } = useAudio()
   const {
     ackDuelReveal,
@@ -386,6 +387,7 @@ export function GameScreen() {
             positions={session.positions}
             round={session.round}
             rolling={diceAnimating}
+            themeId={progress?.selectedTheme || null}
           />
         </Suspense>
         <div className="hud top">
@@ -399,6 +401,16 @@ export function GameScreen() {
           >
             <span aria-hidden="true">☼</span><strong>{dominantVibe || 'Mood'}</strong>
           </div>
+          {progress?.companion && (
+            <div
+              aria-label={`${progress.companion.name || 'Your companion'}, ${(COMPANION_STAGES[progress.companion.stage] || {}).label || ''}`}
+              className="chip companion-chip"
+              title="Your companion grows with every heart you earn together."
+            >
+              <span aria-hidden="true">{COMPANION_STAGE_EMOJI[progress.companion.stage] || '🥚'}</span>
+              <strong>{progress.companion.name || 'Companion'}</strong>
+            </div>
+          )}
           <button
             aria-label={`Open scrapbook. ${scrapbookMomentCount} saved moments.`}
             className="chip button-chip"

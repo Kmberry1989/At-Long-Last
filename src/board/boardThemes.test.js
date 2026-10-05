@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_THEME_SETS, getBoardThemeForRound } from './boardThemes.js'
+import { BOARD_THEME_SETS, getBoardThemeById, getBoardThemeForRound } from './boardThemes.js'
 
 describe('board themes', () => {
   it('moves through each theme before repeating', () => {
@@ -27,5 +27,30 @@ describe('board themes', () => {
         expect(decoration.position).toHaveLength(3)
       })
     })
+  })
+})
+
+describe('getBoardThemeById', () => {
+  it('returns base sets unchanged', () => {
+    expect(getBoardThemeById('garden')).toBe(BOARD_THEME_SETS.garden)
+  })
+
+  it('remixes unlockable themes onto base sets with new surface colors', () => {
+    const remix = getBoardThemeById('starlit-rooftop')
+
+    expect(remix.id).toBe('starlit-rooftop')
+    expect(remix.label).toBe('Starlit Rooftop')
+    expect(remix.decorations).toBe(BOARD_THEME_SETS.city.decorations)
+    expect(remix.surfaces.tabletop.texture).toBe(
+      BOARD_THEME_SETS.city.surfaces.tabletop.texture,
+    )
+    expect(remix.surfaces.tabletop.color).not.toBe(
+      BOARD_THEME_SETS.city.surfaces.tabletop.color,
+    )
+  })
+
+  it('returns null for missing or unknown ids', () => {
+    expect(getBoardThemeById(null)).toBeNull()
+    expect(getBoardThemeById('not-a-theme')).toBeNull()
   })
 })
