@@ -470,7 +470,7 @@ function resolveWavelengthHearts(resultOne, resultTwo) {
  * partner's answer on the same 5 prompts. Everything stays sealed until both
  * phones submit; scoring happens cross-player at reveal time.
  */
-function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, players = [] }) {
+function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, players = [], prompts = null }) {
   const [promptIndex, setPromptIndex] = useState(0)
   const [stage, setStage] = useState('answer')
   const [picked, setPicked] = useState('')
@@ -487,7 +487,8 @@ function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, p
     return partner?.displayName || 'your partner'
   }, [playerIndex, players])
 
-  const prompt = WAVELENGTH_PROMPTS[promptIndex]
+  const activePrompts = prompts && prompts.length >= WAVELENGTH_PROMPT_COUNT ? prompts : WAVELENGTH_PROMPTS
+  const prompt = activePrompts[promptIndex]
   const isLastPrompt = promptIndex === WAVELENGTH_PROMPT_COUNT - 1
 
   function advance(nextPicked) {
@@ -529,7 +530,7 @@ function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, p
   return (
     <DuelShell duel={duel} onSkip={onSkip}>
       <div className="wavelength-progress" aria-label={`Prompt ${promptIndex + 1} of ${WAVELENGTH_PROMPT_COUNT}`}>
-        {WAVELENGTH_PROMPTS.map((entry, index) => (
+        {activePrompts.map((entry, index) => (
           <span
             className={
               index < promptIndex || (index === promptIndex && stage === 'guess')

@@ -3,6 +3,7 @@ import { MOOD_OPTIONS } from './sessionLogic.js'
 import {
   WAVELENGTH_DUEL_ID,
   getWavelengthOptionLabel,
+  getWavelengthPromptsForSession,
   scoreWavelengthDuel,
   wavelengthVerdict,
 } from './wavelengthDuelData.js'
@@ -128,6 +129,7 @@ export function buildDuelJournalEntry({
   heartBonus,
   outcome,
   players,
+  session,
   sessionId,
 }) {
   if (!duel || !outcome) {
@@ -145,10 +147,12 @@ export function buildDuelJournalEntry({
   const isWavelength =
     duel.id === WAVELENGTH_DUEL_ID &&
     (outcome.status === 'shared' || outcome.status === 'resolved')
+  const wavelengthPrompts = isWavelength ? getWavelengthPromptsForSession(session) : null
   const wavelength = isWavelength
     ? scoreWavelengthDuel(
         duelResults?.[players[0]?.uid],
         duelResults?.[players[1]?.uid],
+        wavelengthPrompts,
       )
     : null
 
@@ -179,8 +183,8 @@ export function buildDuelJournalEntry({
           const twoMark = row.twoHit ? '✓' : '✗'
           return [
             `${index + 1}. ${row.prompt.text}`,
-            `   ${nameOne} said “${getWavelengthOptionLabel(index, row.oneAnswer)}”, guessed “${getWavelengthOptionLabel(index, row.oneGuess)}” ${oneMark}`,
-            `   ${nameTwo} said “${getWavelengthOptionLabel(index, row.twoAnswer)}”, guessed “${getWavelengthOptionLabel(index, row.twoGuess)}” ${twoMark}`,
+            `   ${nameOne} said “${getWavelengthOptionLabel(index, row.oneAnswer, wavelengthPrompts)}”, guessed “${getWavelengthOptionLabel(index, row.oneGuess, wavelengthPrompts)}” ${oneMark}`,
+            `   ${nameTwo} said “${getWavelengthOptionLabel(index, row.twoAnswer, wavelengthPrompts)}”, guessed “${getWavelengthOptionLabel(index, row.twoGuess, wavelengthPrompts)}” ${twoMark}`,
           ].join('\n')
         }),
       ].join('\n')
@@ -244,6 +248,33 @@ export function buildPromiseGrantedJournalEntry({ coupleId, detail, label, sessi
   }
 }
 
+export function buildFreezeUsedJournalEntry({ coupleId, sessionId, streakCount }) {
+  const streakLabel = streakCount > 0 ? `${streakCount}-night` : 'date-night'
+  return {
+    coupleId,
+    payload: { streakCount: streakCount || 0 },
+    sessionId,
+    summary: 'A freeze token kept your streak warm.',
+    text: `Life got in the way and a freeze token kept your ${streakLabel} streak warm — no guilt, that is what it is for. Welcome-back ritual: each share one high and one low from the days you missed. Two minutes, no fixing, just listening.`,
+    title: 'Streak Kept Warm ❄️',
+    type: 'milestone',
+    vibe: 'tender',
+  }
+}
+
+export function buildFreezeEarnedJournalEntry({ coupleId, sessionId }) {
+  return {
+    coupleId,
+    payload: {},
+    sessionId,
+    summary: 'You earned a freeze token.',
+    text: 'Seven nights together earned you a freeze token. It will quietly protect your streak the next time life gets busy.',
+    title: 'Freeze Token Earned ❄️',
+    type: 'milestone',
+    vibe: 'tender',
+  }
+}
+
 export function buildTrophyJournalEntry({ coupleId, sessionId, trophyId }) {
   const trophy = TROPHIES.find((entry) => entry.id === trophyId)
 
@@ -272,6 +303,18 @@ export function buildProgressJournalEntries({ coupleId, events, sessionId }) {
 
       if (event.type === 'trophy') {
         return buildTrophyJournalEntry({ coupleId, sessionId, trophyId: event.trophyId })
+      }
+
+      if (event.type === 'freeze-used') {
+        return buildFreezeUsedJournalEntry({
+          coupleId,
+          sessionId,
+          streakCount: event.streakCount,
+        })
+      }
+
+      if (event.type === 'freeze-earned') {
+        return buildFreezeEarnedJournalEntry({ coupleId, sessionId })
       }
 
       return null

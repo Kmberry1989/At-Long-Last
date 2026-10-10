@@ -1,4 +1,4 @@
-import { Suspense, lazy, startTransition, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import { DuelRevealOverlay } from './DuelRevealOverlay.jsx'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { ChecklistRail } from './ChecklistRail.jsx'
@@ -10,6 +10,10 @@ import { COMPANION_STAGES, COMPANION_STAGE_EMOJI } from '../features/couple/prog
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
+import {
+  WAVELENGTH_DUEL_ID,
+  getWavelengthPromptsForSession,
+} from '../features/session/wavelengthDuelData.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { useSynth } from './useSynth.js'
 import {
@@ -259,6 +263,18 @@ export function GameScreen() {
   const ActivityComponent = activityEntry?.render ?? null
   const duelEntry = session.currentDuel ? duelRegistry[session.currentDuel.id] : null
   const DuelComponent = duelEntry?.start ?? null
+  const wavelengthPrompts = useMemo(
+    () =>
+      session?.currentDuel?.id === WAVELENGTH_DUEL_ID
+        ? getWavelengthPromptsForSession(session)
+        : null,
+    [
+      session?.id,
+      session?.round,
+      session?.currentDuel?.id,
+      session?.currentDuel?.attempt,
+    ],
+  )
   const canChooseActivity = session.phase === 'activityChoice' && session.activePlayerIndex === playerIndex
   const dominantVibe = session.vibeWeights
     ? Object.entries(session.vibeWeights).sort((left, right) => right[1] - left[1])[0]?.[0]
@@ -676,6 +692,7 @@ export function GameScreen() {
           ) : (
             <DuelComponent
               disabled={working}
+              prompts={wavelengthPrompts}
               onComplete={submitDuelResult}
               onSkip={() => {
                 playAction?.()

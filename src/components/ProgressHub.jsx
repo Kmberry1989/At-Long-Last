@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
+import { YearInReview } from './YearInReview.jsx'
 import {
   BASE_THEME_CARDS,
   COMPANION_STAGES,
@@ -471,6 +472,7 @@ export function ProgressHub() {
       <TrophyCase />
       <PromiseWallet />
       <AnniversaryRow />
+      <YearInReview />
       <ExportSection />
     </div>
   )

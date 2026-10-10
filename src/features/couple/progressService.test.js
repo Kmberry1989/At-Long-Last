@@ -150,7 +150,7 @@ describe('progressService progression math', () => {
 
     expect(progress.streakCount).toBe(6)
     expect(progress.freezeTokens).toBe(0)
-    expect(events).toContainEqual({ type: 'freeze-used' })
+    expect(events).toContainEqual({ streakCount: 6, type: 'freeze-used' })
   })
 
   it('resets the streak with no freeze tokens left', () => {
@@ -170,7 +170,7 @@ describe('progressService progression math', () => {
 
     expect(progress.streakCount).toBe(4)
     expect(progress.lifetimeNights).toBe(5)
-    expect(events).not.toContainEqual({ type: 'freeze-used' })
+    expect(events.some((event) => event.type === 'freeze-used')).toBe(false)
   })
 
   it('earns a freeze token every seventh streak night', () => {

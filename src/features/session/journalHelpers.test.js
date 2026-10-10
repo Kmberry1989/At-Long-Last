@@ -3,6 +3,8 @@ import {
   buildActivityJournalEntry,
   buildAnniversaryJournalEntry,
   buildDuelJournalEntry,
+  buildFreezeEarnedJournalEntry,
+  buildFreezeUsedJournalEntry,
   buildFinaleJournalEntry,
   buildMilestoneJournalEntry,
   buildProgressJournalEntries,
@@ -12,7 +14,7 @@ import {
   buildVibeSetupJournalEntry,
   getScrapbookMomentCount,
 } from './journalHelpers.js'
-import { encodeWavelengthSubmission } from './wavelengthDuelData.js'
+import { encodeWavelengthSubmission, getWavelengthPromptsForSession } from './wavelengthDuelData.js'
 
 describe('journalHelpers', () => {
   it('does not count the hidden finale metadata page as a scrapbook moment', () => {
@@ -106,6 +108,12 @@ describe('journalHelpers', () => {
   })
 
   it('writes a wavelength scorecard into the duel journal entry', () => {
+    const session = {
+      currentDuel: { attempt: 1, id: 'wavelength-duel' },
+      id: 'session-1',
+      round: 2,
+    }
+    const expectedPrompts = getWavelengthPromptsForSession(session)
     const entry = buildDuelJournalEntry({
       coupleId: 'couple-1',
       duel: {
@@ -129,13 +137,14 @@ describe('journalHelpers', () => {
         { uid: 'u1', displayName: 'Kyle' },
         { uid: 'u2', displayName: 'Elaine' },
       ],
+      session,
       sessionId: 'session-1',
     })
 
     expect(entry?.summary).toContain('10/10')
     expect(entry?.summary).toContain('10 shared hearts')
     expect(entry?.text).toContain('10/10 on the same wavelength')
-    expect(entry?.text).toContain('The ideal Friday night is…')
+    expect(entry?.text).toContain(expectedPrompts[0].text)
     expect(entry?.text).toContain('Takeout + couch fort')
     expect(entry?.payload.wavelength).toEqual({ matches: 10, total: 10 })
     expect(entry?.type).toBe('duel')
@@ -324,12 +333,42 @@ describe('progression journal entries', () => {
       events: [
         { nights: 25, type: 'milestone' },
         { trophyId: 'streak-7', type: 'trophy' },
-        { type: 'freeze-used' },
+        { streakCount: 9, type: 'freeze-used' },
+        { type: 'freeze-earned' },
       ],
       sessionId: 'session-1',
     })
 
-    expect(entries.map((entry) => entry.type)).toEqual(['milestone', 'trophy'])
+    expect(entries.map((entry) => entry.type)).toEqual([
+      'milestone',
+      'trophy',
+      'milestone',
+      'milestone',
+    ])
+    expect(entries[2].title).toContain('Streak Kept Warm')
+    expect(entries[2].text).toContain('9-night')
+    expect(entries[2].text).toContain('Welcome-back ritual')
+    expect(entries[3].title).toContain('Freeze Token Earned')
+  })
+
+  it('builds freeze entries with rules-valid shapes', () => {
+    const used = buildFreezeUsedJournalEntry({
+      coupleId: 'c1',
+      sessionId: 's1',
+      streakCount: 4,
+    })
+    const earned = buildFreezeEarnedJournalEntry({ coupleId: 'c1', sessionId: 's1' })
+
+    for (const entry of [used, earned]) {
+      expect(entry.type).toBe('milestone')
+      expect(Object.keys(entry.payload).length).toBeLessThanOrEqual(6)
+      expect(
+        ['coupleId', 'payload', 'sessionId', 'summary', 'text', 'title', 'type', 'vibe'].every(
+          (key) => key in entry,
+        ),
+      ).toBe(true)
+    }
+    expect(used.text).toContain('no guilt')
   })
 })
 

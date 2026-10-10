@@ -4831,6 +4831,33 @@ p {
   margin-top: 10px;
 }
 
+.recap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.recap-tile {
+  border-radius: 12px;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.recap-tile > span:first-child {
+  font-size: 22px;
+}
+
+.recap-tile strong {
+  font-size: 18px;
+}
+
 .trophy {
   border-radius: 12px;
   padding: 10px;

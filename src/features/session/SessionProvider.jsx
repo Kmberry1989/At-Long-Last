@@ -502,6 +502,7 @@ export function SessionProvider({ children }) {
         heartBonus: session.currentDuel.heartBonus,
         outcome: skippedOutcome,
         players: session.players,
+        session,
         sessionId: session.id,
       })
       Promise.resolve()
@@ -548,6 +549,7 @@ export function SessionProvider({ children }) {
       heartBonus,
       outcome,
       players: session.players,
+      session,
       sessionId: session.id,
     })
     const finaleJournalEntry =

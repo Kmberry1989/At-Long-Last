@@ -197,7 +197,7 @@ export function applyNightComplete(progress, { dateStr, heartsEarned = 0, stats 
     } else if ((next.freezeTokens || 0) > 0 && next.streakLastDate) {
       next.freezeTokens -= 1
       next.streakCount = (next.streakCount || 0) + 1
-      events.push({ type: 'freeze-used' })
+      events.push({ streakCount: next.streakCount, type: 'freeze-used' })
     } else {
       next.streakCount = 1
     }

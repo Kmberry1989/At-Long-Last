@@ -63,6 +63,106 @@ export const WAVELENGTH_PROMPTS = [
     ],
     text: 'The smallest moment that says “I love you”…',
   },
+  {
+    id: 'sunday-morning',
+    options: [
+      { id: 'a', label: 'Coffee and nowhere to be' },
+      { id: 'b', label: 'A big cooked breakfast' },
+      { id: 'c', label: 'A slow walk, no phones' },
+      { id: 'd', label: 'Back to sleep, obviously' },
+    ],
+    text: 'The perfect slow Sunday morning starts with…',
+  },
+  {
+    id: 'chore-least',
+    options: [
+      { id: 'a', label: 'Dishes. Always the dishes' },
+      { id: 'b', label: 'Folding laundry' },
+      { id: 'c', label: 'Cleaning the bathroom' },
+      { id: 'd', label: 'Taking out the trash' },
+    ],
+    text: 'The chore you would happily never do again…',
+  },
+  {
+    id: 'comfort-watch',
+    options: [
+      { id: 'a', label: 'The old sitcom, again' },
+      { id: 'b', label: 'A cozy documentary' },
+      { id: 'c', label: 'Reality TV, zero shame' },
+      { id: 'd', label: 'Whatever is shortest' },
+    ],
+    text: 'The comfort rewatch when nothing else sounds good…',
+  },
+  {
+    id: 'grocery-extra',
+    options: [
+      { id: 'a', label: 'Something from the bakery' },
+      { id: 'b', label: 'Fancy cheese, obviously' },
+      { id: 'c', label: 'Ice cream, obviously' },
+      { id: 'd', label: 'Snacks for the couch' },
+    ],
+    text: 'The grocery run always ends with one extra…',
+  },
+  {
+    id: 'day-over',
+    options: [
+      { id: 'a', label: 'Pajamas immediately' },
+      { id: 'b', label: 'A hot shower' },
+      { id: 'c', label: 'Couch + blanket cocoon' },
+      { id: 'd', label: 'Cooking something nice' },
+    ],
+    text: 'The signal that the day is officially over…',
+  },
+  {
+    id: 'road-trip-role',
+    options: [
+      { id: 'a', label: 'Driver, windows down' },
+      { id: 'b', label: 'DJ, full control' },
+      { id: 'c', label: 'Navigator with snacks' },
+      { id: 'd', label: 'Passenger princess, napping' },
+    ],
+    text: 'On a road trip, your natural role is…',
+  },
+  {
+    id: 'bad-day-fix',
+    options: [
+      { id: 'a', label: 'Vent it all out' },
+      { id: 'b', label: 'A walk to clear the head' },
+      { id: 'c', label: 'Comfort food, stat' },
+      { id: 'd', label: 'Quiet time, then talk' },
+    ],
+    text: 'The fastest fix for a bad day…',
+  },
+  {
+    id: 'weekend-project',
+    options: [
+      { id: 'a', label: 'Rearranging a room' },
+      { id: 'b', label: 'Trying a new recipe' },
+      { id: 'c', label: 'A thrift-store treasure hunt' },
+      { id: 'd', label: 'Absolutely nothing, on purpose' },
+    ],
+    text: 'The ideal low-stakes weekend project…',
+  },
+  {
+    id: 'sleep-essential',
+    options: [
+      { id: 'a', label: 'Total darkness' },
+      { id: 'b', label: 'A fan humming' },
+      { id: 'c', label: 'The good pillow arrangement' },
+      { id: 'd', label: 'Cool room, warm blanket' },
+    ],
+    text: 'The non-negotiable for good sleep…',
+  },
+  {
+    id: 'small-win',
+    options: [
+      { id: 'a', label: 'Dessert, obviously' },
+      { id: 'b', label: 'Tell everyone immediately' },
+      { id: 'c', label: 'A little dance' },
+      { id: 'd', label: 'Bank it quietly, smile all day' },
+    ],
+    text: 'The right way to celebrate a small win…',
+  },
 ]
 
 export const WAVELENGTH_DUEL_DEFINITION = {
@@ -116,15 +216,61 @@ export function isValidWavelengthSubmission(answers, guesses) {
 }
 
 /**
+ * Deterministic per-duel prompt sampling. Both phones derive the same seed
+ * from the shared session (id + round + duel attempt), so they always ask
+ * the same 5 prompts without any extra Firestore writes.
+ */
+function hashSeedString(value) {
+  let hash = 2166136261
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function mulberry32(seed) {
+  let state = seed >>> 0
+  return () => {
+    state |= 0
+    state = (state + 0x6d2b79f5) | 0
+    let t = Math.imul(state ^ (state >>> 15), 1 | state)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+export function pickWavelengthPrompts(seed, count = WAVELENGTH_PROMPT_COUNT) {
+  const random = mulberry32(hashSeedString(String(seed ?? 'wavelength')))
+  const pool = [...WAVELENGTH_PROMPTS]
+  const picked = []
+  const target = Math.min(count, pool.length)
+
+  while (picked.length < target && pool.length > 0) {
+    const index = Math.floor(random() * pool.length)
+    picked.push(pool.splice(index, 1)[0])
+  }
+
+  return picked
+}
+
+export function getWavelengthPromptsForSession(session) {
+  const duel = session?.currentDuel
+  const seed = [session?.id, session?.round, duel?.attempt, duel?.id].join(':')
+  return pickWavelengthPrompts(seed)
+}
+
+/**
  * Cross-score two wavelength submissions. Player one's guesses are checked
  * against player two's answers and vice versa — 2 possible matches per
  * prompt, 10 total. Cooperative: there is no winner, only a wavelength.
  */
-export function scoreWavelengthDuel(resultOne, resultTwo) {
+export function scoreWavelengthDuel(resultOne, resultTwo, prompts) {
+  const list = (prompts && prompts.length >= WAVELENGTH_PROMPT_COUNT ? prompts : WAVELENGTH_PROMPTS).slice(0, WAVELENGTH_PROMPT_COUNT)
   const one = decodeWavelengthSubmission(resultOne?.excerpt)
   const two = decodeWavelengthSubmission(resultTwo?.excerpt)
 
-  const rows = WAVELENGTH_PROMPTS.map((prompt, index) => {
+  const rows = list.map((prompt, index) => {
     const oneAnswer = one?.answers[index] ?? null
     const oneGuess = one?.guesses[index] ?? null
     const twoAnswer = two?.answers[index] ?? null
@@ -173,7 +319,8 @@ export function wavelengthVerdict(matches) {
   return 'Gloriously out of sync — and still here.'
 }
 
-export function getWavelengthOptionLabel(promptIndex, optionId) {
-  const prompt = WAVELENGTH_PROMPTS[promptIndex]
+export function getWavelengthOptionLabel(promptIndex, optionId, prompts) {
+  const list = (prompts && prompts.length > promptIndex ? prompts : WAVELENGTH_PROMPTS).slice(0, WAVELENGTH_PROMPT_COUNT)
+  const prompt = list[promptIndex]
   return prompt?.options.find((option) => option.id === optionId)?.label ?? '—'
 }

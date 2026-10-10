@@ -4,6 +4,7 @@ import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import {
   WAVELENGTH_DUEL_ID,
   getWavelengthOptionLabel,
+  getWavelengthPromptsForSession,
   scoreWavelengthDuel,
   wavelengthVerdict,
 } from '../features/session/wavelengthDuelData.js'
@@ -38,14 +39,15 @@ export function RevealBurst() {
   )
 }
 
-function WavelengthScorecard({ duelResults, players }) {
+function WavelengthScorecard({ duelResults, players, prompts }) {
   const { matches, rows, total } = useMemo(
     () =>
       scoreWavelengthDuel(
         duelResults?.[players[0]?.uid],
         duelResults?.[players[1]?.uid],
+        prompts,
       ),
-    [duelResults, players],
+    [duelResults, players, prompts],
   )
   const nameOne = players[0]?.displayName ?? 'Player 1'
   const nameTwo = players[1]?.displayName ?? 'Player 2'
@@ -62,11 +64,11 @@ function WavelengthScorecard({ duelResults, players }) {
             <p className="duel-scorecard-prompt">{row.prompt.text}</p>
             <p className={row.oneHit ? 'hit' : 'miss'}>
               <span aria-hidden="true">{row.oneHit ? '✓' : '✗'}</span> {nameOne} said
-              “{getWavelengthOptionLabel(index, row.oneAnswer)}”
+              “{getWavelengthOptionLabel(index, row.oneAnswer, prompts)}”
             </p>
             <p className={row.twoHit ? 'hit' : 'miss'}>
               <span aria-hidden="true">{row.twoHit ? '✓' : '✗'}</span> {nameTwo} said
-              “{getWavelengthOptionLabel(index, row.twoAnswer)}”
+              “{getWavelengthOptionLabel(index, row.twoAnswer, prompts)}”
             </p>
           </li>
         ))}
@@ -136,6 +138,11 @@ export function DuelRevealOverlay({
     () => evaluateDuelRound(session, duelRegistry),
     [session],
   )
+  const wavelengthPrompts = useMemo(
+    () =>
+      duel?.id === WAVELENGTH_DUEL_ID ? getWavelengthPromptsForSession(session) : null,
+    [duel?.id, session],
+  )
   const hearts = useMemo(
     () => resolveHeartsForReveal({ duel, duelResults, outcome, players, session }),
     [duel, duelResults, outcome, players, session],
@@ -188,7 +195,11 @@ export function DuelRevealOverlay({
           <h3 className="duel-reveal-title">{revealStatement({ duel, outcome, players })}</h3>
 
           {duel.id === WAVELENGTH_DUEL_ID ? (
-            <WavelengthScorecard duelResults={duelResults} players={players} />
+            <WavelengthScorecard
+              duelResults={duelResults}
+              players={players}
+              prompts={wavelengthPrompts}
+            />
           ) : null}
 
           {hearts > 0 && (
