@@ -240,9 +240,9 @@ export function buildPromiseGrantedJournalEntry({ coupleId, detail, label, sessi
     coupleId,
     payload: { detail: detail || '', label },
     sessionId,
-    summary: `A new promise: ${label}.`,
-    text: `The deck dealt a new promise: ${label}${detail ? ` — ${detail}` : ''} It is waiting in your promise wallet.`,
-    title: 'A New Promise 💌',
+    summary: `A new pinky swear: ${label}.`,
+    text: `The deck dealt a new pinky swear: ${label}${detail ? ` — ${detail}` : ''} It is waiting in your pinky swear wallet.`,
+    title: 'A New Pinky Swear 💌',
     type: 'journal',
     vibe: 'tender',
   }

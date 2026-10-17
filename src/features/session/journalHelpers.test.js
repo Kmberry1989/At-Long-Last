@@ -401,6 +401,6 @@ describe('finale extras', () => {
       detail: 'Every song, every skip, all day.',
       label: 'Control the playlist',
     })
-    expect(entry.text).toContain('promise wallet')
+    expect(entry.text).toContain('pinky swear wallet')
   })
 })

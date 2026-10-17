@@ -209,7 +209,7 @@ function CompanionCard() {
   const { progress, renameCompanion } = useCouple()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
-  const companion = progress?.companion || { heartsFed: 0, name: 'Ember', stage: 0 }
+  const companion = progress?.companion || { heartsFed: 0, name: 'Glowbud', stage: 0 }
   const stage = COMPANION_STAGES[companion.stage] || COMPANION_STAGES[0]
   const nextStage = COMPANION_STAGES[companion.stage + 1]
 
@@ -299,11 +299,11 @@ function PromiseWallet() {
 
   return (
     <div className="progress-section">
-      <h3>Promise wallet</h3>
+      <h3>Pinky swear wallet</h3>
       {promises.length === 0 ? (
         <p className="support-copy">
-          No promises yet. Finish nights together and the deck deals you little
-          promises to gift each other.
+          No pinky swears yet. Finish nights together and the deck deals you little
+          pinky swears to gift each other.
         </p>
       ) : (
         <div className="koupon-list">

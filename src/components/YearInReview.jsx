@@ -72,7 +72,7 @@ function recapShareText(recap) {
     lines.push(`Best wavelength: ${recap.bestWavelength}/10`)
   }
   if (recap.promisesFulfilled > 0) {
-    lines.push(`${recap.promisesFulfilled} promise${recap.promisesFulfilled === 1 ? '' : 's'} fulfilled`)
+    lines.push(`${recap.promisesFulfilled} pinky swear${recap.promisesFulfilled === 1 ? '' : 's'} fulfilled`)
   }
   if (recap.topVibe) {
     lines.push(`Top vibe: ${recap.topVibe}`)
@@ -131,7 +131,7 @@ export function YearInReview() {
     <div className="progress-section">
       <h3>Our story so far</h3>
       <p className="support-copy">
-        Your relationship Wrapped — every night, duel, and promise, distilled
+        Your relationship Wrapped — every night, duel, and pinky swear, distilled
         into the numbers that actually matter.
       </p>
 
@@ -167,7 +167,7 @@ export function YearInReview() {
               <StatTile emoji="📡" label="best wavelength" value={`${recap.bestWavelength}/10`} />
             )}
             {recap.promisesFulfilled > 0 && (
-              <StatTile emoji="💌" label="promises fulfilled" value={recap.promisesFulfilled} />
+              <StatTile emoji="💌" label="pinky swears fulfilled" value={recap.promisesFulfilled} />
             )}
             {recap.trophies > 0 && (
               <StatTile emoji="🏆" label="trophies" value={recap.trophies} />

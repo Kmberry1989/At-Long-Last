@@ -63,7 +63,7 @@ export const TROPHIES = [
   { detail: 'Matched on a sealed prediction.', id: 'mind-reader', label: 'Mind Reader' },
   { detail: 'Pocketed 3 keepsakes in one night.', id: 'keepsake-keeper', label: 'Keepsake Keeper' },
   { detail: 'Unlocked a tabletop theme.', id: 'theme-collector', label: 'Table Stylist' },
-  { detail: 'Fulfilled a koupon dare.', id: 'koupon-giver', label: 'Promise Keeper' },
+  { detail: 'Fulfilled a pinky swear.', id: 'koupon-giver', label: 'Promise Keeper' },
   { detail: 'Finished a full-length night.', id: 'marathon', label: 'Marathoners' },
   { detail: 'Matched on a sealed desire card.', id: 'mutual-yes', label: 'Mutual Yes' },
 ]
@@ -107,7 +107,7 @@ export const MILESTONE_NIGHTS = [1, 10, 25, 50, 100]
 export function buildDefaultProgress(coupleId) {
   return {
     anniversary: null,
-    companion: { heartsFed: 0, name: 'Ember', stage: 0 },
+    companion: { heartsFed: 0, name: 'Glowbud', stage: 0 },
     coupleId,
     createdAt: serverTimestamp(),
     freezeTokens: 1,

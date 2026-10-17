@@ -92,7 +92,7 @@ describe('progressService progression math', () => {
     expect(progress.freezeTokens).toBe(1)
     // No theme pinned: the board auto-rotates each round.
     expect(progress.selectedTheme).toBeUndefined()
-    expect(progress.companion.name).toBe('Ember')
+    expect(progress.companion.name).toBe('Glowbud')
     expect(spendableHearts(progress)).toBe(0)
   })
 
