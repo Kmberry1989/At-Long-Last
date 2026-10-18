@@ -9,7 +9,6 @@ import {
   pickWeightedActivityOptions,
   pickWeightedDuelId,
 } from './sessionWiring.js'
-import { activityDefinitions } from './contentPackData.js'
 
 describe('sessionWiring', () => {
   it('averages vibe votes and normalizes the result', () => {

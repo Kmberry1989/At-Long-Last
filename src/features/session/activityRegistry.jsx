@@ -33,7 +33,6 @@ function buildOpenAt(definition) {
 
 function ActivityCard({
   activity,
-  definition,
   disabled,
   onSkip,
   onSubmit,
@@ -67,7 +66,7 @@ function ActivityCard({
     <div className={`overlay-card activity-card vibe-${definition.vibe}`}>
       <div className="overlay-head">
         <p className="eyebrow">{activity.vibe} {activityType}</p>
-        {activity.skippable && (
+        {definition.skippable && (
           <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
             Skip This
           </button>
