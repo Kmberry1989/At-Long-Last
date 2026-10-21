@@ -163,6 +163,7 @@ function ThemePicker() {
             onClick={() => selectTheme(theme.id)}
             type="button"
           >
+            <img alt="" className="theme-art" loading="lazy" src={theme.art} />
             <span className="theme-name">{theme.label}</span>
             {selected === theme.id && <span className="theme-check">✓</span>}
           </button>
@@ -176,6 +177,7 @@ function ThemePicker() {
               className={`theme-card unlockable${selected === theme.id ? ' selected' : ''}${isUnlocked ? '' : ' locked'}`}
               key={theme.id}
             >
+              <img alt="" className="theme-art" loading="lazy" src={theme.art} />
               <span className="theme-name">{theme.label}</span>
               <span className="theme-blurb">{theme.blurb}</span>
               {isUnlocked ? (

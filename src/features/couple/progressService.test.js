@@ -58,6 +58,8 @@ vi.mock('firebase/firestore', () => {
 })
 
 import {
+  BASE_THEME_CARDS,
+  UNLOCKABLE_THEMES,
   applyNightComplete,
   buildDefaultProgress,
   clearNudge,
@@ -82,6 +84,21 @@ function progressFixture(overrides = {}) {
     ...overrides,
   }
 }
+
+describe('progressService theme card art', () => {
+  it('gives every theme card a unique art file under /assets/themes/', () => {
+    const cards = [...BASE_THEME_CARDS, ...UNLOCKABLE_THEMES]
+
+    expect(BASE_THEME_CARDS).toHaveLength(5)
+    expect(UNLOCKABLE_THEMES).toHaveLength(4)
+
+    const artPaths = cards.map((card) => card.art)
+    for (const art of artPaths) {
+      expect(art).toMatch(/^\/assets\/themes\/.+\.png$/)
+    }
+    expect(new Set(artPaths).size).toBe(artPaths.length)
+  })
+})
 
 describe('progressService progression math', () => {
   it('builds a sane default progress doc', () => {

@@ -768,6 +768,13 @@ export function LobbyScreen() {
             className="brand-logo"
             src="/assets/ui/atlonglast.png"
           />
+          {!authScreenActive && (
+            <img
+              alt=""
+              className="lobby-hero"
+              src="/assets/themes/landing-hero.png"
+            />
+          )}
           <p className="title-kicker">A private board game night for two phones.</p>
           {!authScreenActive && (
             <>
