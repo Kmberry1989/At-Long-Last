@@ -14,37 +14,37 @@ import {
 } from 'firebase/firestore'
 
 export const BASE_THEME_CARDS = [
-  { art: '/assets/themes/tabletop-cozy-night-in.png', id: 'cozy', label: 'Cozy night in' },
-  { art: '/assets/themes/tabletop-secret-garden.png', id: 'garden', label: 'Secret garden' },
-  { art: '/assets/themes/tabletop-seaside-date.png', id: 'beach', label: 'Seaside date' },
-  { art: '/assets/themes/tabletop-city-date-night.png', id: 'city', label: 'City date night' },
-  { art: '/assets/themes/tabletop-holiday-sparkle.png', id: 'holiday', label: 'Holiday sparkle' },
+  { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy night in' },
+  { art: '/assets/themes/tabletop-secret-garden.webp', id: 'garden', label: 'Secret garden' },
+  { art: '/assets/themes/tabletop-seaside-date.webp', id: 'beach', label: 'Seaside date' },
+  { art: '/assets/themes/tabletop-city-date-night.webp', id: 'city', label: 'City date night' },
+  { art: '/assets/themes/tabletop-holiday-sparkle.webp', id: 'holiday', label: 'Holiday sparkle' },
 ]
 
 export const UNLOCKABLE_THEMES = [
   {
-    art: '/assets/themes/unlock-starlit-rooftop.png',
+    art: '/assets/themes/unlock-starlit-rooftop.webp',
     blurb: 'String lights, skyline hum, just the two of you above it all.',
     cost: 60,
     id: 'starlit-rooftop',
     label: 'Starlit Rooftop',
   },
   {
-    art: '/assets/themes/unlock-autumn-embers.png',
+    art: '/assets/themes/unlock-autumn-embers.webp',
     blurb: 'Crackling leaves and cider-warm light.',
     cost: 120,
     id: 'autumn-embers',
     label: 'Autumn Embers',
   },
   {
-    art: '/assets/themes/unlock-cherry-blossom.png',
+    art: '/assets/themes/unlock-cherry-blossom.webp',
     blurb: 'A soft storm of petals over the board.',
     cost: 200,
     id: 'cherry-blossom',
     label: 'Cherry Blossom',
   },
   {
-    art: '/assets/themes/unlock-aurora-veil.png',
+    art: '/assets/themes/unlock-aurora-veil.webp',
     blurb: 'The sky itself leans in to watch you play.',
     cost: 320,
     id: 'aurora-veil',

@@ -772,7 +772,7 @@ export function LobbyScreen() {
             <img
               alt=""
               className="lobby-hero"
-              src="/assets/themes/landing-hero.png"
+              src="/assets/themes/landing-hero.webp"
             />
           )}
           <p className="title-kicker">A private board game night for two phones.</p>

@@ -263,13 +263,13 @@ p {
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(18, 23, 34, 0.34) 0%, rgba(18, 23, 34, 0.58) 100%),
-    url('/assets/themes/background-rose.png') center / cover no-repeat;
+    url('/assets/themes/background-rose.webp') center / cover no-repeat;
 }
 
 .lobby-screen.auth-screen .lobby-backdrop {
   background:
     linear-gradient(180deg, rgba(18, 23, 34, 0.34) 0%, rgba(18, 23, 34, 0.58) 100%),
-    url('/assets/themes/background-ink.png') center / cover no-repeat;
+    url('/assets/themes/background-ink.webp') center / cover no-repeat;
 }
 
 .lobby-content {

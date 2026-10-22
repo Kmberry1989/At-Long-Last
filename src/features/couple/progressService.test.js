@@ -94,7 +94,7 @@ describe('progressService theme card art', () => {
 
     const artPaths = cards.map((card) => card.art)
     for (const art of artPaths) {
-      expect(art).toMatch(/^\/assets\/themes\/.+\.png$/)
+      expect(art).toMatch(/^\/assets\/themes\/.+\.webp$/)
     }
     expect(new Set(artPaths).size).toBe(artPaths.length)
   })
