@@ -12,6 +12,7 @@ const mockState = vi.hoisted(() => ({
   },
   coupleContext: null,
   firebaseContext: null,
+  sessionContext: { readyToPlay: false, error: '' },
 }))
 
 vi.mock('../audio/AudioProvider.jsx', () => ({
@@ -24,6 +25,10 @@ vi.mock('../features/couple/CoupleProvider.jsx', () => ({
 
 vi.mock('../features/couple/FirebaseAppContext.jsx', () => ({
   useFirebaseApp: () => mockState.firebaseContext,
+}))
+
+vi.mock('../features/session/SessionProvider.jsx', () => ({
+  useSession: () => mockState.sessionContext,
 }))
 
 vi.mock('./PlayerPiecePicker.jsx', () => ({
@@ -52,6 +57,7 @@ describe('LobbyScreen', () => {
     cleanup()
     mockState.coupleContext = null
     mockState.firebaseContext = null
+    mockState.sessionContext = { readyToPlay: false, error: '' }
     window.history.pushState({}, '', '/')
   })
 
@@ -94,6 +100,33 @@ describe('LobbyScreen', () => {
     }
     return { joinCouple }
   }
+
+  it('keeps a visible screen while a saved paired room loads its session', () => {
+    setupLobby({ couple: { id: 'paired-room', playerIds: ['one', 'two'] } })
+    mockState.coupleContext.hasPartner = true
+    const { container, rerender } = render(<LobbyScreen />)
+
+    expect(container.querySelector('.lobby-screen')).toHaveClass('active')
+    expect(screen.getByRole('heading', { name: 'Loading game…' })).toBeVisible()
+    expect(screen.getByRole('status')).toHaveTextContent('Connecting to your room.')
+
+    mockState.sessionContext.readyToPlay = true
+    rerender(<LobbyScreen />)
+    expect(container.querySelector('.lobby-screen')).toHaveClass('inactive')
+  })
+
+  it('shows session failures with reload and sign-out controls instead of hiding both screens', () => {
+    setupLobby({ couple: { id: 'paired-room', playerIds: ['one', 'two'] } })
+    mockState.coupleContext.hasPartner = true
+    mockState.sessionContext.error = 'Missing or insufficient permissions.'
+    render(<LobbyScreen />)
+
+    expect(screen.getByRole('heading', { name: 'Game unavailable' })).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent('Missing or insufficient permissions.')
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign Out' }))
+    expect(mockState.firebaseContext.signOutUser).toHaveBeenCalled()
+  })
 
   it('keeps a pre-room Quick selection and passes it into room creation', () => {
     const createCouple = vi.fn()

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
+import { useSession } from '../features/session/SessionProvider.jsx'
 import {
   DEFAULT_PLAYER_AVATAR,
   PLAYER_THEMES,
@@ -111,6 +112,7 @@ export function LobbyScreen() {
     user,
   } = useFirebaseApp()
   const { playAction, playError, playSuccess, setStage } = useAudio()
+  const { readyToPlay, error: sessionError } = useSession()
   const [displayName, setDisplayName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [email, setEmail] = useState('')
@@ -207,7 +209,7 @@ export function LobbyScreen() {
   const canSignIn = Boolean(email.trim() && password.trim())
   const canJoinByCode = Boolean(profileName && inviteCode.trim().length >= 4)
   const selectedPublicLobby = publicLobbies.find((entry) => entry.id === selectedPublicLobbyId) || null
-  const isActive = !hasPartner
+  const isActive = !hasPartner || !readyToPlay
   const waitingForPartner = Boolean(couple && !hasPartner)
   const authScreenActive = Boolean(ready && enabled && !isSignedIn)
   const showInviteJoin = Boolean(
@@ -807,6 +809,21 @@ export function LobbyScreen() {
                 </div>
               )}
               {renderAuthCard()}
+            </>
+          ) : hasPartner && !readyToPlay ? (
+            <>
+              {renderAccountStrip()}
+              <h2>{sessionError ? 'Game unavailable' : 'Loading game…'}</h2>
+              {sessionError ? (
+                <p className="error-copy" role="alert">{sessionError}</p>
+              ) : (
+                <p className="support-copy" role="status">Connecting to your room.</p>
+              )}
+              <div className="button-row">
+                <button className="ghost-btn" onClick={() => window.location.reload()} type="button">
+                  Reload
+                </button>
+              </div>
             </>
           ) : waitingForPartner ? (
             <>
