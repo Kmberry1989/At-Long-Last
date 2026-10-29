@@ -64,16 +64,13 @@ export function InviteJoinScreen({
     <div className="invite-join">
       {resolving ? (
         <>
-          <p className="eyebrow">Private Invite</p>
-          <h2>Finding your night…</h2>
-          <p className="support-copy">
-            Reading the invite so you land in the right room. Nothing to type.
-          </p>
+          <p className="eyebrow">Invite</p>
+          <h2>Loading…</h2>
         </>
       ) : error ? (
         <>
-          <p className="eyebrow">Private Invite</p>
-          <h2>That invite did not land.</h2>
+          <p className="eyebrow">Invite</p>
+          <h2>Invite unavailable</h2>
           <p className="support-copy" role="alert">{error}</p>
           <div className="button-row">
             <button
@@ -84,20 +81,17 @@ export function InviteJoinScreen({
               }}
               type="button"
             >
-              Use A Code Instead
+              Use code
             </button>
           </div>
         </>
       ) : (
         <>
-          <p className="eyebrow">Private Invite</p>
-          <h2>Join {room.hostName}&apos;s private night?</h2>
-          <p className="support-copy">
-            This room is for two people — just you and {room.hostName}. Your
-            nickname is visible only inside the shared game.
-          </p>
+          <p className="eyebrow">Invite</p>
+          <h2>{room.hostName}&apos;s room</h2>
+
           <div className="invite-join-field">
-            <label className="sr-only" htmlFor="invite-nickname">Your nickname</label>
+            <label className="sr-only" htmlFor="invite-nickname">Name</label>
             <input
               autoComplete="nickname"
               className="text-input"
@@ -110,7 +104,7 @@ export function InviteJoinScreen({
                   handleJoin()
                 }
               }}
-              placeholder="Your nickname"
+              placeholder="Name"
               value={nickname}
             />
           </div>
@@ -121,7 +115,7 @@ export function InviteJoinScreen({
               onClick={handleJoin}
               type="button"
             >
-              Join {room.hostName}&apos;s Night
+              Join room
             </button>
           </div>
           <button
@@ -132,7 +126,7 @@ export function InviteJoinScreen({
             }}
             type="button"
           >
-            Use a six-character code instead
+            Use code
           </button>
         </>
       )}

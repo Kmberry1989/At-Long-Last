@@ -14,11 +14,11 @@ import {
 } from 'firebase/firestore'
 
 export const BASE_THEME_CARDS = [
-  { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy night in' },
-  { art: '/assets/themes/tabletop-secret-garden.webp', id: 'garden', label: 'Secret garden' },
-  { art: '/assets/themes/tabletop-seaside-date.webp', id: 'beach', label: 'Seaside date' },
-  { art: '/assets/themes/tabletop-city-date-night.webp', id: 'city', label: 'City date night' },
-  { art: '/assets/themes/tabletop-holiday-sparkle.webp', id: 'holiday', label: 'Holiday sparkle' },
+  { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy' },
+  { art: '/assets/themes/tabletop-secret-garden.webp', id: 'garden', label: 'Garden' },
+  { art: '/assets/themes/tabletop-seaside-date.webp', id: 'beach', label: 'Seaside' },
+  { art: '/assets/themes/tabletop-city-date-night.webp', id: 'city', label: 'City' },
+  { art: '/assets/themes/tabletop-holiday-sparkle.webp', id: 'holiday', label: 'Holiday' },
 ]
 
 export const UNLOCKABLE_THEMES = [
@@ -27,36 +27,36 @@ export const UNLOCKABLE_THEMES = [
     blurb: 'String lights, skyline hum, just the two of you above it all.',
     cost: 60,
     id: 'starlit-rooftop',
-    label: 'Starlit Rooftop',
+    label: 'Rooftop',
   },
   {
     art: '/assets/themes/unlock-autumn-embers.webp',
     blurb: 'Crackling leaves and cider-warm light.',
     cost: 120,
     id: 'autumn-embers',
-    label: 'Autumn Embers',
+    label: 'Autumn',
   },
   {
     art: '/assets/themes/unlock-cherry-blossom.webp',
     blurb: 'A soft storm of petals over the board.',
     cost: 200,
     id: 'cherry-blossom',
-    label: 'Cherry Blossom',
+    label: 'Blossom',
   },
   {
     art: '/assets/themes/unlock-aurora-veil.webp',
     blurb: 'The sky itself leans in to watch you play.',
     cost: 320,
     id: 'aurora-veil',
-    label: 'Aurora Veil',
+    label: 'Aurora',
   },
 ]
 
 export const TROPHIES = [
   { detail: 'Closed out your very first game night.', id: 'first-night', label: 'First Night' },
   { detail: 'Ten nights together and counting.', id: 'ten-nights', label: 'Ten Nights' },
-  { detail: 'Twenty-five nights of play.', id: 'twentyfive-nights', label: 'Silver 25' },
-  { detail: 'Fifty nights. That is devotion.', id: 'fifty-nights', label: 'Golden 50' },
+  { detail: 'Twenty-five nights of play.', id: 'twentyfive-nights', label: '25 Nights' },
+  { detail: 'Fifty nights. That is devotion.', id: 'fifty-nights', label: '50 Nights' },
   { detail: 'A 7-night streak, together.', id: 'streak-7', label: 'Week of Us' },
   { detail: 'A 30-night streak, together.', id: 'streak-30', label: 'Month of Us' },
   { detail: 'Shared a duel victory.', id: 'duel-champions', label: 'Duel Champions' },
@@ -70,32 +70,49 @@ export const TROPHIES = [
 
 export const TROPHY_IDS = TROPHIES.map((trophy) => trophy.id)
 
+const LEGACY_KOUPON_LABELS = {
+  'Movie night, your pick': 'Your movie pick',
+  'Dessert of your choice': 'Anything you want',
+  'Control the playlist': 'Your playlist',
+  'Stargazing date': 'Stargazing',
+  'Cook something new': 'Fine dining for two',
+  'Letter to each other': 'Letters',
+  'Day trip, your call': 'Day trip',
+  'Slow morning together': 'Slow morning',
+  'Make them a playlist': 'Make a playlist',
+  'Morning coffee run': 'Coffee run',
+}
+
+export function resolveKouponLabel(label) {
+  return Object.hasOwn(LEGACY_KOUPON_LABELS, label) ? LEGACY_KOUPON_LABELS[label] : label
+}
+
 export const KOUPON_DECK = [
-  { detail: 'Delivered with zero occasion required.', label: 'Breakfast in bed' },
-  { detail: 'The other person picks, no vetoes, no sighing.', label: 'Movie night, your pick' },
-  { detail: 'Twenty minutes, no talking about logistics.', label: 'Shoulder rub' },
-  { detail: 'Phones stay home. Both of them.', label: 'Phone-free walk' },
-  { detail: 'Two forks, one plate, no sharing regrets.', label: 'Dessert of your choice' },
-  { detail: 'Every song, every skip, all day.', label: 'Control the playlist' },
-  { detail: 'Sleep in. The morning can wait.', label: 'Sleep-in pass' },
-  { detail: 'Blanket, sky, each other.', label: 'Stargazing date' },
-  { detail: 'A cuisine neither of you has tried.', label: 'Cook something new' },
-  { detail: 'Planned in secret, revealed with flair.', label: 'Surprise date' },
-  { detail: 'Sealed, dated, opened next year.', label: 'Letter to each other' },
-  { detail: 'Somewhere neither of you has been.', label: 'Day trip, your call' },
-  { detail: 'Their favorite takeout, ordered before they ask.', label: 'Takeout surprise' },
-  { detail: 'No agenda. Just us, out in the world.', label: 'Slow morning together' },
-  { detail: 'A playlist that sounds like the two of you.', label: 'Make them a playlist' },
-  { detail: 'One photo of you, printed and framed.', label: 'Framed photo' },
-  { detail: 'Their least-favorite chore, done before they notice.', label: 'Chore takeover' },
-  { detail: 'Exactly how they take it, delivered in bed.', label: 'Morning coffee run' },
+  { detail: '', label: 'Breakfast in bed' },
+  { detail: '', label: 'Your movie pick' },
+  { detail: '', label: 'Shoulder rub' },
+  { detail: '', label: 'Phone-free walk' },
+  { detail: '', label: 'Anything you want' },
+  { detail: '', label: 'Your playlist' },
+  { detail: '', label: 'Sleep-in pass' },
+  { detail: '', label: 'Stargazing' },
+  { detail: '', label: 'Fine dining for two' },
+  { detail: '', label: 'Surprise date' },
+  { detail: '', label: 'Letters' },
+  { detail: '', label: 'Day trip' },
+  { detail: '', label: 'Takeout surprise' },
+  { detail: '', label: 'Slow morning' },
+  { detail: '', label: 'Make a playlist' },
+  { detail: '', label: 'Framed photo' },
+  { detail: '', label: 'Chore takeover' },
+  { detail: '', label: 'Coffee run' },
 ]
 
 export const COMPANION_STAGES = [
-  { heartsNeeded: 0, label: 'A quiet egg' },
+  { heartsNeeded: 0, label: 'Egg' },
   { heartsNeeded: 50, label: 'Hatchling' },
-  { heartsNeeded: 150, label: 'Glowkeeper' },
-  { heartsNeeded: 300, label: 'Radiant' },
+  { heartsNeeded: 150, label: 'Baby' },
+  { heartsNeeded: 300, label: 'Adult' },
 ]
 
 export const COMPANION_STAGE_EMOJI = ['🥚', '🐣', '✨', '🌟']
@@ -107,7 +124,7 @@ export const MILESTONE_NIGHTS = [1, 10, 25, 50, 100]
 export function buildDefaultProgress(coupleId) {
   return {
     anniversary: null,
-    companion: { heartsFed: 0, name: 'Glowbud', stage: 0 },
+    companion: { heartsFed: 0, name: 'Bud', stage: 0 },
     coupleId,
     createdAt: serverTimestamp(),
     freezeTokens: 1,
@@ -230,7 +247,7 @@ export function applyNightComplete(progress, { dateStr, heartsEarned = 0, stats 
 
 export function pickKouponForGrant(progress, random = Math.random) {
   const activeLabels = new Set(
-    (progress.koupons || []).filter((k) => k.status === 'active').map((k) => k.label),
+    (progress.koupons || []).filter((k) => k.status === 'active').map((k) => resolveKouponLabel(k.label)),
   )
   const available = KOUPON_DECK.filter((entry) => !activeLabels.has(entry.label))
   if (available.length === 0) {

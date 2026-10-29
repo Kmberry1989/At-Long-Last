@@ -16,7 +16,7 @@ describe('sessionPresets', () => {
       SESSION_PRESET_OPTIONS.map((preset) => [preset.id, preset]),
     )
 
-    expect(labels.quick.label).toBe('Quick spark')
+    expect(labels.quick.label).toBe('Quick')
     expect(labels.quick.minutesLabel).toBe('~10 min')
     expect(labels.standard.label).toBe('Date night')
     expect(labels.standard.minutesLabel).toBe('~25 min')

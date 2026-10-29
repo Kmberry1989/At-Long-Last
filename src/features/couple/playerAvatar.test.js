@@ -14,8 +14,8 @@ describe('playerAvatar', () => {
   })
 
   it('offers every shipped player model with a matching preview', () => {
-    expect(PLAYER_PIECES).toHaveLength(53)
-    expect(new Set(PLAYER_PIECES.map((piece) => piece.avatar)).size).toBe(53)
+    expect(PLAYER_PIECES).toHaveLength(52)
+    expect(new Set(PLAYER_PIECES.map((piece) => piece.avatar)).size).toBe(52)
     expect(PLAYER_PIECES.every((piece) => (
       piece.avatar.endsWith(`${piece.id}.glb`) &&
       piece.thumbnail.endsWith(`${piece.id}.webp`)
@@ -30,6 +30,10 @@ describe('playerAvatar', () => {
     expect(resolvePlayerAvatar('/assets/players/missing.glb')).toBe(
       DEFAULT_PLAYER_AVATAR,
     )
+    expect(resolvePlayerAvatar('/assets/players/globe-vintage.glb')).toBe(
+      '/assets/players/globe-classic.glb',
+    )
+    expect(getPlayerPiece('/assets/players/globe-vintage.glb').label).toBe('Globe')
     expect(resolvePlayerAvatar()).toBe(DEFAULT_PLAYER_AVATAR)
   })
 })

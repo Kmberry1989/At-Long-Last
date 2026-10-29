@@ -7,7 +7,7 @@ import {
 } from '../features/couple/progressService.js'
 
 /**
- * "Our story so far" — the relationship Wrapped. Aggregates the couple's
+ * "Recap" — the relationship Wrapped. Aggregates the couple's
  * journal entries and shared progression record into a warm stat recap.
  * Pure and unit-tested; the component below only handles fetching.
  */
@@ -58,7 +58,7 @@ export function buildYearRecap(entries = [], progress = {}) {
 }
 
 function recapShareText(recap) {
-  const lines = ['Our story so far 💞']
+  const lines = ['Recap 💞']
   lines.push(
     `${recap.nights} night${recap.nights === 1 ? '' : 's'} together · ${recap.hearts} hearts earned`,
   )
@@ -82,10 +82,10 @@ function recapShareText(recap) {
 
 function StatTile({ emoji, label, value }) {
   return (
-    <div className="recap-tile">
+    <div aria-label={label ? undefined : `${value} night streak`} className="recap-tile">
       <span aria-hidden="true">{emoji}</span>
       <strong>{value}</strong>
-      <span>{label}</span>
+      {label && <span>{label}</span>}
     </div>
   )
 }
@@ -129,25 +129,21 @@ export function YearInReview() {
 
   return (
     <div className="progress-section">
-      <h3>Our story so far</h3>
-      <p className="support-copy">
-        Your relationship Wrapped — every night, duel, and pinky swear, distilled
-        into the numbers that actually matter.
-      </p>
+      <h3>Recap</h3>
 
       {status === 'idle' && (
         <button className="secondary-btn" onClick={handleGenerate} type="button">
-          Build our recap ✨
+          View recap
         </button>
       )}
 
-      {status === 'loading' && <p className="support-copy">Gathering your nights together…</p>}
+      {status === 'loading' && <p className="support-copy">Loading…</p>}
 
       {status === 'error' && (
         <div>
-          <p className="support-copy">Could not gather your story just now.</p>
+          <p className="support-copy">Couldn’t load recap</p>
           <button className="secondary-btn" onClick={handleGenerate} type="button">
-            Try again
+            Retry
           </button>
         </div>
       )}
@@ -158,22 +154,22 @@ export function YearInReview() {
             <StatTile emoji="🌙" label="nights together" value={recap.nights} />
             <StatTile emoji="💞" label="hearts earned" value={recap.hearts} />
             {recap.streak > 0 && (
-              <StatTile emoji="🔥" label="night streak" value={recap.streak} />
+              <StatTile emoji="🔥" label="" value={recap.streak} />
             )}
             {recap.duelsPlayed > 0 && (
-              <StatTile emoji="⚔️" label="duels played" value={recap.duelsPlayed} />
+              <StatTile emoji="⚔️" label="duels" value={recap.duelsPlayed} />
             )}
             {recap.bestWavelength != null && (
               <StatTile emoji="📡" label="best wavelength" value={`${recap.bestWavelength}/10`} />
             )}
             {recap.promisesFulfilled > 0 && (
-              <StatTile emoji="💌" label="pinky swears fulfilled" value={recap.promisesFulfilled} />
+              <StatTile emoji="💌" label="fulfilled" value={recap.promisesFulfilled} />
             )}
             {recap.trophies > 0 && (
               <StatTile emoji="🏆" label="trophies" value={recap.trophies} />
             )}
             {recap.themesUnlocked > 0 && (
-              <StatTile emoji="🎨" label="themes unlocked" value={recap.themesUnlocked} />
+              <StatTile emoji="🎨" label="themes" value={recap.themesUnlocked} />
             )}
             {recap.topVibe && (
               <StatTile emoji="☼" label="top vibe" value={recap.topVibe} />
@@ -181,8 +177,8 @@ export function YearInReview() {
             <StatTile emoji="✨" label="companion" value={recap.companionStageLabel} />
           </div>
           <div className="button-row">
-            <button className="secondary-btn" onClick={handleCopy} type="button">
-              {copied ? '✓ Copied' : 'Copy to share'}
+            <button aria-label={copied ? "Copied" : undefined} className="secondary-btn" onClick={handleCopy} type="button">
+              {copied ? '✓' : 'Copy'}
             </button>
             <button className="secondary-link" onClick={handleGenerate} type="button">
               Refresh

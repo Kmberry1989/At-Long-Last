@@ -70,7 +70,7 @@ describe('buildYearRecap', () => {
     expect(recap.nights).toBe(0)
     expect(recap.bestWavelength).toBeNull()
     expect(recap.topVibe).toBeNull()
-    expect(recap.companionStageLabel).toBe('A quiet egg')
+    expect(recap.companionStageLabel).toBe('Egg')
   })
 
   it('ignores entries from prior years for the this-year count', () => {

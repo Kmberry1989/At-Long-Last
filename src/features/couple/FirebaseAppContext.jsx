@@ -32,6 +32,8 @@ import {
   saveProfileDisplayName,
 } from './profileService.js'
 
+import { loginDate } from './loginStreak.js'
+
 const FirebaseAppContext = createContext(null)
 let firebaseSingleton = null
 
@@ -117,6 +119,19 @@ export function FirebaseAppProvider({ children }) {
   })
   const [authWorking, setAuthWorking] = useState(false)
   const [authError, setAuthError] = useState('')
+
+  useEffect(() => {
+    if (!state.user || !state.db) return undefined
+    let lastDay = loginDate()
+    const refresh = () => {
+      const today = loginDate()
+      if (document.visibilityState === 'hidden' || today === lastDay) return
+      ensureProfileDocument({ db: state.db, user: state.user }).then(() => { lastDay = today }).catch(() => undefined)
+    }
+    const timer = window.setInterval(refresh, 60000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh) }
+  }, [state.db, state.user])
 
   useEffect(() => {
     const config = getFirebaseConfig()

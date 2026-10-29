@@ -1,7 +1,7 @@
 export const SESSION_PRESETS = {
   quick: {
     id: 'quick',
-    label: 'Quick spark',
+    label: 'Quick',
     minutesLabel: '~10 min',
     description: 'A short, sweet warm-up night: one laugh, one connection, one warm close.',
     totalRounds: 4,

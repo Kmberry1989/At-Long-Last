@@ -22,7 +22,7 @@ function AppContent() {
         fallback={(
           <div aria-live="polite" className="app-loading" role="status">
             <span aria-hidden="true" className="app-loading-mark">♥</span>
-            <span>Setting the room…</span>
+            <span>Loading…</span>
           </div>
         )}
       >

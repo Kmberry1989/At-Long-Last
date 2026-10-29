@@ -135,7 +135,7 @@ describe('LobbyScreen', () => {
 
     render(<LobbyScreen />)
     fireEvent.click(screen.getByRole('button', { name: /Quick/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open Private Room' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
 
     expect(updateSessionPreset).not.toHaveBeenCalled()
     expect(createCouple).toHaveBeenCalledWith(
@@ -207,7 +207,7 @@ describe('LobbyScreen', () => {
     render(<LobbyScreen />)
 
     expect(await screen.findByText('Invite stub XYZ789')).toBeTruthy()
-    expect(screen.queryByPlaceholderText('Invite code')).toBeNull()
+    expect(screen.queryByPlaceholderText('Code')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Stub Join' }))
 
@@ -238,8 +238,23 @@ describe('LobbyScreen', () => {
     expect(await screen.findByText('Invite stub XYZ789')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Stub Use Code' }))
 
-    const input = await screen.findByPlaceholderText('Invite code')
+    const input = await screen.findByPlaceholderText('Code')
     expect(input.value).toBe('XYZ789')
+  })
+
+  it('shows visibility controls for the owner identified by the stored player IDs', () => {
+    setupLobby({ couple: {
+      id: 'room-1',
+      playerIds: ['owner-1'],
+      players: [{ uid: 'owner-1', displayName: 'Kyle' }],
+      inviteCode: 'ABC123',
+    } })
+    mockState.firebaseContext.user.uid = 'owner-1'
+    mockState.coupleContext.setRoomVisibility = vi.fn()
+    render(<LobbyScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'List publicly' }))
+    expect(mockState.coupleContext.setRoomVisibility).toHaveBeenCalledWith(true)
+    expect(screen.queryByText('Private room')).toBeNull()
   })
 
   it('keeps the piece catalog behind an optional disclosure', () => {
@@ -248,11 +263,11 @@ describe('LobbyScreen', () => {
     render(<LobbyScreen />)
 
     expect(screen.queryByTestId('player-piece-picker')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Choose your piece/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Your piece/ }))
     expect(screen.getByTestId('player-piece-picker')).toBeTruthy()
   })
 
-  it('keeps the public browser behind Other ways to join', () => {
+  it('keeps the public browser behind Public rooms', () => {
     setupLobby({
       publicLobbies: [
         {
@@ -267,10 +282,10 @@ describe('LobbyScreen', () => {
     })
 
     render(<LobbyScreen />)
-    fireEvent.click(screen.getByRole('button', { name: 'Join By Code' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }))
 
     expect(screen.queryByText(/Robin's room/)).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Other ways to join/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Public rooms/ }))
     expect(screen.getByText(/Robin's room/)).toBeTruthy()
   })
 })

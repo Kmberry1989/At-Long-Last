@@ -1079,8 +1079,18 @@ service cloud.firestore {
           ])
           && data.keys().hasOnly([
             'displayName', 'email', 'isAnonymous',
-            'createdAt', 'lastSeenAt', 'updatedAt'
+            'createdAt', 'lastSeenAt', 'updatedAt', 'loginStreak'
           ])
+          && (!('loginStreak' in data) || (
+            data.loginStreak is map
+            && data.loginStreak.keys().hasAll(['lastDate', 'dayCount', 'weekCount', 'bestDayCount'])
+            && data.loginStreak.keys().hasOnly(['lastDate', 'dayCount', 'weekCount', 'bestDayCount'])
+            && data.loginStreak.lastDate is string
+            && data.loginStreak.lastDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && isBoundedInt(data.loginStreak.dayCount, 1, 100000)
+            && isBoundedInt(data.loginStreak.weekCount, 1, 100000)
+            && isBoundedInt(data.loginStreak.bestDayCount, 1, 100000)
+          ))
           && isBoundedString(data.displayName, 1, 60)
           && (
             data.email == null

@@ -1,8 +1,10 @@
 import {
   doc,
+  runTransaction,
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore'
+import { advanceLoginStreak } from './loginStreak.js'
 
 export function buildProfilePatch({
   displayName,
@@ -28,14 +30,17 @@ export async function ensureProfileDocument({
     return
   }
 
-  await setDoc(
-    doc(db, 'profiles', user.uid),
-    buildProfilePatch({
+  const profileRef = doc(db, 'profiles', user.uid)
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(profileRef)
+    const patch = buildProfilePatch({
       displayName: user.displayName,
       email: user.email,
-    }),
-    { merge: true },
-  )
+    })
+    if (existing.exists()) patch.createdAt = existing.data().createdAt
+    patch.loginStreak = advanceLoginStreak(existing.data()?.loginStreak)
+    transaction.set(profileRef, patch, { merge: true })
+  })
 }
 
 export async function saveProfileDisplayName({

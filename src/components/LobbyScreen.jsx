@@ -15,6 +15,7 @@ import { Disclosure } from './Disclosure.jsx'
 import { InviteJoinScreen } from './InviteJoinScreen.jsx'
 import { PlayerPiecePicker } from './PlayerPiecePicker.jsx'
 import { ProgressHub } from './ProgressHub.jsx'
+import { LoginStreak } from './LoginStreak.jsx'
 
 const PLAYER_PIECE_STORAGE_KEY = 'at-long-last:player-piece:v1'
 
@@ -140,7 +141,7 @@ export function LobbyScreen() {
   }
 
   useEffect(() => {
-    setStage?.('lobby')
+    setStage?.('menu')
   }, [setStage])
 
   useEffect(() => {
@@ -440,12 +441,10 @@ export function LobbyScreen() {
     return (
       <>
         <div className="auth-intro">
-          <p className="eyebrow">Welcome</p>
-          <h2>Your little world is waiting.</h2>
-          <p className="support-copy">Continue with Google, or use email.</p>
+          <h2>Sign in</h2>
         </div>
-        {renderGoogleButton('Continue with Google')}
-        <div className="divider-label">or use email</div>
+        {renderGoogleButton('Google')}
+        <div className="divider-label">or</div>
         <div className="mode-toggle" role="tablist" aria-label="Auth mode">
           <button
             aria-selected={authMode === 'create'}
@@ -454,7 +453,7 @@ export function LobbyScreen() {
             role="tab"
             type="button"
           >
-            Create Account
+            Sign up
           </button>
           <button
             aria-selected={authMode === 'signin'}
@@ -475,13 +474,14 @@ export function LobbyScreen() {
               handleCreateAccount()
             }}
           >
-            <label className="sr-only" htmlFor="auth-display-name">Display name</label>
+            <label className="sr-only" htmlFor="auth-display-name">Name</label>
             <input
               autoComplete="name"
               className="text-input"
               id="auth-display-name"
               onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Display name"
+              aria-label="Name"
+              placeholder="Name"
               value={displayName}
             />
             <label className="sr-only" htmlFor="auth-email">Email</label>
@@ -523,7 +523,7 @@ export function LobbyScreen() {
                 disabled={!canCreateAccount || working}
                 type="submit"
               >
-                Create My Profile
+                Sign up
               </button>
             </div>
           </form>
@@ -553,7 +553,7 @@ export function LobbyScreen() {
                 className="text-input"
                 id="auth-password"
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Password"
+
                 required
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -584,19 +584,17 @@ export function LobbyScreen() {
 
   function renderPresetPicker({
     disabled = false,
-    heading = 'Choose tonight’s length.',
-    support = 'Pick how much time you have tonight. The board sets its own pace to fit.',
+    heading = 'Length',
   } = {}) {
     const selectedPreset = couple ? sessionPreset : draftSessionPreset
 
     return (
       <div className="preset-card">
-        <p className="eyebrow">Session Preset</p>
         <h3>{heading}</h3>
-        <p className="support-copy">{support}</p>
         <div className="preset-grid">
           {SESSION_PRESET_OPTIONS.map((preset) => (
             <button
+              aria-pressed={selectedPreset === preset.id}
               className={`public-lobby-card${selectedPreset === preset.id ? ' active' : ''}`}
               disabled={disabled}
               key={preset.id}
@@ -604,8 +602,6 @@ export function LobbyScreen() {
               type="button"
             >
               <strong>{preset.label}</strong>
-              <span>{preset.minutesLabel}</span>
-              <span>{preset.description}</span>
             </button>
           ))}
         </div>
@@ -616,13 +612,11 @@ export function LobbyScreen() {
   function renderLobbyChat({
     cta,
     emptyCopy,
-    headline,
     kicker,
   }) {
     return (
       <div className="lobby-chat-card">
         <p className="eyebrow">{kicker}</p>
-        <h3>{headline}</h3>
         <div className="lobby-chat-thread">
           {publicLobbyMessages.length ? (
             publicLobbyMessages.map((message) => (
@@ -648,7 +642,8 @@ export function LobbyScreen() {
                 handleSendLobbyMessage()
               }
             }}
-            placeholder="Send a quick hello"
+            aria-label="Message"
+            placeholder="Message"
             value={lobbyChatDraft}
           />
           <button
@@ -668,13 +663,6 @@ export function LobbyScreen() {
   function renderPublicLobbyBrowser() {
     return (
       <>
-        <div className="entry-copy">
-          <h3>Optional public room browser.</h3>
-          <p className="support-copy">
-            If you do not have a code yet, you can still browse the open rooms here.
-            Invite codes remain the primary way to reconnect.
-          </p>
-        </div>
 
         <div className="public-lobby-list">
           {alternatePublicLobbies.length ? (
@@ -689,7 +677,7 @@ export function LobbyScreen() {
                 type="button"
               >
                 <strong>{lobby.hostName}&apos;s room</strong>
-                <span>Invite {lobby.inviteCode}</span>
+
                 <span>1 spot open</span>
               </button>
             ))
@@ -697,8 +685,8 @@ export function LobbyScreen() {
             <div className="public-lobby-empty">
               <p className="support-copy">
                 {waitingForPartner
-                  ? 'No other public rooms are open right now.'
-                  : 'No public rooms are open yet. Start one on the other phone or use an invite code below.'}
+                  ? 'No other open rooms'
+                  : 'No open rooms'}
               </p>
             </div>
           )}
@@ -714,14 +702,13 @@ export function LobbyScreen() {
                 type="button"
               >
                 {waitingForPartner
-                  ? `Switch To ${selectedPublicLobby.hostName}'s Room`
-                  : `Join ${selectedPublicLobby.hostName}'s Room`}
+                  ? 'Switch room'
+                  : 'Join room'}
               </button>
             </div>
           ),
-          emptyCopy: 'No one has chatted here yet.',
-          headline: `${selectedPublicLobby.hostName}&apos;s public lobby`,
-          kicker: 'Lobby Chat',
+          emptyCopy: 'No messages yet',
+          kicker: 'Chat',
         })}
       </>
     )
@@ -731,9 +718,8 @@ export function LobbyScreen() {
     return (
       <div className="account-strip">
         <div className="account-copy">
-          <p className="eyebrow">Profile</p>
           <strong>{profileName || 'Player'}</strong>
-          <p>{user?.email || 'Signed in and ready for return nights.'}</p>
+          {user?.email && <p>{user.email}</p>}
         </div>
         <div className="account-actions">
           <button
@@ -766,7 +752,7 @@ export function LobbyScreen() {
           <img
             alt="At Long Last"
             className="brand-logo"
-            src="/assets/ui/atlonglast.png"
+            src="/assets/ui/atlonglast-wordmark-wide.png"
           />
           {!authScreenActive && (
             <img
@@ -775,38 +761,25 @@ export function LobbyScreen() {
               src="/assets/themes/landing-hero.webp"
             />
           )}
-          <p className="title-kicker">A private board game night for two phones.</p>
-          {!authScreenActive && (
-            <>
-              <h1>Two phones. One little world.</h1>
-              <p className="title-copy">
-                Walk away together with a scrapbook instead of a scoreboard.
-              </p>
-            </>
-          )}
         </div>
 
+        {isSignedIn && <LoginStreak streak={profile?.loginStreak} />}
         <div className={`glass-card hero-card lobby-card${authScreenActive ? ' auth-card' : ''}`}>
           {!ready ? (
             <>
-              <p className="eyebrow">Starting Up</p>
-              <h2>Setting the room.</h2>
-              <p className="support-copy">
-                Pulling in your session and warming up the board.
-              </p>
+
+              <h2>Loading…</h2>
             </>
           ) : !enabled ? (
             <>
-              <p className="eyebrow">Local Preview</p>
-              <h2>Live pairing is offline in this build.</h2>
-              <p className="support-copy">
-                Add your `VITE_FIREBASE_*` vars and `VITE_APP_ID` to test real pairing.
-                This preview stays on one phone and does not save or sync anything.
-              </p>
+
+              <h2>Preview</h2>
+              <p className="support-copy">Local play</p>
               <input
                 className="text-input"
                 onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Your display name"
+                aria-label="Name"
+                    placeholder="Name"
                 value={displayName}
               />
               <PlayerPiecePicker
@@ -819,7 +792,7 @@ export function LobbyScreen() {
                   onClick={handlePreview}
                   type="button"
                 >
-                  Open Preview
+                  Play
                 </button>
               </div>
             </>
@@ -827,11 +800,9 @@ export function LobbyScreen() {
             <>
               {deepLinkCode && (
                 <div className="invite-context">
-                  <p className="eyebrow">Private Invite</p>
-                  <h2>You&apos;ve been invited.</h2>
+                  <p className="eyebrow">Invite</p>
                   <p className="support-copy">
-                    Sign in once — no code to type. Your night is waiting on the
-                    next screen.
+                    Sign in to join
                   </p>
                 </div>
               )}
@@ -845,7 +816,8 @@ export function LobbyScreen() {
                   <input
                     className="text-input"
                     onChange={(event) => setDisplayName(event.target.value)}
-                    placeholder="Display name"
+                    aria-label="Name"
+                    placeholder="Name"
                     value={displayName}
                   />
                   <div className="button-row">
@@ -855,35 +827,27 @@ export function LobbyScreen() {
                       onClick={handleSaveDisplayName}
                       type="button"
                     >
-                      Save Name
+                      Save
                     </button>
                   </div>
                 </div>
               )}
 
               <p className="eyebrow">Waiting Room</p>
-              <h2>{couple.players[0]?.displayName}&apos;s private room is ready.</h2>
-              <p className="support-copy">
-                Share the invite code directly. The public listing and chat can stay
-                in the background unless you need them.
-              </p>
+              <h2>{couple.players[0]?.displayName}&apos;s room</h2>
 
               {renderPresetPicker({
                 disabled: working,
-                heading: 'Lock in the night length before they join.',
+                heading: 'Length',
               })}
 
               <div className="invite-display">
-                <span className="invite-label">Invite code</span>
+                <span className="invite-label">Code</span>
                 <strong>{couple.inviteCode}</strong>
-                <p>{couple.shareLink}</p>
               </div>
 
-              {couple.hostId === user?.uid && (
+              {couple.playerIds?.[0] === user?.uid && (
                 <div className="visibility-toggle">
-                  <span className="visibility-label">
-                    {roomVisibility === 'public' ? '🌐 Public room' : '🔒 Private room'}
-                  </span>
                   <button
                     className="secondary-btn"
                     disabled={working}
@@ -895,45 +859,23 @@ export function LobbyScreen() {
                   >
                     {roomVisibility === 'public' ? 'Make private' : 'List publicly'}
                   </button>
-                  <p className="support-copy">
-                    {roomVisibility === 'public'
-                      ? 'Strangers can see this room in the public lobby list.'
-                      : 'Only people with your invite link can find this room.'}
-                  </p>
                 </div>
               )}
 
               <div className="button-row">
                 <button className="primary-btn" onClick={handleShareInvite} type="button">
-                  Share Invite
+                  Share
                 </button>
                 <button className="primary-btn alt" onClick={handleCopyCode} type="button">
-                  Copy Code
+                  Copy
                 </button>
               </div>
 
-              <div className="step-strip">
-                <span>1. Share</span>
-                <span>2. Join</span>
-                <span>3. Play</span>
-              </div>
-
-              <Disclosure label="Other ways to join">
+              <Disclosure label="Public rooms">
                 {renderLobbyChat({
-                  emptyCopy: 'Your lobby is live. Messages will show up here.',
-                  headline: activePublicLobbyId === couple.id
-                    ? 'Optional room chat before the board starts.'
-                    : `${selectedPublicLobby?.hostName || 'Another player'}'s public lobby`,
-                  kicker: activePublicLobbyId === couple.id ? 'Optional Public Listing' : 'Open Room',
+                  emptyCopy: 'No messages yet',
+                  kicker: 'Chat',
                 })}
-
-                <div className="entry-copy room-help">
-                  <h3>Switch into another room instead.</h3>
-                  <p className="support-copy">
-                    If both of you opened rooms by accident, pick the other room here,
-                    chat first if you want, then switch directly.
-                  </p>
-                </div>
 
               <div className="public-lobby-list">
                 {alternatePublicLobbies.length ? (
@@ -948,15 +890,13 @@ export function LobbyScreen() {
                       type="button"
                     >
                       <strong>{lobby.hostName}&apos;s room</strong>
-                      <span>Invite {lobby.inviteCode}</span>
-                      <span>Ready to switch</span>
+
                     </button>
                   ))
                 ) : (
                   <div className="public-lobby-empty">
                     <p className="support-copy">
-                      No other open rooms are visible right now. You can still use a
-                      direct code below.
+                      No other open rooms
                     </p>
                   </div>
                 )}
@@ -966,7 +906,8 @@ export function LobbyScreen() {
                 <input
                   className="text-input code-input"
                   onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                  placeholder="Switch to their code"
+                  aria-label="Invite code"
+                  placeholder="Code"
                   value={inviteCode}
                 />
                 <button
@@ -980,13 +921,13 @@ export function LobbyScreen() {
               </div>
               </Disclosure>
 
-              <Disclosure label="Our collection — streaks, themes, trophies">
+              <Disclosure label="Collection">
                 <ProgressHub />
               </Disclosure>
 
               <div className="button-row split-row">
                 <button className="ghost-btn" disabled={working} onClick={handleLeave} type="button">
-                  Leave This Room
+                  Leave room
                 </button>
                 <button className="ghost-btn" disabled={working} onClick={handleSignOut} type="button">
                   Sign Out
@@ -1014,7 +955,8 @@ export function LobbyScreen() {
                   <input
                     className="text-input"
                     onChange={(event) => setDisplayName(event.target.value)}
-                    placeholder="Display name"
+                    aria-label="Name"
+                    placeholder="Name"
                     value={displayName}
                   />
                   <div className="button-row">
@@ -1024,13 +966,13 @@ export function LobbyScreen() {
                       onClick={handleSaveDisplayName}
                       type="button"
                     >
-                      Save Name
+                      Save
                     </button>
                   </div>
                 </div>
               )}
 
-              <Disclosure label="Choose your piece (optional)">
+              <Disclosure label="Your piece">
                 <PlayerPiecePicker
                   disabled={working}
                   onChange={setSelectedAvatar}
@@ -1044,27 +986,19 @@ export function LobbyScreen() {
                   onClick={() => handleModeChange('start')}
                   type="button"
                 >
-                  Start A Night
+                  Start
                 </button>
                 <button
                   className={`mode-pill${entryMode === 'join' ? ' active' : ''}`}
                   onClick={() => handleModeChange('join')}
                   type="button"
                 >
-                  Join By Code
+                  Join
                 </button>
               </div>
 
               {entryMode === 'start' ? (
                 <>
-                  <div className="entry-copy">
-                    <h2>Start a private room on this phone.</h2>
-                    <p className="support-copy">
-                      You&apos;ll get a short code and share link. A public listing can
-                      still exist quietly in the background, but the main flow is
-                      direct invite pairing.
-                    </p>
-                  </div>
                   {renderPresetPicker({
                     disabled: working,
                   })}
@@ -1075,24 +1009,18 @@ export function LobbyScreen() {
                       onClick={() => handleCreate(draftSessionPreset)}
                       type="button"
                     >
-                      Open Private Room
+                      Create room
                     </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="entry-copy">
-                    <h2>Join with a code first.</h2>
-                    <p className="support-copy">
-                      Paste the invite code or open a share link. Use the public browser
-                      only if you do not have the code yet.
-                    </p>
-                  </div>
                   <div className="join-row">
                     <input
                       className="text-input code-input"
                       onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                      placeholder="Invite code"
+                      aria-label="Invite code"
+                      placeholder="Code"
                       value={inviteCode}
                     />
                     <button
@@ -1104,7 +1032,7 @@ export function LobbyScreen() {
                       Join
                     </button>
                   </div>
-                  <Disclosure label="Other ways to join">
+                  <Disclosure label="Public rooms">
                     {renderPublicLobbyBrowser()}
                   </Disclosure>
                 </>

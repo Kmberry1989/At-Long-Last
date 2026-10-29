@@ -59,6 +59,8 @@ vi.mock('firebase/firestore', () => {
 
 import {
   BASE_THEME_CARDS,
+  KOUPON_DECK,
+  resolveKouponLabel,
   UNLOCKABLE_THEMES,
   applyNightComplete,
   buildDefaultProgress,
@@ -109,7 +111,7 @@ describe('progressService progression math', () => {
     expect(progress.freezeTokens).toBe(1)
     // No theme pinned: the board auto-rotates each round.
     expect(progress.selectedTheme).toBeUndefined()
-    expect(progress.companion.name).toBe('Glowbud')
+    expect(progress.companion.name).toBe('Bud')
     expect(spendableHearts(progress)).toBe(0)
   })
 
@@ -233,6 +235,20 @@ describe('progressService progression math', () => {
 
     expect(ninth.events).toContainEqual({ nights: 10, type: 'milestone' })
     expect(ninth.events).toContainEqual({ trophyId: 'ten-nights', type: 'trophy' })
+  })
+
+  it('recognizes legacy reward names without changing stored history', () => {
+    const progress = progressFixture({
+      koupons: KOUPON_DECK.map((entry) => ({
+        ...entry,
+        label: entry.label === 'Your movie pick' ? 'Movie night, your pick' : entry.label,
+        status: 'active',
+      })),
+    })
+    expect(pickKouponForGrant(progress)).toBeNull()
+    expect(resolveKouponLabel(progress.koupons[1].label)).toBe('Your movie pick')
+    expect(progress.koupons[1].label).toBe('Movie night, your pick')
+    expect(resolveKouponLabel('Custom reward')).toBe('Custom reward')
   })
 
   it('picks koupons without repeating active ones', () => {

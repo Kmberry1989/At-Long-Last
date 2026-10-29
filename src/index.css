@@ -238,6 +238,35 @@ p {
   opacity: 0.58;
 }
 
+.audio-controls {
+  position: absolute;
+  z-index: 20;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 180ms ease;
+}
+.audio-controls .audio-toggle { position: static; padding: 10px 9px; font-size: 10px; gap: 5px; letter-spacing: .04em; }
+.music-options > summary { cursor: pointer; list-style: none; border: 1px solid rgba(255, 243, 233, .2); border-radius: 50%; padding: 7px 10px; background: #292632; color: #f7efe8; }
+.audio-controls .audio-toggle,
+.music-options > summary {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.music-options > summary::-webkit-details-marker { display: none; }
+.music-options-panel { position: absolute; right: 0; top: 48px; width: min(300px, calc(100vw - 32px)); padding: 16px; border-radius: 18px; color: var(--app-ink); background: #fff8ef; box-shadow: var(--app-shadow); }
+.music-options-panel fieldset { margin: 0; border: 0; padding: 0; }
+.music-options-panel fieldset + fieldset { margin-top: 14px; }
+.music-options-panel legend { font-weight: 800; margin-bottom: 8px; }
+.music-options-panel label { display: flex; gap: 8px; align-items: center; padding: 9px 0; font-size: 13px; cursor: pointer; }
+.music-options-panel input { accent-color: var(--app-rose-strong); }
+.app-shell:has(.overlay-screen) > .audio-controls,
+.app-shell:has(.journal-drawer.open) > .audio-controls { opacity: 0; pointer-events: none; }
+
 .app-shell:has(.overlay-screen) > .audio-toggle,
 .app-shell:has(.journal-drawer.open) > .audio-toggle {
   opacity: 0;
@@ -285,10 +314,11 @@ p {
 
 .title-band {
   position: relative;
-  padding-right: 72px;
   display: grid;
   gap: 10px;
-  padding: 16px 72px 18px 16px;
+  justify-items: center;
+  padding: 12px 16px 18px;
+  text-align: center;
   border-radius: 28px;
   background:
     linear-gradient(180deg, rgba(18, 23, 34, 0.76) 0%, rgba(18, 23, 34, 0.44) 100%);
@@ -301,10 +331,11 @@ p {
 }
 
 .brand-logo {
-  width: clamp(72px, 20vw, 112px);
-  aspect-ratio: 1;
+  width: min(100%, 430px);
+  height: 90px;
   object-fit: contain;
-  object-position: left center;
+  object-position: center;
+  margin: -2px auto 0;
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.34));
 }
 
@@ -522,12 +553,14 @@ p {
 
 .auth-title-band {
   gap: 5px;
-  padding: 11px 68px 12px 14px;
+  padding: 8px 16px 10px;
   border-radius: 22px;
 }
 
 .auth-title-band .brand-logo {
-  width: 96px;
+  width: min(100%, 430px);
+  height: 72px;
+  margin-block: 0 -2px;
 }
 
 .auth-title-band .title-kicker {
@@ -4145,15 +4178,17 @@ p {
   }
 
   .title-band {
-    padding: 14px 56px 16px 14px;
+    padding: 10px 14px 14px;
   }
 
   .brand-logo {
-    width: 72px;
+    width: min(100%, 390px);
+    height: 78px;
   }
 
   .auth-title-band .brand-logo {
-    width: 96px;
+    width: min(100%, 390px);
+    height: 66px;
   }
 
   .title-band h1 {
@@ -4334,7 +4369,7 @@ p {
   }
 
   .title-band {
-    padding: 14px 52px 14px 14px;
+    padding: 8px 14px 12px;
   }
 
   .auth-title-band {
@@ -4342,7 +4377,8 @@ p {
   }
 
   .brand-logo {
-    width: 64px;
+    width: min(100%, 390px);
+    height: 72px;
   }
 
   .title-band h1 {
@@ -4993,4 +5029,24 @@ p {
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
+}
+
+.login-streak {
+  width: 100%;
+  border: 1px solid rgba(123, 76, 67, .16);
+  background: #fff8f0;
+  border-radius: 18px;
+  padding: 14px;
+  color: #493330;
+}
+.login-streak summary { cursor: pointer; font-weight: 700; }
+.login-streak summary span, .login-streak p { font-size: 12px; opacity: .75; }
+.login-streak-boxes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
+.login-day { display: grid; justify-items: center; gap: 5px; font-size: 10px; }
+.login-day svg { width: 100%; max-width: 42px; border: 1px solid #c8b6ab; border-radius: 9px; background: #fff; }
+.login-day path { fill: none; stroke: #9e4e65; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40; }
+.login-day.checked path { animation: drawLoginCheck 650ms ease forwards; }
+@keyframes drawLoginCheck { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .login-day.checked path { animation: none; stroke-dashoffset: 0; }
 }

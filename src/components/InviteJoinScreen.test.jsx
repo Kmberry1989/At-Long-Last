@@ -27,8 +27,8 @@ describe('InviteJoinScreen', () => {
 
     render(<InviteJoinScreen {...baseProps} />)
 
-    expect(screen.getByText('Finding your night…')).toBeTruthy()
-    expect(screen.getByText('Private Invite')).toBeTruthy()
+    expect(screen.getByText('Loading…')).toBeTruthy()
+    expect(screen.getByText('Invite')).toBeTruthy()
   })
 
   it('shows host identity, privacy confirmation, and joins after a nickname', async () => {
@@ -44,12 +44,10 @@ describe('InviteJoinScreen', () => {
       <InviteJoinScreen {...baseProps} onJoin={onJoin} />,
     )
 
-    expect(await screen.findByText("Join Robin's private night?")).toBeTruthy()
-    expect(
-      screen.getByText(/This room is for two people — just you and Robin/),
-    ).toBeTruthy()
+    expect(await screen.findByText("Robin's room")).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Name' })).toBeTruthy()
 
-    const joinButton = screen.getByRole('button', { name: /Join Robin's Night/ })
+    const joinButton = screen.getByRole('button', { name: /Join room/ })
     expect(joinButton).toBeDisabled()
 
     rerender(
@@ -61,7 +59,7 @@ describe('InviteJoinScreen', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Join Robin's Night/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Join room/ }))
     expect(onJoin).toHaveBeenCalledWith('Alex')
   })
 
@@ -71,10 +69,10 @@ describe('InviteJoinScreen', () => {
 
     render(<InviteJoinScreen {...baseProps} onUseCodeInstead={onUseCodeInstead} />)
 
-    expect(await screen.findByText('That invite did not land.')).toBeTruthy()
+    expect(await screen.findByText('Invite unavailable')).toBeTruthy()
     expect(screen.getByText('Invite not found.')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use A Code Instead' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use code' }))
     expect(onUseCodeInstead).toHaveBeenCalledTimes(1)
   })
 
@@ -89,10 +87,10 @@ describe('InviteJoinScreen', () => {
 
     render(<InviteJoinScreen {...baseProps} onUseCodeInstead={onUseCodeInstead} />)
 
-    expect(await screen.findByText("Join Robin's private night?")).toBeTruthy()
+    expect(await screen.findByText("Robin's room")).toBeTruthy()
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Use a six-character code instead' }),
+      screen.getByRole('button', { name: 'Use code' }),
     )
     expect(onUseCodeInstead).toHaveBeenCalledTimes(1)
   })
