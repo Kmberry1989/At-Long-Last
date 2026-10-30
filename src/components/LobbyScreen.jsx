@@ -68,7 +68,7 @@ export function LobbyScreen() {
           <button className="primary-btn" onClick={() => launchPreview(name || 'You', avatar)} type="button">Play</button>
         </> : !isSignedIn ? <>
           <div className="auth-intro"><h2>Sign in</h2></div>
-          <button className="provider-btn ghost-btn google" disabled={working} onClick={async () => { try { await signInWithProvider('google') } catch (nextError) { setError(nextError.message) } }} type="button"><GoogleMark /><span>Google</span></button>
+          <button className="provider-btn ghost-btn google" disabled={working} onClick={async () => { try { await signInWithProvider({ providerId: 'google' }) } catch (nextError) { setError(nextError.message) } }} type="button"><GoogleMark /><span>Google</span></button>
           <div className="divider-label">or</div>
           <div className="mode-toggle" role="tablist" aria-label="Auth mode">
             <button aria-selected={authMode === 'create'} className={`mode-pill${authMode === 'create' ? ' active' : ''}`} onClick={() => setAuthMode('create')} role="tab" type="button">Sign up</button>

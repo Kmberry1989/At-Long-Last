@@ -341,3 +341,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Production inventory before the authorized reset: 20 Firebase Auth accounts and 10 Firestore root collections, all game/user data. Reset will run after the replacement frontend and matching rules are live. No production user data was copied into the repository.
 
 - Final compact layouts were inspected at 390px in Chromium and WebKit; Accept/Decline are visible without the login-streak card above them. A separate emulator test confirmed deleting an Auth account returns its saved browser session to Sign in on reload. Stale cleanup now checks the old couple ID so it cannot delete a newly accepted connection.
+
+## 2026-10-30 — Correct Google button provider arguments
+
+- Screenshot reported “Only Google sign-in is enabled in this beta” after clicking the Google button. Found the button passed a string while the provider expected an object containing providerId. Fixed the caller and added a focused contract regression test.
+- Live Firebase configuration confirms both Google and email/password providers are enabled; no provider configuration changes were needed.
+- Lint/build and all 14 lobby tests passed. Actual browser emulator Google popup sign-in completed into Choose your person at 1440px and 390px without page errors; screenshots inspected. Production accounts were not created for this test, and the prior reset was not repeated.

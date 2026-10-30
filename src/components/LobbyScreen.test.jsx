@@ -105,6 +105,13 @@ describe('permanent pairing menus', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Home' }))
     expect(state.session.closeGame).toHaveBeenCalledOnce()
   })
+  it('opens Google sign-in using the provider handler contract', () => {
+    state.firebase.isSignedIn = false
+    render(<LobbyScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'Google', exact: true }))
+    expect(state.firebase.signInWithProvider).toHaveBeenCalledExactlyOnceWith({ providerId: 'google' })
+    expect(state.firebase.signInWithEmail).not.toHaveBeenCalled()
+  })
   it('preserves labeled email sign-in, password visibility, and submit', () => {
     state.firebase.isSignedIn = false; render(<LobbyScreen />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'alex@example.test' } })
