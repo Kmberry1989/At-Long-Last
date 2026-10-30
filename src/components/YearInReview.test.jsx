@@ -37,7 +37,7 @@ describe('buildYearRecap', () => {
       entry({ id: 'e3', sessionId: 's2', vibe: 'playful' }),
     ]
     const progress = {
-      companion: { heartsFed: 60, name: 'Ember', stage: 1 },
+      flower: { growth: 1, stage: 1, wateredBy: [], wateredDate: null },
       koupons: [
         { id: 'k1', status: 'fulfilled' },
         { id: 'k2', status: 'active' },
@@ -61,7 +61,7 @@ describe('buildYearRecap', () => {
     expect(recap.themesUnlocked).toBe(1)
     expect(recap.topVibe).toBe('playful')
     expect(recap.nightsThisYear).toBe(2)
-    expect(recap.companionStageLabel).toBe('Hatchling')
+    expect(recap.flowerStageLabel).toBe('Sprout')
   })
 
   it('handles an empty story gracefully', () => {
@@ -70,7 +70,7 @@ describe('buildYearRecap', () => {
     expect(recap.nights).toBe(0)
     expect(recap.bestWavelength).toBeNull()
     expect(recap.topVibe).toBeNull()
-    expect(recap.companionStageLabel).toBe('Egg')
+    expect(recap.flowerStageLabel).toBe('A tiny seed')
   })
 
   it('ignores entries from prior years for the this-year count', () => {

@@ -17,6 +17,7 @@ import {
   clearNudge as clearNudgeDocument,
   ensureCoupleProgress,
   fulfillKoupon as fulfillKouponDocument,
+  localDateStr,
   redeemKoupon as redeemKouponDocument,
   renameCompanion as renameCompanionDocument,
   selectTheme as selectThemeDocument,
@@ -24,6 +25,7 @@ import {
   setAnniversary as setAnniversaryDocument,
   subscribeToCoupleProgress,
   unlockThemeWithHearts as unlockThemeWithHeartsDocument,
+  waterFlower as waterFlowerDocument,
 } from './progressService.js'
 import { createDefaultBoardState } from '../session/sessionWiring.js'
 import { PLAYER_THEMES, resolvePlayerAvatar } from './playerAvatar.js'
@@ -573,6 +575,10 @@ export function CoupleProvider({ children }) {
     return runProgressAction(renameCompanionDocument, name)
   }
 
+  function waterFlower() {
+    return runProgressAction(waterFlowerDocument, { dateStr: localDateStr(), uid: userId })
+  }
+
   function setAnniversary(dateStr) {
     return runProgressAction(setAnniversaryDocument, dateStr)
   }
@@ -621,6 +627,7 @@ export function CoupleProvider({ children }) {
       sendNudge,
       setAnniversary,
       unlockTheme,
+      waterFlower,
       publicLobbyMessages,
       publicLobbies,
       sessionPreset: couple?.sessionPreset || 'standard',

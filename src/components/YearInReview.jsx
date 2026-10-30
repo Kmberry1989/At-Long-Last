@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import {
-  COMPANION_STAGES,
+  FLOWER_STAGES,
   fetchCoupleJournalExport,
+  resolveFlower,
 } from '../features/couple/progressService.js'
 
 /**
@@ -38,13 +39,13 @@ export function buildYearRecap(entries = [], progress = {}) {
   const koupons = progress.koupons || []
   const promisesFulfilled = koupons.filter((koupon) => koupon.status === 'fulfilled').length
 
-  const companionStage =
-    COMPANION_STAGES[progress?.companion?.stage] || COMPANION_STAGES[0]
+  const flowerStage =
+    FLOWER_STAGES[resolveFlower(progress).stage] || FLOWER_STAGES[0]
 
   return {
     bestWavelength:
       wavelengthScores.length > 0 ? Math.max(...wavelengthScores) : null,
-    companionStageLabel: companionStage.label,
+    flowerStageLabel: flowerStage.label,
     duelsPlayed: duels.length,
     hearts: progress.lifetimeHearts || 0,
     nights: progress.lifetimeNights || 0,
@@ -174,7 +175,7 @@ export function YearInReview() {
             {recap.topVibe && (
               <StatTile emoji="☼" label="top vibe" value={recap.topVibe} />
             )}
-            <StatTile emoji="✨" label="companion" value={recap.companionStageLabel} />
+            <StatTile emoji="🌸" label="flower" value={recap.flowerStageLabel} />
           </div>
           <div className="button-row">
             <button aria-label={copied ? "Copied" : undefined} className="secondary-btn" onClick={handleCopy} type="button">

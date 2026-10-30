@@ -4,14 +4,15 @@ import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { YearInReview } from './YearInReview.jsx'
 import {
   BASE_THEME_CARDS,
-  COMPANION_STAGES,
-  COMPANION_STAGE_EMOJI,
+  FLOWER_STAGES,
+  FLOWER_STAGE_EMOJI,
   NUDGE_COOLDOWN_MS,
   TROPHIES,
   UNLOCKABLE_THEMES,
   fetchCoupleJournalExport,
   localDateStr,
   nextAnniversaryCountdown,
+  resolveFlower,
   spendableHearts,
   resolveKouponLabel,
 } from '../features/couple/progressService.js'
@@ -203,63 +204,72 @@ function ThemePicker() {
   )
 }
 
-function CompanionCard() {
-  const { progress, renameCompanion } = useCouple()
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState('')
-  const companion = progress?.companion || { heartsFed: 0, name: 'Bud', stage: 0 }
-  const stage = COMPANION_STAGES[companion.stage] || COMPANION_STAGES[0]
-  const nextStage = COMPANION_STAGES[companion.stage + 1]
+function FlowerCard() {
+  const { couple, progress, waterFlower } = useCouple()
+  const { userId } = useFirebaseApp()
+  const [watering, setWatering] = useState(false)
+  const [note, setNote] = useState('')
+  const flower = resolveFlower(progress)
+  const stage = FLOWER_STAGES[flower.stage] || FLOWER_STAGES[0]
+  const nextStage = FLOWER_STAGES[flower.stage + 1]
+  const iWatered = (flower.wateredBy || []).includes(userId)
+  const partnerWatered = (flower.wateredBy || []).some((waterer) => waterer !== userId)
+  const partnerName =
+    couple?.players?.find((player) => player.uid !== userId)?.displayName || 'Your partner'
 
-  async function saveName() {
-    const trimmed = name.trim()
-    if (trimmed) {
-      await renameCompanion(trimmed)
+  async function handleWater() {
+    if (watering || iWatered) {
+      return
     }
-    setEditing(false)
-    setName('')
+    setWatering(true)
+    setNote('')
+    try {
+      const result = await waterFlower()
+      const event = result?.events?.find((entry) => entry.type === 'flower-watered')
+      if (event?.grew) {
+        setNote('You both watered today — it grew a little.')
+      } else {
+        setNote('Watered. It grows once your partner waters today too.')
+      }
+    } finally {
+      setWatering(false)
+    }
   }
 
   return (
     <div className="progress-section">
+      <h3>Our flower</h3>
       <div className="companion-card">
         <span className="companion-emoji" aria-hidden="true">
-          {COMPANION_STAGE_EMOJI[companion.stage] || '🥚'}
+          {FLOWER_STAGE_EMOJI[flower.stage] || '🫘'}
         </span>
         <div>
-          <strong>{companion.name}</strong>
-          <span className="companion-stage">{stage.label}</span>
-          {nextStage && (
+          <strong>{stage.label}</strong>
+          <span className="companion-stage">
+            {iWatered ? 'You watered today' : 'You have not watered today'}
+            {partnerWatered
+              ? ` · ${partnerName} watered today`
+              : ` · Waiting on ${partnerName}`}
+          </span>
+          {nextStage ? (
             <span className="companion-progress">
-              {companion.heartsFed}/{nextStage.heartsNeeded} 💗
+              {flower.growth}/{nextStage.growthNeeded} days both watered to {nextStage.label}
             </span>
+          ) : (
+            <span className="companion-progress">In full bloom. What a pair you are.</span>
           )}
         </div>
-        {!editing ? (
-          <button aria-label="Rename companion" className="secondary-link" onClick={() => setEditing(true)} type="button">
-            <span aria-hidden="true">✎</span>
-          </button>
-        ) : (
-          <div className="inline-editor">
-            <input
-              className="text-input"
-              maxLength={40}
-              onChange={(event) => setName(event.target.value)}
-              aria-label="Companion name"
-              placeholder="Name"
-              value={name}
-            />
-            <div className="button-row">
-              <button className="primary-btn alt" onClick={saveName} type="button">
-                Save
-              </button>
-              <button className="secondary-link" onClick={() => setEditing(false)} type="button">
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+        <button
+          className="primary-btn alt"
+          disabled={iWatered || watering}
+          onClick={handleWater}
+          type="button"
+        >
+          {iWatered ? '✓ Watered' : watering ? 'Watering…' : 'Water 💧'}
+        </button>
       </div>
+      {note && <p className="support-copy">{note}</p>}
+      <p className="support-copy">It only grows on days you both water it.</p>
     </div>
   )
 }
@@ -385,6 +395,7 @@ function ExportSection() {
     try {
       const journalEntries = await fetchCoupleJournalExport(db, couple.id)
       const companion = progress?.companion || {}
+      const flower = progress?.flower || {}
       const payload = {
         app: 'at-long-last',
         couple: { id: couple.id },
@@ -396,6 +407,12 @@ function ExportSection() {
             heartsFed: companion.heartsFed || 0,
             name: companion.name || null,
             stage: companion.stage || 0,
+          },
+          flower: {
+            growth: flower.growth || 0,
+            stage: flower.stage || 0,
+            wateredBy: flower.wateredBy || [],
+            wateredDate: flower.wateredDate || null,
           },
           freezeTokens: progress?.freezeTokens || 0,
           heartsSpent: progress?.heartsSpent || 0,
@@ -456,7 +473,7 @@ export function ProgressHub() {
       <StreakRow />
       <HeartsRow />
       <ThemePicker />
-      <CompanionCard />
+      <FlowerCard />
       <TrophyCase />
       <PromiseWallet />
       <AnniversaryRow />

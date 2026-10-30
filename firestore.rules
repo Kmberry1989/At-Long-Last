@@ -1511,6 +1511,19 @@ service cloud.firestore {
           && data.heartsFed <= 1000000;
       }
 
+      function isValidFlower(data) {
+        return data is map
+          && data.keys().hasAll(['growth', 'stage', 'wateredBy', 'wateredDate'])
+          && data.keys().hasOnly(['growth', 'stage', 'wateredBy', 'wateredDate'])
+          && data.growth is int
+          && data.growth >= 0
+          && data.growth <= 1000000
+          && isBoundedInt(data.stage, 0, 3)
+          && data.wateredBy is list
+          && data.wateredBy.size() <= 2
+          && (data.wateredDate == null || isDateString(data.wateredDate));
+      }
+
       function isValidNudge(data) {
         return data is map
           && data.keys().hasAll(['byUid', 'byName', 'at'])
@@ -1531,7 +1544,7 @@ service cloud.firestore {
           && data.keys().hasOnly([
             'coupleId', 'lifetimeHearts', 'heartsSpent', 'lifetimeNights',
             'unlockedThemes', 'streakCount', 'streakLastDate', 'freezeTokens',
-            'trophies', 'koupons', 'companion', 'anniversary', 'nudge',
+            'trophies', 'koupons', 'companion', 'flower', 'anniversary', 'nudge',
             'selectedTheme', 'lastBankedSessionId',
             'createdAt', 'updatedAt'
           ])
@@ -1567,6 +1580,10 @@ service cloud.firestore {
             !('nudge' in data)
             || data.nudge == null
             || isValidNudge(data.nudge)
+          )
+          && (
+            !('flower' in data)
+            || isValidFlower(data.flower)
           )
           && data.createdAt is timestamp
           && data.updatedAt == request.time;

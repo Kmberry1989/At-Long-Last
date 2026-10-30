@@ -63,10 +63,13 @@ import {
   resolveKouponLabel,
   UNLOCKABLE_THEMES,
   applyNightComplete,
+  applyWater,
+  buildDefaultFlower,
   buildDefaultProgress,
   clearNudge,
   companionStageForHearts,
   fetchCoupleJournalExport,
+  flowerStageForGrowth,
   grantKoupon,
   localDateStr,
   nextAnniversaryCountdown,
@@ -76,6 +79,7 @@ import {
   selectTheme,
   sendNudge,
   spendableHearts,
+  waterFlower,
 } from './progressService.js'
 
 function progressFixture(overrides = {}) {
@@ -467,5 +471,92 @@ describe('journal export', () => {
     expect(entries[1].createdAt).toBe('2026-01-01T00:00:00.000Z')
 
     mockQueryDocs.docs = []
+  })
+})
+
+describe('progressService shared flower', () => {
+  it('starts every new couple with a seed flower', () => {
+    const progress = buildDefaultProgress('couple-1')
+
+    expect(progress.flower).toEqual({ growth: 0, stage: 0, wateredBy: [], wateredDate: null })
+    expect(buildDefaultFlower()).toEqual({ growth: 0, stage: 0, wateredBy: [], wateredDate: null })
+  })
+
+  it('steps the flower through stages by both-watered days', () => {
+    expect(flowerStageForGrowth(0)).toBe(0)
+    expect(flowerStageForGrowth(1)).toBe(1)
+    expect(flowerStageForGrowth(2)).toBe(1)
+    expect(flowerStageForGrowth(3)).toBe(2)
+    expect(flowerStageForGrowth(5)).toBe(2)
+    expect(flowerStageForGrowth(6)).toBe(3)
+    expect(flowerStageForGrowth(99)).toBe(3)
+  })
+
+  it('grows only when a second distinct partner waters the same day', () => {
+    const start = progressFixture()
+
+    const first = applyWater(start, { dateStr: '2026-10-30', uid: 'u1' })
+    expect(first.events).toEqual([{ grew: false, type: 'flower-watered' }])
+    expect(first.progress.flower.wateredBy).toEqual(['u1'])
+    expect(first.progress.flower.growth).toBe(0)
+    expect(first.progress.flower.stage).toBe(0)
+
+    const second = applyWater(first.progress, { dateStr: '2026-10-30', uid: 'u2' })
+    expect(second.events).toEqual([{ grew: true, type: 'flower-watered' }])
+    expect(second.progress.flower.wateredBy).toEqual(['u1', 'u2'])
+    expect(second.progress.flower.growth).toBe(1)
+    expect(second.progress.flower.stage).toBe(1)
+  })
+
+  it('treats watering twice yourself as a no-op', () => {
+    const start = progressFixture()
+    const first = applyWater(start, { dateStr: '2026-10-30', uid: 'u1' })
+    const again = applyWater(first.progress, { dateStr: '2026-10-30', uid: 'u1' })
+
+    expect(again.events).toEqual([{ type: 'already-watered' }])
+    expect(again.progress.flower.wateredBy).toEqual(['u1'])
+    expect(again.progress.flower.growth).toBe(0)
+  })
+
+  it('resets who watered on a new day', () => {
+    const start = progressFixture()
+    const dayOne = applyWater(
+      applyWater(start, { dateStr: '2026-10-30', uid: 'u1' }).progress,
+      { dateStr: '2026-10-30', uid: 'u2' },
+    )
+    expect(dayOne.progress.flower.growth).toBe(1)
+
+    const dayTwoFirst = applyWater(dayOne.progress, { dateStr: '2026-10-31', uid: 'u1' })
+    expect(dayTwoFirst.progress.flower.wateredBy).toEqual(['u1'])
+    expect(dayTwoFirst.progress.flower.growth).toBe(1)
+
+    const dayTwoSecond = applyWater(dayTwoFirst.progress, { dateStr: '2026-10-31', uid: 'u2' })
+    expect(dayTwoSecond.progress.flower.growth).toBe(2)
+  })
+
+  it('defaults a missing flower to a seed for old progress docs', () => {
+    const oldDoc = { ...progressFixture(), flower: undefined }
+    const result = applyWater(oldDoc, { dateStr: '2026-10-30', uid: 'u1' })
+
+    expect(result.progress.flower).toEqual({
+      growth: 0,
+      stage: 0,
+      wateredBy: ['u1'],
+      wateredDate: '2026-10-30',
+    })
+  })
+
+  it('banks waterings through the transaction', async () => {
+    const db = {}
+    const coupleId = 'couple-flower-1'
+
+    const first = await waterFlower(db, coupleId, { dateStr: '2026-10-30', uid: 'u1' })
+    expect(first.events).toEqual([{ grew: false, type: 'flower-watered' }])
+    expect(first.progress.flower.wateredBy).toEqual(['u1'])
+
+    const second = await waterFlower(db, coupleId, { dateStr: '2026-10-30', uid: 'u2' })
+    expect(second.events).toEqual([{ grew: true, type: 'flower-watered' }])
+    expect(second.progress.flower.growth).toBe(1)
+    expect(second.progress.flower.stage).toBe(1)
   })
 })

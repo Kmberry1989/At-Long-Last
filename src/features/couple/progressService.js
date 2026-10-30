@@ -119,6 +119,62 @@ export const COMPANION_STAGES = [
 
 export const COMPANION_STAGE_EMOJI = ['🥚', '🐣', '✨', '🌟']
 
+// Shared flower: the couple's companion, grown by daily check-ins. It only
+// grows on days both partners water it — one partner watering alone marks
+// the day but never grows it.
+export const FLOWER_STAGES = [
+  { growthNeeded: 0, label: 'A tiny seed' },
+  { growthNeeded: 1, label: 'Sprout' },
+  { growthNeeded: 3, label: 'Bud' },
+  { growthNeeded: 6, label: 'In bloom' },
+]
+
+export const FLOWER_STAGE_EMOJI = ['🫘', '🌱', '🌷', '🌸']
+
+export function buildDefaultFlower() {
+  return { growth: 0, stage: 0, wateredBy: [], wateredDate: null }
+}
+
+export function resolveFlower(progress) {
+  return { ...buildDefaultFlower(), ...(progress?.flower || {}) }
+}
+
+export function flowerStageForGrowth(growth) {
+  let stage = 0
+  FLOWER_STAGES.forEach((entry, index) => {
+    if (growth >= entry.growthNeeded) {
+      stage = index
+    }
+  })
+  return stage
+}
+
+/**
+ * Pure daily-watering reducer. A new day resets who watered; watering twice
+ * yourself is a no-op; the second distinct partner's watering grows the
+ * flower one step. Old progress docs without a flower start from a seed.
+ */
+export function applyWater(progress, { dateStr, uid }) {
+  const flower = resolveFlower(progress)
+  if (flower.wateredDate !== dateStr) {
+    flower.wateredDate = dateStr
+    flower.wateredBy = []
+  }
+  const wateredBy = [...(flower.wateredBy || [])]
+  if (wateredBy.includes(uid)) {
+    return { events: [{ type: 'already-watered' }], progress: { ...progress, flower } }
+  }
+  wateredBy.push(uid)
+  flower.wateredBy = wateredBy
+  let grew = false
+  if (wateredBy.length >= 2) {
+    flower.growth = (flower.growth || 0) + 1
+    flower.stage = flowerStageForGrowth(flower.growth)
+    grew = true
+  }
+  return { events: [{ grew, type: 'flower-watered' }], progress: { ...progress, flower } }
+}
+
 export const NUDGE_COOLDOWN_MS = 12 * 60 * 60 * 1000
 
 export const MILESTONE_NIGHTS = [1, 10, 25, 50, 100]
@@ -129,6 +185,7 @@ export function buildDefaultProgress(coupleId) {
     companion: { heartsFed: 0, name: 'Bud', stage: 0 },
     coupleId,
     createdAt: serverTimestamp(),
+    flower: buildDefaultFlower(),
     freezeTokens: 1,
     heartsSpent: 0,
     koupons: [],
@@ -525,6 +582,15 @@ export async function fulfillKoupon(db, coupleId, kouponId) {
       awardTrophy(next, localEvents, 'koupon-giver')
     }
 
+    return { events: localEvents, progress: next }
+  })
+
+  return { events, progress }
+}
+
+export async function waterFlower(db, coupleId, { dateStr, uid }) {
+  const { events, progress } = await transactProgress(db, coupleId, (current) => {
+    const { events: localEvents, progress: next } = applyWater(current, { dateStr, uid })
     return { events: localEvents, progress: next }
   })
 

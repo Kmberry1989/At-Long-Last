@@ -6,7 +6,7 @@ import { ChecklistRail } from './ChecklistRail.jsx'
 import { LoveTank } from './LoveTank.jsx'
 import { MysteryKeepsakeCard } from './MysteryKeepsakeCard.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
-import { COMPANION_STAGES, COMPANION_STAGE_EMOJI } from '../features/couple/progressService.js'
+import { FLOWER_STAGES, FLOWER_STAGE_EMOJI, resolveFlower } from '../features/couple/progressService.js'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
@@ -67,6 +67,7 @@ function getActivitySubmissionCount(state) {
 
 export function GameScreen() {
   const { couple, hasPartner, progress } = useCouple()
+  const flower = resolveFlower(progress)
   const { playAction, playSuccess } = useAudio()
   const {
     ackDuelReveal,
@@ -383,14 +384,14 @@ export function GameScreen() {
           <div className="chip" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
             <span aria-hidden="true">◷</span><strong>{session.round}/{session.totalRounds}</strong>
           </div>
-          {progress?.companion && (
+          {progress && (
             <div
-              aria-label={`${progress.companion.name || 'Your companion'}, ${(COMPANION_STAGES[progress.companion.stage] || {}).label || ''}`}
+              aria-label={`Our flower, ${(FLOWER_STAGES[flower.stage] || {}).label || ''}`}
               className="chip companion-chip"
-              title="Your companion grows with every heart you earn together."
+              title="Your flower grows on days you both water it."
             >
-              <span aria-hidden="true">{COMPANION_STAGE_EMOJI[progress.companion.stage] || '🥚'}</span>
-              <strong>{progress.companion.name || 'Companion'}</strong>
+              <span aria-hidden="true">{FLOWER_STAGE_EMOJI[flower.stage] || '🫘'}</span>
+              <strong>Our flower</strong>
             </div>
           )}
           <button
