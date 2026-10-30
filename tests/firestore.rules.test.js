@@ -29,7 +29,7 @@ import {
   createActivityRecord,
   ensureActiveSession,
   finalizeActivity,
-  submitVibeVote,
+  skipSessionOpeningSetup,
   updateSessionStateWithJournal,
 } from '../src/features/session/sessionService.js'
 import { activityRegistry } from '../src/features/session/activityRegistry.jsx'
@@ -197,7 +197,7 @@ afterAll(async () => {
 })
 
 describe('verified two-account lifecycle', () => {
-  it('stores a keepsake purchase and its page atomically and ignores a repeated tap', async () => {
+  it('stores a free keepsake draw and its page atomically without spending hearts', async () => {
     const { couple, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
     await updateDoc(doc(hostDb, 'sessions', sessionId), { phase: 'keepsake', pendingKeepsake: KEEPSAKES[0], updatedAt: serverTimestamp() })
@@ -208,7 +208,7 @@ describe('verified two-account lifecycle', () => {
     await updateSessionStateWithJournal(hostDb, sessionId, next, [page], 'keepsake')
     await updateSessionStateWithJournal(hostDb, sessionId, next, [page], 'keepsake')
     const saved = (await getDoc(doc(hostDb, 'sessions', sessionId))).data()
-    expect(saved.hearts).toBe(1)
+    expect(saved.hearts).toBe(6)
     const pages = await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))
     expect(pages.size).toBe(1)
     expect(pages.docs[0].data().sessionId).toBe(sessionId)
@@ -238,29 +238,19 @@ describe('verified two-account lifecycle', () => {
     expect(second.loginStreak.dayCount).toBe(1)
     await assertFails(updateDoc(doc(authedDb(GUEST_UID), 'profiles', HOST_UID), { loginStreak: second.loginStreak }))
   })
-  it('allows both partners to submit vibe votes and enter the first turn', async () => {
+  it('starts a new night on the board without mood or vibe votes', async () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
-
-    await assertSucceeds(submitVibeVote(hostDb, sessionId, HOST_UID, {
-      playful: 0.4,
-      spicy: 0.2,
-      tender: 0.4,
-    }))
-    await assertSucceeds(submitVibeVote(guestDb, sessionId, GUEST_UID, {
-      playful: 0.3,
-      spicy: 0.2,
-      tender: 0.5,
-    }))
 
     const sessionSnapshot = await getDoc(doc(guestDb, 'sessions', sessionId))
     expect(sessionSnapshot.data()).toMatchObject({
       phase: 'turn',
       vibeVotes: {},
+      moodVotes: {},
       vibeWeights: {
-        playful: 0.35,
+        playful: 0.3,
         spicy: 0.2,
-        tender: 0.45,
+        tender: 0.5,
       },
     })
     expect(sessionSnapshot.data()).not.toHaveProperty('id')
@@ -269,15 +259,20 @@ describe('verified two-account lifecycle', () => {
       collection(guestDb, 'journalEntries'),
       where('coupleId', '==', couple.id),
     ))
-    expect(journalSnapshot.docs).toHaveLength(1)
-    expect(journalSnapshot.docs[0].data()).toMatchObject({
-      coupleId: couple.id,
-      sessionId,
-      title: 'Tonight’s Vibe',
-      type: 'vibe-setup',
+    expect(journalSnapshot.docs).toHaveLength(0)
+  })
+
+  it('lets either partner move an active setup night to the board without a vote', async () => {
+    const { guestDb, hostDb } = await seedLegacyActiveSession()
+
+    await assertSucceeds(skipSessionOpeningSetup(guestDb, LEGACY_SESSION_ID))
+    const sessionSnapshot = await getDoc(doc(hostDb, 'sessions', LEGACY_SESSION_ID))
+    expect(sessionSnapshot.data()).toMatchObject({
+      phase: 'turn',
+      moodVotes: {},
+      vibeVotes: {},
+      vibeWeights: { playful: 0.3, spicy: 0.2, tender: 0.5 },
     })
-    expect(journalSnapshot.docs[0].data().text).toContain('Host: Tender 40%')
-    expect(journalSnapshot.docs[0].data().text).toContain('Guest: Tender 50%')
   })
 
   it('allows the three connection games only inside the couple session', async () => {
@@ -359,17 +354,6 @@ describe('verified two-account lifecycle', () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
 
-    await submitVibeVote(hostDb, sessionId, HOST_UID, {
-      playful: 0.4,
-      spicy: 0.2,
-      tender: 0.4,
-    })
-    await submitVibeVote(guestDb, sessionId, GUEST_UID, {
-      playful: 0.3,
-      spicy: 0.2,
-      tender: 0.5,
-    })
-
     const sessionSnapshot = await getDoc(doc(hostDb, 'sessions', sessionId))
     const session = { id: sessionSnapshot.id, ...sessionSnapshot.data() }
     const activityState = {
@@ -426,7 +410,7 @@ describe('verified two-account lifecycle', () => {
       collection(guestDb, 'journalEntries'),
       where('coupleId', '==', couple.id),
     ))
-    expect(journalSnapshot.docs).toHaveLength(2)
+    expect(journalSnapshot.docs).toHaveLength(1)
     expect(journalSnapshot.docs.some(
       (entry) => entry.data().title === 'Weather Report',
     )).toBe(true)

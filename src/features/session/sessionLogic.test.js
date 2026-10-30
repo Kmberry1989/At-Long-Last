@@ -18,6 +18,7 @@ import {
   resolveCombinedMood,
   resolveKeepsakeDecision,
   resolveSkippedActivity,
+  skipOpeningSetup,
 } from './sessionLogic.js'
 
 function buildCouple(sessionPreset = 'standard') {
@@ -53,10 +54,29 @@ describe('sessionLogic', () => {
   it('builds the initial session with spotlight, perks, and momentum state', () => {
     const session = buildInitialSession(buildCouple())
 
-    expect(session.phase).toBe('vibeSetup')
+    expect(session.phase).toBe('turn')
+    expect(session.vibeWeights).toEqual({ playful: 0.3, spicy: 0.2, tender: 0.5 })
+    expect(session.moodVotes).toEqual({})
     expect(session.spotlight.act).toBe('warmup')
     expect(session.momentum.playful).toBe(0)
     expect(session.keepsakePerks).toEqual([])
+  })
+
+  it('moves an in-progress opening setup directly to the first turn', () => {
+    const legacySession = {
+      ...buildInitialSession(buildCouple()),
+      phase: 'vibeSetup',
+      moodVotes: { u1: 'cozy' },
+      vibeVotes: { u1: { tender: 1, playful: 0, spicy: 0 } },
+      vibeWeights: null,
+    }
+
+    const next = skipOpeningSetup(legacySession)
+    expect(next.phase).toBe('turn')
+    expect(next.vibeWeights).toEqual({ playful: 0.3, spicy: 0.2, tender: 0.5 })
+    expect(next.moodVotes).toEqual({})
+    expect(next.vibeVotes).toEqual({})
+    expect(skipOpeningSetup(next)).toBe(next)
   })
 
   it('calculates act transitions across presets', () => {
@@ -268,19 +288,21 @@ describe('sessionLogic', () => {
     expect(next.currentDuel.revealForce).toBe(false)
   })
 
-  it('adds purchased perks when buying a keepsake', () => {
+  it('adds a free keepsake and its perk without spending hearts', () => {
     let session = buildReadySession()
     session = applyRollToSession(session, {
       activityType: 'comfort-menu',
       keepsakeId: 'love-note',
       roll: 4,
     })
-    session.hearts = 12
+    session.hearts = 0
 
     const next = resolveKeepsakeDecision(session, true)
 
     expect(next.keepsakePerks).toContain('pocket-love-note')
     expect(next.keepsakes).toHaveLength(1)
+    expect(next.keepsakes[0].ownerIndex).toBe(0)
+    expect(next.hearts).toBe(0)
   })
 
   it('builds the finale summary with spotlight and momentum totals', () => {
@@ -355,7 +377,7 @@ describe('night checklist and moods', () => {
   it('starts every checklist item unchecked', () => {
     const items = evaluateNightChecklist(buildInitialSession(buildCouple()))
 
-    expect(items).toHaveLength(5)
+    expect(items).toHaveLength(3)
     expect(items.every((item) => item.done === false)).toBe(true)
   })
 
@@ -365,31 +387,28 @@ describe('night checklist and moods', () => {
       keepsakes: [{ id: 'k1' }],
       lastDuelOutcome: { shared: true },
       lastRoll: 4,
-      moodVotes: { u1: 'cozy', u2: 'playful' },
-      vibeWeights: { playful: 0.5, spicy: 0.2, tender: 0.3 },
     }
 
     const { done, items, total } = nightChecklistProgress(session)
 
-    expect(total).toBe(5)
-    expect(done).toBe(5)
+    expect(total).toBe(3)
+    expect(done).toBe(3)
     expect(items.map((item) => item.id)).toEqual([
-      'set-mood',
-      'set-vibe',
       'first-roll',
       'duel-night',
       'keepsake',
     ])
   })
 
-  it('requires both players to vote their mood', () => {
+  it('does not require mood votes for checklist progress', () => {
     const session = {
       ...buildInitialSession(buildCouple()),
       moodVotes: { u1: 'cozy' },
     }
 
     const items = evaluateNightChecklist(session)
-    expect(items.find((item) => item.id === 'set-mood').done).toBe(false)
+    expect(items).toHaveLength(3)
+    expect(items.every((item) => item.done === false)).toBe(true)
   })
 
   it('resolves the combined mood from both votes', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { getTokenTargetPosition } from './BoardScene.jsx'
+import { getBoardPathSegments, getTokenTargetPosition } from './BoardScene.jsx'
 
 const boardPath = [
   { position: new THREE.Vector3(0, 0.35, -4) },
@@ -28,5 +28,17 @@ describe('getTokenTargetPosition', () => {
 
     expect(first.toArray()).toEqual([0, 0.35, -4])
     expect(second.toArray()).toEqual([4, 0.35, 0])
+  })
+})
+
+describe('getBoardPathSegments', () => {
+  it('connects every tile to the next and closes the visible route', () => {
+    const segments = getBoardPathSegments(boardPath)
+
+    expect(segments).toHaveLength(boardPath.length)
+    expect(segments.map(({ fromIndex, toIndex }) => [fromIndex, toIndex])).toEqual([
+      [0, 1], [1, 2], [2, 3], [3, 0],
+    ])
+    expect(segments.every(({ length }) => length > 0)).toBe(true)
   })
 })

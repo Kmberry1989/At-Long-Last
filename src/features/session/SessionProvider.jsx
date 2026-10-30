@@ -17,7 +17,7 @@ import {
   buildSkippedActivityJournalEntry,
   buildVibeSetupJournalEntry,
 } from './journalHelpers.js'
-import { KEEPSAKES } from './boardConfig.js'
+import { pickKeepsakeId } from './boardConfig.js'
 import { duelRegistry } from './duelRegistry.jsx'
 import { WAVELENGTH_DUEL_ID, isWavelengthCommit } from './wavelengthDuelData.js'
 import { commitChoice, verifyChoice } from './choiceCommitment.js'
@@ -35,6 +35,7 @@ import {
   resolveActivityCompletion,
   resolveKeepsakeDecision,
   resolveSkippedActivity,
+  skipOpeningSetup,
 } from './sessionLogic.js'
 import {
   abandonSession,
@@ -44,6 +45,7 @@ import {
   createActivityRecord,
   ensureActiveSession,
   finalizeActivity,
+  skipSessionOpeningSetup,
   submitMoodVote as persistMoodVote,
   submitVibeVote as persistVibeVote,
   subscribeToActivity,
@@ -261,6 +263,27 @@ export function SessionProvider({ children }) {
 
     return undefined
   }, [couple, enabled, hasPartner])
+
+  useEffect(() => {
+    if (!session?.id || session.phase !== 'vibeSetup') {
+      return undefined
+    }
+
+    if (!enabled) {
+      setSession((current) => skipOpeningSetup(current))
+      return undefined
+    }
+
+    if (!db) {
+      return undefined
+    }
+
+    let cancelled = false
+    skipSessionOpeningSetup(db, session.id).catch((nextError) => {
+      if (!cancelled) setError(nextError.message)
+    })
+    return () => { cancelled = true }
+  }, [db, enabled, session?.id, session?.phase])
 
   useEffect(() => {
     if (
@@ -661,7 +684,7 @@ export function SessionProvider({ children }) {
         Math.random,
         { preset: session.preset },
       )
-      const keepsakeId = KEEPSAKES[Math.floor(Math.random() * KEEPSAKES.length)].id
+      const keepsakeId = pickKeepsakeId(session.keepsakes, Math.random)
       const nextSession = applyRollToSession(session, {
         activityOptions,
         activityType,
@@ -739,25 +762,27 @@ export function SessionProvider({ children }) {
     }
   }
 
-  async function chooseKeepsake(shouldBuy) {
+  async function chooseKeepsake(shouldCollect) {
     if (!session || session.phase !== 'keepsake') {
       return
     }
 
     setWorking(true)
     try {
-      const nextSession = resolveKeepsakeDecision(session, shouldBuy)
+      const nextSession = resolveKeepsakeDecision(session, shouldCollect)
+      const collectedCard = shouldCollect ? nextSession.keepsakes[nextSession.keepsakes.length - 1] : null
+      const collectorName = session.players[session.activePlayerIndex]?.displayName || 'A player'
       if (!enabled) {
         setSession(nextSession)
-        if (shouldBuy && session.pendingKeepsake && session.hearts >= session.pendingKeepsake.cost) {
+        if (collectedCard) {
           setJournalEntries((current) => [
             buildPreviewJournalRecord(
               {
-                payload: session.pendingKeepsake,
+                payload: collectedCard,
                 sessionId: session.id,
-                summary: `You spent ${session.pendingKeepsake.cost} hearts on ${session.pendingKeepsake.label}.`,
-                text: session.pendingKeepsake.blurb,
-                title: session.pendingKeepsake.label,
+                summary: `${collectorName} collected ${collectedCard.label}.`,
+                text: collectedCard.blurb,
+                title: collectedCard.label,
                 type: 'keepsake',
                 vibe: 'tender',
               },
@@ -770,13 +795,13 @@ export function SessionProvider({ children }) {
         return
       }
 
-      const keepsakeEntry = shouldBuy && session.pendingKeepsake && session.hearts >= session.pendingKeepsake.cost
+      const keepsakeEntry = collectedCard
         ? {
           coupleId: couple.id,
-          payload: session.pendingKeepsake,
-          summary: `You spent ${session.pendingKeepsake.cost} hearts on ${session.pendingKeepsake.label}.`,
-          text: session.pendingKeepsake.blurb,
-          title: session.pendingKeepsake.label,
+          payload: collectedCard,
+          summary: `${collectorName} collected ${collectedCard.label}.`,
+          text: collectedCard.blurb,
+          title: collectedCard.label,
           type: 'keepsake',
           vibe: 'tender',
         }

@@ -8,16 +8,14 @@ describe('ChecklistRail', () => {
     const session = {
       lastRoll: 4,
       players: [{ uid: 'a' }, { uid: 'b' }],
-      moodVotes: { a: 'Cozy', b: 'Playful' },
-      vibeWeights: { cozy: 2 },
     }
 
     const html = renderToStaticMarkup(<ChecklistRail session={session} />)
 
-    expect(html).toContain('Night checklist: 3 of 5 complete')
-    expect(html).toContain('Mood')
+    expect(html).toContain('Night checklist: 1 of 3 complete')
     expect(html).toContain('Roll')
-    expect(html).toContain('Vibe')
+    expect(html).not.toContain('Mood')
+    expect(html).not.toContain('Vibe')
   })
 
   it('renders nothing without a session', () => {

@@ -4,8 +4,7 @@ import { DuelRevealOverlay } from './DuelRevealOverlay.jsx'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { ChecklistRail } from './ChecklistRail.jsx'
 import { LoveTank } from './LoveTank.jsx'
-import { MoodPulse } from './MoodPulse.jsx'
-import { VibeDial } from './VibeDial.jsx'
+import { MysteryKeepsakeCard } from './MysteryKeepsakeCard.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { COMPANION_STAGES, COMPANION_STAGE_EMOJI } from '../features/couple/progressService.js'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
@@ -68,7 +67,7 @@ function getActivitySubmissionCount(state) {
 
 export function GameScreen() {
   const { couple, hasPartner, progress } = useCouple()
-  const { playAction } = useAudio()
+  const { playAction, playSuccess } = useAudio()
   const {
     ackDuelReveal,
     activity,
@@ -88,8 +87,6 @@ export function GameScreen() {
     isSessionStale,
     journalEntries,
     myDuelResult,
-    myMoodVote,
-    myVibeVote,
     playerIndex,
     readyToPlay,
     gameOpen,
@@ -105,8 +102,6 @@ export function GameScreen() {
     startFreshSession,
     submitActivityTurn,
     submitDuelResult,
-    submitMoodVote,
-    submitVibeVote,
     working,
   } = useSession()
   const [journalOpen, setJournalOpen] = useState(false)
@@ -281,9 +276,6 @@ export function GameScreen() {
   const duelEntry = session.currentDuel ? duelRegistry[session.currentDuel.id] : null
   const DuelComponent = duelEntry?.start ?? null
   const canChooseActivity = session.phase === 'activityChoice' && session.activePlayerIndex === playerIndex
-  const dominantVibe = session.vibeWeights
-    ? Object.entries(session.vibeWeights).sort((left, right) => right[1] - left[1])[0]?.[0]
-    : null
   const activityOptions = (session.pendingActivityOptions || [])
     .map((activityId) => activityRegistry[activityId])
     .filter(Boolean)
@@ -347,7 +339,7 @@ export function GameScreen() {
       : session.phase === 'turn'
         ? `${activePlayer.displayName}'s turn`
         : session.phase === 'vibeSetup'
-          ? 'Choosing the mood…'
+          ? 'Opening board…'
           : 'Waiting…'
 
   async function handleDiceRoll() {
@@ -390,12 +382,6 @@ export function GameScreen() {
           <LoveTank hearts={session.hearts} onOpenGuide={() => setHeartGuideOpen(true)} />
           <div className="chip" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
             <span aria-hidden="true">◷</span><strong>{session.round}/{session.totalRounds}</strong>
-          </div>
-          <div
-            aria-label={dominantVibe ? `Tonight feels ${dominantVibe}` : 'Choose tonight’s mood together'}
-            className="chip vibe-chip"
-          >
-            <span aria-hidden="true">☼</span><strong>{dominantVibe || 'Mood'}</strong>
           </div>
           {progress?.companion && (
             <div
@@ -501,77 +487,26 @@ export function GameScreen() {
       </div>
 
       {!diceAnimating && session.phase === 'keepsake' && session.pendingKeepsake && (
-        <div className="overlay-screen">
-          <div className="overlay-card">
-            <p className="eyebrow">Keepsake Stop</p>
-            <h3>{session.pendingKeepsake.label}</h3>
-            <p className="support-copy">{session.pendingKeepsake.blurb}</p>
-            <div className="perk-copy">
-              <span>{session.pendingKeepsake.perkLabel}</span>
-              <p>{session.pendingKeepsake.perkDescription}</p>
-            </div>
-            <p className="price-copy">
-              Costs <strong>{session.pendingKeepsake.cost}</strong> hearts.
-            </p>
-            <div className="button-row">
-              <button
-                className="primary-btn"
-                disabled={working || session.hearts < session.pendingKeepsake.cost}
-                onClick={() => {
-                  playAction?.()
-                  chooseKeepsake(true)
-                }}
-                type="button"
-              >
-                Buy It
-              </button>
-              <button
-                className="primary-btn alt"
-                onClick={() => {
-                  playAction?.()
-                  chooseKeepsake(false)
-                }}
-                type="button"
-              >
-                Save Hearts
-              </button>
-            </div>
-          </div>
+        <div className="overlay-screen mystery-keepsake-overlay">
+          <MysteryKeepsakeCard
+            item={session.pendingKeepsake}
+            onReveal={() => playAction?.()}
+            onCollect={() => {
+              playSuccess?.()
+              chooseKeepsake(true)
+            }}
+          />
+          {error && <p className="error-copy" role="alert">{error}</p>}
         </div>
       )}
 
       {!diceAnimating && session.phase === 'vibeSetup' && (
         <div className="overlay-screen">
-          {!myMoodVote ? (
-            <MoodPulse
-              disabled={working}
-              onConfirm={(mood) => {
-                playAction?.()
-                submitMoodVote(mood)
-              }}
-              playerName={session.players[playerIndex]?.displayName || 'You'}
-            />
-          ) : (
-            <VibeDial
-              defaultWeights={myVibeVote || session.vibeWeights || undefined}
-              disabled={working || Boolean(myVibeVote)}
-              onConfirm={(vote) => {
-                playAction?.()
-                submitVibeVote(vote)
-              }}
-              playerName={session.players[playerIndex]?.displayName || 'You'}
-            />
-          )}
-          {myMoodVote && myVibeVote && (
-            <div className="overlay-note">
-              <WaitingState
-                actorName={otherPlayerName}
-                activityVerb="locking in the mood"
-                nextHint="The board opens once both moods are locked."
-                privateNote="Private: their vote stays hidden."
-              />
-            </div>
-          )}
+          <div className="overlay-card" role="status">
+            <h3>Opening board…</h3>
+            {error && <p className="error-copy">{error}</p>}
+            {error && <button className="primary-btn" onClick={() => window.location.reload()} type="button">Reconnect</button>}
+          </div>
         </div>
       )}
 

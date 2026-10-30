@@ -929,7 +929,9 @@ service cloud.firestore {
         && data.goals.size() <= 3
         && data.duelResults is map
         && data.vibeVotes is map
+        && data.vibeVotes.size() == 0
         && data.moodVotes is map
+        && data.moodVotes.size() == 0
         && data.progressRecorded is bool
         && data.progressRecorded == false
         && data.sealedMatches is int
@@ -947,7 +949,18 @@ service cloud.firestore {
         && data.players == couple.players
         && data.hostId == couple.playerIds[0]
         && data.preset == couple.sessionPreset
-        && data.phase == 'vibeSetup'
+        && (
+          (
+            data.phase == 'turn'
+            && data.vibeWeights is map
+            && data.vibeWeights.keys().hasAll(['playful', 'spicy', 'tender'])
+            && data.vibeWeights.keys().hasOnly(['playful', 'spicy', 'tender'])
+            && data.vibeWeights.playful == 0.3
+            && data.vibeWeights.spicy == 0.2
+            && data.vibeWeights.tender == 0.5
+          )
+          || (data.phase == 'vibeSetup' && data.vibeWeights == null)
+        )
         && data.status == 'active'
         && data.hearts == 6
         && data.round == 1

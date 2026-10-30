@@ -39,25 +39,33 @@ export const KEEPSAKES = [
   },
 ]
 
+export function pickKeepsakeId(collected = [], random = Math.random) {
+  const collectedIds = new Set(collected.map((card) => card.id))
+  const unseen = KEEPSAKES.filter((card) => !collectedIds.has(card.id))
+  const stack = unseen.length ? unseen : KEEPSAKES
+  const index = Math.min(stack.length - 1, Math.floor(Math.max(0, random()) * stack.length))
+  return stack[index].id
+}
+
 export const BOARD_SPACES = [
   { id: 'starlight-start', label: 'Starlight Start', type: 'heart' },
   { id: 'soft-reset', label: 'Soft Reset', type: 'oops' },
   { id: 'spark-checkin', label: 'Spark Check-In', type: 'connection' },
   { id: 'duel-beat', label: 'Duel Beat', type: 'duel' },
-  { id: 'keepsake-kiosk', label: 'Keepsake Kiosk', type: 'keepsake' },
+  { id: 'keepsake-kiosk', label: 'Mystery Card', type: 'keepsake' },
   { id: 'glow-up', label: 'Glow Up', type: 'heart' },
   { id: 'story-chain', label: 'Story Chain', type: 'connection' },
   { id: 'rain-check', label: 'Rain Check', type: 'oops' },
   { id: 'duel-spark', label: 'Duel Spark', type: 'duel' },
   { id: 'glad-you-came', label: 'Glad You Came', type: 'heart' },
   { id: 'gratitude-drop', label: 'Gratitude Drop', type: 'connection' },
-  { id: 'souvenir-stop', label: 'Souvenir Stop', type: 'keepsake' },
+  { id: 'souvenir-stop', label: 'Mystery Card', type: 'keepsake' },
   { id: 'trip-up', label: 'Trip Up', type: 'oops' },
   { id: 'bonus-beat', label: 'Bonus Beat', type: 'duel' },
   { id: 'heart-burst', label: 'Heart Burst', type: 'heart' },
   { id: 'story-swerve', label: 'Story Swerve', type: 'connection' },
   { id: 'spilled-soda', label: 'Spilled Soda', type: 'oops' },
-  { id: 'prize-corner', label: 'Prize Corner', type: 'keepsake' },
+  { id: 'prize-corner', label: 'Mystery Card', type: 'keepsake' },
   { id: 'crowd-roar', label: 'Crowd Roar', type: 'heart' },
   { id: 'final-glow', label: 'Final Glow', type: 'duel' },
 ]

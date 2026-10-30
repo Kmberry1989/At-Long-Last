@@ -1,0 +1,190 @@
+.mystery-keepsake-overlay {
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 48%, rgba(37, 21, 36, .32), rgba(24, 13, 29, .68));
+}
+
+.mystery-card-stage {
+  position: relative;
+  width: min(100%, 430px);
+  min-height: min(77dvh, 600px);
+  display: grid;
+  place-items: center;
+  perspective: 1100px;
+  isolation: isolate;
+}
+
+.mystery-card-ground-shadow {
+  position: absolute;
+  width: min(67vw, 300px);
+  height: 66px;
+  bottom: 6%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(22, 10, 21, .56), rgba(22, 10, 21, 0) 72%);
+  filter: blur(12px);
+  transform: scale(.92);
+  animation: mysteryShadow 3s ease-in-out infinite alternate;
+}
+
+.mystery-card-deck {
+  position: absolute;
+  width: min(68vw, 276px);
+  aspect-ratio: 5 / 7;
+  border-radius: 22px;
+  background: #5a293f;
+  border: 3px solid #d9b373;
+  box-shadow: 0 14px 30px rgba(20, 10, 21, .42);
+}
+
+.mystery-card-deck-one { transform: translate(-13px, 17px) rotate(-7deg) scale(.94); }
+.mystery-card-deck-two { transform: translate(10px, 10px) rotate(5deg) scale(.97); }
+
+.mystery-card-float {
+  position: relative;
+  z-index: 2;
+  width: min(68vw, 276px);
+  aspect-ratio: 5 / 7;
+  animation: mysteryCardArrive 620ms cubic-bezier(.18, 1.25, .34, 1) both,
+    mysteryCardHover 3s ease-in-out 700ms infinite alternate;
+  filter: drop-shadow(0 24px 20px rgba(21, 10, 22, .42));
+}
+
+.mystery-card-button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mystery-card-button:disabled { cursor: default; }
+.mystery-card-button:focus-visible { outline: 4px solid #fff5c9; outline-offset: 8px; }
+.mystery-card-button:not(:disabled):active { transform: scale(.975); }
+
+.keepsake-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 780ms cubic-bezier(.21, .82, .23, 1.08);
+}
+
+.keepsake-card.is-revealed { transform: rotateY(180deg); }
+
+.keepsake-card-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.keepsake-card-back {
+  color: #f8dfaa;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(234, 182, 112, .22), transparent 34%),
+    repeating-linear-gradient(45deg, transparent 0 16px, rgba(239, 193, 127, .035) 16px 17px),
+    linear-gradient(140deg, #793f58, #3c1e34 67%, #5d2d47);
+}
+
+.keepsake-card-front {
+  transform: rotateY(180deg);
+  color: #482a3d;
+  background:
+    radial-gradient(circle at 50% 26%, rgba(245, 198, 127, .3), transparent 42%),
+    linear-gradient(155deg, #fff8ea, #f2e3df 70%, #e9d0d9);
+}
+
+.keepsake-card-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #d8ab67;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.keepsake-card-frame rect:nth-child(2) { stroke-width: .8; opacity: .84; }
+.keepsake-card-frame path:nth-of-type(1) { stroke-width: 1.4; }
+.keepsake-card-frame path:nth-of-type(2) { stroke-width: .9; opacity: .8; }
+.keepsake-card-frame path:nth-of-type(3),
+.keepsake-card-frame circle { fill: #d8ab67; stroke: none; }
+
+.keepsake-back-star { margin-top: 19%; font-size: 35px; }
+.keepsake-back-brand,
+.keepsake-front-brand { font-size: 11px; font-weight: 900; letter-spacing: .27em; }
+.keepsake-back-brand { margin-top: 3%; }
+.keepsake-back-seal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 47%;
+  aspect-ratio: 1;
+  margin-top: 12%;
+  border-radius: 50%;
+  border: 1px solid rgba(238, 198, 130, .77);
+  box-shadow: 0 0 0 7px rgba(238, 198, 130, .12), inset 0 0 0 5px rgba(238, 198, 130, .09);
+  font-family: Georgia, serif;
+  font-size: 31px;
+  letter-spacing: .05em;
+}
+.keepsake-back-seal span { font-size: 18px; }
+.keepsake-back-caption { margin-top: auto; margin-bottom: 19%; font-family: Georgia, serif; font-style: italic; font-size: 13px; }
+
+.keepsake-front-brand { margin-top: 13%; color: #815471; }
+.keepsake-front-mark {
+  display: grid;
+  place-items: center;
+  width: 33%;
+  aspect-ratio: 1;
+  margin-top: 8%;
+  border-radius: 50%;
+  border: 1px solid #c39b67;
+  background: rgba(255, 252, 242, .52);
+  box-shadow: 0 10px 20px rgba(92, 51, 71, .12);
+  color: #a85e72;
+  font-size: 44px;
+}
+.keepsake-front-kind { margin-top: 8%; font-size: 10px; font-weight: 800; letter-spacing: .24em; color: #95646c; }
+.keepsake-front-title { margin: 3% 12% 0; font-family: Georgia, serif; font-size: clamp(22px, 6vw, 31px); line-height: 1.1; }
+.keepsake-front-blurb { margin: 6% 13% 0; font-size: clamp(12px, 3.3vw, 15px); line-height: 1.35; }
+.keepsake-front-perk { margin: auto 12% 16%; font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #95525f; }
+
+.keepsake-card.is-compact .keepsake-front-blurb,
+.keepsake-card.is-compact .keepsake-back-caption { display: none; }
+
+.mystery-card-stage.is-collecting .mystery-card-float { animation: mysteryCardCollect 480ms cubic-bezier(.4, 0, .9, .5) forwards; }
+.mystery-card-stage.is-collecting .mystery-card-ground-shadow { animation: none; opacity: 0; transition: opacity 300ms; }
+
+@keyframes mysteryCardArrive {
+  from { opacity: 0; transform: translate3d(0, -110px, 0) rotate(-12deg) scale(.76); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+@keyframes mysteryCardHover {
+  from { transform: translate3d(0, 0, 0) rotate(-1deg); }
+  to { transform: translate3d(0, -13px, 0) rotate(1deg); }
+}
+@keyframes mysteryShadow {
+  from { opacity: .72; transform: scale(.92); }
+  to { opacity: .45; transform: scale(.78); }
+}
+@keyframes mysteryCardCollect {
+  to { opacity: 0; transform: translate3d(112px, -200px, 0) rotate(17deg) scale(.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mystery-card-float,
+  .mystery-card-ground-shadow,
+  .mystery-card-stage.is-collecting .mystery-card-float { animation: none; }
+  .keepsake-card { transition-duration: 0ms; }
+}

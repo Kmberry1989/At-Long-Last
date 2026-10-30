@@ -286,7 +286,7 @@ export function buildInitialSession(couple) {
   const preset = getSessionPreset(couple.sessionPreset)
 
   return ensureSessionArcState({
-    actionText: 'Set the vibe together before the first roll.',
+    actionText: `${couple.players[0]?.displayName || 'Player one'} rolls first.`,
     activePlayerIndex: 0,
     completedSpotlightActs: [],
     coupleId: couple.id,
@@ -307,7 +307,7 @@ export function buildInitialSession(couple) {
     pendingActivityOptions: null,
     pendingActivityType: null,
     pendingKeepsake: null,
-    phase: 'vibeSetup',
+    phase: 'turn',
     players: couple.players,
     positions: [0, 0],
     preset: preset.id,
@@ -323,7 +323,7 @@ export function buildInitialSession(couple) {
     usedDuelIds: [],
     usedKeepsakePerks: [],
     vibeVotes: {},
-    vibeWeights: null,
+    vibeWeights: DEFAULT_VIBE_WEIGHTS,
   })
 }
 
@@ -337,6 +337,26 @@ export function finalizeVibeSetup(session, vibeWeights = DEFAULT_VIBE_WEIGHTS) {
   })
 
   return syncSpotlightToRound(nextSession)
+}
+
+/** Move an already-active night past the retired opening setup. */
+export function skipOpeningSetup(session) {
+  if (!session || session.phase !== 'vibeSetup') {
+    return session
+  }
+
+  const defaults = buildInitialSession({
+    id: session.coupleId,
+    players: session.players,
+    sessionPreset: session.preset,
+  })
+
+  return finalizeVibeSetup({
+    ...defaults,
+    ...session,
+    moodVotes: {},
+    vibeVotes: {},
+  })
 }
 
 export const MOOD_OPTIONS = [
@@ -423,8 +443,6 @@ export function applyMoodSeedToWeights(vibeWeights = DEFAULT_VIBE_WEIGHTS, moodV
 
 export function buildNightChecklist() {
   return [
-    { done: false, id: 'set-mood', label: 'Mood' },
-    { done: false, id: 'set-vibe', label: 'Vibe' },
     { done: false, id: 'first-roll', label: 'Roll' },
     { done: false, id: 'duel-night', label: 'Duel' },
     { done: false, id: 'keepsake', label: 'Keepsake' },
@@ -432,25 +450,16 @@ export function buildNightChecklist() {
 }
 
 /**
- * The night checklist completes itself from live session state — both
- * players voting their mood, the vibe locking in, the first roll, a duel
- * result, and a pocketed keepsake.
+ * The night checklist completes itself from live session state — the first
+ * roll, a duel result, and a pocketed keepsake.
  */
 export function evaluateNightChecklist(session) {
   if (!session) {
     return buildNightChecklist()
   }
 
-  const players = session.players || []
-  const moodVotes = session.moodVotes || {}
-  const moodDone = players.length > 0 && players.every((player) => moodVotes[player.uid])
-
   return buildNightChecklist().map((item) => {
     switch (item.id) {
-      case 'set-mood':
-        return { ...item, done: moodDone }
-      case 'set-vibe':
-        return { ...item, done: Boolean(session.vibeWeights) }
       case 'first-roll':
         return { ...item, done: session.lastRoll != null }
       case 'duel-night':
@@ -593,7 +602,7 @@ export function applyRollToSession(
   if (space.type === 'keepsake') {
     return {
       ...base,
-      actionText: 'Keepsake stop. Buy the memory or save your hearts.',
+      actionText: 'A mystery card is waiting on the board.',
       pendingKeepsake: KEEPSAKES.find((item) => item.id === keepsakeId) || KEEPSAKES[0],
       phase: 'keepsake',
     }
@@ -618,7 +627,7 @@ export function applyRollToSession(
   }
 }
 
-export function resolveKeepsakeDecision(session, shouldBuy) {
+export function resolveKeepsakeDecision(session, shouldCollect) {
   const nextSession = ensureSessionArcState(session)
   const keepsake = nextSession.pendingKeepsake
   if (!keepsake) {
@@ -630,18 +639,22 @@ export function resolveKeepsakeDecision(session, shouldBuy) {
     pendingKeepsake: null,
   }
 
-  if (shouldBuy && nextSession.hearts >= keepsake.cost) {
+  if (shouldCollect) {
+    const card = {
+      ...keepsake,
+      instanceId: `${nextSession.round}-${nextSession.activePlayerIndex}-${nextSession.keepsakes.length}-${keepsake.id}`,
+      ownerIndex: nextSession.activePlayerIndex,
+    }
     resolved = {
       ...resolved,
-      actionText: `You grabbed ${keepsake.label}. ${keepsake.perkLabel} is armed.`,
-      hearts: nextSession.hearts - keepsake.cost,
+      actionText: `${nextSession.players[nextSession.activePlayerIndex].displayName} drew ${keepsake.label}.`,
       keepsakePerks: appendUnique(nextSession.keepsakePerks, keepsake.perkId),
-      keepsakes: [...nextSession.keepsakes, keepsake],
+      keepsakes: [...nextSession.keepsakes, card],
     }
   } else {
     resolved = {
       ...resolved,
-      actionText: 'You saved your hearts for later.',
+      actionText: 'The mystery card went back into the stack.',
     }
   }
 

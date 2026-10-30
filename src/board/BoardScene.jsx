@@ -50,6 +50,21 @@ function buildBoardPath() {
   })
 }
 
+export function getBoardPathSegments(boardPath) {
+  return boardPath.map((space, index) => {
+    const nextIndex = (index + 1) % boardPath.length
+    const next = boardPath[nextIndex]
+    const delta = next.position.clone().sub(space.position)
+    return {
+      fromIndex: index,
+      toIndex: nextIndex,
+      center: space.position.clone().add(next.position).multiplyScalar(0.5),
+      length: delta.length(),
+      angle: Math.atan2(delta.x, delta.z),
+    }
+  })
+}
+
 export function getTokenTargetPosition(boardPath, positionIndices, playerIndex) {
   const rawSpaceIndex = Number(positionIndices?.[playerIndex]) || 0
   const spaceIndex =
@@ -109,7 +124,7 @@ function makeTileMarkTexture(label, type) {
         : type === 'duel'
           ? '✦'
           : type === 'keepsake'
-            ? '◆'
+          ? '?'
             : '∞'
   ctx.strokeText(symbol, canvas.width / 2, 105)
   ctx.fillText(symbol, canvas.width / 2, 105)
@@ -397,7 +412,7 @@ export function BoardScene({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFShadowMap
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
     mount.appendChild(renderer.domElement)
     let disposed = false
     let animationFrameId = null
@@ -435,7 +450,13 @@ export function BoardScene({
     const key = new THREE.DirectionalLight('#ffffff', 2)
     key.position.set(8, 14, 10)
     key.castShadow = true
-    key.shadow.mapSize.set(1024, 1024)
+    key.shadow.mapSize.set(2048, 2048)
+    key.shadow.camera.left = -19
+    key.shadow.camera.right = 19
+    key.shadow.camera.top = 19
+    key.shadow.camera.bottom = -19
+    key.shadow.normalBias = 0.025
+    key.shadow.radius = 3
     scene.add(key)
 
     const fill = new THREE.PointLight('#ffc7a7', 1.8, 40)
@@ -464,6 +485,31 @@ export function BoardScene({
     floor.receiveShadow = true
     floor.position.y = -0.65
     scene.add(floor)
+
+    const boardFoot = new THREE.Mesh(
+      new THREE.CylinderGeometry(16.45, 16.65, 0.55, 64),
+      new THREE.MeshStandardMaterial({
+        color: '#4a273b',
+        metalness: 0.16,
+        roughness: 0.52,
+      }),
+    )
+    boardFoot.position.y = -1.42
+    boardFoot.receiveShadow = true
+    scene.add(boardFoot)
+
+    const outerRim = new THREE.Mesh(
+      new THREE.TorusGeometry(15.78, 0.16, 14, 96),
+      new THREE.MeshStandardMaterial({
+        color: '#d6ae72',
+        metalness: 0.68,
+        roughness: 0.3,
+      }),
+    )
+    outerRim.rotation.x = Math.PI / 2
+    outerRim.position.y = 0.04
+    outerRim.castShadow = true
+    scene.add(outerRim)
 
     const velvetInset = new THREE.Mesh(
       new THREE.CylinderGeometry(8.5, 8.5, 0.2, 64),
@@ -511,6 +557,37 @@ export function BoardScene({
     const boardGroup = new THREE.Group()
     scene.add(boardGroup)
 
+    const routeMaterial = new THREE.MeshStandardMaterial({
+      color: '#583747',
+      metalness: 0.18,
+      roughness: 0.67,
+    })
+    const routeInlayMaterial = new THREE.MeshStandardMaterial({
+      color: '#d8b67d',
+      metalness: 0.65,
+      roughness: 0.36,
+    })
+    getBoardPathSegments(boardPath).forEach((segment) => {
+      const route = new THREE.Mesh(
+        new RoundedBoxGeometry(0.96, 0.13, segment.length, 4, 0.09),
+        routeMaterial,
+      )
+      route.position.set(segment.center.x, 0.17, segment.center.z)
+      route.rotation.y = segment.angle
+      route.castShadow = true
+      route.receiveShadow = true
+      boardGroup.add(route)
+
+      const inlay = new THREE.Mesh(
+        new RoundedBoxGeometry(0.08, 0.035, segment.length, 3, 0.018),
+        routeInlayMaterial,
+      )
+      inlay.position.set(segment.center.x, 0.255, segment.center.z)
+      inlay.rotation.y = segment.angle
+      inlay.castShadow = true
+      boardGroup.add(inlay)
+    })
+
     const tileMarks = new Map()
     boardPath.forEach((space) => {
       tileMarks.set(space.id, makeTileMarkTexture(space.label, space.type))
@@ -519,6 +596,18 @@ export function BoardScene({
     boardPath.forEach((space) => {
       const tile = new THREE.Group()
       const style = TILE_STYLES[space.type]
+      const plinth = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.55, 1.64, 0.18, 24),
+        new THREE.MeshStandardMaterial({
+          color: '#b89065',
+          metalness: 0.38,
+          roughness: 0.5,
+        }),
+      )
+      plinth.position.y = -0.14
+      plinth.castShadow = true
+      plinth.receiveShadow = true
+      tile.add(plinth)
       const base = new THREE.Mesh(
         new RoundedBoxGeometry(2.2, 0.4, 2.2, 4, 0.15),
         new THREE.MeshStandardMaterial({
@@ -834,7 +923,12 @@ export function BoardScene({
         surfaces: {
           boardInset: boardTheme.surfaces.inset.texture,
           tabletop: boardTheme.surfaces.tabletop.texture,
-          tiles: 'rounded primitive bases with velvet inset panels',
+          tiles: 'raised velvet tiles with connected inlaid route',
+        },
+        path: {
+          branchCount: 0,
+          segments: boardPath.length,
+          visible: true,
         },
         toneSelector: window.__atLongLastVibeDialState || null,
         players: players.map((player, index) => {

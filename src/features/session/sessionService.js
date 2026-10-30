@@ -11,7 +11,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { finalizeVibeSetup, buildInitialSession } from './sessionLogic.js'
+import { finalizeVibeSetup, buildInitialSession, skipOpeningSetup } from './sessionLogic.js'
 import { buildVibeSetupJournalEntry } from './journalHelpers.js'
 import {
   averageVibeVotes,
@@ -92,6 +92,24 @@ export function subscribeToSession(db, sessionId, onNext, onError) {
     },
     onError,
   )
+}
+
+export async function skipSessionOpeningSetup(db, sessionId) {
+  const sessionRef = doc(db, 'sessions', sessionId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(sessionRef)
+    if (!snapshot.exists()) {
+      throw new Error('Session disappeared.')
+    }
+
+    const session = { id: snapshot.id, ...snapshot.data() }
+    if (session.phase !== 'vibeSetup') {
+      return
+    }
+
+    transaction.update(sessionRef, buildSessionWritePayload(skipOpeningSetup(session)))
+  })
 }
 
 export function subscribeToActivity(db, activityId, onNext, onError) {

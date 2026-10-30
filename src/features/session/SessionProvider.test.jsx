@@ -27,7 +27,7 @@ vi.mock('./sessionLogic.js', async () => {
 })
 
 import { resolveSessionHostId, SessionProvider, useSession } from './SessionProvider.jsx'
-import { ensureSessionArcState } from './sessionLogic.js'
+import { buildInitialSession, ensureSessionArcState } from './sessionLogic.js'
 
 function buildCouple() {
   return {
@@ -55,17 +55,6 @@ function Probe() {
       <div data-testid="activity-type">{session.activity?.type || 'none'}</div>
       <div data-testid="journal-count">{session.journalEntries.length}</div>
       <div data-testid="journal-title">{session.journalEntries[0]?.title || 'none'}</div>
-      <button
-        onClick={() =>
-          session.submitVibeVote({
-            playful: 0.3,
-            spicy: 0.2,
-            tender: 0.5,
-          })}
-        type="button"
-      >
-        Vote
-      </button>
       <button onClick={() => session.selectActivityOption('comfort-menu')} type="button">
         Pick Comfort Menu
       </button>
@@ -104,19 +93,28 @@ describe('SessionProvider', () => {
     expect(resolveSessionHostId(null, buildCouple())).toBe('u1')
   })
 
-  it('initializes local preview sessions with the new arc state and transitions out of vibe setup', async () => {
+  it('initializes local preview sessions directly on the board', async () => {
     renderProvider()
-
-    await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('vibeSetup'))
-    expect(screen.getByTestId('spotlight')).toHaveTextContent('warmup')
-    expect(screen.getByTestId('momentum-playful')).toHaveTextContent('0')
-
-    fireEvent.click(screen.getByText('Vote'))
 
     await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('turn'))
     expect(screen.getByTestId('spotlight')).toHaveTextContent('warmup')
-    expect(screen.getByTestId('journal-count')).toHaveTextContent('1')
-    expect(screen.getByTestId('journal-title')).toHaveTextContent('Tonight’s Vibe')
+    expect(screen.getByTestId('momentum-playful')).toHaveTextContent('0')
+    expect(screen.getByTestId('journal-count')).toHaveTextContent('0')
+  })
+
+  it('skips an older preview session that is still on opening setup', async () => {
+    mockState.initialSessionOverride = {
+      ...ensureSessionArcState({
+        ...buildInitialSession(buildCouple()),
+        phase: 'vibeSetup',
+        vibeWeights: null,
+      }),
+    }
+
+    renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('turn'))
+    expect(screen.getByTestId('journal-count')).toHaveTextContent('0')
   })
 
   it('handles activity-choice selection in local preview mode', async () => {

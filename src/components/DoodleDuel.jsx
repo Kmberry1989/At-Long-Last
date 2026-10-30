@@ -2,16 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 
 export function DoodleDuel({
   disabled = false,
-  durationSec = 60,
   onComplete,
   onSkip,
   prompt = 'Draw it from memory.',
 }) {
   const canvasRef = useRef(null)
-  const startedAtRef = useRef(0)
   const [isDrawing, setIsDrawing] = useState(false)
   const [isDone, setIsDone] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(durationSec)
+  const [hasDrawn, setHasDrawn] = useState(false)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -35,24 +33,8 @@ export function DoodleDuel({
     context.lineWidth = 4
     context.lineCap = 'round'
     context.lineJoin = 'round'
-    startedAtRef.current = performance.now()
-
     return undefined
   }, [])
-
-  useEffect(() => {
-    if (disabled || isDone) {
-      return undefined
-    }
-
-    if (timeLeft <= 0) {
-      handleDone()
-      return undefined
-    }
-
-    const timer = window.setTimeout(() => setTimeLeft((current) => current - 1), 1000)
-    return () => window.clearTimeout(timer)
-  }, [disabled, isDone, timeLeft])
 
   function getCoordinates(event) {
     const canvas = canvasRef.current
@@ -95,6 +77,7 @@ export function DoodleDuel({
     const { x, y } = getCoordinates(event)
     context.lineTo(x, y)
     context.stroke()
+    setHasDrawn(true)
   }
 
   function stopDrawing() {
@@ -111,21 +94,21 @@ export function DoodleDuel({
     const rect = canvas.getBoundingClientRect()
     context.fillStyle = '#fffaf4'
     context.fillRect(0, 0, rect.width, rect.height)
+    setHasDrawn(false)
   }
 
   function handleDone() {
-    if (isDone) {
+    if (isDone || !hasDrawn) {
       return
     }
 
     setIsDone(true)
     const dataUrl = canvasRef.current?.toDataURL('image/png', 0.82) ?? null
-    const elapsed = Math.max(1, durationSec - timeLeft)
     onComplete({
       dataUrl,
-      highlight: `sketched it in ${elapsed}s`,
-      score: elapsed,
-      time: elapsed,
+      highlight: 'saved a drawing',
+      score: 1,
+      time: 0,
       won: true,
     })
   }
@@ -142,13 +125,6 @@ export function DoodleDuel({
       </div>
       <h3>Doodle Duel</h3>
       <p className="support-copy">{prompt}</p>
-      <div className="doodle-meta">
-        <span>{timeLeft}s left</span>
-        <span>Thick brush. No eraser.</span>
-      </div>
-      <div className="doodle-progress">
-        <span style={{ width: `${(timeLeft / durationSec) * 100}%` }} />
-      </div>
       <div className="doodle-stage">
         <canvas
           className="doodle-canvas"
@@ -161,7 +137,7 @@ export function DoodleDuel({
           onTouchStart={startDrawing}
           ref={canvasRef}
         />
-        {!isDrawing && timeLeft === durationSec && (
+        {!isDrawing && !hasDrawn && (
           <p className="doodle-hint">Draw here. Messy is better.</p>
         )}
       </div>
@@ -169,8 +145,8 @@ export function DoodleDuel({
         <button className="primary-btn alt" disabled={disabled || isDone} onClick={clearCanvas} type="button">
           Clear
         </button>
-        <button className="primary-btn" disabled={disabled} onClick={handleDone} type="button">
-          Reveal It
+        <button className="primary-btn" disabled={disabled || isDone || !hasDrawn} onClick={handleDone} type="button">
+          Save Drawing
         </button>
       </div>
     </div>
