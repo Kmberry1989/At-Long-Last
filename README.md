@@ -77,73 +77,73 @@ Word Weaver's tray dictionary sizes are **Hearts 28**, **Related 16**, **Ocean 1
 
 ### Prompt, ritual, and journal activities — 63
 
-These entries accept open-ended responses. The count is the original authored prompt plus the additional variants used by `pickActivityPrompt`. **30 entries have 6 prompts each; 33 have 1 each: 213 prompt slots total.** A single-prompt activity can still produce a different shared response every time.
+These entries accept open-ended responses. The count is the original authored prompt plus the additional variants used by `pickActivityPrompt`. **All 63 entries have 12 prompts each: 756 authored prompts total, up from 213 (543 additions).** The original prompts remain available. New prompts vary the situation, perspective, memory, or creative constraint while keeping each activity's identity and existing two-turn response flow. Saved prompt history favors unseen material and then the least recently encountered prompt. Existing in-progress cards keep their saved question.
 
 | Activity | Authored prompts |
 | --- | ---: |
-| Comfort Menu | 6 |
-| Small Mercies | 6 |
-| Weather Report | 6 |
-| Receipts | 6 |
-| Future Artifact | 6 |
-| Postcard From Next Year | 1 |
-| Translation | 6 |
-| Map Pin | 1 |
-| Director's Commentary | 6 |
-| House Rules | 1 |
-| Growth Ring | 6 |
-| Anchor Memory | 6 |
-| Unsent Draft | 1 |
-| Gratitude Snapshot | 6 |
-| Shared Seed | 1 |
-| Cursed Date | 6 |
-| Yelp Review | 6 |
-| Build-A-Cult | 1 |
-| Lore Drop | 6 |
-| Two Truths and a Dream | 6 |
-| Alternate Universe Job | 6 |
-| Apocalypse Role | 6 |
-| Pet Peeve Love Letter | 6 |
-| Conspiracy: Us | 1 |
-| Wikipedia: Us | 6 |
-| Theme Song | 6 |
-| Bad Advice | 1 |
-| Villain Origin | 6 |
-| Nudge Wars | 1 |
-| Sound Capsule | 1 |
-| Replay | 6 |
-| Wanted List | 6 |
-| Slow Morning | 6 |
-| Confidence Fit | 6 |
-| Whisper Line | 6 |
-| Scent Memory | 6 |
-| How I Like To Be Held | 6 |
-| That Look | 6 |
-| Flirt Resume | 1 |
-| What I Miss Today | 1 |
-| Date That Never Ends | 1 |
-| Secret Admiration | 6 |
-| After Hours | 1 |
-| Landing Lights | 1 |
-| Rewind | 6 |
-| Rose, Thorn, Seed | 1 |
-| Ordinary Treasure | 1 |
-| Invisible Backpack | 1 |
-| Gentle Signal | 1 |
-| Five-Minute Tradition | 1 |
-| Museum of Us | 1 |
-| Wrong Answers Only | 1 |
-| Couple Mascot | 1 |
-| Tiny Shark Tank | 1 |
-| Plot Twist | 1 |
-| Soundtrack Shuffle | 1 |
-| Emoji Forecast | 1 |
-| Closer Than Words | 1 |
-| Date Trailer | 1 |
-| Favorite Detail | 1 |
-| Green Light Tonight | 1 |
-| Chemistry Recipe | 1 |
-| Doorstep Scene | 1 |
+| Comfort Menu | 12 |
+| Small Mercies | 12 |
+| Weather Report | 12 |
+| Receipts | 12 |
+| Future Artifact | 12 |
+| Postcard From Next Year | 12 |
+| Translation | 12 |
+| Map Pin | 12 |
+| Director's Commentary | 12 |
+| House Rules | 12 |
+| Growth Ring | 12 |
+| Anchor Memory | 12 |
+| Unsent Draft | 12 |
+| Gratitude Snapshot | 12 |
+| Shared Seed | 12 |
+| Cursed Date | 12 |
+| Yelp Review | 12 |
+| Build-A-Cult | 12 |
+| Lore Drop | 12 |
+| Two Truths and a Dream | 12 |
+| Alternate Universe Job | 12 |
+| Apocalypse Role | 12 |
+| Pet Peeve Love Letter | 12 |
+| Conspiracy: Us | 12 |
+| Wikipedia: Us | 12 |
+| Theme Song | 12 |
+| Bad Advice | 12 |
+| Villain Origin | 12 |
+| Nudge Wars | 12 |
+| Sound Capsule | 12 |
+| Replay | 12 |
+| Wanted List | 12 |
+| Slow Morning | 12 |
+| Confidence Fit | 12 |
+| Whisper Line | 12 |
+| Scent Memory | 12 |
+| How I Like To Be Held | 12 |
+| That Look | 12 |
+| Flirt Resume | 12 |
+| What I Miss Today | 12 |
+| Date That Never Ends | 12 |
+| Secret Admiration | 12 |
+| After Hours | 12 |
+| Landing Lights | 12 |
+| Rewind | 12 |
+| Rose, Thorn, Seed | 12 |
+| Ordinary Treasure | 12 |
+| Invisible Backpack | 12 |
+| Gentle Signal | 12 |
+| Five-Minute Tradition | 12 |
+| Museum of Us | 12 |
+| Wrong Answers Only | 12 |
+| Couple Mascot | 12 |
+| Tiny Shark Tank | 12 |
+| Plot Twist | 12 |
+| Soundtrack Shuffle | 12 |
+| Emoji Forecast | 12 |
+| Closer Than Words | 12 |
+| Date Trailer | 12 |
+| Favorite Detail | 12 |
+| Green Light Tonight | 12 |
+| Chemistry Recipe | 12 |
+| Doorstep Scene | 12 |
 
 ### Duels — 16
 
@@ -168,7 +168,7 @@ These entries accept open-ended responses. The count is the original authored pr
 
 For Wavelength Duel, choosing 5 questions from 65 gives a mathematical upper space of **8,259,888 unordered packs**, or **991,186,560 ordered packs**. The implementation uses a seeded shuffle; these figures are combinatorial bounds, not a verification that every pack is reachable through its seed generator. Each question has four choices. Both players answer and predict the other across five questions, giving **4²⁰ = 1,099,511,627,776** possible answer/prediction configurations for a fixed pack before scoring. There are only **65 authored questions**, not millions of authored questions.
 
-Counts are derived from the registered entries in `src/features/session/activityRegistry.jsx` and `duelRegistry.jsx`, the definitions in `contentPackData.js`, and the active banks in `expandedPromptData.js`, `connectionGameData.js`, `sealedActivityData.js`, `waveTwoGameData.js`, `waveThreeGameData.js`, `waveFourGameData.js`, and `wavelengthDuelData.js`. Definition descriptions, unused fallback components, collection items, and proposed activities are not counted as extra games.
+Counts are derived from the registered entries in `src/features/session/activityRegistry.jsx` and `duelRegistry.jsx`, the definitions in `contentPackData.js`, and the active banks in `expandedPromptData.js`, `activityPromptExpansion.js`, `connectionGameData.js`, `sealedActivityData.js`, `waveTwoGameData.js`, `waveThreeGameData.js`, `waveFourGameData.js`, and `wavelengthDuelData.js`. Definition descriptions, unused fallback components, collection items, and proposed activities are not counted as extra games.
 
 ## Project layout
 
@@ -183,4 +183,6 @@ Counts are derived from the registered entries in `src/features/session/activity
 
 Local automated checks cover UI/provider logic and Firestore authorization, including simultaneous session creation, email verification, immutable commitments, archived history, and idempotent milestone banking. Isolated two-account browser checks exercise joining once, both consents, shared night creation/resume, scrapbook entries, ceremony receipts, and narrow-screen layouts. Milestone visual checks may use emulator fixtures; they are separate from rule tests of actual night banking. Browser-engine and offline audio rendering checks do not substitute for physical iPhone/iPad playback or a complete real-world night. Deploy both the application and its matching rules before treating this feature as live.
 
-Latest local verification for this feature: **237 UI/logic tests and 31 Firestore rule tests passed**, with lint and production build passing. Chromium and WebKit each completed the two-account flow on desktop and phone-sized viewports. WebKit logged canceled Firestore emulator stream requests during navigation; a separate stability check found no idle-page errors and successfully reopened the saved session. Physical iPhone/iPad audio and production deployment remain unverified.
+Connection-feature verification baseline: **237 UI/logic tests and 31 Firestore rule tests passed**, with lint and production build passing. Chromium and WebKit each completed the two-account flow on desktop and phone-sized viewports. WebKit logged canceled Firestore emulator stream requests during navigation; a separate stability check found no idle-page errors and successfully reopened the saved session. Physical iPhone/iPad audio and production deployment remain unverified.
+
+Prompt expansion verification: **239 UI/logic tests passed**, with lint and production build passing. Registry tests reach all 756 prompts before repeating, retain history across saved nights, and preserve completed prompt/answer payloads. Browser component checks exercise new prompts through both response turns at desktop and 390px widths; no database or rules changes are needed for this expansion.

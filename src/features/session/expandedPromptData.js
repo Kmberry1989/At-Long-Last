@@ -1,3 +1,4 @@
+import { ACTIVITY_PROMPT_EXPANSION } from './activityPromptExpansion.js'
 import { MORE_NIGHT_PROMPTS } from './moreNightPrompts.js'
 import { pickFreshPrompt } from './promptRotation.js'
 
@@ -127,7 +128,10 @@ const ORIGINAL_PROMPT_VARIANTS = {
 }
 
 export const ACTIVITY_PROMPT_VARIANTS = Object.fromEntries(
-  Object.entries(ORIGINAL_PROMPT_VARIANTS).map(([id, prompts]) => [id, [...prompts, ...(MORE_NIGHT_PROMPTS[id] || [])]]),
+  Object.entries(ACTIVITY_PROMPT_EXPANSION).map(([id, prompts]) => [
+    id,
+    [...(ORIGINAL_PROMPT_VARIANTS[id] || []), ...(MORE_NIGHT_PROMPTS[id] || []), ...prompts],
+  ]),
 )
 
 export function pickActivityPrompt(definition, random = Math.random, history = []) {

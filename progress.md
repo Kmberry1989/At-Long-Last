@@ -320,3 +320,13 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Final inventory: 76 activities (13 special + 63 prompt/ritual/journal) and 16 duels. Thirty general activities have 6 prompts, thirty-three have 1. The README contains all individual names/counts and bounded response calculations.
 - Final preview smoke caught a startup error in an unnecessary added debug-hook alias; removed it and retained the existing BoardScene text-state integration. Preview then rendered the board and mood controls with loaded player assets and no errors. Final Chromium two-account rerun passed with no page errors.
 - Final unit result: 37 files / 237 tests passed; Firestore result: 31 passed. Sound now starts the full arrangement when first enabled rather than consuming it silently while a player reads; a focused test covers this delayed opt-in.
+
+## 2026-10-29 — Twelve prompts per general activity
+
+- User request: continue the proposed expansion from 213 prompts toward 12 authored prompts for every general prompt, ritual, and journal activity.
+- Added 543 activity-specific prompts in activityPromptExpansion.js. All 63 general activities now have exactly 12 prompts, totaling 756 globally distinct prompt strings. Existing original questions and prior variants remain in their banks. The 13 specialist activities and 16 duels retain their existing content.
+- Added situational, perspective, memory, and creative-constraint variations without adding unsupported input modes, generated cross-products, remote AI calls, or new gameplay/progression rules. Existing prompt-history rotation and saved in-progress cards are preserved.
+- Updated every affected README inventory row and totals. Its specialist activity/duel counts remain unchanged.
+- Validation: lint/build passed; all 37 unit files / 239 tests passed. Registry coverage reaches all 12 prompts in every general activity before repeating, then selects the least recent. Completion tests preserve new prompts and both answers in scrapbook payloads, including the delayed-opening postcard.
+- Browser QA: actual activity components completed both response turns with new prompts for Comfort Menu, Museum of Us, Green Light Tonight, and Postcard From Next Year at 1440px and 390px, without overflow or page errors. The full local game preview opened Museum of Us with loaded board/player assets and no page errors. Temporary QA HTML was removed. The bundled smoke client's initial click timed out waiting for the animated offscreen Play button; a direct browser run with reduced motion/forced click verified the preview successfully.
+- This expansion remains local and uncommitted; no deployment or backend/rules change was performed.
