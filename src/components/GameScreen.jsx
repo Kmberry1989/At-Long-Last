@@ -14,6 +14,7 @@ import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
 import {
   WAVELENGTH_DUEL_ID,
   getWavelengthPromptsForSession,
+  isWavelengthCommit,
 } from '../features/session/wavelengthDuelData.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { useSynth } from './useSynth.js'
@@ -91,6 +92,8 @@ export function GameScreen() {
     myVibeVote,
     playerIndex,
     readyToPlay,
+    gameOpen,
+    closeGame,
     resumeSession,
     rollTurn,
     selectActivityOption,
@@ -110,7 +113,7 @@ export function GameScreen() {
   const [heartGuideOpen, setHeartGuideOpen] = useState(false)
   const [diceRolling, setDiceRolling] = useState(false)
   const diceSettleTimerRef = useRef(null)
-  const scrapbookMomentCount = getScrapbookMomentCount(journalEntries)
+  const scrapbookMomentCount = getScrapbookMomentCount(journalEntries.filter(entry => entry.sessionId === session?.id))
   const lastMoveKey = session?.lastMove
     ? [
         session.lastMove.playerIndex,
@@ -129,7 +132,7 @@ export function GameScreen() {
   )
   const diceAnimating = diceRolling || syncedRollNeedsAnimation
 
-  useSynth(session)
+  useSynth(session, activity)
 
   const activityEntry = activity ? activityRegistry[activity.type] : null
 
@@ -190,8 +193,8 @@ export function GameScreen() {
       round: session.round,
       scrapbook: {
         count: scrapbookMomentCount,
-        latestTitle: journalEntries[0]?.title || null,
-        latestType: journalEntries[0]?.type || null,
+        latestTitle: journalEntries.find(entry => entry.sessionId === session.id)?.title || null,
+        latestType: journalEntries.find(entry => entry.sessionId === session.id)?.type || null,
       },
       tone: session.vibeWeights
         ? {
@@ -256,15 +259,6 @@ export function GameScreen() {
     setHeartGuideOpen(false)
   }, [session?.phase])
 
-
-  if (!hasPartner || !couple || !readyToPlay || !session) {
-    return null
-  }
-
-  const activePlayer = session.players[session.activePlayerIndex]
-  const ActivityComponent = activityEntry?.render ?? null
-  const duelEntry = session.currentDuel ? duelRegistry[session.currentDuel.id] : null
-  const DuelComponent = duelEntry?.start ?? null
   const wavelengthPrompts = useMemo(
     () =>
       session?.currentDuel?.id === WAVELENGTH_DUEL_ID
@@ -277,6 +271,15 @@ export function GameScreen() {
       session?.currentDuel?.attempt,
     ],
   )
+
+  if (!hasPartner || !couple || !readyToPlay || !session || !gameOpen) {
+    return null
+  }
+
+  const activePlayer = session.players[session.activePlayerIndex]
+  const ActivityComponent = activityEntry?.render ?? null
+  const duelEntry = session.currentDuel ? duelRegistry[session.currentDuel.id] : null
+  const DuelComponent = duelEntry?.start ?? null
   const canChooseActivity = session.phase === 'activityChoice' && session.activePlayerIndex === playerIndex
   const dominantVibe = session.vibeWeights
     ? Object.entries(session.vibeWeights).sort((left, right) => right[1] - left[1])[0]?.[0]
@@ -318,34 +321,8 @@ export function GameScreen() {
     session.phase === 'duel' &&
     session.currentDuel &&
     session.players.length === 2 &&
-    session.players.every((player) => session.duelResults?.[player.uid])
+    session.players.every((player) => session.duelResults?.[player.uid] && !isWavelengthCommit(session.duelResults[player.uid]))
 
-  /**
-   * Shared two-phone state contract: the non-active phone always sees who is
-   * acting, what is private, and what happens next — never a dead spinner.
-   */
-  function renderPlayState() {
-    if (isSessionStale) {
-      return <PartnerAwayState />
-    }
-
-    if (session.phase === 'turn') {
-      if (canRoll) {
-        return <ActiveTurnState hint="One roll, then your partner takes over." />
-      }
-
-      return (
-        <WaitingState
-          actorName={activePlayer?.displayName || 'Your partner'}
-          activityVerb="taking their turn"
-          nextHint="You are up right after their roll."
-          privateNote="Private: their card stays hidden until it lands on the board."
-        />
-      )
-    }
-
-    return null
-  }
   const momentumCards = ['tender', 'playful', 'spicy'].map((vibe) => ({
     active: Boolean(session.momentum?.unlocked?.[vibe] && !session.momentum?.consumed?.[vibe]),
     label: capitalize(vibe),
@@ -394,7 +371,8 @@ export function GameScreen() {
   }
 
   return (
-    <section className="screen active game-screen">
+    <section className={`screen active game-screen${gameplayOverlayOpen ? ' has-gameplay-overlay' : ''}`}>
+      <button className="game-home-btn ghost-btn" onClick={closeGame} type="button">Home</button>
       <div className="board-wrap">
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
           <BoardScene
@@ -441,12 +419,13 @@ export function GameScreen() {
             <span>Book</span><strong>▤ {scrapbookMomentCount}</strong>
           </button>
         </div>
-        <ChecklistRail session={session} />
-        <div className="hud momentum-hud">
+        <details className="night-details">
+          <summary>Tonight’s details</summary>
+          <ChecklistRail session={session} />
+        <div className="momentum-hud">
           <div className="spotlight-banner">
             <span className="spotlight-kicker">✦ Next</span>
             <strong>{session.spotlight?.label}</strong>
-            <p>{session.spotlight?.description}</p>
           </div>
           <div className="momentum-row">
             {momentumCards.map((card) => (
@@ -463,7 +442,7 @@ export function GameScreen() {
             ))}
           </div>
         </div>
-        <div className="hud players">
+        <div className="players">
           {session.players.map((player, index) => (
             <div
               key={player.uid}
@@ -474,6 +453,7 @@ export function GameScreen() {
             </div>
           ))}
         </div>
+        </details>
         {!gameplayOverlayOpen && (
           <div className="bottom-tray">
             {renderPlayState()}
@@ -601,7 +581,7 @@ export function GameScreen() {
             <p className="eyebrow">Momentum Pick</p>
             <h3>Choose The Next Beat</h3>
             <p className="support-copy">
-              Playful momentum opened two options. {canChooseActivity ? 'Pick one and open it together.' : 'Waiting for the active phone to choose.'}
+              {canChooseActivity ? 'Choose one together.' : 'Waiting for the active phone.'}
             </p>
             <div className="activity-option-grid">
               {activityOptions.map((option) => (
@@ -629,6 +609,7 @@ export function GameScreen() {
         <div className="overlay-screen">
           <ActivityComponent
             activity={activity}
+            error={error}
             disabled={activity.state.turnIndex !== playerIndex || working}
             onSkip={() => {
               playAction?.()
@@ -640,15 +621,22 @@ export function GameScreen() {
           />
         </div>
       )}
+      {!diceAnimating && session.phase === 'activity' && !activity && (
+        <div className="overlay-screen">
+          <div className="overlay-card" role="status">
+            <h3>Opening your next moment…</h3>
+            {error && <p className="error-copy">{error}</p>}
+            {error && <button className="primary-btn" onClick={() => window.location.reload()} type="button">Reconnect</button>}
+          </div>
+        </div>
+      )}
 
       {!diceAnimating && session.phase === 'duelWheel' && (
         <div className="overlay-screen">
           <div className="overlay-card">
             <p className="eyebrow">Round Duel</p>
-            <h3>Spin For The Head-To-Head</h3>
-            <p className="support-copy">
-              This round is worth {3 + session.roundDuelBonus} shared hearts.
-            </p>
+            <h3>Spin the wheel</h3>
+            <p className="support-copy">+{3 + session.roundDuelBonus} shared hearts.</p>
             <div className="wheel-preview">
               {['tender', 'playful', 'spicy'].map((vibe) => (
                 <span key={vibe}>
@@ -685,12 +673,15 @@ export function GameScreen() {
               session={session}
             />
           ) : myDuelResult ? (
+            <div>
             <WaitingState
               actorName={otherPlayerName}
               activityVerb="locking in their answer"
               nextHint="The reveal opens when both answers are in."
               privateNote="Private: answers stay hidden until the reveal."
             />
+            {error && <p className="error-copy" role="alert">{error}</p>}
+            </div>
           ) : (
             <DuelComponent
               disabled={working}
@@ -781,6 +772,7 @@ export function GameScreen() {
 
       <Suspense fallback={null}>
         <JournalDrawer
+          sessionId={session.id}
           entries={journalEntries}
           onClose={() => startTransition(() => setJournalOpen(false))}
           open={journalOpen}
@@ -791,15 +783,13 @@ export function GameScreen() {
         <div className="overlay-screen heart-guide-overlay">
           <div className="overlay-card heart-guide-card">
             <p className="eyebrow">No Scoreboard</p>
-            <h3>One stash, shared by both of you.</h3>
-            <p className="support-copy">
-              Hearts are a keepsake currency, not points and not a player-versus-player score.
-            </p>
+            <h3>One shared stash.</h3>
+            <p className="support-copy">Hearts buy keepsakes. They are not a score.</p>
             <div className="heart-rule-list">
-              <div><strong>Start</strong><span>Begin every night with 6 shared hearts.</span></div>
-              <div><strong>Earn</strong><span>Connection moments, duels, heart spaces, and spotlights add to the same stash.</span></div>
-              <div><strong>Spend</strong><span>Only keepsakes cost hearts, and their perks help both players.</span></div>
-              <div><strong>Finish</strong><span>The scrapbook is the outcome. Nobody wins the night overall.</span></div>
+              <div><strong>Start</strong><span>6 shared hearts.</span></div>
+              <div><strong>Earn</strong><span>Moments and duels add hearts.</span></div>
+              <div><strong>Spend</strong><span>Keepsakes help both players.</span></div>
+              <div><strong>Finish</strong><span>The scrapbook is the keepsake.</span></div>
             </div>
             <button
               className="primary-btn"

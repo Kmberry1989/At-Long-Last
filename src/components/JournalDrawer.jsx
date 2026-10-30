@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
 import { JournalTimeline } from './JournalTimeline.jsx'
+import { PairingStory } from './Milestones.jsx'
+import { useAudio } from '../audio/AudioProvider.jsx'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -25,40 +27,62 @@ function matchesFilter(entry, filterId) {
   return entry.type !== 'finale'
 }
 
-export function JournalDrawer({ entries, open, onClose }) {
+export function JournalDrawer({ entries, open, onClose, sessionId }) {
+  const { setScrapbookOpen } = useAudio() || {}
   const [activeFilter, setActiveFilter] = useState('all')
+  const [nightScope, setNightScope] = useState('tonight')
+  useEffect(() => { setNightScope('tonight') }, [sessionId])
+  const scopedEntries = useMemo(
+    () => sessionId && nightScope === 'tonight' ? entries.filter(entry => entry.sessionId === sessionId) : entries,
+    [entries, nightScope, sessionId],
+  )
   const drawerRef = useRef(null)
-  const finaleEntry = entries.find((entry) => entry.type === 'finale')
-  const momentsCount = getScrapbookMomentCount(entries)
-  const duelCount = entries.filter((entry) => entry.type === 'duel').length
-  const keepsakeCount = entries.filter((entry) => entry.type === 'keepsake').length
+  useEffect(() => {
+    setScrapbookOpen?.(open)
+    return () => setScrapbookOpen?.(false)
+  }, [open, setScrapbookOpen])
+  const finaleEntry = scopedEntries.find((entry) => entry.type === 'finale')
+  const momentsCount = getScrapbookMomentCount(scopedEntries)
+  const duelCount = scopedEntries.filter((entry) => entry.type === 'duel').length
+  const keepsakeCount = scopedEntries.filter((entry) => entry.type === 'keepsake').length
   const headline = finaleEntry?.payload?.headline || 'Every good round deserves its own page.'
   const supportCopy =
     finaleEntry?.payload?.coda ||
     'Activities, duels, and keepsakes land here as little artifacts instead of one flat summary feed.'
   const filteredEntries = useMemo(
-    () => entries.filter((entry) => matchesFilter(entry, activeFilter)),
-    [activeFilter, entries],
+    () => scopedEntries.filter((entry) => matchesFilter(entry, activeFilter)),
+    [activeFilter, scopedEntries],
   )
 
   useEffect(() => {
     if (open) {
-      drawerRef.current?.scrollTo({ top: 0 })
+      drawerRef.current?.scrollTo?.({ top: 0 })
     }
   }, [open])
 
   return (
-    <aside className={`journal-drawer${open ? ' open' : ''}`} ref={drawerRef}>
+    <aside aria-hidden={!open} inert={!open} className={`journal-drawer${open ? ' open' : ''}`} ref={drawerRef}>
       <div className="journal-header">
         <div className="journal-heading">
           <p className="eyebrow">Shared Scrapbook</p>
-          <h3>What You Made Tonight</h3>
+          <h3>{nightScope === 'all' ? 'Your Nights Together' : 'What You Made Tonight'}</h3>
           <p className="support-copy">{headline}</p>
         </div>
         <button className="ghost-btn" onClick={onClose} type="button">
           Back To Board
         </button>
       </div>
+      <PairingStory />
+      {sessionId && <details className="scrapbook-night-picker">
+        <summary>{nightScope === 'tonight' ? 'Tonight' : 'All nights'} · Change view</summary>
+        <label>
+          <span>Scrapbook night</span>
+          <select aria-label="Scrapbook night" value={nightScope} onChange={event => setNightScope(event.target.value)}>
+            <option value="tonight">Tonight</option>
+            <option value="all">All nights</option>
+          </select>
+        </label>
+      </details>}
       <div className="scrapbook-overview">
         <div className="scrapbook-overview-copy">
           <strong>Saved for later</strong>

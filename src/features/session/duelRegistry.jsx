@@ -658,6 +658,7 @@ function buildRegistryEntry(definition) {
   return {
     ...definition,
     durationMs: definition.durationSec * 1000,
+    resolveHearts: mapping.resolveHearts,
     resolveTie: mapping.resolveTie,
     start: function DuelStart(props) {
       const Component = mapping.component

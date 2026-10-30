@@ -331,6 +331,17 @@ describe('sessionLogic', () => {
     expect(summary.momentumLabels).toContain('Double pick armed')
     expect(summary.momentumLabels).toContain('Soft landing armed')
   })
+  it('keeps previous nights out of the current finale count and vibe goals', () => {
+    const session = { ...buildReadySession({ preset: 'quick' }), id: 'new-night' }
+    const summary = buildFinalSummary(session, [
+      { type: 'journal', sessionId: 'new-night', vibe: 'tender' },
+      { type: 'journal', sessionId: 'old-night', vibe: 'playful' },
+      { type: 'journal', sessionId: 'old-night', vibe: 'spicy' },
+      { type: 'finale', sessionId: 'old-night' },
+    ])
+    expect(summary.journalCount).toBe(1)
+    expect(summary.goals.find(goal => goal.id === 'vibeSampler')).toMatchObject({ completed: false })
+  })
 })
 
 describe('night checklist and moods', () => {

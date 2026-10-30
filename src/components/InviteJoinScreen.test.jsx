@@ -44,10 +44,10 @@ describe('InviteJoinScreen', () => {
       <InviteJoinScreen {...baseProps} onJoin={onJoin} />,
     )
 
-    expect(await screen.findByText("Robin's room")).toBeTruthy()
+    expect(await screen.findByText("Connect with Robin")).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeTruthy()
 
-    const joinButton = screen.getByRole('button', { name: /Join room/ })
+    const joinButton = screen.getByRole('button', { name: /Connect/ })
     expect(joinButton).toBeDisabled()
 
     rerender(
@@ -59,7 +59,7 @@ describe('InviteJoinScreen', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Join room/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Connect/ }))
     expect(onJoin).toHaveBeenCalledWith('Alex')
   })
 
@@ -87,7 +87,7 @@ describe('InviteJoinScreen', () => {
 
     render(<InviteJoinScreen {...baseProps} onUseCodeInstead={onUseCodeInstead} />)
 
-    expect(await screen.findByText("Robin's room")).toBeTruthy()
+    expect(await screen.findByText("Connect with Robin")).toBeTruthy()
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Use code' }),

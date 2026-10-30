@@ -1,3 +1,7 @@
+import { NIGHT_CHOICE_QUESTIONS, EXTRA_VAULT_PROMPTS } from './nightQuestionBank.js'
+
+const choicePrompts = NIGHT_CHOICE_QUESTIONS.map(({ text, ...question }) => ({ ...question, prompt: text }))
+
 export const MIND_MELD_PROMPTS = [
   {
     id: 'movie-trope',
@@ -59,9 +63,40 @@ export const MIND_MELD_PROMPTS = [
       { id: 'anthem', label: 'Full-volume anthem' },
     ],
   },
+  ...choicePrompts,
 ]
 
 export const PREDICTION_BOX_PROMPTS = [
+  {
+    id: 'surprise-date-original',
+    prompt: 'Which surprise date would your partner choose first?',
+    options: [
+      { id: 'reservation', label: 'A secret reservation' },
+      { id: 'drive', label: 'A mystery drive' },
+      { id: 'living-room', label: 'A transformed living room' },
+      { id: 'morning-note', label: 'A note in the morning' },
+    ],
+  },
+  {
+    id: 'tiny-rescue',
+    prompt: 'What would make your partner’s day easier right now?',
+    options: [
+      { id: 'task', label: 'Take one task off their plate' },
+      { id: 'company', label: 'Stay close, no advice needed' },
+      { id: 'laugh', label: 'Send something ridiculous' },
+      { id: 'space', label: 'Give them a quiet hour' },
+    ],
+  },
+  {
+    id: 'unlikely-duo',
+    prompt: 'Which business would your partner start with you for fun?',
+    options: [
+      { id: 'cafe', label: 'A tiny café' },
+      { id: 'rescue', label: 'An animal sanctuary' },
+      { id: 'shop', label: 'A wonderfully odd shop' },
+      { id: 'travel', label: 'A traveling food truck' },
+    ],
+  },
   {
     id: 'surprise-date',
     prompt: 'Which opening would feel most like the perfect surprise date?',
@@ -112,6 +147,7 @@ export const PREDICTION_BOX_PROMPTS = [
       { id: 'wanted', label: 'I still choose you' },
     ],
   },
+  ...choicePrompts,
 ]
 
 export const VAULT_PROMPTS = [
@@ -131,6 +167,7 @@ export const VAULT_PROMPTS = [
     id: 'future-thank-you',
     prompt: 'Write a thank-you note to the version of your partner who reaches the finale.',
   },
+  ...EXTRA_VAULT_PROMPTS,
 ]
 
 export const CONNECTION_ACTIVITY_DEFINITIONS = [

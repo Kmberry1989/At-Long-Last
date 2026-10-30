@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { duelIds, duelRegistry, resolveTieByTime } from './duelRegistry.jsx'
 
 describe('duelRegistry', () => {
+  it('exposes the prediction-based heart reward to the reveal and session resolver', () => {
+    const perfect = { excerpt: 'a=aaaaa;g=aaaaa' }
+    expect(duelRegistry['wavelength-duel'].resolveHearts(perfect, perfect)).toBe(10)
+    expect(duelRegistry['wavelength-duel'].resolveHearts(perfect, { excerpt: 'a=bbbbb;g=bbbbb' })).toBe(2)
+  })
   it('contains the full 16-item duel pack with unique ids', () => {
     expect(duelIds).toHaveLength(16)
     expect(new Set(duelIds).size).toBe(16)

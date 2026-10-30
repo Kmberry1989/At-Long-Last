@@ -88,7 +88,7 @@ export function InviteJoinScreen({
       ) : (
         <>
           <p className="eyebrow">Invite</p>
-          <h2>{room.hostName}&apos;s room</h2>
+          <h2>Connect with {room.hostName}</h2>
 
           <div className="invite-join-field">
             <label className="sr-only" htmlFor="invite-nickname">Name</label>
@@ -115,7 +115,7 @@ export function InviteJoinScreen({
               onClick={handleJoin}
               type="button"
             >
-              Join room
+              Connect
             </button>
           </div>
           <button

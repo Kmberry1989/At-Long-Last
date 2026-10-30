@@ -1,3 +1,5 @@
+import { EXTRA_CANVAS_PROMPTS } from './moreNightPrompts.js'
+
 export const DUAL_AXIS_MAZES = [
   {
     goal: { x: 4, y: 0 },
@@ -38,6 +40,7 @@ export const DUAL_AXIS_MAZES = [
 ]
 
 export const BLIND_CANVAS_PROMPTS = [
+  ...EXTRA_CANVAS_PROMPTS,
   {
     id: 'cozy-cabin',
     prompt: 'A cozy cabin in the woods',
@@ -75,6 +78,11 @@ export const HARMONIC_LOCK_ROUNDS = [
     prompt: 'Settle into the softest shared hum.',
     target: 52,
   },
+  ...[
+    ['porcelain', 'Porcelain', 28], ['moon-glass', 'Moon glass', 44],
+    ['copper-light', 'Copper light', 61], ['evening-hum', 'Evening hum', 76],
+    ['little-lantern', 'Little lantern', 83],
+  ].map(([id, label, target]) => ({ id, label, target, prompt: 'Let the glow guide you toward a steady shared resonance.' })),
 ]
 
 export const WAVE_THREE_ACTIVITY_DEFINITIONS = [

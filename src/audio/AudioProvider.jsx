@@ -1,3 +1,4 @@
+import { playMomentScore } from './commitScore.js'
 import {
   createContext,
   useCallback,
@@ -318,6 +319,7 @@ export function createAudioEngine(suppliedContext = null) {
 
   return {
     ensureReady,
+    get context() { return context },
     scheduleTick: scheduleScoreTick,
     setBassStyle(style) { bassStyle = style === 'walking' ? 'walking' : 'held' },
     get muted() {
@@ -419,6 +421,7 @@ export function AudioProvider({ children }) {
   const themeRef = useRef(musicTheme)
   const bassRef = useRef(bassStyle)
   const desiredStageRef = useRef('menu')
+  const celebratingRef = useRef(false)
   const [muted, setMuted] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
 
@@ -426,7 +429,7 @@ export function AudioProvider({ children }) {
     const main = engineRef.current
     if (!main?.unlocked) return
     const activeTheme = scrapbookOpenRef.current ? 'original' : themeRef.current
-    const mainMuted = mutedRef.current || activeTheme !== 'continuous'
+    const mainMuted = celebratingRef.current || mutedRef.current || activeTheme !== 'continuous'
     if (main.muted !== mainMuted) main.setMuted(mainMuted)
     if (activeTheme === 'original' && !mutedRef.current && !keepsakeEngineRef.current) {
       keepsakeEngineRef.current = createKeepsakeAudioEngine()
@@ -445,7 +448,7 @@ export function AudioProvider({ children }) {
         engine.setStage(nextStage)
         archiveStageRef.current[name] = nextStage
       }
-      const shouldMute = mutedRef.current || activeTheme !== name
+      const shouldMute = celebratingRef.current || mutedRef.current || activeTheme !== name
       if (engine.muted !== shouldMute) engine.setMuted(shouldMute)
     }
     if (import.meta.env.DEV) window.__atLongLastSoundtrack = activeTheme
@@ -530,6 +533,14 @@ export function AudioProvider({ children }) {
       playError: () => getExistingEngine()?.playError(),
       playPhase: (phase) => getExistingEngine()?.playPhase(phase),
       playSuccess: () => getExistingEngine()?.playSuccess(),
+      playCelebration: (kind) => {
+        const engine = ensureEngine()
+        if (!engine?.context) return null
+        celebratingRef.current = true
+        syncTracks()
+        const score = playMomentScore(engine.context, kind, mutedRef.current)
+        return { ...score, stop: () => { score.stop(); celebratingRef.current = false; syncTracks() } }
+      },
       setStage: (stage) => {
         desiredStageRef.current = stage
         engineRef.current?.setStage(stage)

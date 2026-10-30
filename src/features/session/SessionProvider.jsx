@@ -19,7 +19,8 @@ import {
 } from './journalHelpers.js'
 import { KEEPSAKES } from './boardConfig.js'
 import { duelRegistry } from './duelRegistry.jsx'
-import { WAVELENGTH_DUEL_ID } from './wavelengthDuelData.js'
+import { WAVELENGTH_DUEL_ID, isWavelengthCommit } from './wavelengthDuelData.js'
+import { commitChoice, verifyChoice } from './choiceCommitment.js'
 import {
   advanceAfterDuel,
   applyMoodSeedToWeights,
@@ -104,9 +105,10 @@ function buildPreviewJournalRecord(entry, prefix, index) {
   }
 }
 
-function createActivityState(entry, session, random = Math.random) {
+function createActivityState(entry, session, history = [], random = Math.random) {
   return entry.createInitialState(session.players, {
     activePlayerIndex: session.activePlayerIndex,
+    history,
     random,
   })
 }
@@ -150,8 +152,13 @@ function getSkippedDuelOutcome(session) {
   return { status: 'repick' }
 }
 
+import { beginPairingNight } from '../couple/pairingService.js'
+
 export function SessionProvider({ children }) {
   const { couple, hasPartner } = useCouple()
+  const [openCoupleId, setOpenCoupleId] = useState(null)
+  const [sessionAttempt, setSessionAttempt] = useState(0)
+
   const { db, enabled, ready, userId } = useFirebaseApp()
   const [session, setSession] = useState(null)
   const [activity, setActivity] = useState(null)
@@ -187,6 +194,22 @@ export function SessionProvider({ children }) {
     () => (localUserId ? session?.duelResults?.[localUserId] ?? null : null),
     [localUserId, session?.duelResults],
   )
+  const openingWavelengthRef = useRef(false)
+  useEffect(() => {
+    if (!enabled || !db || !userId || session?.phase !== 'duel' || session.currentDuel?.id !== WAVELENGTH_DUEL_ID || !isWavelengthCommit(myDuelResult) || openingWavelengthRef.current) return
+    if (!session.players.every(player => session.duelResults?.[player.uid])) return
+    const key = `at-long-last:duel:${session.id}:${session.round}:${session.currentDuel.attempt}:${userId}`
+    openingWavelengthRef.current = true
+    ;(async () => {
+      try {
+        const record = JSON.parse(sessionStorage.getItem(key) || 'null')
+        if (!record || !await verifyChoice({ answerId: record.result.excerpt, nonce: record.nonce }, myDuelResult.excerpt.slice(2))) throw new Error('Return to the tab where you locked your guesses to open this reveal.')
+        await updateDoc(doc(db, 'sessions', session.id), { [`duelResults.${userId}`]: record.result, updatedAt: serverTimestamp() })
+        sessionStorage.removeItem(key)
+      } catch (nextError) { setError(nextError.message) }
+      finally { openingWavelengthRef.current = false }
+    })()
+  }, [db, enabled, myDuelResult, session, userId])
   const myVibeVote = useMemo(
     () => (localUserId ? session?.vibeVotes?.[localUserId] ?? null : null),
     [localUserId, session?.vibeVotes],
@@ -199,6 +222,26 @@ export function SessionProvider({ children }) {
   useEffect(() => {
     setBoardState(couple?.boardState || createDefaultBoardState())
   }, [couple?.boardState])
+
+  const gameOpen = !enabled || Boolean(couple?.id && openCoupleId === couple.id)
+  useEffect(() => { if (!couple?.id) setOpenCoupleId(null) }, [couple?.id])
+
+  function openGame() {
+    setError('')
+    setSessionAttempt((attempt) => attempt + 1)
+    setOpenCoupleId(couple?.id || null)
+  }
+  function closeGame() { setOpenCoupleId(null) }
+  async function beginNight(preset = couple?.sessionPreset) {
+    if (!couple?.id || working) return
+    setWorking(true)
+    setError('')
+    try {
+      if (enabled) await beginPairingNight({ db, coupleId: couple.id, preset })
+      setOpenCoupleId(couple.id)
+    } catch (nextError) { setError(nextError.message) }
+    finally { setWorking(false) }
+  }
 
   useEffect(() => {
     if (!enabled && couple && hasPartner) {
@@ -216,13 +259,8 @@ export function SessionProvider({ children }) {
       return undefined
     }
 
-    if (!enabled || !db || !couple || !hasPartner || !isHost || couple.activeSessionId) {
-      return undefined
-    }
-
-    ensureActiveSession(db, couple).catch((nextError) => setError(nextError.message))
     return undefined
-  }, [couple, db, enabled, hasPartner, isHost])
+  }, [couple, enabled, hasPartner])
 
   useEffect(() => {
     if (
@@ -255,7 +293,7 @@ export function SessionProvider({ children }) {
     })
     setActivity({
       id: `preview-${activityType}`,
-      state: createActivityState(entry, session, () => 0),
+      state: createActivityState(entry, session, journalEntries, () => 0),
       type: activityType,
       vibe: entry.vibe,
     })
@@ -279,7 +317,15 @@ export function SessionProvider({ children }) {
       },
       (nextError) => setError(nextError.message),
     )
-  }, [couple?.activeSessionId, db, enabled])
+  }, [couple?.activeSessionId, db, enabled, sessionAttempt])
+
+  // When a live night closes out, bank it into the couple's lifetime
+  useEffect(() => {
+    if (!enabled || !db || !isHost || session?.phase !== 'activity' || session.pendingActivityId || !session.pendingActivityType) return
+    const entry = activityRegistry[session.pendingActivityType]
+    if (!entry) return
+    createActivityRecord(db, session, entry.id, createActivityState(entry, session, journalEntries)).catch(nextError => setError(nextError.message))
+  }, [db, enabled, isHost, session?.id, session?.phase, session?.pendingActivityId, session?.pendingActivityType])
 
   // When a live night closes out, bank it into the couple's lifetime
   // progress exactly once: hearts, streaks, freeze tokens, trophies, and
@@ -316,6 +362,7 @@ export function SessionProvider({ children }) {
         }
 
         const banked = await recordNightComplete(db, couple.id, {
+          players: couple.players,
           buildEntries: (events) =>
             [
               ...buildProgressJournalEntries({
@@ -479,6 +526,7 @@ export function SessionProvider({ children }) {
     ) {
       return
     }
+    if (Object.values(session.duelResults || {}).some(isWavelengthCommit)) return
 
     const skippedOutcome = getSkippedDuelOutcome(session)
     const bothSubmittedOutcome = skippedOutcome || evaluateDuelRound(session, duelRegistry)
@@ -629,7 +677,7 @@ export function SessionProvider({ children }) {
             id: 'preview-activity',
             type: nextSession.pendingActivityType,
             vibe: entry.vibe,
-            state: createActivityState(entry, session),
+            state: createActivityState(entry, session, journalEntries),
           })
         }
         return
@@ -643,7 +691,7 @@ export function SessionProvider({ children }) {
           db,
           session,
           nextSession.pendingActivityType,
-          createActivityState(entry, session),
+          createActivityState(entry, session, journalEntries),
         )
       }
     } catch (nextError) {
@@ -671,7 +719,7 @@ export function SessionProvider({ children }) {
           id: 'preview-activity',
           type: activityType,
           vibe: entry.vibe,
-          state: createActivityState(entry, session),
+            state: createActivityState(entry, session, journalEntries),
         })
         return
       }
@@ -682,7 +730,7 @@ export function SessionProvider({ children }) {
         db,
         session,
         activityType,
-        createActivityState(entry, session),
+        createActivityState(entry, session, journalEntries),
       )
     } catch (nextError) {
       setError(nextError.message)
@@ -706,6 +754,7 @@ export function SessionProvider({ children }) {
             buildPreviewJournalRecord(
               {
                 payload: session.pendingKeepsake,
+                sessionId: session.id,
                 summary: `You spent ${session.pendingKeepsake.cost} hearts on ${session.pendingKeepsake.label}.`,
                 text: session.pendingKeepsake.blurb,
                 title: session.pendingKeepsake.label,
@@ -721,10 +770,8 @@ export function SessionProvider({ children }) {
         return
       }
 
-      await updateSessionState(db, session.id, nextSession)
-
-      if (shouldBuy && session.pendingKeepsake && session.hearts >= session.pendingKeepsake.cost) {
-        await appendJournalEntry(db, {
+      const keepsakeEntry = shouldBuy && session.pendingKeepsake && session.hearts >= session.pendingKeepsake.cost
+        ? {
           coupleId: couple.id,
           payload: session.pendingKeepsake,
           summary: `You spent ${session.pendingKeepsake.cost} hearts on ${session.pendingKeepsake.label}.`,
@@ -732,8 +779,9 @@ export function SessionProvider({ children }) {
           title: session.pendingKeepsake.label,
           type: 'keepsake',
           vibe: 'tender',
-        })
-      }
+        }
+        : null
+      await updateSessionStateWithJournal(db, session.id, nextSession, [keepsakeEntry], 'keepsake')
     } catch (nextError) {
       setError(nextError.message)
     } finally {
@@ -837,6 +885,10 @@ export function SessionProvider({ children }) {
     }
 
     const entry = activityRegistry[activity.type]
+    if (activity.state.phase === 'opening' && activity.state.commitments) {
+      const valid = await verifyChoice(input, activity.state.commitments[String(playerIndex)]).catch(() => false)
+      if (!valid) { setError('That reveal does not match the locked choice. Return to the tab where you chose.'); return }
+    }
     const advanced = entry.advance(activity.state, {
       input,
       playerIndex,
@@ -1115,8 +1167,15 @@ export function SessionProvider({ children }) {
 
     setWorking(true)
     try {
+      let wireResult = result
+      if (session.currentDuel.id === WAVELENGTH_DUEL_ID && !result.skipped) {
+        const commitment = await commitChoice(result.excerpt)
+        const key = `at-long-last:duel:${session.id}:${session.round}:${session.currentDuel.attempt}:${userId}`
+        sessionStorage.setItem(key, JSON.stringify({ result, nonce: commitment.nonce }))
+        wireResult = { ...result, excerpt: `h=${commitment.commitment}` }
+      }
       await updateDoc(doc(db, 'sessions', session.id), {
-        [`duelResults.${userId}`]: result,
+        [`duelResults.${userId}`]: wireResult,
         updatedAt: serverTimestamp(),
       })
     } catch (nextError) {
@@ -1161,7 +1220,7 @@ export function SessionProvider({ children }) {
     try {
       if (!enabled) {
         setActivity(null)
-        setSession(buildInitialSession(couple))
+        setSession({ ...buildInitialSession(couple), id: `preview-${crypto.randomUUID()}` })
         return
       }
 
@@ -1184,10 +1243,22 @@ export function SessionProvider({ children }) {
     }
   }
 
-  function resumeSession() {
+  async function resumeSession() {
     setError('')
     if (enabled) {
-      setConnectionState('live')
+      if (!db || !session?.id || working) return
+      setWorking(true)
+      try {
+        if (session.status === 'active') {
+          await updateDoc(doc(db, 'sessions', session.id), {
+            lastActionAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        }
+        setConnectionState('live')
+      } catch (nextError) {
+        setError(nextError.message)
+      } finally { setWorking(false) }
     }
   }
 
@@ -1202,6 +1273,10 @@ export function SessionProvider({ children }) {
   const value = useMemo(
     () => ({
       ackDuelReveal,
+      gameOpen,
+      openGame,
+      closeGame,
+      beginNight,
       activity,
       boardState,
       canRecoverSession,
@@ -1242,6 +1317,7 @@ export function SessionProvider({ children }) {
     }),
     [
       ackDuelReveal,
+      gameOpen,
       activity,
       boardState,
       canRecoverSession,

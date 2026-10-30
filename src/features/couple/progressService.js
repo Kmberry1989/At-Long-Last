@@ -13,6 +13,8 @@ import {
   where,
 } from 'firebase/firestore'
 
+import { momentId, momentPayload } from './milestoneService.js'
+
 export const BASE_THEME_CARDS = [
   { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy' },
   { art: '/assets/themes/tabletop-secret-garden.webp', id: 'garden', label: 'Garden' },
@@ -329,7 +331,7 @@ async function transactProgress(db, coupleId, mutate) {
 export async function recordNightComplete(
   db,
   coupleId,
-  { buildEntries = () => [], dateStr, heartsEarned, sessionId, stats },
+  { buildEntries = () => [], dateStr, heartsEarned, sessionId, stats, players = [] },
 ) {
   const progressRef = doc(db, 'coupleProgress', coupleId)
 
@@ -361,6 +363,12 @@ export async function recordNightComplete(
       transaction.update(progressRef, payload)
     } else {
       transaction.set(progressRef, payload)
+    }
+
+    if (players.length === 2) {
+      for (const event of events.filter((item) => item.type === 'milestone')) {
+        transaction.set(doc(db, 'pairingMoments', momentId(coupleId, 'night', event.nights)), momentPayload({ id: coupleId, players }, 'night', event.nights))
+      }
     }
 
     // Milestone and trophy journal entries ride in the same transaction, with

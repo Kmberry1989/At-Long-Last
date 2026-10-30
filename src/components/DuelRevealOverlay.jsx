@@ -58,6 +58,8 @@ function WavelengthScorecard({ duelResults, players, prompts }) {
       <p className="duel-scorecard-tally" aria-live="polite">
         {matches}/{total} on the same wavelength
       </p>
+      <details className="reveal-details">
+      <summary>See answers · {matches}/{total} guesses</summary>
       <ol className="duel-scorecard-rows">
         {rows.map((row, index) => (
           <li className="duel-scorecard-row" key={row.prompt.id}>
@@ -73,6 +75,7 @@ function WavelengthScorecard({ duelResults, players, prompts }) {
           </li>
         ))}
       </ol>
+      </details>
     </div>
   )
 }
@@ -130,7 +133,7 @@ export function DuelRevealOverlay({
   const duelResults = session.duelResults || {}
   const myUid = players[playerIndex]?.uid
   const partner = players[playerIndex === 0 ? 1 : 0]
-  const acks = duel?.revealAcks || {}
+  const acks = session.currentDuel?.revealAcks || {}
   const myAcked = myUid ? acks[myUid] === true : false
   const partnerAcked = partner?.uid ? acks[partner.uid] === true : false
 

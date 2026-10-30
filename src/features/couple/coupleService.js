@@ -10,6 +10,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore'
+import { acceptPairingInvite } from './pairingService.js'
 import { getSessionPreset, DEFAULT_SESSION_PRESET } from '../session/sessionPresets.js'
 import { createDefaultBoardState } from '../session/sessionWiring.js'
 import {
@@ -107,7 +108,7 @@ export function buildCreateCouplePayload({
   }
 }
 
-export function buildInviteLookupPayload({ coupleId, hostAvatar = null, hostName = '' }) {
+export function buildInviteLookupPayload({ coupleId, hostAvatar = null, hostName = '', hostId = null }) {
   const payload = {
     coupleId,
   }
@@ -115,6 +116,7 @@ export function buildInviteLookupPayload({ coupleId, hostAvatar = null, hostName
   if (hostName) {
     payload.hostName = hostName.trim().slice(0, 60)
   }
+  if (hostId) payload.hostId = hostId
 
   if (hostAvatar) {
     payload.hostAvatar = resolvePlayerAvatar(hostAvatar)
@@ -276,6 +278,7 @@ export async function createCoupleDocument({
         transaction.set(inviteRef, {
           ...buildInviteLookupPayload({
             coupleId: coupleRef.id,
+            hostId: userId,
             hostAvatar: payload.players[0].avatar,
             hostName: displayName,
           }),
@@ -322,32 +325,7 @@ export async function joinCoupleByInviteCode({
   displayName,
   userId,
 }) {
-  const normalized = normalizeInviteCode(code)
-  const inviteSnapshot = await getDoc(doc(db, 'coupleInvites', normalized))
-  if (!inviteSnapshot.exists()) {
-    throw new Error('Invite code not found.')
-  }
-
-  const coupleId = inviteSnapshot.data().coupleId
-  const lobbySnapshot = await getDoc(doc(db, 'publicLobbies', coupleId))
-
-  if (lobbySnapshot.exists()) {
-    return joinOpenLobby({
-      avatar,
-      db,
-      displayName,
-      lobby: { id: lobbySnapshot.id, ...lobbySnapshot.data() },
-      userId,
-    })
-  }
-
-  return joinPrivateCouple({
-    avatar,
-    coupleId,
-    db,
-    displayName,
-    userId,
-  })
+  return acceptPairingInvite({ avatar, code, db, displayName, userId })
 }
 
 export async function joinPublicLobby({
@@ -387,56 +365,6 @@ export function buildJoinPrivateCouplePatch(couple, { avatar, displayName, userI
     ],
     status: 'paired',
   }
-}
-
-async function joinPrivateCouple({
-  avatar,
-  coupleId,
-  db,
-  displayName,
-  userId,
-}) {
-  const coupleRef = doc(db, 'couples', coupleId)
-  const playerLinkRef = doc(db, 'playerCouples', userId)
-
-  await runTransaction(db, async (transaction) => {
-    const snapshot = await transaction.get(coupleRef)
-
-    if (!snapshot.exists()) {
-      throw new Error('That room is no longer open.')
-    }
-
-    const couple = { id: snapshot.id, ...snapshot.data() }
-
-    if (
-      couple.status !== 'waiting' ||
-      couple.playerIds.length !== 1 ||
-      couple.playerIds[0] === userId ||
-      couple.activeSessionId
-    ) {
-      throw new Error('That room is no longer joinable.')
-    }
-
-    const patch = buildJoinPrivateCouplePatch(couple, {
-      avatar,
-      displayName,
-      userId,
-    })
-
-    transaction.update(coupleRef, {
-      playerIds: patch.playerIds,
-      players: patch.players,
-      status: patch.status,
-      updatedAt: serverTimestamp(),
-    })
-    transaction.set(playerLinkRef, {
-      ...buildPlayerCoupleLinkPayload({ coupleId }),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    })
-  })
-
-  return coupleId
 }
 
 async function joinOpenLobby({

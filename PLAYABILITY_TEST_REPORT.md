@@ -1,5 +1,75 @@
 # At Long Last — Two-Player Playability Test Report
 
+## 2026-10-29 — Combined gameplay and permanent-pairing commit
+
+After the connection-process chat completed, verified the combined checkout: **237 application tests across 37 files, 31 Firestore emulator rules tests across two files, lint, production build, and whitespace checks passed**. The application run used the default test timeout and included coverage. This supersedes the earlier intermediate failures below. Pairing browser evidence is documented in `progress.md`; this final commit check did not repeat those browser flows or deploy production rules.
+
+The combined repository snapshot includes gameplay/question rotation, per-night scrapbook scope, recovery/reward fixes, permanent pairing and mutual Commit, milestone celebrations, README inventory, original/derived wordmark artwork, screenshot evidence, and archived soundtrack samples. Runtime-generated `.playwright-mcp` captures and local environment/dependency/build files remain excluded by `.gitignore`.
+
+## 2026-10-29 — Repeat-night variety and scrapbook scope
+
+- Conversation and prediction activities now prefer questions absent from the couple's saved history, then cycle through the least recently saved questions. Rotation uses prompt/topic text, never answers; unsaved/skipped questions without prompt artifacts cannot be tracked.
+- Tonight's scrapbook, HUD count, and finale goals exclude previous sessions. A collapsed view picker exposes all nights without deleting history. Local-preview fresh nights receive unique session IDs.
+- Resume refreshes the active session timestamp, fixing an idle recovery overlay that previously stayed open.
+- Two authenticated emulator profiles showed identical counts after switching views: Tonight = 5 moments / 2 duels / 1 keepsake; All nights = 16 / 6 / 1. Phone width 393px had no horizontal overflow. Screenshots: `.playwright-mcp/scrapbook-tonight-mobile.png`, `.playwright-mcp/scrapbook-all-nights.png`, and `.playwright-mcp/rotation-prediction.png`.
+- A registry check using 17 actual emulator journal records replaced an already-used Prediction Box question with an unseen question. This checks history-driven selection; it is not another full preset/finale run.
+- Found a Firestore evaluation-budget failure during the host's post-duel decoration reward. Added a bounded reward fast path preserving participant checks, field allowlists, reward limits, and duplicate no-op behavior. Retested the real authenticated reward call (tender stars 5 -> 6). The focused rules regression passed, including spicy/playful rewards, sticker deduplication, forged jumps, and participant smuggling; the preceding rules run passed the other 21 cases.
+- Focused application tests initially passed 31/31. The full coverage run finished with 226 passing tests and two 5-second timeouts (LobbyScreen and PlayStates), across 35 files / 228 tests. A separate retry of those two UI files plus the strengthened finale test passed 36/36 with a 20-second test timeout. This is passing targeted retry evidence, not a clean default-timeout full-suite pass. Lint, production build, and whitespace checks pass.
+- The bundled game client timed out on the animated Open Preview button and produced no usable capture. Direct Playwright entered the activity, produced an inspected screenshot and game-state JSON, and recorded no page errors in that fresh preview page.
+- Music and its archived versions remain preserved. No production deployment, remote-device verification, commit, or push was performed in this continuation.
+
+## 2026-10-29 — Expanded nights, login checks, and adaptive music
+
+Current local validation: **216 application tests, 22 Firestore emulator tests, lint, production build, and whitespace checks passed.** This run used Firebase Authentication and Firestore emulators, not production Firebase. The two isolated browser profiles were 390×844 and 393×852; desktop visual checks used 1440×900. Production was not deployed.
+
+### Material available
+
+| Element | Current bank |
+| --- | ---: |
+| Prediction Box | 58 questions |
+| Mind Meld choices | 56 questions |
+| Wavelength Duel | 65 questions, five per duel |
+| Additional conversation variants | 150 across 30 activities |
+| Free-text Same Wavelength | 58 prompts |
+| Vault / Mutual Yes | 20 prompts each |
+| Vibe Check | 20 continuums |
+| Blind Canvas / Photo Flashback / Bluff Bidding | 22 / 20 / 25 prompts |
+| Tempo / Harmonic Lock / Word Weaver | 8 rhythms / 8 targets / 6 word trays |
+
+Choice banks intentionally share the 50 new everyday-life questions. These counts are per-family capacity, not a sum of unique questions.
+
+### Two-player evidence
+
+- Both separate email/password emulator identities created profiles, paired through a private invite, submitted mood/vibe ballots, and completed a four-round Quick night through the finale. The run included Constellation, Word Weaver (empty-list timeout/completion), Doodle Duel, Weather Report, Ordinary Treasure, Heartbeat Hold, and Gratitude Duel. Neither browser was acting as a simulated partner.
+- The second phone reloaded between Weather Report responses, then continued its own turn. The first response stayed hidden in that phone's activity UI. Both phones later independently reloaded the completed night and restored the same 11 scrapbook moments, including both exact Weather Report responses.
+- Separate targeted scenarios on a fresh emulator night exercised Prediction Box matching, Mind Meld mismatch, and Wavelength Duel. These were seeded through the authenticated service functions and are distinct from the four-round progression above, which included reloads and fixes during verification.
+- Shared Prediction Box data contained a salted hash and null answer fields after the first commitment. Both phones locked, opened, acknowledged, and saved the matching artifact. Reloading the first phone before opening preserved its local answer.
+- Wavelength stored a hash instead of the first phone's five answers/guesses. After that phone reloaded and the other completed all ten selections, both revealed 10/10 and received the corrected +10-heart reward. The first acknowledgment visibly waited for the other phone.
+- A subsequent keepsake purchase produced the same Sparkler Photo scrapbook page on both phones. Rules tests additionally prove atomic spending/page creation and duplicate-tap idempotence.
+- A new login showed one checked box out of seven. Reload did not advance the count. A separately seeded three-day profile rendered three drawn checks; date/week progression, gaps, repeat visits, and year boundaries are covered by reducer tests. Weeks mean consecutive Monday-based calendar weeks with a visit; login tracking is separate from completed-night streaks.
+
+### Defects fixed during verification
+
+- Private joining previously read the couple document before the guest became a participant. New invites carry bounded host identity so joining can use the allowed invite lookup while keeping private couple reads restricted. Old invites without host identity request a fresh room.
+- Profile refreshes overwrote immutable creation timestamps; account creation also attempted a partial profile write. Profile setup now uses a transaction and preserves creation time.
+- Eighteen registered activity IDs were missing from rules; both sealed activities lacked the required activity ID in their initial state. Rules coverage now exercises every registered activity.
+- Activity creation and session attachment now commit together, with recovery for a missing attachment. Waiting states show a loading/reconnect card instead of a blank board.
+- Keepsake pages lacked their session ID and were written after spending. Both writes now commit together.
+- Starting another night no longer rewrites a completed session as abandoned; concurrent session creation returns the actual winning session ID.
+- Choice reveal changed hook order; regression coverage now renders choosing and reveal on the same mounted component.
+- Wavelength's scoring callback was omitted from the registry, and reveal acknowledgments were read from static definitions. Both are wired to the live result/session now.
+- Expanding a scorecard could programmatically scroll the outer game and expose the closed scrapbook. Outer containers now clip, closed drawers are hidden/inert, and the scorecard scrolls inside its own panel. Phone header controls no longer intersect.
+
+### Sound and visual evidence
+
+The new original synthesized arrangement uses slow piano, answering music-box notes, sustained string-like tones, a gentle paired sub pulse, faint square-wave texture, decaying pitch bends, echo, and stereo room resonance. Eight arrangements cover menu, board, prediction, reflective, creative, timed, reveal, and finale states. Changing context preserves the clock and existing tails. Reduced-motion settings disable the new check drawing and shorten other transitions.
+
+Browser audio capture produced a 24-second stereo Opus sample, converted to `/tmp/at-long-last-music-preview.mp3`. Signal analysis found nonzero audio with a -29.1 dB peak and no clipping; this is rendering/signal evidence, not a human listening assessment. Device-speaker/sub-bass balance still needs listening on actual phones.
+
+Screenshots were visually inspected under `.playwright-mcp/`: `login-three-day-fixture.png`, `prediction-reveal-1.png`, `mind-meld-surprise.png`, `wavelength-scorecard-fixed.png`, `desktop-reveal.png`, and `board-expanded-details.png`. The final bundled web-game client also completed preview entry and emitted inspected screenshot/state artifacts in `/tmp/atlonglast-web-game-final`. Fresh paired reloads produced no captured page/console errors. Earlier hot-reload and deliberately rejected-rule diagnostics are not counted as clean-run evidence.
+
+Remaining boundaries: no production deployment or current production two-device test; no real iOS/Android audio test. Older free-text/photo activities still hide answers in the interface rather than cryptographically sealing their shared documents. The new committed-choice protocol applies to Mind Meld, Prediction Box, and Wavelength Duel, and requires the answering tab's session storage for opening after a reload.
+
 ## 2026-08-15 Main Reconciliation and Release Validation
 
 - **Source reconciliation:** Before the release-only test/helper changes, a clean local `npm run build` reproduced the current production alias asset hashes (`index-CyYC8spE.js`, `index-ByFzTVw3.css`, and the same lazy chunks), confirming that the verified sign-out, auth-listener teardown, pre-room Quick preset, and finale journal-count fixes were present in the source behind the live Vercel deployment.

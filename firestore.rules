@@ -205,19 +205,24 @@ service cloud.firestore {
           'activeSessionId',
           'boardState',
           'visibility',
+          'commitments', 'commitmentEmails', 'committedAt',
           'createdAt',
           'updatedAt'
         ])
         && isInviteCode(data.inviteCode)
         && isBoundedString(data.shareLink, 12, 500)
         && data.shareLink.matches('^https?://.{1,450}/[?](code|invite)=' + data.inviteCode + '$')
-        && data.status in ['waiting', 'paired']
+        && data.status in ['waiting', 'paired', 'unpaired']
         && (!('visibility' in data) || data.visibility in ['private', 'public'])
         && isValidPlayers(data.playerIds, data.players)
         && (
-          (data.status == 'waiting' && data.playerIds.size() == 1)
+          data.status == 'unpaired'
+          || (data.status == 'waiting' && data.playerIds.size() == 1)
           || (data.status == 'paired' && data.playerIds.size() == 2)
         )
+        && (!('commitments' in data) || (data.commitments is list && data.commitments.size() <= 2 && data.commitments.toSet().size() == data.commitments.size() && data.playerIds.hasAll(data.commitments)))
+        && (!('commitmentEmails' in data) || (data.commitmentEmails is map && data.commitmentEmails.keys().hasOnly(data.get('commitments', [])) && data.commitmentEmails.keys().hasAll(data.get('commitments', []))))
+        && (!('committedAt' in data) || data.committedAt is timestamp)
         && (!('sessionPreset' in data) || isPreset(data.sessionPreset))
         && (
           !('activeSessionId' in data)
@@ -243,7 +248,8 @@ service cloud.firestore {
 
     function isValidInvite(data, inviteCode) {
       return data.keys().hasAll(['coupleId', 'createdAt'])
-        && data.keys().hasOnly(['coupleId', 'createdAt', 'hostName', 'hostAvatar'])
+        && data.keys().hasOnly(['coupleId', 'createdAt', 'hostName', 'hostAvatar', 'hostId'])
+        && (!('hostId' in data) || data.hostId == request.auth.uid)
         && isBoundedString(data.coupleId, 1, 128)
         && data.createdAt == request.time
         && isInviteCode(inviteCode)
@@ -335,9 +341,126 @@ service cloud.firestore {
       );
     }
 
+    function emailLockKey(email) {
+      return email.lower().replace('%', '%25').replace('/', '%2F');
+    }
+
+    function isPermanentPair(data) {
+      return data.get('commitments', []).size() == 2
+        && data.get('commitmentEmails', {}).size() == 2;
+    }
+
+    function canConnect() {
+      let link = /databases/$(database)/documents/playerCouples/$(request.auth.uid);
+      let email = request.auth.token.get('email', '');
+      return email.size() > 0
+        && !exists(/databases/$(database)/documents/pairingLocks/$(emailLockKey(email)))
+        && (!exists(link) || !coupleExists(get(link).data.coupleId)
+          || coupleData(get(link).data.coupleId).status == 'unpaired');
+    }
+
+    function isActiveParticipant(coupleId) {
+      return isParticipant(coupleId) && coupleData(coupleId).status != 'unpaired';
+    }
+
+    function isPairingJoinUpdate(coupleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return before.status == 'waiting' && !isCoupleParticipantData(before)
+        && canConnect() && hasNoActiveSession(before)
+        && hasOnlyChanged(['playerIds', 'players', 'status', 'updatedAt'])
+        && after.status == 'paired' && after.updatedAt == request.time
+        && after.playerIds == [before.playerIds[0], request.auth.uid]
+        && after.players.size() == 2 && after.players[0] == before.players[0]
+        && isValidPlayer(after.players[1], request.auth.uid)
+        && exists(/databases/$(database)/documents/coupleInvites/$(before.inviteCode))
+        && !existsAfter(/databases/$(database)/documents/coupleInvites/$(before.inviteCode))
+        && getAfter(/databases/$(database)/documents/playerCouples/$(request.auth.uid)).data.coupleId == coupleId
+        && !existsAfter(/databases/$(database)/documents/publicLobbies/$(coupleId));
+    }
+
+    function isCommitUpdate(coupleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let old = before.get('commitments', []);
+      let emails = before.get('commitmentEmails', {});
+      let uid = request.auth.uid;
+      let email = request.auth.token.get('email', '').lower();
+      return isCoupleParticipantData(before) && before.status == 'paired'
+        && request.auth.token.get('email_verified', false) && email.size() > 0
+        && hasOnlyChanged(['commitments', 'commitmentEmails', 'committedAt', 'updatedAt'])
+        && after.updatedAt == request.time
+        && after.commitments is list && after.commitments.size() == old.size() + 1
+        && after.commitments.size() <= 2 && after.commitments.toSet().size() == after.commitments.size()
+        && after.commitments.hasAll(old) && after.commitments.hasAll([uid]) && !old.hasAny([uid])
+        && before.playerIds.hasAll(after.commitments)
+        && after.commitmentEmails is map
+        && after.commitmentEmails.diff(emails).affectedKeys().hasOnly([uid])
+        && after.commitmentEmails[uid] == email
+        && after.commitmentEmails.keys().hasAll(after.commitments)
+        && after.commitmentEmails.keys().hasOnly(after.commitments)
+        && !exists(/databases/$(database)/documents/pairingLocks/$(emailLockKey(email)))
+        && (after.commitments.size() == 1
+          ? !('committedAt' in after)
+          : (after.committedAt == request.time
+            && existsAfter(/databases/$(database)/documents/pairingLocks/$(emailLockKey(after.commitmentEmails[before.playerIds[0]])))
+            && existsAfter(/databases/$(database)/documents/pairingLocks/$(emailLockKey(after.commitmentEmails[before.playerIds[1]])))
+            && getAfter(/databases/$(database)/documents/pairingLocks/$(emailLockKey(after.commitmentEmails[before.playerIds[0]]))).data.coupleId == coupleId
+            && getAfter(/databases/$(database)/documents/pairingLocks/$(emailLockKey(after.commitmentEmails[before.playerIds[1]]))).data.coupleId == coupleId));
+    }
+
+    function isUnpairUpdate() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return isCoupleParticipantData(before) && before.status != 'unpaired'
+        && !isPermanentPair(before)
+        && hasOnlyChanged(['status', 'activeSessionId', 'visibility', 'updatedAt'])
+        && after.status == 'unpaired' && after.activeSessionId == null
+        && after.visibility == 'private' && after.updatedAt == request.time;
+    }
+
+    function isPairingNightUpdate(coupleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return isCoupleParticipantData(before) && before.status == 'paired'
+        && hasOnlyChanged(['activeSessionId', 'sessionPreset', 'updatedAt'])
+        && isPreset(after.sessionPreset) && after.updatedAt == request.time
+        && isBoundedString(after.activeSessionId, 1, 128)
+        && after.activeSessionId != before.activeSessionId
+        && (hasNoActiveSession(before)
+          || get(/databases/$(database)/documents/sessions/$(before.activeSessionId)).data.status in ['completed', 'abandoned'])
+        && existsAfter(/databases/$(database)/documents/sessions/$(after.activeSessionId))
+        && getAfter(/databases/$(database)/documents/sessions/$(after.activeSessionId)).data.coupleId == coupleId
+        && getAfter(/databases/$(database)/documents/sessions/$(after.activeSessionId)).data.status == 'active';
+    }
+
+    function isDetachNightUpdate(coupleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return isCoupleParticipantData(before)
+        && hasOnlyChanged(['activeSessionId', 'updatedAt'])
+        && isBoundedString(before.activeSessionId, 1, 128)
+        && after.activeSessionId == null && after.updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/sessions/$(before.activeSessionId))
+        && getAfter(/databases/$(database)/documents/sessions/$(before.activeSessionId)).data.coupleId == coupleId
+        && getAfter(/databases/$(database)/documents/sessions/$(before.activeSessionId)).data.status in ['completed', 'abandoned'];
+    }
+
+    function isPairingUpdate(coupleId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasAny(['commitments', 'commitmentEmails', 'committedAt']) ? isCommitUpdate(coupleId)
+        : request.resource.data.status == 'unpaired' ? isUnpairUpdate()
+        : resource.data.status == 'waiting' && request.resource.data.status == 'paired' ? isPairingJoinUpdate(coupleId)
+        : changed.hasAny(['activeSessionId', 'sessionPreset']) && changed.hasOnly(['activeSessionId', 'sessionPreset', 'updatedAt'])
+          ? (request.resource.data.activeSessionId == null ? isDetachNightUpdate(coupleId) : isPairingNightUpdate(coupleId))
+        : changed.hasOnly(['boardState', 'updatedAt']) ? isValidBoardRewardUpdate()
+        : isValidCoupleLifecycleUpdateCompact(coupleId);
+    }
+
     function isValidCoupleCreate(coupleId) {
       let data = request.resource.data;
       return isValidCurrentCoupleWrite()
+        && canConnect()
         && data.playerIds.size() == 1
         && data.playerIds[0] == request.auth.uid
         && data.status == 'waiting'
@@ -377,6 +500,32 @@ service cloud.firestore {
               /databases/$(database)/documents/publicLobbies/$(coupleId)
             )
           )
+        );
+    }
+
+    // Rewards touch only board decoration. Evaluate this small path before
+    // the relational lobby/session lifecycle checks to stay within the budget.
+    function isValidBoardRewardUpdate() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let old = before.boardState;
+      let next = after.boardState;
+      return isCoupleParticipantData(before)
+        && after.diff(before).affectedKeys().hasOnly(['boardState', 'updatedAt'])
+        && after.updatedAt == request.time
+        && isValidBoardState(next)
+        && (
+          next == old
+          || (next.tenderStars == old.tenderStars + 1
+            && next.spicyGlowLevel == old.spicyGlowLevel
+            && next.playfulStickerIds == old.playfulStickerIds)
+          || (next.spicyGlowLevel == old.spicyGlowLevel + 1
+            && next.tenderStars == old.tenderStars
+            && next.playfulStickerIds == old.playfulStickerIds)
+          || (next.playfulStickerIds.size() == old.playfulStickerIds.size() + 1
+            && next.playfulStickerIds.toSet().hasAll(old.playfulStickerIds)
+            && next.tenderStars == old.tenderStars
+            && next.spicyGlowLevel == old.spicyGlowLevel)
         );
     }
 
@@ -422,6 +571,7 @@ service cloud.firestore {
           )
           || (
             !callerWasParticipant
+            && canConnect()
             && changed.hasOnly(['playerIds', 'players', 'status', 'updatedAt'])
             && before.status == 'waiting'
             && hasNoActiveSession(before)
@@ -586,6 +736,12 @@ service cloud.firestore {
         'what-miss-today', 'date-that-never-ends', 'secret-admiration',
         'after-hours-tile', 'landing-lights', 'rewind-touch',
         'mutual-yes', 'same-wavelength',
+        'rose-thorn-seed', 'ordinary-treasure', 'invisible-backpack',
+        'gentle-signal', 'five-minute-tradition', 'museum-of-us',
+        'wrong-answers-only', 'couple-mascot', 'tiny-shark-tank',
+        'plot-twist', 'soundtrack-shuffle', 'emoji-forecast',
+        'closer-than-words', 'date-trailer', 'favorite-detail',
+        'green-light-tonight', 'chemistry-recipe', 'doorstep-scene',
       ];
     }
 
@@ -1071,6 +1227,63 @@ service cloud.firestore {
     // Collection rules (default deny outside these matches)
     // ===============================================================
 
+    function mayReadLock(key) {
+      let email = request.auth.token.get('email', '');
+      let link = /databases/$(database)/documents/playerCouples/$(request.auth.uid);
+      return request.auth.token.get('email_verified', false) && (key == emailLockKey(email)
+        || (exists(link) && isParticipant(get(link).data.coupleId)
+          && (key == emailLockKey(coupleData(get(link).data.coupleId).get('commitmentEmails', {}).get(coupleData(get(link).data.coupleId).playerIds[0], ''))
+            || key == emailLockKey(coupleData(get(link).data.coupleId).get('commitmentEmails', {}).get(coupleData(get(link).data.coupleId).playerIds[1], '')))));
+    }
+
+    match /pairingLocks/{key} {
+      allow get: if isAuthenticated() && mayReadLock(key);
+      allow list: if false;
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasAll(['coupleId', 'uid', 'email', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['coupleId', 'uid', 'email', 'createdAt'])
+        && request.resource.data.createdAt == request.time
+        && key == emailLockKey(request.resource.data.email)
+        && isParticipantAfter(request.resource.data.coupleId)
+        && isPermanentPair(coupleDataAfter(request.resource.data.coupleId))
+        && coupleDataAfter(request.resource.data.coupleId).commitmentEmails[request.resource.data.uid] == request.resource.data.email
+        && request.auth.token.get('email_verified', false);
+      allow update, delete: if false;
+    }
+
+    match /pairingMoments/{momentId} {
+      allow get: if isAuthenticated() && ((resource != null && isParticipant(resource.data.coupleId))
+        || (resource == null && exists(/databases/$(database)/documents/playerCouples/$(request.auth.uid))
+          && momentId.matches('^' + get(/databases/$(database)/documents/playerCouples/$(request.auth.uid)).data.coupleId + '_(connected|committed|night_(1|10|25|50|100))$')));
+      allow list: if isParticipant(resource.data.coupleId);
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasAll(['coupleId', 'kind', 'nights', 'names', 'avatars', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['coupleId', 'kind', 'nights', 'names', 'avatars', 'createdAt'])
+        && request.resource.data.createdAt == request.time
+        && isParticipantAfter(request.resource.data.coupleId)
+        && request.resource.data.names == [coupleDataAfter(request.resource.data.coupleId).players[0].displayName, coupleDataAfter(request.resource.data.coupleId).players[1].displayName]
+        && request.resource.data.avatars == [coupleDataAfter(request.resource.data.coupleId).players[0].avatar, coupleDataAfter(request.resource.data.coupleId).players[1].avatar]
+        && ((request.resource.data.kind == 'connected' && request.resource.data.nights == 0
+            && momentId == request.resource.data.coupleId + '_connected'
+            && coupleData(request.resource.data.coupleId).status == 'waiting'
+            && coupleDataAfter(request.resource.data.coupleId).status == 'paired')
+          || (request.resource.data.kind == 'committed' && request.resource.data.nights == 0
+            && momentId == request.resource.data.coupleId + '_committed'
+            && isPermanentPair(coupleDataAfter(request.resource.data.coupleId)))
+          || (request.resource.data.kind == 'night'
+            && request.resource.data.nights in [1, 10, 25, 50, 100]
+            && momentId == request.resource.data.coupleId + '_night_' + string(request.resource.data.nights)
+            && getAfter(/databases/$(database)/documents/coupleProgress/$(request.resource.data.coupleId)).data.lifetimeNights == request.resource.data.nights));
+      allow update, delete: if false;
+    }
+
+    match /profiles/{userId}/celebrationReceipts/{momentId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['seenAt']) && request.resource.data.seenAt == request.time;
+      allow delete: if false;
+    }
+
     match /profiles/{userId} {
       function isValidProfile(data) {
         return data.keys().hasAll([
@@ -1135,21 +1348,25 @@ service cloud.firestore {
 
       allow get: if isAuthenticated();
       allow list: if false;
-      allow update: if false;
+      allow update: if isAuthenticated()
+        && coupleData(resource.data.coupleId).playerIds[0] == request.auth.uid
+        && coupleData(resource.data.coupleId).status == 'waiting'
+        && hasOnlyChanged(['hostId']) && request.resource.data.hostId == request.auth.uid;
 
-      allow delete: if isAuthenticated()
-        && isParticipant(resource.data.coupleId)
-        && hasNoActiveSession(coupleData(resource.data.coupleId));
+      allow delete: if isAuthenticated() && isParticipantAfter(resource.data.coupleId);
     }
 
     match /playerCouples/{userId} {
       allow create, update: if isOwner(userId)
         && uidUnchanged(userId)
         && isValidPlayerCoupleLink(request.resource.data)
-        && isParticipantAfter(request.resource.data.coupleId);
+        && isParticipantAfter(request.resource.data.coupleId)
+        && coupleDataAfter(request.resource.data.coupleId).status != 'unpaired'
+        && (canConnect() || (resource != null && resource.data.coupleId == request.resource.data.coupleId));
 
       allow read: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow delete: if isOwner(userId) && (!coupleExists(resource.data.coupleId)
+        || !isPermanentPair(coupleData(resource.data.coupleId)));
     }
 
     match /couples/{coupleId} {
@@ -1159,10 +1376,12 @@ service cloud.firestore {
       allow read: if isCoupleParticipantData(resource.data);
 
       allow update: if isAuthenticated()
-        && isValidCoupleLifecycleUpdateCompact(coupleId);
+        && resource.data.status != 'unpaired'
+        && isPairingUpdate(coupleId)
+        && (!isPermanentPair(resource.data) || request.resource.data.playerIds == resource.data.playerIds);
 
       allow delete: if isAuthenticated()
-        && isValidLastParticipantDelete(coupleId);
+        && !isPermanentPair(resource.data) && isValidLastParticipantDelete(coupleId);
     }
 
     match /publicLobbies/{lobbyId} {
@@ -1299,14 +1518,14 @@ service cloud.firestore {
       }
 
       allow create: if isAuthenticated()
-        && isParticipant(coupleId)
+        && isActiveParticipant(coupleId)
         && isValidProgress(request.resource.data)
         && request.resource.data.createdAt == request.time;
 
       allow read: if isParticipant(coupleId);
 
       allow update: if isAuthenticated()
-        && isParticipant(coupleId)
+        && isActiveParticipant(coupleId)
         && isValidProgress(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
 
@@ -1341,28 +1560,27 @@ service cloud.firestore {
 
     match /sessions/{sessionId} {
       allow create: if isAuthenticated()
-        && isValidSessionCreate(sessionId);
+        && isActiveParticipant(request.resource.data.coupleId) && isValidSessionCreate(sessionId);
 
       allow read: if isParticipant(resource.data.coupleId);
 
       allow update: if isAuthenticated()
-        && (
-          isValidActiveSessionMutationBudget()
-          || isValidSessionUpdateCompact()
-          || isValidLegacySessionAbandon(sessionId)
-        );
+        && isActiveParticipant(resource.data.coupleId)
+        && (request.resource.data.status == 'abandoned'
+          ? (isValidLegacySessionAbandon(sessionId) || isValidSessionUpdateCompact())
+          : (isValidActiveSessionMutationBudget() || isValidSessionUpdateCompact()));
 
       allow delete: if false;
     }
 
     match /activities/{activityId} {
       allow create: if isAuthenticated()
-        && isValidActivityCreate();
+        && isActiveParticipant(request.resource.data.coupleId) && isValidActivityCreate();
 
       allow read: if isParticipant(resource.data.coupleId);
 
       allow update: if isAuthenticated()
-        && isValidActivityUpdate();
+        && isActiveParticipant(resource.data.coupleId) && isValidActivityUpdate();
 
       allow delete: if false;
     }
@@ -1370,7 +1588,7 @@ service cloud.firestore {
     match /journalEntries/{entryId} {
       allow create: if isAuthenticated()
         && isValidJournalEntry(request.resource.data)
-        && isParticipant(request.resource.data.coupleId)
+        && isActiveParticipant(request.resource.data.coupleId)
         && exists(
           /databases/$(database)/documents/sessions/$(request.resource.data.sessionId)
         )

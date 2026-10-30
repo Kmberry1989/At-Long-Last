@@ -423,11 +423,11 @@ export function applyMoodSeedToWeights(vibeWeights = DEFAULT_VIBE_WEIGHTS, moodV
 
 export function buildNightChecklist() {
   return [
-    { done: false, id: 'set-mood', label: 'Share your mood' },
-    { done: false, id: 'set-vibe', label: "Set the night's vibe" },
-    { done: false, id: 'first-roll', label: 'Take the first roll' },
-    { done: false, id: 'duel-night', label: 'Face a duel together' },
-    { done: false, id: 'keepsake', label: 'Pocket a keepsake' },
+    { done: false, id: 'set-mood', label: 'Mood' },
+    { done: false, id: 'set-vibe', label: 'Vibe' },
+    { done: false, id: 'first-roll', label: 'Roll' },
+    { done: false, id: 'duel-night', label: 'Duel' },
+    { done: false, id: 'keepsake', label: 'Keepsake' },
   ]
 }
 
@@ -990,14 +990,17 @@ export function getMomentumSummary(session) {
 
 export function buildFinalSummary(session, journalEntries = []) {
   const nextSession = ensureSessionArcState(session)
+  const nightEntries = Array.isArray(journalEntries) && session.id
+    ? journalEntries.filter(entry => entry.sessionId === session.id)
+    : journalEntries
   const journalCount = Array.isArray(journalEntries)
-    ? journalEntries.filter((entry) => entry.type !== 'finale').length
+    ? nightEntries.filter((entry) => entry.type !== 'finale').length
     : journalEntries
   const hearts = nextSession.hearts
   const keepsakeCount = nextSession.keepsakes.length
   const preset = getSessionPreset(nextSession.preset)
   const dominantVibe = getDominantVibe(nextSession.vibeWeights)
-  const goals = summarizeSessionGoals(nextSession, Array.isArray(journalEntries) ? journalEntries : [])
+  const goals = summarizeSessionGoals(nextSession, Array.isArray(nightEntries) ? nightEntries : [])
   const completedGoals = goals.filter((goal) => goal.completed)
   const finaleTone = buildFinaleTone({
     completedGoalCount: completedGoals.length,

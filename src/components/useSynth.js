@@ -1,17 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
+import { musicStageFor } from '../audio/musicPatterns.js'
 
-export function useSynth(session) {
+export function useSynth(session, activity) {
   const { playPhase, playSuccess, setStage } = useAudio()
   const previousPhase = useRef('')
   const previousRound = useRef(0)
 
   useEffect(() => {
+    setStage?.(musicStageFor(session, activity))
     if (!session) {
       return
     }
-
-    setStage?.('game')
 
     if (session.round !== previousRound.current) {
       playSuccess?.()
@@ -22,5 +22,5 @@ export function useSynth(session) {
       playPhase?.(session.phase)
       previousPhase.current = session.phase
     }
-  }, [playPhase, playSuccess, session, setStage])
+  }, [activity, playPhase, playSuccess, session, setStage])
 }

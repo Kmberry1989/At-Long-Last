@@ -1,5 +1,20 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-10-29 — Combined repository delivery
+
+- User requested waiting for the connection-process chat to finish and committing/pushing all work together. Confirmed that chat completed before preparing the combined snapshot.
+- Final combined checks: default-timeout app coverage suite 237/237 (37 files), Firestore emulator rules 31/31 (two files), lint, production build, and whitespace checks passed. Intermediate menu/invite failures are superseded by this final run.
+- Preserved source artwork, generated reference screenshots, and archived music samples alongside both conversations' gameplay/pairing implementations. Local secrets, build output, dependencies, and ignored browser captures stay outside Git. No direct production deployment performed.
+
+## 2026-10-29 — Continue development: repeat nights
+
+- Added shared prompt rotation based on saved prompt/topic history, wired through activity registries and SessionProvider. Unseen first, then least recently seen. Added registry and algorithm tests.
+- Scoped scrapbook/HUD/finale to current session, with a collapsed All nights switch; local fresh sessions now have unique IDs. Added drawer/finale tests.
+- Resume updates lastActionAt to clear stale recovery. Emulator gameplay exposed reward rule expression overflow; a narrow board-only fast path fixes it and retains limits/identity protection. Focused adversarial rules test passes.
+- Both emulator profiles agree on Tonight (5 moments) versus All nights (16), including after reload. Screenshot inspected at 393px with no horizontal overflow. History-based prediction selection used real saved records and selected unseen material.
+- Lint/build/diff pass. Focused app run 31/31 passed. Full coverage run completed: 226 passed, two 5-second UI timeouts (228 total / 35 files). Those two files and strengthened finale test passed on focused retry: 36/36 at 20-second timeout. No clean default-timeout full-suite pass claimed. See latest PLAYABILITY_TEST_REPORT.md section for evidence.
+- Next: persist stable material IDs for rhythm/puzzle rotation (current history uses prompt/topic text), and rerun a complete production two-account preset/finale before release. All soundtrack variants preserved; no deployment or Git delivery in this continuation.
+
 ## 2026-07-26
 
 - Confirmed the target is the `(default)` Firestore Native database, Standard edition, in `nam5`.
@@ -245,3 +260,63 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Post-expansion 390x844 run again completed all six rounds, finale, scrapbook, and replay reset with zero app errors and zero WebGL errors. The refreshed activity card was visually checked at phone size.
 - Live Firebase/two-phone behavior remains unverified because `.env.local` is missing.
 - Git status remains unavailable because `.git` points to the removed primary checkout.
+
+
+## 2026-10-29 gameplay verification
+
+- Target flow: local preview -> vibe setup -> board turn -> activity/duel -> finale -> scrapbook/replay.
+- Found and fixed a `GameScreen` hook-order crash when entering local preview: `wavelengthPrompts` is now memoized before the session early return, and the duplicated `renderPlayState` declaration was removed.
+- Shortened lobby, mood, vibe, checklist, spotlight, and player-piece copy; stretched the supplied wordmark across the title band at desktop and phone widths.
+- Removed a duplicate `VibeDial` handle that rendered a stray pink control outside the modal.
+- Playwright MCP replay reached mood, vibe, first roll, activity, duel, duel reveal, and round two in local preview; `render_game_to_text` reported `phase: turn`, `round: 2`, `scrapbook.count: 3`, and zero fresh console errors.
+- Fresh screenshots were visually checked at desktop and 390x844 phone width. The bundled web-game client still timed out waiting for the animated preview button under its headless virtual-time setup, so Playwright MCP was used for the browser evidence.
+- Duel reveal was visually audited and fixed with an opaque glass card; the pre-fix reveal let HUD text show through the result.
+- Final checks: lint passed, targeted checklist/session/vibe tests passed (29/29), build passed, and `git diff --check` passed.
+- After the reveal-card fix, a fresh preview replay reached a Constellation reveal with zero fresh console errors; `render_game_to_text` reported `phase: duel`, `round: 1`, and the expected two-player board state.
+
+## 2026-10-29 wordmark and board-display concepts
+
+- Generated a separate transparent wide wordmark from the supplied logo reference, wired it into `LobbyScreen`, and kept the original square `atlonglast.png` unchanged.
+- Added `public/assets/ui/atlonglast-wordmark.svg` as a replaceable SVG wrapper and `BOARD_DISPLAY_3D_PROMPTS.md` with twelve aesthetic centerpiece prompts plus shared modeling constraints.
+- Desktop and 390x844 browser screenshots show the new wordmark fitting the title band cleanly with zero fresh console errors.
+
+## 2026-10-29 — Richer nights, login checks, adaptive soundtrack
+
+- Expanded Prediction Box to 58 questions, Mind Meld to 56, Wavelength to 65, conversation variants to 150, free-text matching to 58, and vault/consent/continuum/photo banks to 20 each. Added drawing/bluff material, five rhythm/resonance settings, and three validated word trays.
+- Mind Meld and Prediction Box now commit salted hashes before opening choices, show a shared conversational reveal, and require both acknowledgments. Wavelength also withholds its answer/guess excerpt until both phones finish. Same-tab reload preserves opening material in session storage.
+- Added per-account daily/weekly login streaks, best-day history, a rolling seven-box tracker, animated SVG checks, same-day idempotence, local midnight/visibility refresh, and reduced-motion support. Existing completed-night streaks remain distinct.
+- Replaced ambient drones with slow piano, high music-box answers, sustained warm strings, room resonance, light echo, phrase-ending pitch bends, longer rests, a gentle sub heartbeat and very quiet chip texture. Eight contextual arrangements share one continuous clock.
+- Simplified secondary HUD details, fixed header/control collisions, made closed scrapbook content inert/hidden, and prevented outer-screen scrolling from exposing it under scorecards.
+- Paired emulator QA found/fixed profile timestamp writes, private invite reads, missing activity allowlist/IDs, non-atomic activity attachment and keepsake pages, completed-session restart behavior, reveal hook order, acknowledgment state, and Wavelength heart callback wiring.
+- Final checks: lint/build/diff pass; 32 application test files / 216 tests pass; 22 Firestore emulator tests pass. Full four-round Quick night completed with two independent authenticated emulator browsers, followed by independent reload and exact scrapbook response recovery. Targeted two-player commitment/reveal, mismatch, Wavelength, and keepsake cases also passed.
+- Current evidence and limitations are in the new 2026-10-29 section of PLAYABILITY_TEST_REPORT.md. No production deployment, remote push, real-phone audio listening, or current live-production paired proof is claimed. Older text/photo activities retain UI-only concealment.
+
+## 2026-10-29 — Preserve music versions, slower continuity, bokeh
+
+- Preserved the pre-change bent-note soundtrack in `src/audio/keepsakeSoundtrack.js`, including a frozen copy of its pattern data, and the original repository ambient engine in `src/audio/firstAmbientSoundtrack.js`. Both remain playable through the new ♫ library; the former also plays in the scrapbook.
+- Saved the earlier browser recording/MP3 and both 42-second held/walking upright-bass WAV experiments under `public/assets/audio/library/`. SHA-256 comparisons confirmed byte-identical copies of the source recordings. The library README names their sources and uses.
+- The continuous score now uses 2.4-second steps, one audio-clock lookahead scheduler, one shared menu/game chord sequence, persistent loop tails, 7-second room resonance, stereo reflected echoes with ducking, and bends on isolated notes. The main foundation is unchanged between menu and gameplay; a plucked accompaniment/upright bus fades into gameplay only. Held upright chord-change notes are default; sparse walking is selectable.
+- Added a compact music chooser with saved theme/bass preferences, coherent mute routing across all engines, and scrapbook-to-selected-theme return. Existing soundtrack engines and recordings remain independent of future changes to the default.
+- Added low-cost animated shimmer/bokeh light fields behind menu and overlay content, with pointer-safe layering and static reduced-motion styling.
+- Verification: 219 tests passed in 33 files; lint/build/diff checks passed. An 84-second OfflineAudioContext render crossed the 76.8-second score boundary with nonzero tails and maximum adjacent-sample difference 0.0000455 near the wrap. This is signal continuity evidence, not a real-device listening claim.
+- Browser QA exercised all three themes, both bass choices, mute/unmute, preference reload, reduced motion, prediction completion, and the original-theme scrapbook handoff with no captured page errors. Desktop/mobile screenshots were inspected. The bundled game client was attempted but timed out on the animated preview entry; direct Playwright supplied the completed interaction evidence.
+- Local changes only; no commit, push, or deployment performed in this pass.
+
+## 2026-10-29 — Occasional heartbeat accent
+
+- Changed the continuous theme's rhythmic pulse into alternating single/double rounded sine accents on the downbeat of every fourth measure (32 score steps, 76.8 seconds between accents). Its pitch settles from 72 to 42 Hz and decays softly over 650 ms. Double accents add a quieter second thump 320 ms later; the combined pattern repeats every 64 steps.
+- The accent stays out of menu, reflective, and reveal scenes. Preserved soundtrack versions and earlier listening samples are unchanged.
+
+## 2026-10-29 — Permanent connection and relationship celebrations
+
+- User request: retain initial share-link/code joining, persist the two-account connection across nights, add mutual irreversible email-bound Commit, and celebrate connection/commitment/night milestones cinematically with sound and opening scrapbook pages. Also document the possibilities of every implemented activity in README.md and chat.
+- Added atomic one-use invitation joining, verified-email consent, immutable email reservations, pre-commit archival, shared-home New night/Continue, and concurrent-start protection. Existing session/history data is retained. No automatic email-delivery service was added.
+- Connection, commitment, first night, and 10/25/50/100-night events have immutable dated scrapbook records. Each player dismisses their own ceremony once; receipts persist. Four original synthesized arrangements accompany responsive animated ceremonies; reduced motion, sound controls, focus trapping, Escape, and Continue are supported.
+- README now inventories all 76 registered board activities and 16 duels. It distinguishes authored prompt/puzzle counts from answer combinations and open-ended responses, and explicitly identifies the inventory as current working-source counts.
+- Verification: lint and production build passed; 37 unit files / 236 tests and 30 Firestore emulator tests passed. Isolated two-account Chromium flow passed invitation, both verified consents, persistent reload, shared-session start/resume, scrapbook prologue, first/10-night fixture ceremonies, receipts, reduced motion, and no page errors. Offline AudioContext rendered all four arrangements with nonzero output/no clipping and silent mute. Safari/WebKit final isolated rerun pending below; physical iOS and live production feature are not verified/deployed.
+- Existing unrelated working-tree changes were preserved. This feature and matching rules remain local, uncommitted, and undeployed.
+- Final Safari/WebKit isolated run completed all two-account flows and reduced-motion milestone checks. A separate stability check confirmed the home remained visible during idle periods and Continue reopened gameplay after reload. WebKit's emulator-stream access-control messages occurred only during page reload cancellation, not idle use; retain that distinction from a completely clean console claim.
+- Removed a duplicate Sign Out button from the shared account card, improved retry subscription handling, added compatibility coverage for enriching legacy invitations, and guarded milestone subscriptions against a stale pair from a different signed-in account.
+- Final inventory: 76 activities (13 special + 63 prompt/ritual/journal) and 16 duels. Thirty general activities have 6 prompts, thirty-three have 1. The README contains all individual names/counts and bounded response calculations.
+- Final preview smoke caught a startup error in an unnecessary added debug-hook alias; removed it and retained the existing BoardScene text-state integration. Preview then rendered the board and mood controls with loaded player assets and no errors. Final Chromium two-account rerun passed with no page errors.
+- Final unit result: 37 files / 237 tests passed; Firestore result: 31 passed. Sound now starts the full arrangement when first enabled rather than consuming it silently while a player reads; a focused test covers this delayed opt-in.

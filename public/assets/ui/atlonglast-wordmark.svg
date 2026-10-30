@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Scalable drop-in wrapper for the generated wide wordmark.
+  Replace the image element with traced paths when a true vector version is ready.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2172 724" role="img" aria-labelledby="title desc">
+  <title id="title">At Long Last</title>
+  <desc id="desc">Warm cream and peach dimensional script wordmark.</desc>
+  <image href="atlonglast-wordmark-wide.png" width="2172" height="724" preserveAspectRatio="none" />
+</svg>

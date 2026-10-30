@@ -1,324 +1,94 @@
-/* @vitest-environment jsdom */
-
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-const mockState = vi.hoisted(() => ({
-  audioContext: {
-    playAction: vi.fn(),
-    playError: vi.fn(),
-    playSuccess: vi.fn(),
-    setStage: vi.fn(),
-  },
-  coupleContext: null,
-  firebaseContext: null,
-  sessionContext: { readyToPlay: false, error: '' },
-}))
-
-vi.mock('../audio/AudioProvider.jsx', () => ({
-  useAudio: () => mockState.audioContext,
-}))
-
-vi.mock('../features/couple/CoupleProvider.jsx', () => ({
-  useCouple: () => mockState.coupleContext,
-}))
-
-vi.mock('../features/couple/FirebaseAppContext.jsx', () => ({
-  useFirebaseApp: () => mockState.firebaseContext,
-}))
-
-vi.mock('../features/session/SessionProvider.jsx', () => ({
-  useSession: () => mockState.sessionContext,
-}))
-
-vi.mock('./PlayerPiecePicker.jsx', () => ({
-  PlayerPiecePicker: () => <div data-testid="player-piece-picker" />,
-}))
-
-vi.mock('./InviteJoinScreen.jsx', () => ({
-  InviteJoinScreen: ({ inviteCode, nickname, onJoin, onUseCodeInstead }) => (
-    <div>
-      <p>Invite stub {inviteCode}</p>
-      <button onClick={() => onJoin(nickname || 'Guest')} type="button">
-        Stub Join
-      </button>
-      <button onClick={onUseCodeInstead} type="button">
-        Stub Use Code
-      </button>
-    </div>
-  ),
-}))
-
-import { waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+const state = vi.hoisted(() => ({ couple: null, firebase: null, session: null }))
+vi.mock('../features/couple/CoupleProvider.jsx', () => ({ useCouple: () => state.couple }))
+vi.mock('../features/couple/FirebaseAppContext.jsx', () => ({ useFirebaseApp: () => state.firebase }))
+vi.mock('../features/session/SessionProvider.jsx', () => ({ useSession: () => state.session }))
+vi.mock('../audio/AudioProvider.jsx', () => ({ useAudio: () => ({ setStage: vi.fn() }) }))
+vi.mock('./PlayerPiecePicker.jsx', () => ({ PlayerPiecePicker: () => <div data-testid="pieces" /> }))
+vi.mock('./ProgressHub.jsx', () => ({ ProgressHub: () => <div>Collection contents</div> }))
+vi.mock('./InviteJoinScreen.jsx', () => ({ InviteJoinScreen: ({ inviteCode, nickname, onJoin, onUseCodeInstead }) => <><p>Invite {inviteCode}</p><button onClick={() => onJoin(nickname)}>Accept invite</button><button onClick={onUseCodeInstead}>Use code</button></> }))
 import { LobbyScreen } from './LobbyScreen.jsx'
-
-describe('LobbyScreen', () => {
-  afterEach(() => {
-    cleanup()
-    mockState.coupleContext = null
-    mockState.firebaseContext = null
-    mockState.sessionContext = { readyToPlay: false, error: '' }
-    window.history.pushState({}, '', '/')
+function pair() {
+  state.couple.couple = { id: 'pair-1', playerIds: ['a', 'b'], players: [{ uid: 'a', displayName: 'Alex' }, { uid: 'b', displayName: 'Blair' }], commitments: [], activeSessionId: null, sessionPreset: 'quick' }
+  state.couple.hasPartner = true
+}
+beforeEach(() => {
+  localStorage.clear()
+  state.couple = { couple: null, hasPartner: false, loading: false, profile: { displayName: 'Alex' }, createCouple: vi.fn(), joinCouple: vi.fn(), commitPairing: vi.fn(), unpair: vi.fn(), launchPreview: vi.fn(), error: '' }
+  state.firebase = { ready: true, enabled: true, isSignedIn: true, user: { uid: 'a', displayName: 'Alex', email: 'alex@example.test', emailVerified: true }, authWorking: false, signOutUser: vi.fn(), signInWithEmail: vi.fn(), signInWithProvider: vi.fn(), createAccount: vi.fn(), updateDisplayName: vi.fn() }
+  state.session = { readyToPlay: false, gameOpen: false, error: '', beginNight: vi.fn(), openGame: vi.fn(), closeGame: vi.fn(), journalEntries: [] }
+})
+afterEach(() => { cleanup(); history.replaceState({}, '', '/') })
+describe('permanent pairing menus', () => {
+  it('keeps the existing link/code invitation path without public discovery', () => {
+    render(<LobbyScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'Create invite' }))
+    expect(state.couple.createCouple).toHaveBeenCalledWith('Alex', 'quick', expect.stringContaining('/assets/players/'))
+    expect(screen.queryByText('Public rooms')).toBeNull()
   })
-
-  function setupLobby({ couple = null, publicLobbies = [] } = {}) {
-    const joinCouple = vi.fn()
-    mockState.coupleContext = {
-      couple,
-      createCouple: vi.fn(),
-      error: '',
-      hasPartner: false,
-      joinCouple,
-      joinPublicLobby: vi.fn(),
-      leaveCouple: vi.fn(),
-      launchPreview: vi.fn(),
-      loading: false,
-      postLobbyMessage: vi.fn(),
-      profile: { displayName: 'Kyle' },
-      publicLobbyMessages: [],
-      publicLobbies,
-      sessionPreset: 'standard',
-      selectedPublicLobbyId: null,
-      selectPublicLobby: vi.fn(),
-      switchCouple: vi.fn(),
-      switchPublicLobby: vi.fn(),
-      updateSessionPreset: vi.fn(),
-    }
-    mockState.firebaseContext = {
-      authError: '',
-      authWorking: false,
-      createAccount: vi.fn(),
-      db: {},
-      enabled: true,
-      isSignedIn: true,
-      ready: true,
-      signInWithEmail: vi.fn(),
-      signInWithProvider: vi.fn(),
-      signOutUser: vi.fn(),
-      updateDisplayName: vi.fn(),
-      user: { email: 'kyle@example.test' },
-    }
-    return { joinCouple }
-  }
-
-  it('keeps a visible screen while a saved paired room loads its session', () => {
-    setupLobby({ couple: { id: 'paired-room', playerIds: ['one', 'two'] } })
-    mockState.coupleContext.hasPartner = true
-    const { container, rerender } = render(<LobbyScreen />)
-
+  it('accepts a one-time code from the collapsed fallback', () => {
+    render(<LobbyScreen />); fireEvent.click(screen.getByRole('button', { name: 'Use code' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Invite code' }), { target: { value: 'ABC234' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(state.couple.joinCouple).toHaveBeenCalledWith('Alex', 'ABC234', expect.any(String))
+  })
+  it('accepts an existing invite link after sign-in', () => {
+    history.replaceState({}, '', '/?invite=ABC234'); render(<LobbyScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'Accept invite' }))
+    expect(state.couple.joinCouple).toHaveBeenCalledWith('Alex', 'ABC234', expect.any(String))
+  })
+  it('returns to a shared home instead of automatically starting a game', () => {
+    pair(); state.couple.couple.activeSessionId = 'night-1'; state.session.session = { status: 'active' }; state.session.readyToPlay = true
+    const { container } = render(<LobbyScreen />)
     expect(container.querySelector('.lobby-screen')).toHaveClass('active')
-    expect(screen.getByRole('heading', { name: 'Loading game…' })).toBeVisible()
-    expect(screen.getByRole('status')).toHaveTextContent('Connecting to your room.')
-
-    mockState.sessionContext.readyToPlay = true
-    rerender(<LobbyScreen />)
-    expect(container.querySelector('.lobby-screen')).toHaveClass('inactive')
+    expect(screen.getByRole('heading', { name: 'You & Blair' })).toBeVisible()
+    expect(state.session.openGame).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(state.session.openGame).toHaveBeenCalledOnce()
   })
-
-  it('shows session failures with reload and sign-out controls instead of hiding both screens', () => {
-    setupLobby({ couple: { id: 'paired-room', playerIds: ['one', 'two'] } })
-    mockState.coupleContext.hasPartner = true
-    mockState.sessionContext.error = 'Missing or insufficient permissions.'
+  it('requires an explicit irreversible confirmation from each player', async () => {
+    pair(); render(<LobbyScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'Commit' }))
+    expect(screen.getByRole('button', { name: 'Commit forever' })).toBeDisabled()
+    expect(screen.getByText(/Neither email can choose another partner/)).toBeVisible()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'I understand this is permanent.' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Commit forever' }))
+    await waitFor(() => expect(state.couple.commitPairing).toHaveBeenCalledOnce())
+  })
+  it('does not offer unpair or another commitment after mutual commitment', () => {
+    pair(); state.couple.couple.commitments = ['a', 'b']; state.couple.couple.commitmentEmails = { a: 'alex@example.test', b: 'blair@example.test' }
     render(<LobbyScreen />)
-
+    expect(screen.getByText('♥ Committed')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Unpair|Cancel connection|Commit forever/ })).toBeNull()
+  })
+  it('requires email verification before commitment', () => {
+    pair(); state.firebase.user.emailVerified = false; render(<LobbyScreen />)
+    expect(screen.getByRole('button', { name: 'Verify email' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Commit' })).toBeNull()
+  })
+  it('starts the selected length while keeping the pairing', () => {
+    pair(); render(<LobbyScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'Date night' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New night' }))
+    expect(state.session.beginNight).toHaveBeenCalledWith('standard')
+  })
+  it('keeps a screen visible if opening a saved session fails', () => {
+    pair(); state.session.gameOpen = true; state.session.error = 'Permission denied'
+    const { container } = render(<LobbyScreen />)
+    expect(container.querySelector('.lobby-screen')).toHaveClass('active')
     expect(screen.getByRole('heading', { name: 'Game unavailable' })).toBeVisible()
-    expect(screen.getByRole('alert')).toHaveTextContent('Missing or insufficient permissions.')
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Sign Out' }))
-    expect(mockState.firebaseContext.signOutUser).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    expect(state.session.closeGame).toHaveBeenCalledOnce()
   })
-
-  it('keeps a pre-room Quick selection and passes it into room creation', () => {
-    const createCouple = vi.fn()
-    const updateSessionPreset = vi.fn()
-    mockState.coupleContext = {
-      couple: null,
-      createCouple,
-      error: '',
-      hasPartner: false,
-      joinCouple: vi.fn(),
-      joinPublicLobby: vi.fn(),
-      leaveCouple: vi.fn(),
-      launchPreview: vi.fn(),
-      loading: false,
-      postLobbyMessage: vi.fn(),
-      profile: { displayName: 'Kyle' },
-      publicLobbyMessages: [],
-      publicLobbies: [],
-      sessionPreset: 'standard',
-      selectedPublicLobbyId: null,
-      selectPublicLobby: vi.fn(),
-      switchCouple: vi.fn(),
-      switchPublicLobby: vi.fn(),
-      updateSessionPreset,
-    }
-    mockState.firebaseContext = {
-      authError: '',
-      authWorking: false,
-      createAccount: vi.fn(),
-      enabled: true,
-      isSignedIn: true,
-      ready: true,
-      signInWithEmail: vi.fn(),
-      signInWithProvider: vi.fn(),
-      signOutUser: vi.fn(),
-      updateDisplayName: vi.fn(),
-      user: { email: 'kyle@example.test' },
-    }
-
-    render(<LobbyScreen />)
-    fireEvent.click(screen.getByRole('button', { name: /Quick/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
-
-    expect(updateSessionPreset).not.toHaveBeenCalled()
-    expect(createCouple).toHaveBeenCalledWith(
-      'Kyle',
-      'quick',
-      expect.stringContaining('/assets/players/'),
-    )
-  })
-
-  it('supports labeled auth fields, password visibility, and Enter-to-submit', () => {
-    const signInWithEmail = vi.fn()
-    mockState.coupleContext = {
-      couple: null,
-      createCouple: vi.fn(),
-      error: '',
-      hasPartner: false,
-      joinCouple: vi.fn(),
-      joinPublicLobby: vi.fn(),
-      leaveCouple: vi.fn(),
-      launchPreview: vi.fn(),
-      loading: false,
-      postLobbyMessage: vi.fn(),
-      profile: null,
-      publicLobbyMessages: [],
-      publicLobbies: [],
-      sessionPreset: 'standard',
-      selectedPublicLobbyId: null,
-      selectPublicLobby: vi.fn(),
-      switchCouple: vi.fn(),
-      switchPublicLobby: vi.fn(),
-      updateSessionPreset: vi.fn(),
-    }
-    mockState.firebaseContext = {
-      authError: '',
-      authWorking: false,
-      createAccount: vi.fn(),
-      enabled: true,
-      isSignedIn: false,
-      ready: true,
-      signInWithEmail,
-      signInWithProvider: vi.fn(),
-      signOutUser: vi.fn(),
-      updateDisplayName: vi.fn(),
-      user: null,
-    }
-
-    render(<LobbyScreen />)
-
-    const email = screen.getByRole('textbox', { name: 'Email' })
+  it('preserves labeled email sign-in, password visibility, and submit', () => {
+    state.firebase.isSignedIn = false; render(<LobbyScreen />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'alex@example.test' } })
     const password = screen.getByLabelText('Password')
-    fireEvent.change(email, { target: { value: 'kyle@example.test' } })
     fireEvent.change(password, { target: { value: 'secret123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Show password' }))
-
     expect(password).toHaveAttribute('type', 'text')
     fireEvent.submit(password)
-
-    expect(signInWithEmail).toHaveBeenCalledWith({
-      email: 'kyle@example.test',
-      password: 'secret123',
-    })
-  })
-
-  it('routes invite deep links to the invite join screen with the joiner default piece', async () => {
-    window.history.pushState({}, '', '/?invite=XYZ789')
-    window.localStorage.clear()
-    const { joinCouple } = setupLobby()
-
-    render(<LobbyScreen />)
-
-    expect(await screen.findByText('Invite stub XYZ789')).toBeTruthy()
-    expect(screen.queryByPlaceholderText('Code')).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Stub Join' }))
-
-    await waitFor(() => {
-      expect(joinCouple).toHaveBeenCalledWith(
-        'Kyle',
-        'XYZ789',
-        '/assets/players/globe-classic.glb',
-      )
-    })
-  })
-
-  it('treats legacy code links as invite deep links', async () => {
-    window.history.pushState({}, '', '/?code=ABC123')
-    setupLobby()
-
-    render(<LobbyScreen />)
-
-    expect(await screen.findByText('Invite stub ABC123')).toBeTruthy()
-  })
-
-  it('falls back to manual code entry from the invite screen', async () => {
-    window.history.pushState({}, '', '/?invite=XYZ789')
-    setupLobby()
-
-    render(<LobbyScreen />)
-
-    expect(await screen.findByText('Invite stub XYZ789')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Stub Use Code' }))
-
-    const input = await screen.findByPlaceholderText('Code')
-    expect(input.value).toBe('XYZ789')
-  })
-
-  it('shows visibility controls for the owner identified by the stored player IDs', () => {
-    setupLobby({ couple: {
-      id: 'room-1',
-      playerIds: ['owner-1'],
-      players: [{ uid: 'owner-1', displayName: 'Kyle' }],
-      inviteCode: 'ABC123',
-    } })
-    mockState.firebaseContext.user.uid = 'owner-1'
-    mockState.coupleContext.setRoomVisibility = vi.fn()
-    render(<LobbyScreen />)
-    fireEvent.click(screen.getByRole('button', { name: 'List publicly' }))
-    expect(mockState.coupleContext.setRoomVisibility).toHaveBeenCalledWith(true)
-    expect(screen.queryByText('Private room')).toBeNull()
-  })
-
-  it('keeps the piece catalog behind an optional disclosure', () => {
-    setupLobby()
-
-    render(<LobbyScreen />)
-
-    expect(screen.queryByTestId('player-piece-picker')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Your piece/ }))
-    expect(screen.getByTestId('player-piece-picker')).toBeTruthy()
-  })
-
-  it('keeps the public browser behind Public rooms', () => {
-    setupLobby({
-      publicLobbies: [
-        {
-          hostAvatar: '/assets/players/heart.glb',
-          hostName: 'Robin',
-          id: 'lobby-1',
-          inviteCode: 'ABC123',
-          playerCount: 1,
-          status: 'open',
-        },
-      ],
-    })
-
-    render(<LobbyScreen />)
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }))
-
-    expect(screen.queryByText(/Robin's room/)).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Public rooms/ }))
-    expect(screen.getByText(/Robin's room/)).toBeTruthy()
+    expect(state.firebase.signInWithEmail).toHaveBeenCalledWith({ email: 'alex@example.test', password: 'secret123' })
   })
 })

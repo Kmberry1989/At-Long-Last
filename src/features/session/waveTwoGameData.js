@@ -1,4 +1,21 @@
 export const VIBE_CHECK_PROMPTS = [
+  ...[
+    ['date-budget', 'A perfect date needs…', 'Almost no money', 'A little splurge'],
+    ['surprise-level', 'How much surprise sounds good tonight?', 'Tell me the plan', 'Keep it a mystery'],
+    ['morning-pace', 'Our ideal morning pace is…', 'Up and out', 'Slow and sleepy'],
+    ['weekend-map', 'Our next weekend should feel…', 'Familiar and cozy', 'New and adventurous'],
+    ['gift-scale', 'The nicest gift would be…', 'A tiny thoughtful thing', 'A grand shared experience'],
+    ['party-size', 'The gathering I want right now is…', 'Just us', 'Everyone we love'],
+    ['food-adventure', 'Tonight’s menu should be…', 'Our reliable favorite', 'Something neither of us tried'],
+    ['planning-style', 'Planning our next outing should be…', 'A careful itinerary', 'A vague direction'],
+    ['energy-reset', 'The best reset for today is…', 'Stillness', 'Movement'],
+    ['memory-style', 'I remember our adventures through…', 'Tiny details', 'The overall feeling'],
+    ['home-sound', 'The home atmosphere I want is…', 'Peacefully quiet', 'Music and chatter'],
+    ['date-duration', 'Our next date should be…', 'A tiny escape', 'A whole day'],
+    ['learning-style', 'Learning something together sounds best as…', 'Following instructions', 'Experimenting freely'],
+    ['movie-choice', 'Tonight’s movie should be…', 'Comfort rewatch', 'A complete surprise'],
+    ['talk-depth', 'A conversation I have energy for is…', 'Light and easy', 'Deep and thoughtful'],
+  ].map(([id, prompt, leftLabel, rightLabel]) => ({ id, prompt, leftLabel, rightLabel })),
   {
     id: 'weekend-energy',
     leftLabel: 'Plan every detail',
@@ -32,6 +49,13 @@ export const VIBE_CHECK_PROMPTS = [
 ]
 
 export const TEMPO_TAP_ROUNDS = [
+  ...[
+    ['porch-swing', 'Porch swing', 1100],
+    ['gentle-rain', 'Gentle rain', 760],
+    ['walking-home', 'Walking home', 960],
+    ['kitchen-waltz', 'Kitchen waltz', 850],
+    ['slow-heartbeat', 'Slow heartbeat', 1200],
+  ].map(([id, label, targetIntervalMs]) => ({ id, label, targetIntervalMs, prompt: 'Follow this pulse for five unhurried taps.' })),
   {
     id: 'easy-pulse',
     label: 'Easy pulse',
@@ -82,6 +106,9 @@ export const WORD_WEAVER_PUZZLES = [
     letters: ['O', 'C', 'E', 'A', 'N', 'L', 'M'],
     prompt: 'Make something surprising from this calm little letter tray.',
   },
+  { id: 'listen', letters: ['L', 'I', 'S', 'T', 'E', 'N'], prompt: 'Find the words tucked inside LISTEN.', allowedWords: ['listen', 'silent', 'enlist', 'inlets', 'tinsel', 'inlet', 'stein', 'islet', 'lines', 'line', 'list', 'lens', 'lent', 'nest', 'net', 'nets', 'nit', 'nits', 'sit', 'set', 'sin', 'tie', 'ties', 'tin', 'tins', 'ten', 'tens', 'tile', 'tiles', 'lie', 'lies', 'lit', 'let', 'lets', 'sent'] },
+  { id: 'smiles', letters: ['S', 'M', 'I', 'L', 'E', 'S'], prompt: 'Turn a tray of SMILES into a shared dictionary.', allowedWords: ['smiles', 'smile', 'slime', 'slimes', 'miles', 'mile', 'lime', 'limes', 'slim', 'slims', 'semi', 'elm', 'elms', 'isle', 'isles', 'lie', 'lies', 'less', 'mess', 'miss'] },
+  { id: 'garden', letters: ['G', 'A', 'R', 'D', 'E', 'N'], prompt: 'Grow a few words from this little GARDEN.', allowedWords: ['garden', 'danger', 'ranged', 'range', 'anger', 'grade', 'grand', 'dear', 'dare', 'read', 'gear', 'rage', 'near', 'earn', 'aged', 'age', 'and', 'are', 'ear', 'era', 'den', 'end', 'red', 'rag', 'ran', 'nag', 'drag', 'dean'] },
 ]
 
 export const WAVE_TWO_ACTIVITY_DEFINITIONS = [

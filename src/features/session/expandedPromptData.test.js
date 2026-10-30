@@ -6,7 +6,7 @@ import {
 } from './expandedPromptData.js'
 
 describe('expanded activity prompts', () => {
-  it('adds sixty balanced prompt variants to registered activities', () => {
+  it('adds 150 balanced prompt variants to registered activities', () => {
     const definitions = new Map(
       activityDefinitions.map((definition) => [definition.id, definition]),
     )
@@ -25,11 +25,11 @@ describe('expanded activity prompts', () => {
     })
 
     expect(counts).toEqual({
-      playful: 20,
-      spicy: 20,
-      tender: 20,
+      playful: 50,
+      spicy: 50,
+      tender: 50,
     })
-    expect(prompts).toHaveLength(60)
+    expect(prompts).toHaveLength(150)
     expect(new Set(prompts).size).toBe(prompts.length)
   })
 

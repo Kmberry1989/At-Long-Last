@@ -8,9 +8,15 @@
  * <= 100 chars) as `a=<answers>;g=<guesses>` with single-char option ids.
  */
 
+import { NIGHT_CHOICE_QUESTIONS } from './nightQuestionBank.js'
+
 export const WAVELENGTH_DUEL_ID = 'wavelength-duel'
 export const WAVELENGTH_PROMPT_COUNT = 5
 export const WAVELENGTH_MATCHES_TOTAL = WAVELENGTH_PROMPT_COUNT * 2
+
+export function isWavelengthCommit(result) {
+  return /^h=[a-f0-9]{64}$/.test(result?.excerpt || '')
+}
 
 export const WAVELENGTH_PROMPTS = [
   {
@@ -163,6 +169,7 @@ export const WAVELENGTH_PROMPTS = [
     ],
     text: 'The right way to celebrate a small win…',
   },
+  ...NIGHT_CHOICE_QUESTIONS,
 ]
 
 export const WAVELENGTH_DUEL_DEFINITION = {

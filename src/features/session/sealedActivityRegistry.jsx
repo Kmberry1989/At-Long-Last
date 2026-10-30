@@ -541,11 +541,12 @@ function createMindMeldEntry(definition) {
         },
       }
     },
-    createInitialState(_players, { activePlayerIndex = 0, random = Math.random } = {}) {
+    createInitialState(_players, { activePlayerIndex = 0, random = Math.random, history = [] } = {}) {
       return {
+        activityId: definition.id,
         answers: {},
         matched: null,
-        prompt: pickSealedPrompt(MIND_MELD_PROMPTS, random),
+        prompt: pickSealedPrompt(MIND_MELD_PROMPTS, random, history),
         revealAcks: [],
         turnIndex: activePlayerIndex,
       }
@@ -672,10 +673,11 @@ function createMutualYesEntry(definition) {
 
       return { completed: false, state }
     },
-    createInitialState(_players, { activePlayerIndex = 0, random = Math.random } = {}) {
+    createInitialState(_players, { activePlayerIndex = 0, random = Math.random, history = [] } = {}) {
       return {
+        activityId: definition.id,
         outcome: null,
-        prompt: pickSealedPrompt(MUTUAL_YES_PROMPTS, random),
+        prompt: pickSealedPrompt(MUTUAL_YES_PROMPTS, random, history),
         revealAcks: [],
         salts: {},
         sealed: {},

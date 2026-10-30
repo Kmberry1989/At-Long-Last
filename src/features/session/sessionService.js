@@ -50,7 +50,7 @@ export async function ensureActiveSession(db, couple) {
   const coupleRef = doc(db, 'couples', couple.id)
   const sessionRef = doc(collection(db, 'sessions'))
 
-  await runTransaction(db, async (transaction) => {
+  return runTransaction(db, async (transaction) => {
     const fresh = await transaction.get(coupleRef)
     if (!fresh.exists()) {
       throw new Error('Couple no longer exists.')
@@ -58,7 +58,7 @@ export async function ensureActiveSession(db, couple) {
 
     const current = { id: fresh.id, ...fresh.data() }
     if (current.activeSessionId) {
-      return
+      return current.activeSessionId
     }
 
     transaction.set(sessionRef, {
@@ -74,9 +74,8 @@ export async function ensureActiveSession(db, couple) {
       activeSessionId: sessionRef.id,
       updatedAt: serverTimestamp(),
     })
+    return sessionRef.id
   })
-
-  return sessionRef.id
 }
 
 export function subscribeToSession(db, sessionId, onNext, onError) {
@@ -127,22 +126,30 @@ export function subscribeToJournal(db, coupleId, onNext, onError) {
 }
 
 export async function createActivityRecord(db, session, activityType, initialState) {
-  const activityRef = await addDoc(collection(db, 'activities'), {
-    coupleId: session.coupleId,
-    createdAt: serverTimestamp(),
-    sessionId: session.id,
-    state: initialState,
-    status: 'in_progress',
-    type: activityType,
-    updatedAt: serverTimestamp(),
+  const activityRef = doc(collection(db, 'activities'))
+  const sessionRef = doc(db, 'sessions', session.id)
+  return runTransaction(db, async (transaction) => {
+    const fresh = await transaction.get(sessionRef)
+    if (!fresh.exists()) throw new Error('Session disappeared.')
+    const current = fresh.data()
+    if (current.phase === 'activity' && current.pendingActivityType === activityType && current.pendingActivityId) {
+      return current.pendingActivityId
+    }
+    transaction.set(activityRef, {
+      coupleId: session.coupleId,
+      createdAt: serverTimestamp(),
+      sessionId: session.id,
+      state: initialState,
+      status: 'in_progress',
+      type: activityType,
+      updatedAt: serverTimestamp(),
+    })
+    transaction.update(sessionRef, {
+      pendingActivityId: activityRef.id,
+      updatedAt: serverTimestamp(),
+    })
+    return activityRef.id
   })
-
-  await updateDoc(doc(db, 'sessions', session.id), {
-    pendingActivityId: activityRef.id,
-    updatedAt: serverTimestamp(),
-  })
-
-  return activityRef.id
 }
 
 export async function finalizeActivity({
@@ -207,6 +214,7 @@ export async function updateSessionStateWithJournal(
   sessionId,
   nextSession,
   journalEntries,
+  expectedPhase = null,
 ) {
   const sessionRef = doc(db, 'sessions', sessionId)
   const entries = (journalEntries || []).filter(Boolean)
@@ -217,6 +225,7 @@ export async function updateSessionStateWithJournal(
     if (!snapshot.exists()) {
       throw new Error('Session disappeared.')
     }
+    if (expectedPhase && snapshot.data().phase !== expectedPhase) return
 
     transaction.update(sessionRef, {
       ...buildSessionWritePayload(nextSession),
@@ -345,7 +354,7 @@ export async function abandonSession(db, { coupleId, sessionId }) {
       })
     }
 
-    if (sessionSnapshot.exists()) {
+    if (sessionSnapshot.exists() && sessionSnapshot.data().status === 'active') {
       transaction.update(sessionRef, {
         endedAt: serverTimestamp(),
         lastActionAt: serverTimestamp(),

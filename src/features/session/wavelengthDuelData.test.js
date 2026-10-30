@@ -12,9 +12,15 @@ import {
   scoreWavelengthDuel,
   wavelengthHearts,
   wavelengthVerdict,
+  isWavelengthCommit,
 } from './wavelengthDuelData.js'
 
 describe('wavelength duel encoding', () => {
+  it('recognizes pending hashes without accepting malformed commitments', () => {
+    expect(isWavelengthCommit({ excerpt: `h=${'a'.repeat(64)}` })).toBe(true)
+    expect(isWavelengthCommit({ excerpt: 'h=broken' })).toBe(false)
+    expect(isWavelengthCommit({ excerpt: 'a=aaaaa;g=aaaaa' })).toBe(false)
+  })
   it('round-trips answers and guesses through the excerpt', () => {
     const answers = ['a', 'b', 'c', 'd', 'a']
     const guesses = ['d', 'c', 'b', 'a', 'd']
@@ -152,8 +158,8 @@ describe('wavelength prompt picking', () => {
     expect(getWavelengthOptionLabel(0, 'a', prompts)).toBe(prompts[0].options[0].label)
   })
 
-  it('draws from the full 15-prompt pool', () => {
-    expect(WAVELENGTH_PROMPTS.length).toBe(15)
-    expect(new Set(WAVELENGTH_PROMPTS.map((prompt) => prompt.id)).size).toBe(15)
+  it('draws from a large pool with unique stable IDs', () => {
+    expect(WAVELENGTH_PROMPTS.length).toBeGreaterThanOrEqual(65)
+    expect(new Set(WAVELENGTH_PROMPTS.map((prompt) => prompt.id)).size).toBe(WAVELENGTH_PROMPTS.length)
   })
 })

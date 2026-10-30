@@ -92,6 +92,7 @@ describe('activityRegistry', () => {
       activePlayerIndex: 0,
       random: () => 0,
     })
+    delete state.commitments // Existing saved nights still accept the original protocol.
 
     let step = entry.advance(state, {
       input: { answerId: 'road-trip' },
@@ -105,6 +106,11 @@ describe('activityRegistry', () => {
       playerIndex: 1,
     })
 
+    expect(step.completed).toBe(false)
+    expect(step.state.phase).toBe('reveal')
+    step = entry.advance(step.state, { input: { action: 'continue' }, playerIndex: 0 })
+    expect(step.completed).toBe(false)
+    step = entry.advance(step.state, { input: { action: 'continue' }, playerIndex: 1 })
     expect(step.completed).toBe(true)
     const result = entry.resolve(step.state, players)
     expect(result.heartBonus).toBe(4)
@@ -118,6 +124,7 @@ describe('activityRegistry', () => {
       activePlayerIndex: 1,
       random: () => 0,
     })
+    delete state.commitments
 
     const earlySubject = entry.advance(state, {
       input: { answerId: 'reservation' },
@@ -132,10 +139,14 @@ describe('activityRegistry', () => {
     expect(state.phase).toBe('answer')
     expect(state.turnIndex).toBe(0)
 
-    const completed = entry.advance(state, {
+    let completed = entry.advance(state, {
       input: { answerId: 'drive' },
       playerIndex: 0,
     })
+    expect(completed.completed).toBe(false)
+    expect(completed.state.phase).toBe('reveal')
+    completed = entry.advance(completed.state, { input: { action: 'continue' }, playerIndex: 1 })
+    completed = entry.advance(completed.state, { input: { action: 'continue' }, playerIndex: 0 })
     const result = entry.resolve(completed.state, players)
     expect(completed.completed).toBe(true)
     expect(result.heartBonus).toBe(5)

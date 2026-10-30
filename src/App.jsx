@@ -4,6 +4,7 @@ import { AccountToggle } from './components/AccountToggle.jsx'
 import { AudioToggle } from './components/AudioToggle.jsx'
 import { FirebaseAppProvider } from './features/couple/FirebaseAppContext.jsx'
 import { CoupleProvider } from './features/couple/CoupleProvider.jsx'
+import { MilestonesProvider } from './components/Milestones.jsx'
 import { SessionProvider } from './features/session/SessionProvider.jsx'
 
 const LobbyScreen = lazy(() =>
@@ -39,7 +40,7 @@ export default function App() {
       <FirebaseAppProvider>
         <CoupleProvider>
           <SessionProvider>
-            <AppContent />
+            <MilestonesProvider><AppContent /></MilestonesProvider>
           </SessionProvider>
         </CoupleProvider>
       </FirebaseAppProvider>

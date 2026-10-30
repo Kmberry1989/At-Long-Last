@@ -145,7 +145,7 @@ describe('journalHelpers', () => {
     expect(entry?.summary).toContain('10 shared hearts')
     expect(entry?.text).toContain('10/10 on the same wavelength')
     expect(entry?.text).toContain(expectedPrompts[0].text)
-    expect(entry?.text).toContain('Takeout + couch fort')
+    expect(entry?.text).toContain(expectedPrompts[0].options[0].label)
     expect(entry?.payload.wavelength).toEqual({ matches: 10, total: 10 })
     expect(entry?.type).toBe('duel')
   })

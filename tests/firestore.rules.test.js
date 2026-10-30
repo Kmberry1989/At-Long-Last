@@ -30,10 +30,14 @@ import {
   ensureActiveSession,
   finalizeActivity,
   submitVibeVote,
+  updateSessionStateWithJournal,
 } from '../src/features/session/sessionService.js'
 import { activityRegistry } from '../src/features/session/activityRegistry.jsx'
+import { ensureProfileDocument } from '../src/features/couple/profileService.js'
+import { resolveKeepsakeDecision } from '../src/features/session/sessionLogic.js'
+import { KEEPSAKES } from '../src/features/session/boardConfig.js'
 
-const PROJECT_ID = 'demo-at-long-last'
+const PROJECT_ID = process.env.RULES_TEST_PROJECT || 'demo-at-long-last'
 const HOST_UID = 'host-account'
 const GUEST_UID = 'guest-account'
 const OUTSIDER_UID = 'outsider-account'
@@ -193,6 +197,47 @@ afterAll(async () => {
 })
 
 describe('verified two-account lifecycle', () => {
+  it('stores a keepsake purchase and its page atomically and ignores a repeated tap', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    await updateDoc(doc(hostDb, 'sessions', sessionId), { phase: 'keepsake', pendingKeepsake: KEEPSAKES[0], updatedAt: serverTimestamp() })
+    const snapshot = await getDoc(doc(hostDb, 'sessions', sessionId))
+    const session = { id: snapshot.id, ...snapshot.data() }
+    const next = resolveKeepsakeDecision(session, true)
+    const page = { coupleId: couple.id, payload: KEEPSAKES[0], summary: 'A keepsake for us.', text: KEEPSAKES[0].blurb, title: KEEPSAKES[0].label, type: 'keepsake', vibe: 'tender' }
+    await updateSessionStateWithJournal(hostDb, sessionId, next, [page], 'keepsake')
+    await updateSessionStateWithJournal(hostDb, sessionId, next, [page], 'keepsake')
+    const saved = (await getDoc(doc(hostDb, 'sessions', sessionId))).data()
+    expect(saved.hearts).toBe(1)
+    const pages = await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))
+    expect(pages.size).toBe(1)
+    expect(pages.docs[0].data().sessionId).toBe(sessionId)
+  })
+
+  it('starts another night without rewriting the completed session', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const oldId = await ensureActiveSession(hostDb, couple)
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await updateDoc(doc(context.firestore(), 'sessions', oldId), { status: 'completed', phase: 'finale', endedAt: serverTimestamp() })
+    })
+    await abandonSession(hostDb, { coupleId: couple.id, sessionId: oldId })
+    expect((await getDoc(doc(hostDb, 'sessions', oldId))).data().status).toBe('completed')
+    const freshId = await ensureActiveSession(hostDb, { ...couple, activeSessionId: null })
+    expect(freshId).not.toBe(oldId)
+    expect((await getDoc(doc(hostDb, 'couples', couple.id))).data().activeSessionId).toBe(freshId)
+  })
+  it('records login checks once a day while preserving profile creation time', async () => {
+    const db = authedDb(HOST_UID)
+    const user = { uid: HOST_UID, displayName: 'Host', email: `${HOST_UID}@example.test` }
+    await ensureProfileDocument({ db, user })
+    const first = (await getDoc(doc(db, 'profiles', HOST_UID))).data()
+    await ensureProfileDocument({ db, user })
+    const second = (await getDoc(doc(db, 'profiles', HOST_UID))).data()
+    expect(second.createdAt.isEqual(first.createdAt)).toBe(true)
+    expect(second.loginStreak).toEqual(first.loginStreak)
+    expect(second.loginStreak.dayCount).toBe(1)
+    await assertFails(updateDoc(doc(authedDb(GUEST_UID), 'profiles', HOST_UID), { loginStreak: second.loginStreak }))
+  })
   it('allows both partners to submit vibe votes and enter the first turn', async () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
@@ -290,32 +335,22 @@ describe('verified two-account lifecycle', () => {
     )
   })
 
-  it('accepts the bounded initial state for every registered mini-game', async () => {
+  it('accepts the bounded initial state for every registered activity', async () => {
     const { couple, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
     const sessionSnapshot = await getDoc(doc(hostDb, 'sessions', sessionId))
     const session = { id: sessionSnapshot.id, ...sessionSnapshot.data() }
 
-    for (const activityType of [
-      'mind-meld',
-      'prediction-box',
-      'the-vault',
-      'vibe-check',
-      'tempo-tap',
-      'word-weaver',
-      'dual-axis-maze',
-      'blind-canvas',
-      'harmonic-lock',
-      'bluff-bidding',
-      'photo-flashback',
-    ]) {
+    for (const activityType of Object.keys(activityRegistry)) {
       const state = activityRegistry[activityType].createInitialState(
         session.players,
         { activePlayerIndex: 0, random: () => 0 },
       )
 
       await assertSucceeds(
-        createActivityRecord(hostDb, session, activityType, state),
+        createActivityRecord(hostDb, session, activityType, state).catch(error => {
+          throw new Error(`${activityType}: ${error.message}`)
+        }),
       )
     }
   })
@@ -552,7 +587,7 @@ describe('verified two-account lifecycle', () => {
     )
 
     const invite = await getDoc(doc(hostDb, 'coupleInvites', inviteCode))
-    expect(invite.data().coupleId).toBe(couple.id)
+    expect(invite.exists()).toBe(false)
   })
 })
 
@@ -654,7 +689,7 @@ describe('couple authorization boundaries', () => {
     )
     expect(waitingCouple.data().playerIds).toEqual([HOST_UID])
     expect(waitingCouple.data().status).toBe('waiting')
-    expect(reopenedLobby.data().hostId).toBe(HOST_UID)
+    expect(reopenedLobby.exists()).toBe(false)
   })
 
   it('allows the final participant to remove the reopened waiting room', async () => {
@@ -702,6 +737,18 @@ describe('couple authorization boundaries', () => {
 
     const rewardedCouple = await getDoc(doc(hostDb, 'couples', couple.id))
     expect(rewardedCouple.data().boardState.tenderStars).toBe(1)
+
+    await applyCoupleBoardReward(hostDb, couple.id, 'spicy', 'prediction-box')
+    await applyCoupleBoardReward(guestDb, couple.id, 'playful', 'mind-meld')
+    await applyCoupleBoardReward(guestDb, couple.id, 'playful', 'mind-meld')
+    const decorated = (await getDoc(doc(hostDb, 'couples', couple.id))).data()
+    expect(decorated.boardState.spicyGlowLevel).toBe(1)
+    expect(decorated.boardState.playfulStickerIds).toHaveLength(1)
+    await assertFails(updateDoc(doc(guestDb, 'couples', couple.id), {
+      boardState: { ...decorated.boardState, tenderStars: 2 },
+      playerIds: [GUEST_UID],
+      updatedAt: serverTimestamp(),
+    }))
 
     await assertFails(
       updateDoc(doc(guestDb, 'couples', couple.id), {

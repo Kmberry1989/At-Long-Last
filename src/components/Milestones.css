@@ -1,0 +1,41 @@
+.moment-celebration { position: fixed; inset: 0; z-index: 100; display: grid; grid-template-rows: 1fr auto; overflow: auto; padding: max(28px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom)); color: #fff2dc; background: radial-gradient(ellipse at 50% 36%, #664236 0, #251c29 45%, #0c101b 100%); isolation: isolate; animation: momentFade 1s ease both; outline: none; }
+.moment-celebration::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1; background: linear-gradient(100deg, transparent, #edc28a10 44%, transparent 60%); animation: momentSweep 9s ease both; }
+.moment-halo { position: absolute; width: min(75vw, 560px); aspect-ratio: 1; left: 50%; top: 42%; border-radius: 50%; border: 1px solid #f7d69e40; box-shadow: 0 0 90px #e5a36b20, inset 0 0 80px #efc58910; transform: translate(-50%, -50%); animation: momentHalo 6s ease both; pointer-events: none; }
+.moment-content { width: min(100%, 600px); margin: auto; text-align: center; position: relative; padding: 28px 0; }
+.moment-chapter { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: #dabb97; animation: momentRise 1.4s .2s both; }
+.moment-pieces { display: grid; grid-template-columns: 1fr 52px 1fr; align-items: center; width: min(100%, 340px); margin: 45px auto 32px; }
+.moment-pieces img { width: 120px; max-width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 1px solid #f3d7aa55; box-shadow: 0 16px 60px #0006; }
+.moment-pieces img:first-child { justify-self: end; animation: pieceArriveLeft 3s cubic-bezier(.2,.7,.2,1) both; }
+.moment-pieces img:last-child { animation: pieceArriveRight 3s cubic-bezier(.2,.7,.2,1) both; }
+.moment-seal { font-size: 36px; color: #f3d19c; text-shadow: 0 0 30px #e8a462aa; z-index: 1; animation: momentRise 1.8s 2s both; }
+.moment-names { font-family: 'Fraunces', Georgia, serif; font-size: clamp(24px, 6vw, 38px); overflow-wrap: anywhere; animation: momentRise 1.8s 1.5s both; }
+.moment-names span { color: #c9a67c; font-style: italic; }
+.moment-content h2 { color: #fff0d4; font-size: clamp(40px, 11vw, 74px); line-height: 1.03; margin: 22px 0; text-wrap: balance; animation: momentRise 2.4s 2.8s both; }
+.moment-line { max-width: 32ch; margin: 0 auto; font-size: 17px; color: #e4cebb; line-height: 1.6; text-wrap: balance; animation: momentRise 2s 4s both; }
+.moment-saved { margin-top: 28px; font-size: 12px; letter-spacing: .08em; color: #bea78d; animation: momentRise 1.5s 5.3s both; }
+.moment-controls { display: flex; gap: 14px; align-items: center; justify-content: center; width: min(100%, 440px); margin: 16px auto 0; }
+.moment-controls button { min-height: 48px; border-radius: 999px; padding: 12px 24px; font-weight: 700; }
+.moment-continue { color: #271c25; border: 1px solid #f3d29c; background: linear-gradient(135deg, #ffe7b9, #dfb583); box-shadow: 0 5px 30px #d7975b25; }
+.moment-controls .moment-sound { position: static; display: block; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; font-size: 14px; letter-spacing: 0; text-transform: none; color: #e3cbb0; border: 1px solid #e0bc8a40; background: transparent; }
+.moment-controls button:focus-visible { outline: 3px solid #fff0d4; outline-offset: 4px; }
+.moment-stars { position: absolute; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
+.moment-stars i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #f6d7a3; opacity: .25; animation: momentDrift 6s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -.4s); }
+.moment-connected { background: radial-gradient(ellipse at 50% 36%, #42565d, #212636 48%, #0c101b); }
+.moment-night { background: radial-gradient(ellipse at 50% 36%, #4d405e, #252336 48%, #0c101b); }
+.pairing-story { display: grid; gap: 16px; margin: 20px 0; color: var(--app-ink); }
+.story-moment { display: grid; grid-template-columns: 44px 1fr; gap: 14px; padding: 22px 18px; border-radius: 20px; border: 1px solid #b58b6438; background: linear-gradient(130deg, #fff5e1, #eadac8); box-shadow: 0 8px 24px #36273010; }
+.story-moment h3 { margin: 4px 0 8px; font-size: 28px; }
+.story-moment-seal { color: #a2614e; font-size: 34px; }
+.story-moment time { display: block; font-size: 12px; color: #756153; margin-top: 10px; }
+.commit-confirm { display: grid; gap: 16px; padding: 20px; border-radius: 20px; background: #fff4e2; border: 1px solid #c17c5e55; }
+.commit-confirm label { display: flex; gap: 12px; align-items: start; color: var(--app-ink); }
+.commit-confirm input { margin-top: 5px; width: 20px; height: 20px; accent-color: #ac5865; flex-shrink: 0; }
+@keyframes momentFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes momentRise { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes pieceArriveLeft { from { opacity: 0; transform: translateX(-70px) rotate(-12deg) scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes pieceArriveRight { from { opacity: 0; transform: translateX(70px) rotate(12deg) scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes momentHalo { from { opacity: 0; transform: translate(-50%,-50%) scale(.6); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+@keyframes momentSweep { from { transform: translateX(-50%); opacity: 0; } 30% { opacity: 1; } to { transform: translateX(50%); opacity: 0; } }
+@keyframes momentDrift { from { transform: translateY(12px); opacity: .15; } to { transform: translateY(-18px); opacity: .65; } }
+@media (max-height: 650px) { .moment-pieces { margin: 18px auto; } .moment-pieces img { width: 80px; } .moment-content h2 { font-size: 36px; margin: 12px 0; } .moment-content { padding: 12px 0; } .moment-saved { margin-top: 12px; } }
+@media (prefers-reduced-motion: reduce) { .moment-celebration, .moment-celebration::after, .moment-halo, .moment-stars i, .moment-content *, .moment-pieces img { animation: none !important; filter: none; opacity: 1; transform: none; } .moment-halo { transform: translate(-50%,-50%); } .moment-stars i { opacity: .35; } }

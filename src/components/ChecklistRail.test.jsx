@@ -15,9 +15,9 @@ describe('ChecklistRail', () => {
     const html = renderToStaticMarkup(<ChecklistRail session={session} />)
 
     expect(html).toContain('Night checklist: 3 of 5 complete')
-    expect(html).toContain('Share your mood')
-    expect(html).toContain('Take the first roll')
-    expect(html).toContain('Set the night&#x27;s vibe')
+    expect(html).toContain('Mood')
+    expect(html).toContain('Roll')
+    expect(html).toContain('Vibe')
   })
 
   it('renders nothing without a session', () => {

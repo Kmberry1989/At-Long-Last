@@ -11,12 +11,12 @@ export function MoodPulse({ disabled = false, onConfirm, playerName }) {
 
   return (
     <div className="overlay-card mood-card">
-      <p className="eyebrow">Tonight&apos;s Pulse</p>
-      <h3>How are you arriving tonight?</h3>
+      <p className="eyebrow">Mood</p>
+      <h3>How do you feel?</h3>
       <p className="support-copy">
         {playerName
-          ? `${playerName}, tap the mood that fits. One tap — no essay.`
-          : 'Tap the mood that fits. One tap — no essay.'}
+          ? `${playerName}, pick one.`
+          : 'Pick one.'}
       </p>
 
       <div className="mood-grid" role="radiogroup" aria-label="Your mood tonight">

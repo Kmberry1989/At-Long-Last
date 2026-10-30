@@ -1,4 +1,7 @@
+import { EXTRA_BLUFF_TOPICS, EXTRA_PHOTO_PROMPTS } from './moreNightPrompts.js'
+
 export const BLUFF_BIDDING_TOPICS = [
+  ...EXTRA_BLUFF_TOPICS,
   {
     id: 'romance-movies',
     prompt: 'Famous romance movies',
@@ -22,6 +25,7 @@ export const BLUFF_BIDDING_TOPICS = [
 ]
 
 export const PHOTO_FLASHBACK_PROMPTS = [
+  ...EXTRA_PHOTO_PROMPTS,
   {
     id: 'missing-detail',
     prompt: 'Choose a photo of the two of you. What detail does the picture leave out?',

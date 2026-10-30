@@ -128,11 +128,11 @@ function ActivityCard({
 function createRegistryEntry(definition) {
   return {
     ...definition,
-    createInitialState(_players, { random = Math.random } = {}) {
+    createInitialState(_players, { random = Math.random, history = [] } = {}) {
       return {
         activityId: definition.id,
         entries: [],
-        prompt: pickActivityPrompt(definition, random),
+        prompt: pickActivityPrompt(definition, random, history),
         turnIndex: 0,
       }
     },

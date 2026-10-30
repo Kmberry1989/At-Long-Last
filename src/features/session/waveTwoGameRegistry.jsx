@@ -5,14 +5,7 @@ import {
   WORD_WEAVER_PUZZLES,
 } from './waveTwoGameData.js'
 
-function pickItem(items, random = Math.random) {
-  const index = Math.min(
-    items.length - 1,
-    Math.max(0, Math.floor(random() * items.length)),
-  )
-  return items[index]
-}
-
+import { pickFreshPrompt as pickItem } from './promptRotation.js'
 function getPlayerName(players, playerIndex) {
   return players[playerIndex]?.displayName || `Player ${playerIndex + 1}`
 }
@@ -471,7 +464,7 @@ function createVibeCheckEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(VIBE_CHECK_PROMPTS, options.random)
+      const selected = pickItem(VIBE_CHECK_PROMPTS, options.random, options.history)
       return {
         activityId: definition.id,
         leftLabel: selected.leftLabel,
@@ -567,7 +560,7 @@ function createTempoTapEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(TEMPO_TAP_ROUNDS, options.random)
+      const selected = pickItem(TEMPO_TAP_ROUNDS, options.random, options.history)
       return {
         activityId: definition.id,
         mode: 'tempo-tap',
@@ -655,7 +648,7 @@ function createWordWeaverEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(WORD_WEAVER_PUZZLES, options.random)
+      const selected = pickItem(WORD_WEAVER_PUZZLES, options.random, options.history)
       return {
         activityId: definition.id,
         allowedWords: selected.allowedWords,

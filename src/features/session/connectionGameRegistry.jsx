@@ -4,15 +4,9 @@ import {
   PREDICTION_BOX_PROMPTS,
   VAULT_PROMPTS,
 } from './connectionGameData.js'
+import { commitChoice } from './choiceCommitment.js'
 
-function pickPrompt(prompts, random = Math.random) {
-  const index = Math.min(
-    prompts.length - 1,
-    Math.max(0, Math.floor(random() * prompts.length)),
-  )
-  return prompts[index]
-}
-
+import { pickFreshPrompt as pickPrompt } from './promptRotation.js'
 function getOption(options, answerId) {
   return options.find((option) => option.id === answerId) || null
 }
@@ -29,17 +23,21 @@ function ChoiceGameCard({
   onSubmit,
   playerIndex,
   players,
+  error,
 }) {
   const [selectedAnswer, setSelectedAnswer] = useState('')
+  const [sealing, setSealing] = useState(false)
+  const [localError, setLocalError] = useState('')
   const state = activity.state
+  const storageKey = `at-long-last:choice:${activity.id}:${players[playerIndex]?.uid}`
   const activeName = getPlayerName(players, state.turnIndex)
   const isPrediction = definition.id === 'prediction-box'
   const isPredictor = playerIndex === state.predictorIndex
-  const ownAnswer = isPrediction
+  const ownAnswer = state.commitments?.[String(playerIndex)] || (isPrediction
     ? isPredictor
       ? state.predictionId
       : state.actualId
-    : state.answers?.[String(playerIndex)]
+    : state.answers?.[String(playerIndex)])
   const stageCopy = isPrediction
     ? isPredictor
       ? `Predict the answer ${getPlayerName(players, state.subjectIndex)} will choose.`
@@ -49,6 +47,82 @@ function ChoiceGameCard({
   useEffect(() => {
     setSelectedAnswer('')
   }, [activity.id, state.turnIndex])
+  useEffect(() => {
+    if (state.phase === 'reveal') sessionStorage.removeItem(storageKey)
+  }, [state.phase, storageKey])
+
+  async function sealAnswer() {
+    if (sealing || !selectedAnswer) return
+    setSealing(true)
+    setLocalError('')
+    try {
+      if (!state.commitments) { await onSubmit({ answerId: selectedAnswer }); return }
+      const record = await commitChoice(selectedAnswer)
+      sessionStorage.setItem(storageKey, JSON.stringify(record))
+      await onSubmit({ commitment: record.commitment })
+    } catch {
+      setLocalError('Could not lock that choice. Please try again.')
+    } finally { setSealing(false) }
+  }
+
+  async function openAnswer() {
+    setSealing(true)
+    setLocalError('')
+    try {
+      const record = JSON.parse(sessionStorage.getItem(storageKey) || 'null')
+      if (!record) throw new Error('Missing choice')
+      await onSubmit({ answerId: record.answerId, nonce: record.nonce })
+    } catch {
+      setLocalError('This choice was locked on another tab. Return there to reveal, or pass this card.')
+    } finally { setSealing(false) }
+  }
+
+  if (state.phase === 'opening') {
+    return (
+      <div className="overlay-card activity-card connection-game-card">
+        <p className="eyebrow">Both choices locked</p>
+        <h3>Ready for the reveal?</h3>
+        <p className="support-copy">{state.prompt}</p>
+        <button className="primary-btn" disabled={disabled || sealing} onClick={openAnswer} type="button">Reveal my choice</button>
+        {disabled && <p className="sealed-note">{activeName} opens first.</p>}
+        {(localError || error) && <p className="error-copy">{localError || error}</p>}
+        <button className="secondary-link" disabled={disabled || sealing} onClick={onSkip} type="button">Pass this card</button>
+      </div>
+    )
+  }
+
+  if (state.phase === 'reveal') {
+    const matched = isPrediction
+      ? state.predictionId === state.actualId
+      : state.answers?.['0'] === state.answers?.['1']
+    const acked = (state.revealAcks || []).includes(playerIndex)
+    const rows = isPrediction
+      ? [
+          { playerIndex: state.predictorIndex, id: state.predictionId, verb: 'guessed' },
+          { playerIndex: state.subjectIndex, id: state.actualId, verb: 'chose' },
+        ]
+      : [0, 1].map((index) => ({ playerIndex: index, id: state.answers[String(index)], verb: 'chose' }))
+    return (
+      <div className="overlay-card activity-card connection-game-card choice-reveal">
+        <p className="eyebrow">Both locked in</p>
+        <h3>{matched ? 'You called it.' : 'A little surprise.'}</h3>
+        <p className="support-copy">{state.prompt}</p>
+        <div className="scrapbook-response-grid">
+          {rows.map((row) => (
+            <div className="scrapbook-response-card" key={row.playerIndex}>
+              <strong>{getPlayerName(players, row.playerIndex)} {row.verb}</strong>
+              <p>{getOption(state.options, row.id)?.label}</p>
+            </div>
+          ))}
+        </div>
+        <p className="support-copy">{matched ? 'What gave it away?' : 'What made that your pick?'}</p>
+        <p className="sealed-note">+{matched ? (isPrediction ? 5 : 4) : 2} shared hearts · A page to keep</p>
+        <button className="primary-btn" disabled={disabled || acked} onClick={() => onSubmit({ action: 'continue' })} type="button">
+          {acked ? 'Waiting for your partner…' : 'Continue together'}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className={`overlay-card activity-card connection-game-card vibe-${definition.vibe}`}>
@@ -79,7 +153,7 @@ function ChoiceGameCard({
           <span>{isPrediction && state.phase === 'answer' ? ' answers now' : ' chooses now'}</span>
         </div>
         <span className="sealed-chip">
-          {Object.keys(state.answers || {}).length || (state.predictionId ? 1 : 0)}/2 sealed
+          {Object.keys(state.commitments || state.answers || {}).length || (state.predictionId ? 1 : 0)}/2 sealed
         </span>
       </div>
 
@@ -114,14 +188,15 @@ function ChoiceGameCard({
           </div>
           <button
             className="primary-btn"
-            disabled={!selectedAnswer}
-            onClick={() => onSubmit({ answerId: selectedAnswer })}
+            disabled={!selectedAnswer || sealing}
+            onClick={sealAnswer}
             type="button"
           >
             Seal My Answer
           </button>
         </>
       )}
+      {localError && <p className="error-copy">{localError}</p>}
     </div>
   )
 }
@@ -214,8 +289,8 @@ function VaultCard({
   )
 }
 
-function createChoiceState(prompts, activePlayerIndex, random) {
-  const selected = pickPrompt(prompts, random)
+function createChoiceState(prompts, activePlayerIndex, random, history) {
+  const selected = pickPrompt(prompts, random, history)
   return {
     activityId: null,
     answers: {},
@@ -224,6 +299,41 @@ function createChoiceState(prompts, activePlayerIndex, random) {
     promptId: selected.id,
     turnIndex: activePlayerIndex,
   }
+}
+
+function advanceChoiceReveal(state, { input, playerIndex }) {
+  if (input.action !== 'continue' || playerIndex !== state.turnIndex) {
+    return { completed: false, state }
+  }
+  const revealAcks = Array.from(new Set([...(state.revealAcks || []), playerIndex]))
+  return {
+    completed: revealAcks.length === 2,
+    state: { ...state, revealAcks, turnIndex: playerIndex === 0 ? 1 : 0 },
+  }
+}
+
+function advanceCommittedChoice(state, { input, playerIndex }) {
+  if (playerIndex !== state.turnIndex) return { completed: false, state }
+  const index = String(playerIndex)
+  const nextPlayer = playerIndex === 0 ? 1 : 0
+  if (state.phase === 'opening') {
+    if (!getOption(state.options, input.answerId)) return { completed: false, state }
+    const answers = { ...state.answers, [index]: input.answerId }
+    const bothOpen = Object.keys(answers).length === 2
+    return { completed: false, state: {
+      ...state, answers,
+      ...(state.mode === 'prediction-box' ? { [playerIndex === state.predictorIndex ? 'predictionId' : 'actualId']: input.answerId } : {}),
+      phase: bothOpen ? 'reveal' : 'opening',
+      turnIndex: nextPlayer,
+      ...(bothOpen ? { revealAcks: [] } : {}),
+    } }
+  }
+  if (!/^[a-f0-9]{64}$/.test(input.commitment || '') || state.commitments[index]) return { completed: false, state }
+  const commitments = { ...state.commitments, [index]: input.commitment }
+  return { completed: false, state: {
+    ...state, commitments, turnIndex: nextPlayer,
+    phase: Object.keys(commitments).length === 2 ? 'opening' : state.mode === 'prediction-box' ? 'answer' : 'choosing',
+  } }
 }
 
 function createMindMeldEntry(definition) {
@@ -235,12 +345,16 @@ function createMindMeldEntry(definition) {
           MIND_MELD_PROMPTS,
           options.activePlayerIndex ?? 0,
           options.random,
+          options.history,
         ),
         activityId: definition.id,
+        commitments: {},
         mode: 'mind-meld',
       }
     },
     advance(state, { input, playerIndex }) {
+      if (state.phase === 'reveal') return advanceChoiceReveal(state, { input, playerIndex })
+      if (state.commitments) return advanceCommittedChoice(state, { input, playerIndex })
       if (
         playerIndex !== state.turnIndex ||
         state.answers?.[String(playerIndex)] ||
@@ -254,10 +368,11 @@ function createMindMeldEntry(definition) {
         [String(playerIndex)]: input.answerId,
       }
       return {
-        completed: Object.keys(answers).length === 2,
+        completed: false,
         state: {
           ...state,
           answers,
+          ...(Object.keys(answers).length === 2 ? { phase: 'reveal', revealAcks: [] } : {}),
           turnIndex: playerIndex === 0 ? 1 : 0,
         },
       }
@@ -309,10 +424,12 @@ function createPredictionBoxEntry(definition) {
     ...definition,
     createInitialState(_players, options = {}) {
       const activePlayerIndex = options.activePlayerIndex ?? 0
-      const selected = pickPrompt(PREDICTION_BOX_PROMPTS, options.random)
+      const selected = pickPrompt(PREDICTION_BOX_PROMPTS, options.random, options.history)
       return {
         activityId: definition.id,
         actualId: null,
+        answers: {},
+        commitments: {},
         mode: 'prediction-box',
         options: selected.options,
         phase: 'prediction',
@@ -325,6 +442,8 @@ function createPredictionBoxEntry(definition) {
       }
     },
     advance(state, { input, playerIndex }) {
+      if (state.phase === 'reveal') return advanceChoiceReveal(state, { input, playerIndex })
+      if (state.commitments) return advanceCommittedChoice(state, { input, playerIndex })
       if (
         playerIndex !== state.turnIndex ||
         !getOption(state.options, input.answerId)
@@ -346,10 +465,13 @@ function createPredictionBoxEntry(definition) {
 
       if (state.phase === 'answer' && playerIndex === state.subjectIndex) {
         return {
-          completed: true,
+          completed: false,
           state: {
             ...state,
             actualId: input.answerId,
+            phase: 'reveal',
+            revealAcks: [],
+            turnIndex: state.predictorIndex,
           },
         }
       }
@@ -404,7 +526,7 @@ function createVaultEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickPrompt(VAULT_PROMPTS, options.random)
+      const selected = pickPrompt(VAULT_PROMPTS, options.random, options.history)
       return {
         activityId: definition.id,
         entries: [],

@@ -6,14 +6,11 @@ import {
 import { useFirebaseApp } from './FirebaseAppContext.jsx'
 import {
   clearPlayerCoupleLink,
-  createCoupleDocument,
   joinPublicLobby as joinPublicLobbyDocument,
-  joinCoupleByInviteCode,
   leaveCoupleDocument,
   sendLobbyMessage as sendLobbyMessageDocument,
   setRoomVisibility as setRoomVisibilityDocument,
   subscribeToLobbyMessages,
-  subscribeToPublicLobbies,
   updateCoupleSessionPreset as updateCoupleSessionPresetDocument,
 } from './coupleService.js'
 import {
@@ -30,6 +27,8 @@ import {
 } from './progressService.js'
 import { createDefaultBoardState } from '../session/sessionWiring.js'
 import { PLAYER_THEMES, resolvePlayerAvatar } from './playerAvatar.js'
+
+import { acceptPairingInvite, commitPairing as commitPairingDocument, createPairingInvite, refreshPairingInvite, unpairAccounts } from './pairingService.js'
 
 const CoupleContext = createContext(null)
 
@@ -49,7 +48,7 @@ export function CoupleProvider({ children }) {
   const [previewCouple, setPreviewCouple] = useState(null)
   const [linkedCoupleId, setLinkedCoupleId] = useState(null)
   const [blockedCoupleId, setBlockedCoupleId] = useState(null)
-  const [publicLobbies, setPublicLobbies] = useState([])
+  const [publicLobbies] = useState([])
   const [selectedPublicLobbyId, setSelectedPublicLobbyId] = useState(null)
   const [publicLobbyMessages, setPublicLobbyMessages] = useState([])
   const [progress, setProgress] = useState(null)
@@ -144,7 +143,7 @@ export function CoupleProvider({ children }) {
     const unsubscribe = onSnapshot(
       doc(db, 'couples', linkedCoupleId),
       (snapshot) => {
-        if (!snapshot.exists()) {
+        if (!snapshot.exists() || snapshot.data().status === 'unpaired') {
           setBlockedCoupleId(linkedCoupleId)
           clearPlayerCoupleLink({ db, userId }).catch(() => undefined)
           setLinkedCoupleId(null)
@@ -162,32 +161,7 @@ export function CoupleProvider({ children }) {
     return () => unsubscribe()
   }, [db, enabled, linkedCoupleId, ready, user, userId])
 
-  useEffect(() => {
-    if (!ready || !enabled || !db || !userId || !user) {
-      setPublicLobbies([])
-      return undefined
-    }
-
-    const unsubscribe = subscribeToPublicLobbies(
-      db,
-      (entries) => {
-        const openLobbies = entries.filter((entry) => (
-          entry.status === 'open' &&
-          entry.playerCount === 1
-        ))
-        setPublicLobbies(openLobbies)
-      },
-      (nextError) => {
-        setError(nextError.message)
-      },
-    )
-
-    return () => unsubscribe()
-  }, [db, enabled, ready, user, userId])
-
-  const activePublicLobbyId = selectedPublicLobbyId || (
-    couple?.playerIds?.length === 1 ? couple.id : null
-  )
+  const activePublicLobbyId = null
 
   useEffect(() => {
     if (!ready || !enabled || !db || !activePublicLobbyId) {
@@ -240,6 +214,25 @@ export function CoupleProvider({ children }) {
     return displayName?.trim() || profile?.displayName?.trim() || user?.displayName?.trim() || 'Player'
   }
 
+  useEffect(() => {
+    if (!db || !couple || couple.playerIds?.length !== 1) return
+    refreshPairingInvite({ db, couple, userId }).catch((nextError) => setError(nextError.message))
+  }, [db, couple?.id, couple?.inviteCode, userId])
+
+  async function commitPairing() {
+    if (!db || !couple?.id || !userId) return
+    setError('')
+    try { await commitPairingDocument({ db, coupleId: couple.id, userId, email: user?.email, emailVerified: user?.emailVerified }) }
+    catch (nextError) { setError(nextError.message); throw nextError }
+  }
+
+  async function unpair() {
+    if (!db || !couple?.id || !userId) return
+    setError('')
+    try { await unpairAccounts({ db, coupleId: couple.id, userId }) }
+    catch (nextError) { setError(nextError.message); throw nextError }
+  }
+
   async function createCouple(displayName, sessionPreset, avatar, { isPublic = false } = {}) {
     if (!db || !userId) {
       return
@@ -249,7 +242,7 @@ export function CoupleProvider({ children }) {
     setBlockedCoupleId(null)
     setSelectedPublicLobbyId(null)
     try {
-      await createCoupleDocument({
+      await createPairingInvite({
         avatar,
         db,
         displayName: getPreferredName(displayName),
@@ -291,7 +284,7 @@ export function CoupleProvider({ children }) {
     setBlockedCoupleId(null)
     setSelectedPublicLobbyId(null)
     try {
-      await joinCoupleByInviteCode({
+      await acceptPairingInvite({
         avatar,
         code: inviteCode,
         db,
@@ -338,7 +331,7 @@ export function CoupleProvider({ children }) {
         userId,
       })
 
-      await joinCoupleByInviteCode({
+      await acceptPairingInvite({
         avatar,
         code: inviteCode,
         db,
@@ -570,6 +563,8 @@ export function CoupleProvider({ children }) {
       couple,
       createCouple,
       clearNudge,
+      commitPairing,
+      unpair,
       error,
       hasPartner: couple?.playerIds?.length === 2,
       joinCouple,

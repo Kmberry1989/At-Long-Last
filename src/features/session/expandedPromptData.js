@@ -1,4 +1,7 @@
-export const ACTIVITY_PROMPT_VARIANTS = {
+import { MORE_NIGHT_PROMPTS } from './moreNightPrompts.js'
+import { pickFreshPrompt } from './promptRotation.js'
+
+const ORIGINAL_PROMPT_VARIANTS = {
   'comfort-menu': [
     'When I go quiet after a hard day, the kindest first move is...',
     'Build me a three-item comfort menu for a low-energy night: one thing to say, one thing to do, and one thing to bring.',
@@ -123,14 +126,14 @@ export const ACTIVITY_PROMPT_VARIANTS = {
   ],
 }
 
-export function pickActivityPrompt(definition, random = Math.random) {
+export const ACTIVITY_PROMPT_VARIANTS = Object.fromEntries(
+  Object.entries(ORIGINAL_PROMPT_VARIANTS).map(([id, prompts]) => [id, [...prompts, ...(MORE_NIGHT_PROMPTS[id] || [])]]),
+)
+
+export function pickActivityPrompt(definition, random = Math.random, history = []) {
   const prompts = [
     definition.prompt,
     ...(ACTIVITY_PROMPT_VARIANTS[definition.id] || []),
   ]
-  const index = Math.min(
-    prompts.length - 1,
-    Math.max(0, Math.floor(random() * prompts.length)),
-  )
-  return prompts[index]
+  return pickFreshPrompt(prompts, random, history)
 }

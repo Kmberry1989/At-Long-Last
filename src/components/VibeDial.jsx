@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
 import { DEFAULT_VIBE_WEIGHTS, normalizeVibeWeights } from '../features/session/sessionWiring.js'
 
 const DEFAULT_TRIANGLE_SIZE = {
@@ -155,7 +154,6 @@ export function VibeDial({
     () => getInsetTriangle(triangleSize.width, triangleSize.height),
     [triangleSize],
   )
-  const surfaceRef = useRef(null)
   const initialPosition = useMemo(
     () => weightsToPosition(weights, triangle),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,21 +231,6 @@ export function VibeDial({
     }
   }
 
-  function handleDrag(_, info) {
-    if (!surfaceRef.current) {
-      return
-    }
-
-    const rect = surfaceRef.current.getBoundingClientRect()
-    const x = ((info.point.x - rect.left) / rect.width) * 100
-    const y = ((info.point.y - rect.top) / rect.height) * 100
-    const clampedX = Math.max(8, Math.min(92, x))
-    const clampedY = Math.max(8, Math.min(92, y))
-
-    setPosition({ x: clampedX, y: clampedY })
-    setWeights(positionToWeights(clampedX, clampedY))
-  }
-
   function updatePosition(nextPosition) {
     const next = {
       x: Math.max(8, Math.min(92, nextPosition.x)),
@@ -284,15 +267,15 @@ export function VibeDial({
 
   return (
     <div className="overlay-card vibe-card">
-      <p className="eyebrow">Set The Tone</p>
-      <h3>How should tonight feel?</h3>
+      <p className="eyebrow">Vibe</p>
+      <h3>Set the tone.</h3>
       <p className="support-copy">
         {playerName
-          ? `${playerName}, drag or use the arrow keys toward the energy you want more of.`
-          : 'Drag or use the arrow keys toward the energy you want more of tonight.'}
+          ? `${playerName}, move the mix.`
+          : 'Move the mix.'}
       </p>
 
-      <div className="vibe-surface" ref={surfaceRef}>
+      <div className="vibe-surface">
         <div
           className="vibe-triangle-stage"
           onPointerCancel={handlePointerUp}
@@ -322,24 +305,6 @@ export function VibeDial({
         <span className="vibe-label tender">Tender {Math.round(weights.tender * 100)}%</span>
         <span className="vibe-label playful">Playful {Math.round(weights.playful * 100)}%</span>
         <span className="vibe-label spicy">Spicy {Math.round(weights.spicy * 100)}%</span>
-        <motion.button
-          aria-label="Move the vibe mix"
-          aria-valuetext={`Tender ${Math.round(weights.tender * 100)}%, playful ${Math.round(weights.playful * 100)}%, spicy ${Math.round(weights.spicy * 100)}%`}
-          className={`vibe-handle dominant-${dominant.toLowerCase()}`}
-          drag={!disabled}
-          dragConstraints={surfaceRef}
-          dragElastic={0}
-          dragMomentum={false}
-          onDrag={handleDrag}
-          onKeyDown={handleKeyDown}
-          style={{
-            left: `${position.x}%`,
-            top: `${position.y}%`,
-          }}
-          type="button"
-        >
-          <span />
-        </motion.button>
       </div>
 
       <div className="vibe-meter">
@@ -350,8 +315,8 @@ export function VibeDial({
 
       <div className="vibe-summary">
         <strong>{dominant} leads.</strong>
-        <span>Both votes shape what comes next.</span>
-        <small>Reach 50% Spicy to unlock a bolder choice.</small>
+        <span>Both votes shape the next move.</span>
+        <small>50% Spicy unlocks a bolder choice.</small>
       </div>
 
       <button

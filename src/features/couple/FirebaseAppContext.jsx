@@ -8,6 +8,7 @@ import {
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import {
   browserLocalPersistence,
+  connectAuthEmulator,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   getAuth,
@@ -16,10 +17,12 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  sendEmailVerification,
   updateProfile,
 } from 'firebase/auth'
 import {
   doc,
+  connectFirestoreEmulator,
   getFirestore,
   initializeFirestore,
   onSnapshot,
@@ -31,7 +34,6 @@ import {
   ensureProfileDocument,
   saveProfileDisplayName,
 } from './profileService.js'
-
 import { loginDate } from './loginStreak.js'
 
 const FirebaseAppContext = createContext(null)
@@ -52,6 +54,12 @@ function getFirebaseServices(config) {
         }),
       })
   const auth = getAuth(app)
+
+  // Explicit development-only switch keeps two-browser QA off production data.
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+    connectFirestoreEmulator(db, '127.0.0.1', 8080)
+  }
 
   firebaseSingleton = { app, auth, db }
   return firebaseSingleton
@@ -279,11 +287,6 @@ export function FirebaseAppProvider({ children }) {
       await updateProfile(user, {
         displayName: displayName.trim(),
       })
-      await saveProfileDisplayName({
-        db: state.db,
-        displayName,
-        user,
-      })
       await ensureProfileDocument({
         db: state.db,
         user,
@@ -412,6 +415,19 @@ export function FirebaseAppProvider({ children }) {
     }
   }
 
+  async function verifyEmail() {
+    if (!state.user) return
+    await sendEmailVerification(state.user)
+  }
+
+  async function refreshEmailVerification() {
+    if (!state.user) return
+    await state.user.reload()
+    await state.user.getIdToken(true)
+    setState((current) => ({ ...current }))
+    return state.user.emailVerified
+  }
+
   const value = useMemo(
     () => ({
       ...state,
@@ -429,6 +445,8 @@ export function FirebaseAppProvider({ children }) {
       signInWithProvider,
       signOutUser,
       updateDisplayName,
+      verifyEmail,
+      refreshEmailVerification,
     }),
     [authError, authWorking, state],
   )
