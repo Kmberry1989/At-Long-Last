@@ -196,7 +196,7 @@ export function FirebaseAppProvider({ children }) {
       }
 
       try {
-        await user.getIdToken()
+        await user.getIdToken(true)
       } catch (error) {
         if (isRecoverableAuthStateError(error)) {
           setAuthError('That saved sign-in expired on this device. Please sign in again.')

@@ -28,7 +28,8 @@ import {
 import { createDefaultBoardState } from '../session/sessionWiring.js'
 import { PLAYER_THEMES, resolvePlayerAvatar } from './playerAvatar.js'
 
-import { acceptPairingInvite, commitPairing as commitPairingDocument, createPairingInvite, refreshPairingInvite, unpairAccounts } from './pairingService.js'
+import { sendEmailInvitation, acceptEmailInvitation, declineEmailInvitation, subscribeToEmailInvitations, subscribeToSentInvitation } from './emailInvitationService.js'
+import { acceptPairingInvite, commitPairing as commitPairingDocument, createPairingInvite, unpairAccounts } from './pairingService.js'
 
 const CoupleContext = createContext(null)
 
@@ -70,7 +71,7 @@ export function CoupleProvider({ children }) {
     setLoading(false)
 
     try {
-      await clearPlayerCoupleLink({ db, userId })
+      await clearPlayerCoupleLink({ db, userId, expectedCoupleId: staleCoupleId })
       setError('That saved couple link was stale, so it was cleared. You can create or join a room again.')
     } catch {
       setError(nextError.message)
@@ -145,7 +146,7 @@ export function CoupleProvider({ children }) {
       (snapshot) => {
         if (!snapshot.exists() || snapshot.data().status === 'unpaired') {
           setBlockedCoupleId(linkedCoupleId)
-          clearPlayerCoupleLink({ db, userId }).catch(() => undefined)
+          clearPlayerCoupleLink({ db, userId, expectedCoupleId: linkedCoupleId }).catch(() => undefined)
           setLinkedCoupleId(null)
           setCouple(null)
           setLoading(false)
@@ -210,14 +211,44 @@ export function CoupleProvider({ children }) {
     setSelectedPublicLobbyId(publicLobbies[0]?.id || null)
   }, [couple, publicLobbies, selectedPublicLobbyId])
 
+  const invitationKey = `${userId || ''}:${user?.email || ''}:${couple?.id || ''}`
+  const [invitationState, setInvitationState] = useState({ key: '', incoming: [], sent: null, loading: false, error: '' })
+  useEffect(() => {
+    const canReceive = ready && enabled && db && userId && user?.emailVerified && user?.email
+    setInvitationState({ key: invitationKey, incoming: [], sent: null, loading: Boolean(canReceive), error: '' })
+    if (!canReceive) return undefined
+    const patch = (fields) => setInvitationState((current) => current.key === invitationKey ? { ...current, ...fields } : current)
+    const fail = () => patch({ loading: false, error: 'Could not load invitations. Sign out and back in to try again.' })
+    const incoming = subscribeToEmailInvitations(db, user.email, (items) => patch({ incoming: items, loading: false }), fail)
+    const outgoing = couple?.status === 'waiting' && couple.playerIds?.[0] === userId
+      ? subscribeToSentInvitation(db, couple.id, (item) => patch({ sent: item }), fail)
+      : () => undefined
+    return () => { incoming(); outgoing() }
+  }, [db, enabled, ready, userId, user?.email, user?.emailVerified, couple?.id, couple?.status, invitationKey])
+  const invitations = invitationState.key === invitationKey ? invitationState : { incoming: [], sent: null, loading: false, error: '' }
+
+  async function inviteByEmail(recipientEmail, avatar) {
+    setError(''); setBlockedCoupleId(null)
+    try { return await sendEmailInvitation({ db, userId, email: user.email, emailVerified: user.emailVerified, recipientEmail, displayName: getPreferredName(), avatar, origin }) }
+    catch (nextError) { setError(nextError.message); throw nextError }
+  }
+  async function acceptInvitation(invitationId, avatar) {
+    setError('')
+    try {
+      if (couple?.status === 'waiting') await unpairAccounts({ db, coupleId: couple.id, userId })
+      setBlockedCoupleId(null)
+      return await acceptEmailInvitation({ db, invitationId, userId, email: user.email, emailVerified: user.emailVerified, displayName: getPreferredName(), avatar })
+    } catch (nextError) { setError(nextError.message); throw nextError }
+  }
+  async function declineInvitation(invitationId) {
+    setError('')
+    try { await declineEmailInvitation({ db, invitationId }) }
+    catch (nextError) { setError(nextError.message); throw nextError }
+  }
+
   function getPreferredName(displayName) {
     return displayName?.trim() || profile?.displayName?.trim() || user?.displayName?.trim() || 'Player'
   }
-
-  useEffect(() => {
-    if (!db || !couple || couple.playerIds?.length !== 1) return
-    refreshPairingInvite({ db, couple, userId }).catch((nextError) => setError(nextError.message))
-  }, [db, couple?.id, couple?.inviteCode, userId])
 
   async function commitPairing() {
     if (!db || !couple?.id || !userId) return
@@ -560,6 +591,13 @@ export function CoupleProvider({ children }) {
   const value = useMemo(
     () => ({
       activePublicLobbyId,
+      incomingInvitations: invitations.incoming,
+      sentInvitation: invitations.sent,
+      invitationsLoading: invitations.loading,
+      invitationError: invitations.error,
+      inviteByEmail,
+      acceptInvitation,
+      declineInvitation,
       couple,
       createCouple,
       clearNudge,
@@ -597,6 +635,7 @@ export function CoupleProvider({ children }) {
     }),
     [
       activePublicLobbyId,
+      invitations,
       couple,
       enabled,
       error,

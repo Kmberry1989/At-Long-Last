@@ -574,11 +574,13 @@ export async function updateCoupleSessionPreset({
   })
 }
 
-export async function clearPlayerCoupleLink({
-  db,
-  userId,
-}) {
-  await deleteDoc(doc(db, 'playerCouples', userId))
+export async function clearPlayerCoupleLink({ db, userId, expectedCoupleId }) {
+  const ref = doc(db, 'playerCouples', userId)
+  if (!expectedCoupleId) return deleteDoc(ref)
+  return runTransaction(db, async (transaction) => {
+    const current = await transaction.get(ref)
+    if (current.exists() && current.data().coupleId === expectedCoupleId) transaction.delete(ref)
+  })
 }
 
 export function subscribeToPublicLobbies(db, onNext, onError) {

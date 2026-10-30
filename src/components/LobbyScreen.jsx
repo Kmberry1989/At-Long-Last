@@ -4,7 +4,6 @@ import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { DEFAULT_PLAYER_AVATAR, resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
-import { LoginStreak } from './LoginStreak.jsx'
 import { PairingHome } from './PairingHome.jsx'
 import { PlayerPiecePicker } from './PlayerPiecePicker.jsx'
 
@@ -12,8 +11,7 @@ const PIECE_KEY = 'at-long-last:player-piece:v1'
 function savedPiece() {
   try {
     const saved = window.localStorage.getItem(PIECE_KEY)
-    const params = new URLSearchParams(window.location.search)
-    return !saved && (params.has('invite') || params.has('code')) ? '/assets/players/globe-classic.glb' : resolvePlayerAvatar(saved)
+    return resolvePlayerAvatar(saved)
   }
   catch { return DEFAULT_PLAYER_AVATAR }
 }
@@ -28,7 +26,7 @@ function GoogleMark() {
 }
 
 export function LobbyScreen() {
-  const { hasPartner, loading, launchPreview, profile } = useCouple()
+  const { hasPartner, loading, launchPreview } = useCouple()
   const { authError, authWorking, createAccount, enabled, isSignedIn, ready, signInWithEmail, signInWithProvider } = useFirebaseApp()
   const { gameOpen, readyToPlay } = useSession()
   const { setStage } = useAudio()
@@ -42,7 +40,6 @@ export function LobbyScreen() {
   const working = loading || authWorking
   const authScreen = ready && enabled && !isSignedIn
   const active = !hasPartner || !gameOpen || !readyToPlay
-  const invited = Boolean(new URLSearchParams(window.location.search).get('invite') || new URLSearchParams(window.location.search).get('code'))
 
   useEffect(() => { if (active) setStage?.('menu') }, [active, setStage])
   useEffect(() => { setShowPassword(false) }, [authMode])
@@ -59,11 +56,10 @@ export function LobbyScreen() {
   return <section className={`screen lobby-screen${active ? ' active' : ' inactive'}${authScreen ? ' auth-screen' : ''}`}>
     <div aria-hidden="true" className="lobby-backdrop"><div className="orbital orbital-a" /><div className="orbital orbital-b" /><div className="orbital orbital-c" /><div className="board-fragment fragment-a" /><div className="board-fragment fragment-b" /><div className="board-fragment fragment-c" /><div className="token token-heart">♥</div><div className="token token-die">✦</div><div className="token token-note">♫</div><div className="path-ribbon ribbon-a" /><div className="path-ribbon ribbon-b" /></div>
     <div className="lobby-content">
-      <div className={`title-band${authScreen || hasPartner ? ' auth-title-band' : ''}`}>
+      <div className={`title-band${enabled ? ' auth-title-band' : ''}`}>
         <img alt="At Long Last" className="brand-logo" src="/assets/ui/atlonglast-wordmark-wide.png" />
-        {!authScreen && !hasPartner && <img alt="" className="lobby-hero" src="/assets/themes/landing-hero.webp" />}
+
       </div>
-      {isSignedIn && !hasPartner && <LoginStreak streak={profile?.loginStreak} />}
       <div className={`glass-card hero-card lobby-card${authScreen ? ' auth-card' : ''}`}>
         {!ready ? <h2>Loading…</h2> : !enabled ? <>
           <h2>Preview</h2><p className="support-copy">Local play</p>
@@ -71,7 +67,6 @@ export function LobbyScreen() {
           <PlayerPiecePicker value={avatar} onChange={setAvatar} />
           <button className="primary-btn" onClick={() => launchPreview(name || 'You', avatar)} type="button">Play</button>
         </> : !isSignedIn ? <>
-          {invited && <p className="support-copy">Sign in to connect</p>}
           <div className="auth-intro"><h2>Sign in</h2></div>
           <button className="provider-btn ghost-btn google" disabled={working} onClick={async () => { try { await signInWithProvider('google') } catch (nextError) { setError(nextError.message) } }} type="button"><GoogleMark /><span>Google</span></button>
           <div className="divider-label">or</div>

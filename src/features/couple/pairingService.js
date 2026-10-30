@@ -115,10 +115,13 @@ export async function unpairAccounts({ db, coupleId, userId }) {
     const publicRef = doc(db, 'publicLobbies', coupleId)
     const invite = await transaction.get(inviteRef)
     const publicLobby = await transaction.get(publicRef)
+    const emailRef = doc(db, 'emailInvitations', coupleId)
+    const emailInvite = await transaction.get(emailRef)
     transaction.update(ref, { status: 'unpaired', activeSessionId: null, visibility: 'private', updatedAt: serverTimestamp() })
     transaction.delete(doc(db, 'playerCouples', userId))
     if (invite.exists()) transaction.delete(inviteRef)
     if (publicLobby.exists()) transaction.delete(publicRef)
+    if (emailInvite.exists()) transaction.delete(emailRef)
   })
 }
 

@@ -8,3 +8,13 @@
 .pairing-unpair > .ghost-btn { width: 100%; }
 .pairing-unpair button, .pairing-commit button { min-height: 44px; }
 .game-home-btn { position: absolute; top: 60px; left: 16px; z-index: 25; min-height: 44px; padding: 10px 18px; background: #fff8ef; color: var(--app-ink); }
+.email-onboarding, .email-invitation { display: grid; gap: 14px; }
+.email-onboarding h2, .email-invitation h2 { margin: 0; }
+.email-onboarding p, .email-invitation p { line-height: 1.5; }
+.email-onboarding label { font-weight: 700; }
+.email-invitation { padding: 18px; border-radius: 20px; background: #fff7eb; border: 1px solid #bd8e6966; }
+.email-address { overflow-wrap: anywhere; font-weight: 700; }
+.account-compact { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 10px 12px; gap: 10px; }
+.account-compact .account-copy strong { font-size: 18px; }
+.account-compact .account-copy p { font-size: 12px; overflow-wrap: anywhere; }
+.account-compact .account-actions button { font-size: 11px; padding: 8px 10px; min-height: 36px; }

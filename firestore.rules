@@ -373,8 +373,12 @@ service cloud.firestore {
         && after.playerIds == [before.playerIds[0], request.auth.uid]
         && after.players.size() == 2 && after.players[0] == before.players[0]
         && isValidPlayer(after.players[1], request.auth.uid)
-        && exists(/databases/$(database)/documents/coupleInvites/$(before.inviteCode))
-        && !existsAfter(/databases/$(database)/documents/coupleInvites/$(before.inviteCode))
+        && (exists(/databases/$(database)/documents/emailInvitations/$(coupleId))
+          ? (isEmailRecipient(get(/databases/$(database)/documents/emailInvitations/$(coupleId)).data)
+            && get(/databases/$(database)/documents/emailInvitations/$(coupleId)).data.status == 'pending'
+            && !existsAfter(/databases/$(database)/documents/emailInvitations/$(coupleId)))
+          : (exists(/databases/$(database)/documents/coupleInvites/$(before.inviteCode))
+            && !existsAfter(/databases/$(database)/documents/coupleInvites/$(before.inviteCode))))
         && getAfter(/databases/$(database)/documents/playerCouples/$(request.auth.uid)).data.coupleId == coupleId
         && !existsAfter(/databases/$(database)/documents/publicLobbies/$(coupleId));
     }
@@ -475,12 +479,10 @@ service cloud.firestore {
         && getAfter(
           /databases/$(database)/documents/playerCouples/$(request.auth.uid)
         ).data.coupleId == coupleId
-        && existsAfter(
-          /databases/$(database)/documents/coupleInvites/$(data.inviteCode)
-        )
-        && getAfter(
-          /databases/$(database)/documents/coupleInvites/$(data.inviteCode)
-        ).data.coupleId == coupleId
+        && ((existsAfter(/databases/$(database)/documents/emailInvitations/$(coupleId))
+            && getAfter(/databases/$(database)/documents/emailInvitations/$(coupleId)).data.senderId == request.auth.uid)
+          || (existsAfter(/databases/$(database)/documents/coupleInvites/$(data.inviteCode))
+            && getAfter(/databases/$(database)/documents/coupleInvites/$(data.inviteCode)).data.coupleId == coupleId))
         && (
           (
             data.visibility == 'public'
@@ -1234,6 +1236,46 @@ service cloud.firestore {
         || (exists(link) && isParticipant(get(link).data.coupleId)
           && (key == emailLockKey(coupleData(get(link).data.coupleId).get('commitmentEmails', {}).get(coupleData(get(link).data.coupleId).playerIds[0], ''))
             || key == emailLockKey(coupleData(get(link).data.coupleId).get('commitmentEmails', {}).get(coupleData(get(link).data.coupleId).playerIds[1], '')))));
+    }
+
+    // Email invitations are visible only to their sender and verified addressee.
+    function isEmailRecipient(data) {
+      return isAuthenticated() && request.auth.token.get('email_verified', false)
+        && data.recipientEmail == request.auth.token.get('email', '').lower();
+    }
+    function isValidEmailInvitation(data) {
+      return data.keys().hasAll(['senderId', 'senderEmail', 'senderName', 'senderAvatar', 'recipientEmail', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['senderId', 'senderEmail', 'senderName', 'senderAvatar', 'recipientEmail', 'status', 'createdAt', 'updatedAt'])
+        && isBoundedString(data.senderId, 1, 128) && isBoundedString(data.senderName, 1, 60)
+        && isBoundedString(data.senderAvatar, 1, 160)
+        && isBoundedString(data.senderEmail, 3, 254) && isBoundedString(data.recipientEmail, 3, 254)
+        && data.recipientEmail == data.recipientEmail.lower()
+        && data.recipientEmail.matches('^[^ @]+@[^ @]+[.][^ @]+$')
+        && data.senderEmail != data.recipientEmail && data.status in ['pending', 'declined']
+        && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    match /emailInvitations/{coupleId} {
+      allow get: if isAuthenticated() && ((resource == null && isParticipant(coupleId))
+        || (resource != null && (resource.data.senderId == request.auth.uid || isEmailRecipient(resource.data))));
+      allow list: if isEmailRecipient(resource.data);
+      allow create: if isAuthenticated() && request.auth.token.get('email_verified', false)
+        && isValidEmailInvitation(request.resource.data)
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.senderEmail == request.auth.token.get('email', '').lower()
+        && request.resource.data.status == 'pending' && request.resource.data.createdAt == request.time
+        && coupleDataAfter(coupleId).status == 'waiting'
+        && coupleDataAfter(coupleId).playerIds == [request.auth.uid]
+        && request.resource.data.senderName == coupleDataAfter(coupleId).players[0].displayName
+        && request.resource.data.senderAvatar == coupleDataAfter(coupleId).players[0].avatar
+        && !existsAfter(/databases/$(database)/documents/coupleInvites/$(coupleDataAfter(coupleId).inviteCode));
+      allow update: if isEmailRecipient(resource.data) && resource.data.status == 'pending'
+        && isValidEmailInvitation(request.resource.data)
+        && hasOnlyChanged(['status', 'updatedAt']) && request.resource.data.status == 'declined';
+      allow delete: if isAuthenticated() && (
+        (resource.data.senderId == request.auth.uid && coupleDataAfter(coupleId).status == 'unpaired')
+        || (isEmailRecipient(resource.data) && resource.data.status == 'pending'
+          && coupleDataAfter(coupleId).status == 'paired'
+          && coupleDataAfter(coupleId).playerIds == [resource.data.senderId, request.auth.uid]));
     }
 
     match /pairingLocks/{key} {

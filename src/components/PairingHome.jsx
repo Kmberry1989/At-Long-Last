@@ -2,34 +2,32 @@ import { useEffect, useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { useSession } from '../features/session/SessionProvider.jsx'
-import { hasCommitted, pairingShareLink } from '../features/couple/pairingService.js'
+import { hasCommitted } from '../features/couple/pairingService.js'
 import { SESSION_PRESET_OPTIONS } from '../features/session/sessionPresets.js'
 import { Disclosure } from './Disclosure.jsx'
-import { InviteJoinScreen } from './InviteJoinScreen.jsx'
 import { PlayerPiecePicker } from './PlayerPiecePicker.jsx'
+import { LoginStreak } from './LoginStreak.jsx'
 import { ProgressHub } from './ProgressHub.jsx'
 import { PairingStory } from './Milestones.jsx'
 import { JournalTimeline } from './JournalTimeline.jsx'
+import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/emailInvitationService.js'
 import './PairingHome.css'
 
 export function PairingHome({ avatar, onAvatarChange }) {
-  const { couple, createCouple, joinCouple, commitPairing, unpair, loading, error, profile } = useCouple()
-  const { user, db, updateDisplayName, authWorking, verifyEmail, refreshEmailVerification } = useFirebaseApp()
+  const { couple, inviteByEmail, acceptInvitation, declineInvitation, incomingInvitations = [], sentInvitation, invitationsLoading, invitationError, commitPairing, unpair, loading, error, profile } = useCouple()
+  const { user, updateDisplayName, authWorking, verifyEmail, refreshEmailVerification } = useFirebaseApp()
   const { session, journalEntries, gameOpen, readyToPlay, error: sessionError, beginNight, openGame, closeGame, working: sessionWorking } = useSession()
   const name = profile?.displayName || user?.displayName || 'Player'
   const [draftName, setDraftName] = useState(name)
   const [editingName, setEditingName] = useState(false)
-  const [code, setCode] = useState(() => {
-    const params = new URLSearchParams(window.location.search)
-    return (params.get('invite') || params.get('code') || '').toUpperCase()
-  })
-  const [deepLink, setDeepLink] = useState(() => Boolean(new URLSearchParams(window.location.search).get('invite') || new URLSearchParams(window.location.search).get('code')))
+  const [partnerEmail, setPartnerEmail] = useState('')
   const [preset, setPreset] = useState(couple?.sessionPreset || 'quick')
   const [confirmUnpair, setConfirmUnpair] = useState(false)
   const [confirmCommit, setConfirmCommit] = useState(false)
   const [acceptPermanent, setAcceptPermanent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const [noticeError, setNoticeError] = useState(false)
   const partner = couple?.players?.find((player) => player.uid !== user?.uid)
   const paired = couple?.playerIds?.length === 2
   const committed = hasCommitted(couple)
@@ -40,34 +38,19 @@ export function PairingHome({ avatar, onAvatarChange }) {
   useEffect(() => { setDraftName(name) }, [name])
   useEffect(() => { setPreset(couple?.sessionPreset || 'quick'); setConfirmUnpair(false); setConfirmCommit(false); setAcceptPermanent(false); setNotice('') }, [couple?.id, couple?.sessionPreset])
   useEffect(() => {
-    if (!couple) return
     const url = new URL(window.location.href)
     if (url.searchParams.has('invite') || url.searchParams.has('code')) {
       url.searchParams.delete('invite'); url.searchParams.delete('code')
       window.history.replaceState({}, '', url)
     }
-  }, [couple?.id])
+  }, [])
 
   async function act(callback) {
     if (disabled) return
-    setBusy(true); setNotice('')
+    setBusy(true); setNotice(''); setNoticeError(false)
     try { await callback() }
-    catch (nextError) { setNotice(nextError.message || 'Please try again.') }
+    catch (nextError) { setNoticeError(true); setNotice(nextError.code === 'permission-denied' ? 'This invitation changed or your sign-in expired. Refresh and try again.' : nextError.message || 'Please try again.') }
     finally { setBusy(false) }
-  }
-
-  async function share(copyOnly = false) {
-    const url = pairingShareLink(couple, window.location.origin)
-    try {
-      if (!copyOnly && navigator.share) {
-        await navigator.share({ title: 'At Long Last', text: 'Connect with me on At Long Last.', url })
-        setNotice('Invite shared')
-      } else {
-        if (!navigator.clipboard?.writeText) throw new Error('Copy the code below to share your invitation.')
-        await navigator.clipboard.writeText(url)
-        setNotice('Link copied')
-      }
-    } catch (nextError) { if (nextError.name !== 'AbortError') setNotice(nextError.message) }
   }
 
   function piecePicker() {
@@ -76,7 +59,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
 
   return (
     <>
-      <div className="account-strip">
+      <div className={`account-strip${!paired ? ' account-compact' : ''}`}>
         <div className="account-copy"><strong>{name}</strong>{user?.email && <p>{user.email}</p>}</div>
         <div className="account-actions">
           <button className="ghost-btn" onClick={() => setEditingName(!editingName)} type="button">{editingName ? 'Done' : 'Edit Name'}</button>
@@ -91,26 +74,40 @@ export function PairingHome({ avatar, onAvatarChange }) {
         <h2>{sessionError ? 'Game unavailable' : 'Loading game…'}</h2>
         <p role={sessionError ? 'alert' : 'status'}>{sessionError ? 'Your saved game could not be opened.' : 'Connecting to your game.'}</p>
         <button className="ghost-btn" onClick={closeGame} type="button">Home</button>
-      </> : !couple ? deepLink ? <InviteJoinScreen db={db} inviteCode={code} nickname={draftName} onNicknameChange={setDraftName} onJoin={(nickname) => act(() => joinCouple(nickname, code, avatar))} onUseCodeInstead={() => setDeepLink(false)} working={disabled} /> : <>
-        <h2>Connect once.</h2>
-        <p className="support-copy">Share a link with your person.</p>
-        {piecePicker()}
-        <button className="primary-btn" disabled={disabled} onClick={() => act(() => createCouple(name, preset, avatar))} type="button">Create invite</button>
-        <Disclosure label="Use code">
-          <form className="join-row" onSubmit={(event) => { event.preventDefault(); act(() => joinCouple(name, code, avatar)) }}>
-            <input aria-label="Invite code" className="text-input code-input" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} maxLength={6} autoComplete="off" placeholder="Code" />
-            <button className="primary-btn" disabled={code.trim().length !== 6 || disabled} type="submit">Connect</button>
-          </form>
-        </Disclosure>
       </> : !paired ? <>
-        <h2>Invite your person</h2>
-        <p className="support-copy">One link connects your accounts for future nights.</p>
-        <div className="button-row">
-          <button className="primary-btn" disabled={disabled} onClick={() => share()} type="button">Share invite</button>
-          <button className="primary-btn alt" disabled={disabled} onClick={() => share(true)} type="button">Copy link</button>
-        </div>
-        <Disclosure label="Code"><div className="invite-display"><strong>{couple.inviteCode}</strong></div></Disclosure>
-        <p className="support-copy" role="status">Waiting for your person to connect.</p>
+        {!user?.emailVerified ? <div className="email-onboarding">
+          <h2>Verify your email</h2>
+          <p>Confirm <strong>{user?.email}</strong> before inviting or accepting your person.</p>
+          <button className="primary-btn" disabled={disabled} onClick={() => act(async () => { await verifyEmail(); setNotice('Verification email sent. Open it, then come back here.') })} type="button">Send verification email</button>
+          <button className="ghost-btn" disabled={disabled} onClick={() => act(async () => { const verified = await refreshEmailVerification(); setNotice(verified ? 'Email verified' : 'Open the verification email, then try again.') })} type="button">I’ve verified my email</button>
+        </div> : <>
+          {invitationsLoading && <p role="status">Checking invitations…</p>}
+          {incomingInvitations.map((invitation) => <section className="email-invitation" aria-label={`Invitation from ${invitation.senderName}`} key={invitation.id}>
+            <p className="eyebrow">You’re invited</p>
+            <h2>{invitation.senderName} chose you</h2>
+            <p className="email-address">{invitation.senderEmail}</p>
+            <p>Share your game. Commit becomes permanent only after you both confirm.</p>
+            {couple && <p>Accepting replaces your pending invitation.</p>}
+            <button className="primary-btn" disabled={disabled} onClick={() => act(() => acceptInvitation(invitation.id, avatar))} type="button">Accept invitation</button>
+            <button className="ghost-btn" disabled={disabled} onClick={() => act(() => declineInvitation(invitation.id))} type="button">Decline</button>
+          </section>)}
+          {sentInvitation ? <section className="email-onboarding" aria-label="Your invitation">
+            <p className="eyebrow">{sentInvitation.status === 'declined' ? 'Invitation declined' : 'Invitation sent'}</p>
+            <h2>{sentInvitation.status === 'declined' ? 'They declined your invitation' : 'Waiting for your person'}</h2>
+            <p className="email-address">{sentInvitation.recipientEmail}</p>
+            <p>{sentInvitation.status === 'declined' ? 'Cancel this invitation to choose another email.' : 'They’ll see your invitation when they sign in to At Long Last with this email. Tell them to open the game and sign in.'}</p>
+            <p className="support-copy">Invitations appear inside the game; no invitation email is sent.</p>
+          </section> : incomingInvitations.length ? null : <form className="email-onboarding" aria-label="Invite your person" onSubmit={(event) => { event.preventDefault(); act(() => inviteByEmail(partnerEmail, avatar)) }}>
+            <h2>Choose your person</h2>
+            <p>Enter the email they’ll use to sign in. They’ll find your invitation inside the game.</p>
+            <label htmlFor="partner-email">Your person’s email</label>
+            <input id="partner-email" className="text-input" autoComplete="off" autoCapitalize="none" spellCheck={false} type="email" required maxLength={254} placeholder="name@example.com" value={partnerEmail} onChange={(event) => setPartnerEmail(event.target.value)} />
+            <button className="primary-btn" disabled={disabled || !validPartnerEmail(normalizePartnerEmail(partnerEmail)) || normalizePartnerEmail(partnerEmail) === normalizePartnerEmail(user?.email)} type="submit">Invite your person</button>
+            <p className="support-copy">Already invited? Sign in with the email your person used. Both of you confirm Commit separately.</p>
+          </form>}
+          {piecePicker()}
+          {invitationError && <p role="alert" className="error-copy">{invitationError}</p>}
+        </>}
       </> : <>
         <div className="pairing-title"><h2>You &amp; {partner?.displayName || 'your person'}</h2>{committed && <span className="pairing-committed">♥ Committed</span>}</div>
         {!committed && <div className="pairing-commit">
@@ -134,7 +131,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </>}
         {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Your saved game is unavailable. Try Continue again, or sign out and back in.' : 'Could not start your night. Try New night again.'}</p>}
         <Disclosure label="Scrapbook"><PairingStory /><JournalTimeline entries={journalEntries || []} /></Disclosure>
-        <Disclosure label="Collection"><ProgressHub /></Disclosure>
+        <Disclosure label="Collection"><LoginStreak streak={profile?.loginStreak} /><ProgressHub /></Disclosure>
       </>}
 
       {couple && !committed && <div className="pairing-unpair">
@@ -143,7 +140,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
           <div className="button-row"><button className="ghost-btn" disabled={disabled} onClick={() => act(unpair)} type="button">{paired ? 'Confirm disconnect' : 'Confirm cancel'}</button><button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(false)} type="button">Cancel</button></div>
         </> : <button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(true)} type="button">{paired ? 'Cancel connection' : 'Cancel invite'}</button>}
       </div>}
-      {(notice || error) && <p className="error-copy" role="status">{notice || error}</p>}
+      {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
     </>
   )
 }
