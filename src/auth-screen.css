@@ -1,0 +1,255 @@
+/* Login has its own full-width atmosphere; the game retains its compact shell. */
+.app-shell:has(.auth-screen.active) {
+  width: 100%;
+  box-shadow: none;
+  isolation: isolate;
+}
+
+.lobby-screen.auth-screen {
+  display: grid;
+  align-content: safe center;
+  padding: max(72px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+  isolation: isolate;
+  background: #161222;
+}
+
+.lobby-screen.auth-screen .lobby-backdrop {
+  position: fixed;
+  background:
+    linear-gradient(180deg, #17112280, #151320c9),
+    url('/assets/themes/background-ink.webp') center / cover no-repeat;
+}
+
+.lobby-screen.auth-screen .lobby-backdrop > * { display: none; }
+.lobby-screen.auth-screen::before,
+.lobby-screen.auth-screen::after { display: none; }
+.lobby-screen.auth-screen .lobby-backdrop::before,
+.lobby-screen.auth-screen .lobby-backdrop::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Animate transforms rather than repainting the gradients on every frame. */
+.lobby-screen.auth-screen .lobby-backdrop::before {
+  inset: -18%;
+  background:
+    radial-gradient(ellipse at 30% 28%, #f45b8c80, transparent 38%),
+    radial-gradient(ellipse at 73% 44%, #9058ed85, transparent 40%),
+    radial-gradient(ellipse at 47% 76%, #df586047, transparent 38%);
+  filter: blur(32px);
+  animation: authAurora 20s ease-in-out infinite alternate;
+  opacity: .85;
+}
+
+.lobby-screen.auth-screen .lobby-backdrop::after {
+  inset: -12%;
+  background:
+    radial-gradient(ellipse at 43% 21%, #ffc18c59, transparent 28%),
+    radial-gradient(ellipse at 75% 78%, #bc77df3b, transparent 36%);
+  filter: blur(24px);
+  animation: authAfterglow 26s ease-in-out infinite alternate;
+  opacity: .8;
+}
+
+@keyframes authAurora {
+  from { transform: translate3d(-4%, -2%, 0) rotate(-8deg) scale(1); }
+  to { transform: translate3d(4%, 3%, 0) rotate(8deg) scale(1.09); }
+}
+
+@keyframes authAfterglow {
+  from { transform: translate3d(3%, 0, 0) scale(1.04); opacity: .6; }
+  to { transform: translate3d(-3%, 4%, 0) scale(.97); opacity: .95; }
+}
+
+.lobby-screen.auth-screen .lobby-content {
+  width: min(100%, 408px);
+  min-height: 0;
+  margin-inline: auto;
+  padding-bottom: 0;
+  gap: 28px;
+  align-content: start;
+}
+
+.lobby-screen.auth-screen .auth-title-band {
+  gap: 8px;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.lobby-screen.auth-screen .brand-logo {
+  width: min(100%, 342px);
+  height: auto;
+  margin: 0;
+  filter: drop-shadow(0 3px 18px #ffb77d38);
+}
+
+.lobby-screen.auth-screen .auth-card {
+  margin: 0;
+  padding: 28px;
+  gap: 20px;
+  border-radius: 24px;
+  border: 1px solid #fff6f0b8;
+  background: linear-gradient(155deg, #fff9f4f7, #f8edf1f5);
+  box-shadow: 0 24px 70px #0b071b47, inset 0 1px 0 #fff;
+}
+
+.lobby-screen.auth-screen .auth-intro { gap: 8px; }
+.lobby-screen.auth-screen .auth-intro h2 {
+  font-size: 29px;
+  line-height: 1.13;
+  letter-spacing: -.035em;
+}
+.lobby-screen.auth-screen .auth-intro .support-copy {
+  color: #6a5661;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lobby-screen.auth-screen .provider-btn {
+  min-height: 48px;
+  border: 1px solid #dfd0d8;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fffaf8;
+  box-shadow: 0 2px 4px #3f1d3510;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.lobby-screen.auth-screen .divider-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #77616e;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: .025em;
+  text-transform: none;
+}
+.lobby-screen.auth-screen .divider-label::before,
+.lobby-screen.auth-screen .divider-label::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: #dfd0d8;
+}
+.lobby-screen.auth-screen .auth-email-fields { gap: 8px; }
+.lobby-screen.auth-screen .auth-field {
+  display: grid;
+  gap: 8px;
+  color: #57414e;
+  font-size: 12px;
+  font-weight: 600;
+}
+.lobby-screen.auth-screen .auth-field + .auth-field { margin-top: 6px; }
+.lobby-screen.auth-screen .text-input {
+  min-height: 48px;
+  border: 1px solid #ddcbd5;
+  border-radius: 11px;
+  padding: 12px 14px;
+  color: #31202b;
+  background: #fffaf8;
+  box-shadow: none;
+  font-weight: 400;
+}
+.lobby-screen.auth-screen .text-input::placeholder { color: #88717e; }
+.lobby-screen.auth-screen .password-field .text-input { padding-right: 72px; }
+.lobby-screen.auth-screen .password-toggle {
+  right: 4px;
+  min-height: 44px;
+  padding: 10px;
+  color: #7a385a;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.lobby-screen.auth-screen .button-row { margin-top: 12px; }
+.lobby-screen.auth-screen .primary-btn {
+  min-height: 48px;
+  border: 1px solid #a23461;
+  border-radius: 12px;
+  padding: 13px;
+  background: linear-gradient(115deg, #b63665, #8d376a);
+  color: #fff9f5;
+  box-shadow: 0 6px 16px #a2346126;
+  font-size: 14px;
+  letter-spacing: .01em;
+  text-transform: none;
+}
+.lobby-screen.auth-screen .primary-btn:disabled {
+  opacity: 1;
+  filter: none;
+  background: #d9c1ce;
+  border-color: #d9c1ce;
+  color: #624354;
+  box-shadow: none;
+  cursor: default;
+}
+.lobby-screen.auth-screen .auth-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 4px;
+  margin-top: -10px;
+  color: #6a5661;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.lobby-screen.auth-screen .auth-switch button {
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #8a2d59;
+  font-size: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lobby-screen.auth-screen .auth-switch button:disabled { opacity: .6; cursor: wait; }
+.lobby-screen.auth-screen :is(input, button):focus-visible {
+  outline: 2px solid #9c396d;
+  outline-offset: 3px;
+}
+.lobby-screen.auth-screen .auth-working { color: #6a5661; font-size: 12px; }
+.app-shell:has(.auth-screen.active) > .audio-controls {
+  padding: 2px;
+  border: 1px solid #fff1f024;
+  border-radius: 24px;
+  background: #19132366;
+  gap: 0;
+}
+.app-shell:has(.auth-screen.active) > .audio-controls :is(.audio-toggle, .music-options > summary) {
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+@media (max-width: 460px) {
+  .lobby-screen.auth-screen { padding-inline: 20px; }
+  .lobby-screen.auth-screen .lobby-content { gap: 22px; }
+  .lobby-screen.auth-screen .brand-logo { width: min(100%, 300px); }
+  .lobby-screen.auth-screen .auth-card { padding: 24px; }
+  .lobby-screen.auth-screen .auth-intro h2 { font-size: 27px; }
+}
+
+@media (max-height: 740px) {
+  .lobby-screen.auth-screen { padding-top: 66px; padding-bottom: 24px; }
+  .lobby-screen.auth-screen .lobby-content { gap: 18px; align-content: start; }
+  .lobby-screen.auth-screen .brand-logo { width: 246px; }
+  .lobby-screen.auth-screen .auth-card { padding: 20px; gap: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-screen.auth-screen .lobby-backdrop::before,
+  .lobby-screen.auth-screen .lobby-backdrop::after { animation: none; transform: none; will-change: auto; }
+}

@@ -58,7 +58,6 @@ export function LobbyScreen() {
     <div className="lobby-content">
       <div className={`title-band${enabled ? ' auth-title-band' : ''}`}>
         <img alt="At Long Last" className="brand-logo" src="/assets/ui/atlonglast-wordmark-wide.png" />
-
       </div>
       <div className={`glass-card hero-card lobby-card${authScreen ? ' auth-card' : ''}`}>
         {!ready ? <h2>Loading…</h2> : !enabled ? <>
@@ -67,22 +66,24 @@ export function LobbyScreen() {
           <PlayerPiecePicker value={avatar} onChange={setAvatar} />
           <button className="primary-btn" onClick={() => launchPreview(name || 'You', avatar)} type="button">Play</button>
         </> : !isSignedIn ? <>
-          <div className="auth-intro"><h2>Sign in</h2></div>
-          <button className="provider-btn ghost-btn google" disabled={working} onClick={async () => { try { await signInWithProvider({ providerId: 'google' }) } catch (nextError) { setError(nextError.message) } }} type="button"><GoogleMark /><span>Google</span></button>
-          <div className="divider-label">or</div>
-          <div className="mode-toggle" role="tablist" aria-label="Auth mode">
-            <button aria-selected={authMode === 'create'} className={`mode-pill${authMode === 'create' ? ' active' : ''}`} onClick={() => setAuthMode('create')} role="tab" type="button">Sign up</button>
-            <button aria-selected={authMode === 'signin'} className={`mode-pill${authMode === 'signin' ? ' active' : ''}`} onClick={() => setAuthMode('signin')} role="tab" type="button">Sign In</button>
+          <div className="auth-intro">
+            <h2>{authMode === 'create' ? 'Your story starts here' : 'Welcome back'}</h2>
+            <p className="support-copy">{authMode === 'create' ? 'A shared space for your next chapter.' : 'Make a little room for each other.'}</p>
           </div>
+          <button className="provider-btn ghost-btn google" disabled={working} onClick={async () => { setError(''); try { await signInWithProvider({ providerId: 'google' }) } catch (nextError) { setError(nextError.message) } }} type="button"><GoogleMark /><span>Continue with Google</span></button>
+          <div className="divider-label">or use email</div>
           <form className="auth-email-fields" onSubmit={authenticate}>
-            {authMode === 'create' && <input aria-label="Name" autoComplete="name" className="text-input" maxLength={60} placeholder="Name" required value={name} onChange={(event) => setName(event.target.value)} />}
-            <input aria-label="Email" autoComplete="email" className="text-input" placeholder="Email" required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            {authMode === 'create' && <label className="auth-field" htmlFor="auth-name">Name<input autoComplete="name" className="text-input" id="auth-name" maxLength={60} placeholder="Your name" required value={name} onChange={(event) => setName(event.target.value)} /></label>}
+            <label className="auth-field" htmlFor="auth-email">Email<input autoComplete="email" className="text-input" id="auth-email" placeholder="you@example.com" required type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+            <label className="auth-field" htmlFor="auth-password">Password</label>
             <div className="password-field">
-              <input aria-label="Password" autoComplete={authMode === 'create' ? 'new-password' : 'current-password'} className="text-input" minLength={authMode === 'create' ? 6 : undefined} placeholder={authMode === 'create' ? 'Password (6+ characters)' : undefined} required type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} />
+              <input autoComplete={authMode === 'create' ? 'new-password' : 'current-password'} className="text-input" id="auth-password" minLength={authMode === 'create' ? 6 : undefined} placeholder={authMode === 'create' ? 'At least 6 characters' : 'Your password'} required type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} />
               <button aria-label={showPassword ? 'Hide password' : 'Show password'} className="password-toggle" onClick={() => setShowPassword(!showPassword)} type="button">{showPassword ? 'Hide' : 'Show'}</button>
             </div>
-            <div className="button-row"><button className="primary-btn" disabled={working || !email.trim() || !password || (authMode === 'create' && (!name.trim() || password.length < 6))} type="submit">{authMode === 'create' ? 'Sign up' : 'Sign In'}</button></div>
+            <div className="button-row"><button className="primary-btn" disabled={working || !email.trim() || !password || (authMode === 'create' && (!name.trim() || password.length < 6))} type="submit">{working ? 'Please wait…' : authMode === 'create' ? 'Create account' : 'Sign in'}</button></div>
           </form>
+          <p className="auth-switch">{authMode === 'create' ? 'Already have an account?' : 'New here?'} <button disabled={working} onClick={() => { setAuthMode(authMode === 'create' ? 'signin' : 'create'); setError('') }} type="button">{authMode === 'create' ? 'Sign in' : 'Create an account'}</button></p>
+          {working && <p className="auth-working" role="status">Getting your space ready…</p>}
         </> : <PairingHome avatar={avatar} onAvatarChange={setAvatar} />}
         {(authError || error) && <p className="error-copy" role="alert">{authError || error}</p>}
       </div>
