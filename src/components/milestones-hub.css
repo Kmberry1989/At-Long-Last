@@ -1,0 +1,702 @@
+/* MilestonesHub: The Eternal Couple's Vault
+   Mobile ergonomics (390x844), celestial night velvet palette, glowing constellation map,
+   wax-sealed anniversary time capsules, and hand-stamped Pinkie Swears ledger. */
+
+.milestones-hub-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: radial-gradient(circle at 50% 20%, #17162e 0%, #0c0b18 55%, #05050c 100%);
+  color: #f7f3ee;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: inherit;
+  animation: vaultEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes vaultEntrance {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Starlight dust particles */
+.milestones-hub-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(1px 1px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 140px 170px, rgba(255, 230, 180, 0.9), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 280px 90px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 320px 240px, rgba(230, 210, 255, 0.8), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 70px 310px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 210px 420px, rgba(255, 220, 160, 0.7), rgba(0,0,0,0));
+  background-repeat: repeat;
+  background-size: 350px 350px;
+  opacity: 0.6;
+}
+
+/* Header & close button */
+.milestones-hub-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  background: linear-gradient(180deg, rgba(12, 11, 24, 0.85) 0%, rgba(12, 11, 24, 0) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(229, 192, 123, 0.15);
+}
+
+.milestones-hub-title-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.milestones-hub-eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e5c07b;
+  font-weight: 600;
+}
+
+.milestones-hub-title {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff8f0;
+  text-shadow: 0 0 12px rgba(229, 192, 123, 0.3);
+}
+
+.milestones-hub-close-btn {
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(229, 192, 123, 0.3);
+  background: rgba(30, 25, 56, 0.6);
+  color: #f7f3ee;
+  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.milestones-hub-close-btn:hover,
+.milestones-hub-close-btn:focus-visible {
+  background: rgba(229, 192, 123, 0.25);
+  border-color: #e5c07b;
+  transform: scale(1.05);
+}
+
+/* Nav tabs: 390px mobile ergonomics */
+.milestones-hub-tabs {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px 16px 12px;
+  background: rgba(12, 11, 24, 0.5);
+}
+
+.milestones-hub-tab-btn {
+  min-height: 48px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(247, 243, 238, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+  gap: 2px;
+}
+
+.milestones-hub-tab-btn span.tab-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.milestones-hub-tab-btn.active {
+  background: linear-gradient(135deg, rgba(229, 192, 123, 0.25) 0%, rgba(200, 150, 90, 0.15) 100%);
+  border-color: #e5c07b;
+  color: #fff9f0;
+  box-shadow: 0 4px 14px rgba(229, 192, 123, 0.2), inset 0 0 10px rgba(229, 192, 123, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Main body scroll container */
+.milestones-hub-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px 40px;
+  position: relative;
+  z-index: 1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* TAB 1: Living Constellation View                                          */
+/* -------------------------------------------------------------------------- */
+.constellation-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.constellation-intro {
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.constellation-intro h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f7f3ee;
+}
+
+.constellation-intro p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: rgba(247, 243, 238, 0.7);
+}
+
+.constellation-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  height: 380px;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at center, #1b1933 0%, #0d0c1c 70%, #06060f 100%);
+  border: 1px solid rgba(229, 192, 123, 0.3);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(229, 192, 123, 0.12);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.constellation-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.constellation-line {
+  stroke: rgba(229, 192, 123, 0.4);
+  stroke-dasharray: 4 4;
+  animation: pulseLine 3s infinite ease-in-out;
+}
+
+@keyframes pulseLine {
+  0%, 100% { stroke-opacity: 0.3; }
+  50% { stroke-opacity: 0.8; stroke: rgba(255, 230, 180, 0.9); }
+}
+
+.constellation-star-node {
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.constellation-star-node:hover,
+.constellation-star-node:focus-visible {
+  transform: scale(1.35);
+  outline: none;
+}
+
+.star-halo {
+  animation: starPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes starPulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.4); opacity: 0.8; }
+}
+
+/* Star Detail Card Popup */
+.star-detail-modal {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  background: rgba(18, 17, 36, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #e5c07b;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 16px rgba(229, 192, 123, 0.2);
+  animation: popUp 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@keyframes popUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.star-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.star-detail-header strong {
+  font-size: 0.95rem;
+  color: #fff8f0;
+}
+
+.star-detail-dismiss {
+  background: transparent;
+  border: none;
+  color: rgba(247, 243, 238, 0.7);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.star-detail-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #f7f3ee;
+  line-height: 1.4;
+}
+
+.star-detail-meta {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #e5c07b;
+}
+
+/* -------------------------------------------------------------------------- */
+/* TAB 2: Anniversary Time Capsule Vault                                      */
+/* -------------------------------------------------------------------------- */
+.capsules-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.capsule-anniversary-banner {
+  background: linear-gradient(135deg, rgba(229, 192, 123, 0.15) 0%, rgba(30, 25, 56, 0.7) 100%);
+  border: 1px solid rgba(229, 192, 123, 0.4);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.capsule-anniversary-text p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #e5c07b;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.capsule-anniversary-text h4 {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  color: #fff9f0;
+}
+
+.capsule-countdown-badge {
+  background: #e5c07b;
+  color: #121124;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(229, 192, 123, 0.4);
+  text-align: center;
+}
+
+.capsules-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.time-capsule-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.25s ease;
+}
+
+.time-capsule-card.sealed {
+  border-color: rgba(229, 192, 123, 0.3);
+  background: linear-gradient(135deg, rgba(30, 25, 56, 0.4) 0%, rgba(18, 17, 36, 0.6) 100%);
+}
+
+.time-capsule-card.unlocked {
+  border-color: #e5c07b;
+  background: linear-gradient(135deg, rgba(229, 192, 123, 0.15) 0%, rgba(40, 30, 60, 0.7) 100%);
+  box-shadow: 0 4px 20px rgba(229, 192, 123, 0.15);
+}
+
+.capsule-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.capsule-wax-seal {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f1cf87 0%, #ba8a38 60%, #7d5918 100%);
+  color: #1a1528;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+.capsule-status-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(247, 243, 238, 0.8);
+}
+
+.time-capsule-card.unlocked .capsule-status-tag {
+  background: rgba(229, 192, 123, 0.25);
+  color: #fff9f0;
+}
+
+.capsule-card-info h5 {
+  margin: 0;
+  font-size: 1rem;
+  color: #fff8f0;
+}
+
+.capsule-card-info p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: rgba(247, 243, 238, 0.75);
+  line-height: 1.4;
+}
+
+/* Author secret vow form */
+.capsule-vow-form {
+  margin-top: 8px;
+  background: rgba(18, 17, 36, 0.6);
+  border: 1px dashed rgba(229, 192, 123, 0.35);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.capsule-vow-form label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e5c07b;
+}
+
+.capsule-vow-textarea {
+  min-height: 72px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px;
+  color: #fff8f0;
+  font-family: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.capsule-vow-textarea:focus {
+  outline: none;
+  border-color: #e5c07b;
+  box-shadow: 0 0 8px rgba(229, 192, 123, 0.3);
+}
+
+.capsule-vow-submit {
+  min-height: 48px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #e5c07b 0%, #c49646 100%);
+  color: #121124;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.2s ease;
+}
+
+.capsule-vow-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+/* -------------------------------------------------------------------------- */
+/* TAB 3: Pinkie Swears Ledger (Explicitly Pinkie Swears)                    */
+/* -------------------------------------------------------------------------- */
+.pinkieswears-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pinkieswears-hero {
+  background: linear-gradient(135deg, rgba(224, 108, 117, 0.18) 0%, rgba(30, 25, 56, 0.7) 100%);
+  border: 1px solid rgba(224, 108, 117, 0.35);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pinkie-hero-stamp {
+  font-size: 2rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 8px rgba(224, 108, 117, 0.4));
+}
+
+.pinkie-hero-text h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #fff8f0;
+}
+
+.pinkie-hero-text p {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: rgba(247, 243, 238, 0.75);
+}
+
+.pinkie-swears-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pinkie-swear-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(224, 108, 117, 0.25);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: background 0.2s ease;
+}
+
+.pinkie-swear-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.pinkie-swear-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pinkie-swear-info strong {
+  font-size: 0.95rem;
+  color: #fff8f0;
+}
+
+.pinkie-swear-status {
+  font-size: 0.72rem;
+  color: #e5c07b;
+}
+
+.pinkie-swear-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pinkie-redeem-btn {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid #e06c75;
+  background: rgba(224, 108, 117, 0.18);
+  color: #fff8f0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pinkie-redeem-btn:hover {
+  background: rgba(224, 108, 117, 0.35);
+  transform: translateY(-1px);
+}
+
+.pinkie-fulfill-btn {
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #a8d5ba;
+  font-size: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pinkie-fulfill-btn:hover {
+  background: rgba(168, 213, 186, 0.25);
+  border-color: #a8d5ba;
+  transform: scale(1.05);
+}
+
+/* -------------------------------------------------------------------------- */
+/* TAB 4: Celestial Year in Review                                           */
+/* -------------------------------------------------------------------------- */
+.recap-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.recap-hero-tile {
+  background: radial-gradient(circle at 50% 0%, rgba(229, 192, 123, 0.2) 0%, rgba(18, 17, 36, 0.8) 100%);
+  border: 1px solid rgba(229, 192, 123, 0.35);
+  border-radius: 18px;
+  padding: 18px 16px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.recap-hero-tile h4 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #fff9f0;
+  text-shadow: 0 0 10px rgba(229, 192, 123, 0.3);
+}
+
+.recap-hero-tile p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: rgba(247, 243, 238, 0.7);
+}
+
+.recap-grid-custom {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.recap-stat-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.recap-stat-emoji {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.recap-stat-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff8f0;
+}
+
+.recap-stat-label {
+  font-size: 0.7rem;
+  color: rgba(247, 243, 238, 0.65);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.recap-share-btn {
+  min-height: 48px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #e5c07b 0%, #d49f43 100%);
+  color: #121124;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(229, 192, 123, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.recap-share-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Floating Toast confirmation */
+.milestones-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(229, 192, 123, 0.95);
+  color: #121124;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 10px 20px;
+  border-radius: 24px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  animation: toastFade 2.5s ease-in-out forwards;
+}
+
+@keyframes toastFade {
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  15%, 85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}

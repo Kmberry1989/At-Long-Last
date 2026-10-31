@@ -28,6 +28,22 @@ describe('board themes', () => {
       })
     })
   })
+
+  it('gives each base and remix a defined sky and ambient motion without replacing the existing props', () => {
+    for (const theme of Object.values(BOARD_THEME_SETS)) {
+      expect(theme.environment).toMatchObject({
+        top: expect.stringMatching(/^#[0-9a-f]{6}$/i),
+        horizon: expect.stringMatching(/^#[0-9a-f]{6}$/i),
+        mode: expect.any(String),
+      })
+      expect(theme.environment.count).toBeGreaterThan(0)
+    }
+    for (const id of ['starlit-rooftop', 'autumn-embers', 'cherry-blossom', 'aurora-veil']) {
+      const remix = getBoardThemeById(id)
+      expect(remix.environment.mode).toBeTruthy()
+      expect(remix.decorations).toHaveLength(5)
+    }
+  })
 })
 
 describe('getBoardThemeById', () => {

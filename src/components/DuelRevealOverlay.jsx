@@ -9,6 +9,8 @@ import {
   wavelengthVerdict,
 } from '../features/session/wavelengthDuelData.js'
 import { evaluateDuelRound } from '../features/session/sessionLogic.js'
+import { getPlayerPiece } from '../features/couple/playerAvatar.js'
+import './duel-arena.css'
 
 const COUNTDOWN_START = 3
 const COUNTDOWN_STEP_MS = 900
@@ -92,8 +94,8 @@ function resolveHeartsForReveal({ duel, duelResults, outcome, players, session }
 }
 
 function revealStatement({ duel, outcome, players }) {
-  if (outcome.status === 'shared') {
-    return `You both landed ${duel.label}.`
+  if (outcome.status === 'shared' || outcome.harmonyType === 'resonance') {
+    return `${players[0]?.displayName || 'You'} and ${players[1]?.displayName || 'Partner'} landed ${duel.label} in pure resonance!`
   }
   if (outcome.status === 'retry') {
     return 'Too close to call — run it back.'
@@ -104,8 +106,9 @@ function revealStatement({ duel, outcome, players }) {
   if (outcome.status === 'repick') {
     return `${duel.label} was passed — spinning up another duel.`
   }
-  const winner = players[outcome.winnerIndex]
-  return `${winner?.displayName || 'One player'} takes ${duel.label}.`
+  const lead = players[outcome.winnerIndex]
+  const partner = players[outcome.winnerIndex === 0 ? 1 : 0]
+  return `${lead?.displayName || 'One player'} set the tempo, while ${partner?.displayName || 'partner'} brought the spark.`
 }
 
 /**
@@ -123,7 +126,7 @@ export function DuelRevealOverlay({
   preview,
   session,
 }) {
-  const { playSuccess } = useAudio()
+  const { playDuelPulse, playSuccess } = useAudio() || {}
   const [count, setCount] = useState(COUNTDOWN_START)
   const [revealed, setRevealed] = useState(false)
   const [overrideReady, setOverrideReady] = useState(false)
@@ -133,6 +136,10 @@ export function DuelRevealOverlay({
   const duelResults = session.duelResults || {}
   const myUid = players[playerIndex]?.uid
   const partner = players[playerIndex === 0 ? 1 : 0]
+  const myPlayer = players[playerIndex]
+  const myPiece = myPlayer?.avatar ? getPlayerPiece(myPlayer.avatar) : null
+  const partnerPiece = partner?.avatar ? getPlayerPiece(partner.avatar) : null
+
   const acks = session.currentDuel?.revealAcks || {}
   const myAcked = myUid ? acks[myUid] === true : false
   const partnerAcked = partner?.uid ? acks[partner.uid] === true : false
@@ -151,22 +158,43 @@ export function DuelRevealOverlay({
     [duel, duelResults, outcome, players, session],
   )
 
+  const isResonance = outcome.status === 'shared' || outcome.harmonyType === 'resonance'
+  const awardedHearts = Math.max(hearts, isResonance ? 4 : 2)
+
+  const myResult = duelResults?.[myUid]
+  const partnerResult = duelResults?.[partner?.uid]
+
+  const formatResultExcerpt = (result) => {
+    if (!result) return 'Completed ✓'
+    if (result.excerpt) return 'Answer locked in'
+    if (result.score != null) return `Score: ${result.score}`
+    if (result.time != null) return `${result.time.toFixed(1)}s`
+    if (result.won) return 'Landed it ✓'
+    return 'Played ✓'
+  }
+
   useEffect(() => {
     if (count <= 0) {
       if (!revealedRef.current) {
         revealedRef.current = true
         setRevealed(true)
         playSuccess?.()
+        playDuelPulse?.(0)
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate([30, 60, 30])
+          navigator.vibrate([40, 80, 40])
         }
       }
       return undefined
     }
 
+    playDuelPulse?.(count)
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(25)
+    }
+
     const timer = setTimeout(() => setCount((current) => current - 1), COUNTDOWN_STEP_MS)
     return () => clearTimeout(timer)
-  }, [count, playSuccess])
+  }, [count, playSuccess, playDuelPulse])
 
   useEffect(() => {
     if (!isHost || preview) {
@@ -194,8 +222,51 @@ export function DuelRevealOverlay({
         </div>
       ) : (
         <div className="duel-reveal-card">
-          <p className="duel-reveal-kicker">{duel.label}</p>
-          <h3 className="duel-reveal-title">{revealStatement({ duel, outcome, players })}</h3>
+          <div className="duel-harmony-container">
+            <span className={`duel-harmony-badge ${isResonance ? 'resonance' : 'contrast'}`}>
+              {isResonance ? '✨ Pure Resonance ✨' : '💫 Playful Contrast 💫'}
+            </span>
+            <h3 className="duel-harmony-title">
+              {isResonance ? 'In Perfect Sync!' : 'Sparks in Difference!'}
+            </h3>
+            <p className="duel-harmony-sub">
+              {revealStatement({ duel, outcome, players })}
+            </p>
+            <div className="duel-harmony-hearts" aria-live="polite">
+              +{awardedHearts} shared hearts 💞
+            </div>
+          </div>
+
+          {/* Comparative Arena Cards across dividing beam */}
+          <div className="duel-comparative-arena">
+            <div className="duel-comparative-card">
+              <div className="duel-comparative-player">
+                <img
+                  src={partnerPiece?.thumbnail || '/assets/players/thumbs/heart.webp'}
+                  alt=""
+                  className="duel-comparative-avatar"
+                />
+                <span className="duel-comparative-name">{partner?.displayName || 'Partner'}</span>
+              </div>
+              <span className="duel-comparative-answer">{formatResultExcerpt(partnerResult)}</span>
+            </div>
+
+            <div className="duel-comparative-divider" aria-hidden="true">
+              <span>Synchronized</span>
+            </div>
+
+            <div className="duel-comparative-card">
+              <div className="duel-comparative-player">
+                <img
+                  src={myPiece?.thumbnail || '/assets/players/thumbs/heart.webp'}
+                  alt=""
+                  className="duel-comparative-avatar"
+                />
+                <span className="duel-comparative-name">{myPlayer?.displayName || 'You'}</span>
+              </div>
+              <span className="duel-comparative-answer">{formatResultExcerpt(myResult)}</span>
+            </div>
+          </div>
 
           {duel.id === WAVELENGTH_DUEL_ID ? (
             <WavelengthScorecard
@@ -204,12 +275,6 @@ export function DuelRevealOverlay({
               prompts={wavelengthPrompts}
             />
           ) : null}
-
-          {hearts > 0 && (
-            <p className="duel-reveal-hearts" aria-live="polite">
-              +{hearts} shared hearts 💞
-            </p>
-          )}
 
           {preview ? (
             <button className="primary-btn" onClick={onPreviewContinue} type="button">

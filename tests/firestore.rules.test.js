@@ -36,6 +36,7 @@ import { activityRegistry } from '../src/features/session/activityRegistry.jsx'
 import { ensureProfileDocument } from '../src/features/couple/profileService.js'
 import { resolveKeepsakeDecision } from '../src/features/session/sessionLogic.js'
 import { KEEPSAKES } from '../src/features/session/boardConfig.js'
+import { pickFlower, waterFlower } from '../src/features/couple/progressService.js'
 
 const PROJECT_ID = process.env.RULES_TEST_PROJECT || 'demo-at-long-last'
 const HOST_UID = 'host-account'
@@ -185,6 +186,28 @@ beforeAll(async () => {
       port: Number(process.env.FIRESTORE_EMULATOR_HOST?.split(':')[1]),
       rules: await readFile('firestore.rules', 'utf8'),
     },
+  })
+})
+
+describe('Our Bloom collection rules', () => {
+  it('lets both partners water and collect a bloom while rejecting forged collection order', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+    const ref = doc(hostDb, 'coupleProgress', couple.id)
+    await waterFlower(hostDb, couple.id, { dateStr: '2026-10-31', uid: HOST_UID })
+    await waterFlower(guestDb, couple.id, { dateStr: '2026-10-31', uid: GUEST_UID })
+    const first = (await getDoc(ref)).data().flower
+    expect(first).toMatchObject({ collected: [], growth: 1, speciesIndex: 0, stage: 1 })
+
+    await assertFails(updateDoc(ref, { flower: { ...first, collected: ['rose'], speciesIndex: 1 }, updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(ref, { flower: { ...first, wateredBy: [OUTSIDER_UID] }, updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(ref, { flower: { ...first, growth: 6, stage: 1 }, updatedAt: serverTimestamp() }))
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'coupleProgress', couple.id), { flower: { ...first, growth: 6, stage: 3 } })
+    })
+    const picked = await pickFlower(hostDb, couple.id)
+    expect(picked.events).toEqual([{ type: 'flower-picked', speciesId: 'daisy' }])
+    expect((await getDoc(ref)).data().flower).toMatchObject({ collected: ['daisy'], growth: 0, speciesIndex: 1, stage: 0 })
   })
 })
 

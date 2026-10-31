@@ -1,12 +1,15 @@
 import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import { DuelRevealOverlay } from './DuelRevealOverlay.jsx'
+import { DuelArena } from './DuelArena.jsx'
+import { FinaleScreen } from './FinaleScreen.jsx'
 
 import { useAudio } from '../audio/AudioProvider.jsx'
-import { ChecklistRail } from './ChecklistRail.jsx'
 import { LoveTank } from './LoveTank.jsx'
 import { MysteryKeepsakeCard } from './MysteryKeepsakeCard.jsx'
+import { TactileDiceCast } from './TactileDiceCast.jsx'
+import { TruceTradeModal } from './TruceTradeModal.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
-import { FLOWER_STAGES, FLOWER_STAGE_EMOJI, resolveFlower } from '../features/couple/progressService.js'
+import { getPlayerPiece } from '../features/couple/playerAvatar.js'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
@@ -30,26 +33,6 @@ const JournalDrawer = lazy(() =>
   import('./JournalDrawer.jsx').then((module) => ({ default: module.JournalDrawer })),
 )
 
-const MOMENTUM_BONUS_COPY = {
-  playful: 'Double pick armed',
-  spicy: 'Heat boost armed',
-  tender: 'Soft landing armed',
-}
-
-const MOMENTUM_SYMBOLS = {
-  playful: '✦',
-  spicy: '♨',
-  tender: '♡',
-}
-
-function capitalize(value = '') {
-  if (!value) {
-    return ''
-  }
-
-  return value[0].toUpperCase() + value.slice(1)
-}
-
 function getActivitySubmissionCount(state) {
   return Math.max(
     Object.keys(state?.answers || {}).length,
@@ -67,8 +50,27 @@ function getActivitySubmissionCount(state) {
 
 export function GameScreen() {
   const { couple, hasPartner, progress } = useCouple()
-  const flower = resolveFlower(progress)
-  const { playAction, playSuccess } = useAudio()
+  const { playAction, playPieceStep, playSuccess } = useAudio()
+  const [pacingMode, setPacingMode] = useState(() => {
+    try {
+      return localStorage.getItem('atlonglast_pacing_mode') || 'freeFlow'
+    } catch {
+      return 'freeFlow'
+    }
+  })
+
+  const togglePacingMode = () => {
+    setPacingMode((current) => {
+      const next = current === 'freeFlow' ? 'sharedSpotlight' : 'freeFlow'
+      try {
+        localStorage.setItem('atlonglast_pacing_mode', next)
+      } catch {
+        // Ignore storage errors
+      }
+      return next
+    })
+  }
+  const [activityMinimized, setActivityMinimized] = useState(false)
   const {
     ackDuelReveal,
     activity,
@@ -80,6 +82,7 @@ export function GameScreen() {
     chooseKeepsake,
     connectionState,
     continuePreviewDuel,
+    dismissTradeOffer,
     error,
     enabled,
     finalSummary,
@@ -88,13 +91,15 @@ export function GameScreen() {
     isSessionStale,
     journalEntries,
     myDuelResult,
+    pendingTradeOffer,
     playerIndex,
     readyToPlay,
     gameOpen,
-    closeGame,
+    respondTradeOffer,
     resumeSession,
     rollTurn,
     selectActivityOption,
+    sendTradeOffer,
     session,
     sessionStatusMessage,
     skipActivity,
@@ -107,6 +112,7 @@ export function GameScreen() {
   } = useSession()
   const [journalOpen, setJournalOpen] = useState(false)
   const [heartGuideOpen, setHeartGuideOpen] = useState(false)
+  const [tradeModalOpen, setTradeModalOpen] = useState(false)
   const [diceRolling, setDiceRolling] = useState(false)
   const diceSettleTimerRef = useRef(null)
   const scrapbookMomentCount = getScrapbookMomentCount(journalEntries.filter(entry => entry.sessionId === session?.id))
@@ -308,20 +314,12 @@ export function GameScreen() {
 
     return null
   }
-  const otherPlayer = session.players[playerIndex === 0 ? 1 : 0]
-  const otherPlayerName = otherPlayer?.displayName || 'Your partner'
   const duelBothSubmitted =
     session.phase === 'duel' &&
     session.currentDuel &&
     session.players.length === 2 &&
     session.players.every((player) => session.duelResults?.[player.uid] && !isWavelengthCommit(session.duelResults[player.uid]))
 
-  const momentumCards = ['tender', 'playful', 'spicy'].map((vibe) => ({
-    active: Boolean(session.momentum?.unlocked?.[vibe] && !session.momentum?.consumed?.[vibe]),
-    label: capitalize(vibe),
-    value: session.momentum?.[vibe] || 0,
-    vibe,
-  }))
   const gameplayOverlayOpen =
     !diceAnimating &&
     (
@@ -365,13 +363,16 @@ export function GameScreen() {
 
   return (
     <section className={`screen active game-screen${gameplayOverlayOpen ? ' has-gameplay-overlay' : ''}`}>
-      <button className="game-home-btn ghost-btn" onClick={closeGame} type="button">Home</button>
       <div className="board-wrap">
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
           <BoardScene
             activePlayerIndex={session.activePlayerIndex}
             boardState={boardState}
+            dice={session.lastMove?.dice || null}
             lastRoll={session.lastRoll}
+            onPieceStep={() => playPieceStep?.()}
+            pacingMode={pacingMode}
+            phase={session.phase}
             players={session.players}
             positions={session.positions}
             round={session.round}
@@ -381,82 +382,67 @@ export function GameScreen() {
         </Suspense>
         <div className="hud top">
           <LoveTank hearts={session.hearts} onOpenGuide={() => setHeartGuideOpen(true)} />
+          <button
+            type="button"
+            className={`pacing-mode-pill ${pacingMode}`}
+            onClick={togglePacingMode}
+            aria-label={`Pacing mode: ${pacingMode === 'freeFlow' ? 'Free Flow' : 'Shared Spotlight'}. Tap to switch.`}
+            title="Switch between Free Flow (independent pacing) and Shared Spotlight (turn-by-turn focus)"
+          >
+            <span className="pacing-dot" aria-hidden="true" />
+            <span className="pacing-label">{pacingMode === 'freeFlow' ? 'Free Flow' : 'Spotlight'}</span>
+          </button>
+          <button
+            type="button"
+            className="trade-hud-btn"
+            onClick={() => setTradeModalOpen(true)}
+            aria-label="Open Keepsake Trade"
+            title="Open Keepsake Trade and Truce"
+          >
+            <span aria-hidden="true">🕊️</span>
+            <span className="trade-hud-label">Trade</span>
+          </button>
           <div className="chip" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
             <span aria-hidden="true">◷</span><strong>{session.round}/{session.totalRounds}</strong>
           </div>
-          {progress && (
-            <div
-              aria-label={`Our flower, ${(FLOWER_STAGES[flower.stage] || {}).label || ''}`}
-              className="chip companion-chip"
-              title="Your flower grows on days you both water it."
+        </div>
+        {pendingTradeOffer && pendingTradeOffer.fromPlayerIndex !== playerIndex && (
+          <div className="trade-pill-wrap">
+            <button
+              type="button"
+              className="truce-hud-notification-pill"
+              onClick={() => setTradeModalOpen(true)}
+              aria-label={`Trade offer from ${session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'Partner'}. Tap to review.`}
             >
-              <span aria-hidden="true">{FLOWER_STAGE_EMOJI[flower.stage] || '🫘'}</span>
-              <strong>Our flower</strong>
-            </div>
-          )}
-          <button
-            aria-label={`Open scrapbook. ${scrapbookMomentCount} saved moments.`}
-            className="chip button-chip"
-            onClick={() => {
-              playAction?.()
-              startTransition(() => setJournalOpen(true))
-            }}
-            type="button"
-          >
-            <span>Book</span><strong>▤ {scrapbookMomentCount}</strong>
-          </button>
-        </div>
-        <details className="night-details">
-          <summary>Tonight’s details</summary>
-          <ChecklistRail session={session} />
-        <div className="momentum-hud">
-          <div className="spotlight-banner">
-            <span className="spotlight-kicker">✦ Next</span>
-            <strong>{session.spotlight?.label}</strong>
+              🕊️ Trade Offer from {session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'Partner'} • Review
+            </button>
           </div>
-          <div className="momentum-row">
-            {momentumCards.map((card) => (
-              <div
-                key={card.vibe}
-                aria-label={`${card.label}: ${Math.min(card.value, 2)} of 2. ${card.active ? MOMENTUM_BONUS_COPY[card.vibe] : 'In progress'}.`}
-                className={`momentum-pill${card.active ? ' active' : ''} vibe-${card.vibe}`}
-                title={`${card.label}: ${card.active ? MOMENTUM_BONUS_COPY[card.vibe] : 'In progress'}`}
-              >
-                <span aria-hidden="true">{MOMENTUM_SYMBOLS[card.vibe]}</span>
-                <strong>{Math.min(card.value, 2)}/2</strong>
-                <small>{card.active ? 'Ready' : 'In progress'}</small>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="players">
+        )}
+        <div className="hud players" aria-label="Players">
           {session.players.map((player, index) => (
             <div
               key={player.uid}
+              aria-label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === session.activePlayerIndex ? ', taking this turn' : ''}`}
               className={`player-strip${index === session.activePlayerIndex ? ' active' : ''}${index === playerIndex ? ' mine' : ''}`}
             >
-              <span className="dot" style={{ background: player.color }} />
+              <img alt="" className="player-portrait" src={getPlayerPiece(player.avatar)?.thumbnail || '/assets/players/thumbs/heart.webp'} />
               <strong title={player.displayName}>{player.displayName}</strong>
             </div>
           ))}
         </div>
-        </details>
         {!gameplayOverlayOpen && (
           <div className="bottom-tray">
             {renderPlayState()}
             {!needsSessionRecovery && <p className="status-line">{sessionStatusMessage}</p>}
             <div className="button-row">
-              <button
-                className="primary-btn pulse"
+              <TactileDiceCast
+                canRoll={canRoll}
                 disabled={!canRoll || working || diceAnimating}
-                onClick={() => {
-                  playAction?.()
-                  handleDiceRoll()
-                }}
-                type="button"
-              >
-                {rollButtonLabel}
-              </button>
+                isRolling={diceAnimating}
+                lastDice={session.lastMove?.dice || [Math.min(6, Math.max(1, Math.floor((session.lastRoll || 2) / 2))), Math.min(6, Math.max(1, Math.ceil((session.lastRoll || 2) / 2)))]}
+                onRoll={handleDiceRoll}
+                statusLabel={rollButtonLabel}
+              />
               {session.phase === 'duelWheel' && (
                 <button
                   className="primary-btn alt"
@@ -496,6 +482,7 @@ export function GameScreen() {
               playSuccess?.()
               chooseKeepsake(true)
             }}
+            player={session.players[session.activePlayerIndex]}
           />
           {error && <p className="error-copy" role="alert">{error}</p>}
         </div>
@@ -542,11 +529,17 @@ export function GameScreen() {
       )}
 
       {!diceAnimating && session.phase === 'activity' && activity && ActivityComponent && (
-        <div className="overlay-screen">
+        <div className={`overlay-screen ${activityMinimized ? 'is-minimized' : ''}`}>
           <ActivityComponent
             activity={activity}
             error={error}
-            disabled={activity.state.turnIndex !== playerIndex || working}
+            disabled={
+              activityEntry?.supportsPrivateFlow
+                ? working
+                : (activity.state.turnIndex !== playerIndex || working)
+            }
+            isMinimized={activityMinimized}
+            onToggleMinimize={() => setActivityMinimized((current) => !current)}
             onSkip={() => {
               playAction?.()
               skipActivity()
@@ -608,102 +601,44 @@ export function GameScreen() {
               preview={!enabled}
               session={session}
             />
-          ) : myDuelResult ? (
-            <div>
-            <WaitingState
-              actorName={otherPlayerName}
-              activityVerb="locking in their answer"
-              nextHint="The reveal opens when both answers are in."
-              privateNote="Private: answers stay hidden until the reveal."
-            />
-            {error && <p className="error-copy" role="alert">{error}</p>}
-            </div>
           ) : (
-            <DuelComponent
+            <DuelArena
+              duel={session.currentDuel}
+              session={session}
+              playerIndex={playerIndex}
+              players={session.players}
+              myDuelResult={myDuelResult}
               disabled={working}
-              prompts={wavelengthPrompts}
+              wavelengthPrompts={wavelengthPrompts}
+              DuelComponent={DuelComponent}
               onComplete={submitDuelResult}
               onSkip={() => {
                 playAction?.()
                 skipDuel()
               }}
-              playerIndex={playerIndex}
-              players={session.players}
             />
           )}
         </div>
       )}
 
       {!diceAnimating && session.phase === 'finale' && finalSummary && (
-        <div className="overlay-screen">
-          <div className="overlay-card finale-card">
-            <p className="eyebrow">Finale</p>
-            <h3>{finalSummary.headline}</h3>
-            <p className="support-copy">{finalSummary.coda}</p>
-            <div className="finale-note-row">
-              <span>{finalSummary.tierLabel}</span>
-              <span>{finalSummary.duelOutcomeLabel}</span>
-            </div>
-            <div className="summary-grid">
-              <div>
-                <strong>{session.hearts}</strong>
-                <span>Shared Hearts</span>
-              </div>
-              <div>
-                <strong>{session.keepsakes.length}</strong>
-                <span>Keepsakes</span>
-              </div>
-              <div>
-                <strong>{finalSummary.journalCount}</strong>
-                <span>Journal Beats</span>
-              </div>
-              <div>
-                <strong>{finalSummary.completedSpotlightCount}</strong>
-                <span>Spotlights</span>
-              </div>
-            </div>
-            {finalSummary.keepsakeLabels.length > 0 && (
-              <div className="finale-tag-row">
-                {finalSummary.keepsakeLabels.map((label) => (
-                  <span key={label}>{label}</span>
-                ))}
-              </div>
-            )}
-            {finalSummary.momentumLabels.length > 0 && (
-              <div className="finale-tag-row momentum-tags">
-                {finalSummary.momentumLabels.map((label) => (
-                  <span key={label}>{label}</span>
-                ))}
-              </div>
-            )}
-            <p className="support-copy finale-vibes">{finalSummary.vibes}</p>
-            <div className="button-row finale-actions">
-              <button
-                className="primary-btn"
-                onClick={() => {
-                  playAction?.()
-                  startTransition(() => setJournalOpen(true))
-                }}
-                type="button"
-              >
-                Open Scrapbook
-              </button>
-              {canRecoverSession && (
-                <button
-                  className="primary-btn alt"
-                  disabled={working}
-                  onClick={() => {
-                    playAction?.()
-                    startFreshSession()
-                  }}
-                  type="button"
-                >
-                  Play Another Night
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <FinaleScreen
+          session={session}
+          finalSummary={finalSummary}
+          journalEntries={journalEntries}
+          themeId={progress?.selectedTheme || 'cozy'}
+          players={session.players}
+          canPlayAgain={canRecoverSession}
+          working={working}
+          onOpenScrapbook={() => {
+            playAction?.()
+            startTransition(() => setJournalOpen(true))
+          }}
+          onPlayAgain={() => {
+            playAction?.()
+            startFreshSession()
+          }}
+        />
       )}
 
       <Suspense fallback={null}>
@@ -762,6 +697,16 @@ export function GameScreen() {
           </div>
         </div>
       )}
+
+      <TruceTradeModal
+        isOpen={tradeModalOpen}
+        onClose={() => setTradeModalOpen(false)}
+        session={session}
+        playerIndex={playerIndex}
+        onSendOffer={sendTradeOffer}
+        onRespondOffer={respondTradeOffer}
+        onDismissOffer={dismissTradeOffer}
+      />
     </section>
   )
 }

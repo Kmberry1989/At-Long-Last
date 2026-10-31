@@ -7,6 +7,8 @@ import {
   buildFinalSummary,
   buildInitialSession,
   choosePendingActivity,
+  createTradeOffer,
+  dismissTradeOffer,
   ensureSessionArcState,
   evaluateNightChecklist,
   finalizeVibeSetup,
@@ -18,6 +20,7 @@ import {
   resolveCombinedMood,
   resolveKeepsakeDecision,
   resolveSkippedActivity,
+  resolveTradeOffer,
   skipOpeningSetup,
 } from './sessionLogic.js'
 
@@ -85,6 +88,21 @@ describe('sessionLogic', () => {
     expect(getSessionAct(4, 4)).toBe('finale')
     expect(getSessionAct(5, 8)).toBe('spark')
     expect(getSessionAct(8, 8)).toBe('finale')
+  })
+
+  it('applies a two-dice roll (2-12) and records dice values in lastMove', () => {
+    let session = buildReadySession()
+    session = applyRollToSession(session, {
+      activityType: 'comfort-menu',
+      dice: [3, 4],
+      keepsakeId: 'love-note',
+      roll: 7,
+    })
+
+    expect(session.lastRoll).toBe(7)
+    expect(session.lastMove.steps).toBe(7)
+    expect(session.lastMove.dice).toEqual([3, 4])
+    expect(session.positions[0]).toBe(7)
   })
 
   it('clears the warmup spotlight after a journal-saving activity', () => {
@@ -459,5 +477,76 @@ describe('night checklist and moods', () => {
 
     expect(next.sharedDuelWins).toBe(1)
     expect(next.phase).toBe('finale')
+  })
+
+  it('creates, accepts, and resolves a keepsake trade offer', () => {
+    const session = buildReadySession({
+      keepsakes: [
+        { id: 'k1', instanceId: 'inst-1', label: 'Morning Coffee Pass', ownerIndex: 0 },
+        { id: 'k2', instanceId: 'inst-2', label: 'Late Night Massage', ownerIndex: 1 },
+      ],
+      hearts: 5,
+    })
+
+    const offered = createTradeOffer(session, {
+      fromPlayerIndex: 0,
+      offeredInstanceId: 'inst-1',
+      requestedInstanceId: 'inst-2',
+      note: 'Trade coffee for a massage? ♡',
+    })
+
+    expect(offered.lastMove.tradeOffer).toBeDefined()
+    expect(offered.lastMove.tradeOffer.status).toBe('pending')
+    expect(offered.lastMove.tradeOffer.note).toBe('Trade coffee for a massage? ♡')
+    expect(offered.actionText).toContain('Kyle offered to trade Morning Coffee Pass.')
+
+    const accepted = resolveTradeOffer(offered, { accept: true })
+    expect(accepted.lastMove.tradeOffer.status).toBe('accepted')
+    expect(accepted.hearts).toBe(7) // +2 hearts for couple
+    expect(accepted.keepsakes.find((k) => k.instanceId === 'inst-1').ownerIndex).toBe(1)
+    expect(accepted.keepsakes.find((k) => k.instanceId === 'inst-2').ownerIndex).toBe(0)
+    expect(accepted.actionText).toContain('traded Morning Coffee Pass for Late Night Massage!')
+
+    const dismissed = dismissTradeOffer(accepted)
+    expect(dismissed.lastMove.tradeOffer).toBeUndefined()
+  })
+
+  it('supports gifting a keepsake without requesting one in return', () => {
+    const session = buildReadySession({
+      keepsakes: [
+        { id: 'k1', instanceId: 'inst-1', label: 'Morning Coffee Pass', ownerIndex: 0 },
+      ],
+      hearts: 3,
+    })
+
+    const offered = createTradeOffer(session, {
+      fromPlayerIndex: 0,
+      offeredInstanceId: 'inst-1',
+      requestedInstanceId: null,
+      note: 'A surprise gift for you!',
+    })
+
+    const accepted = resolveTradeOffer(offered, { accept: true })
+    expect(accepted.keepsakes.find((k) => k.instanceId === 'inst-1').ownerIndex).toBe(1)
+    expect(accepted.hearts).toBe(5)
+    expect(accepted.actionText).toContain('Kyle gifted Morning Coffee Pass to Elaine! 💛')
+  })
+
+  it('handles declining a trade offer gracefully', () => {
+    const session = buildReadySession({
+      keepsakes: [
+        { id: 'k1', instanceId: 'inst-1', label: 'Morning Coffee Pass', ownerIndex: 0 },
+      ],
+    })
+
+    const offered = createTradeOffer(session, {
+      fromPlayerIndex: 0,
+      offeredInstanceId: 'inst-1',
+    })
+
+    const declined = resolveTradeOffer(offered, { accept: false })
+    expect(declined.lastMove.tradeOffer.status).toBe('declined')
+    expect(declined.keepsakes.find((k) => k.instanceId === 'inst-1').ownerIndex).toBe(0)
+    expect(declined.actionText).toContain('Elaine gently passed on the trade offer.')
   })
 })

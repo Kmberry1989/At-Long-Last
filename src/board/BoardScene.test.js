@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { getBoardPathSegments, getTokenTargetPosition } from './BoardScene.jsx'
+import {
+  calculateStepPath,
+  getBoardPathSegments,
+  getTokenTargetPosition,
+  resolveDiceValues,
+} from './BoardScene.jsx'
 
 const boardPath = [
   { position: new THREE.Vector3(0, 0.35, -4) },
@@ -42,3 +47,24 @@ describe('getBoardPathSegments', () => {
     expect(segments.every(({ length }) => length > 0)).toBe(true)
   })
 })
+
+describe('resolveDiceValues', () => {
+  it('splits roll totals into two valid 1-6 dice', () => {
+    expect(resolveDiceValues(2)).toEqual([1, 1])
+    expect(resolveDiceValues(7)).toEqual([3, 4])
+    expect(resolveDiceValues(12)).toEqual([6, 6])
+  })
+
+  it('preserves explicit dice pair if supplied', () => {
+    expect(resolveDiceValues(7, [2, 5])).toEqual([2, 5])
+    expect(resolveDiceValues(10, [4, 6])).toEqual([4, 6])
+  })
+})
+
+describe('calculateStepPath', () => {
+  it('generates the clockwise ring sequence from current tile to destination', () => {
+    const path = calculateStepPath(18, 4, 20)
+    expect(path).toEqual([18, 19, 0, 1, 2])
+  })
+})
+

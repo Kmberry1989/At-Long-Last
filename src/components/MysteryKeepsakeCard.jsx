@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useAudio } from '../audio/AudioProvider.jsx'
+import { getPlayerPiece } from '../features/couple/playerAvatar.js'
 import './mystery-keepsake-card.css'
 
 const CARD_MARKS = {
@@ -6,6 +8,9 @@ const CARD_MARKS = {
   'midnight-snack': '☾',
   'love-note': '♡',
   'dance-ticket': '♫',
+  'breakfast-in-bed': '☕',
+  'playful-veto': '⚖',
+  'bloom-blessing': '🌸',
 }
 
 function CardFrame() {
@@ -22,30 +27,58 @@ function CardFrame() {
   )
 }
 
-export function KeepsakeCard({ item, revealed = true, compact = false, className = '' }) {
+export function KeepsakeCard({ item, player = null, revealed = true, compact = false, className = '' }) {
+  const playerPiece = player?.avatar ? getPlayerPiece(player.avatar) : null
+
   return (
     <div className={`keepsake-card${revealed ? ' is-revealed' : ''}${compact ? ' is-compact' : ''} ${className}`}>
+      {/* Back of Card (Face Down in Deck) */}
       <div aria-hidden={revealed} className="keepsake-card-face keepsake-card-back">
         <CardFrame />
         <span aria-hidden="true" className="keepsake-back-star">✧</span>
         <span className="keepsake-back-brand">AT LONG LAST</span>
+        <span className="keepsake-back-free-tag">MYSTERY KEEPSAKE</span>
         <span aria-hidden="true" className="keepsake-back-seal">A <span>✦</span> L</span>
-        <span className="keepsake-back-caption">A little piece of tonight</span>
+        <span className="keepsake-back-caption">A little gift for tonight</span>
       </div>
+
+      {/* Front of Card (Revealed) */}
       <div aria-hidden={!revealed} className="keepsake-card-face keepsake-card-front">
         <CardFrame />
-        <span className="keepsake-front-brand">AT LONG LAST</span>
-        <span aria-hidden="true" className="keepsake-front-mark">{CARD_MARKS[item?.id] || '✧'}</span>
+        <div className="keepsake-front-top">
+          <span className="keepsake-front-brand">AT LONG LAST</span>
+          <span className="keepsake-free-draw-badge">✧ Free Privilege ✧</span>
+        </div>
+
+        <span aria-hidden="true" className="keepsake-front-mark">{CARD_MARKS[item?.id] || '✦'}</span>
         <span className="keepsake-front-kind">KEEPSAKE</span>
         <strong className="keepsake-front-title">{item?.label || 'A surprise'}</strong>
         <span className="keepsake-front-blurb">{item?.blurb || ''}</span>
-        <span className="keepsake-front-perk">{item?.perkLabel || ''}</span>
+
+        <div className="keepsake-perk-box">
+          <span className="keepsake-perk-tag">✦ {item?.perkLabel || 'Special Privilege'} ✦</span>
+          {item?.perkDescription && (
+            <span className="keepsake-perk-desc">{item.perkDescription}</span>
+          )}
+        </div>
+
+        {player && (
+          <div className="keepsake-front-drawer">
+            {playerPiece?.thumbnail && (
+              <img src={playerPiece.thumbnail} alt="" className="drawer-thumb" />
+            )}
+            <span>Drawn by {player.displayName}</span>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-export function MysteryKeepsakeCard({ item, onCollect, onReveal }) {
+export function MysteryKeepsakeCard({ item, onCollect, onReveal, player = null }) {
+  const audio = useAudio() || {}
+  const { playCardFlip, playSuccess } = audio
+
   const [revealed, setRevealed] = useState(false)
   const [collecting, setCollecting] = useState(false)
   const collectTimerRef = useRef(null)
@@ -56,10 +89,14 @@ export function MysteryKeepsakeCard({ item, onCollect, onReveal }) {
   useEffect(() => {
     const revealTimer = window.setTimeout(() => {
       setRevealed(true)
+      playCardFlip?.()
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([15, 25, 15])
+      }
       onRevealRef.current?.()
     }, 620)
     return () => window.clearTimeout(revealTimer)
-  }, [item?.id])
+  }, [item?.id, playCardFlip])
 
   useEffect(() => () => {
     if (collectTimerRef.current) window.clearTimeout(collectTimerRef.current)
@@ -67,28 +104,54 @@ export function MysteryKeepsakeCard({ item, onCollect, onReveal }) {
 
   function collect() {
     if (!revealed || collecting) return
+    playSuccess?.()
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([25, 45, 30])
+    }
     setCollecting(true)
     collectTimerRef.current = window.setTimeout(() => onCollect?.(), 480)
   }
 
   return (
     <div className={`mystery-card-stage${collecting ? ' is-collecting' : ''}`}>
+      {/* Floating Card Deck on Board */}
       <div aria-hidden="true" className="mystery-card-ground-shadow" />
       <div aria-hidden="true" className="mystery-card-deck mystery-card-deck-one" />
       <div aria-hidden="true" className="mystery-card-deck mystery-card-deck-two" />
+      <div aria-hidden="true" className="mystery-card-deck mystery-card-deck-three" />
+
+      {/* Buoyant Hover Card Container */}
       <div className="mystery-card-float">
         <button
-          aria-label={revealed ? `Collect ${item.label}` : 'Mystery keepsake revealing'}
+          aria-label={revealed ? `Collect ${item?.label || 'Keepsake'}` : 'Mystery keepsake revealing'}
           className="mystery-card-button"
           disabled={!revealed || collecting}
           onClick={collect}
           type="button"
         >
-          <KeepsakeCard item={item} revealed={revealed} />
+          <KeepsakeCard item={item} player={player} revealed={revealed} />
         </button>
       </div>
+
+      {/* Tactile Action Button */}
+      <div className="mystery-card-action-bar">
+        <button
+          className="primary-btn mystery-collect-btn"
+          disabled={!revealed || collecting}
+          onClick={collect}
+          type="button"
+        >
+          {collecting ? 'Collecting to your hand… ✨' : 'Tap Card to Collect ✦'}
+        </button>
+        <span className="mystery-zero-friction-hint">
+          🎁 Free gift for landing on this space — no hearts spent.
+        </span>
+      </div>
+
       <span aria-live="polite" className="sr-only">
-        {revealed ? `${item.label} revealed. Tap the card to collect it.` : 'Drawing a mystery keepsake.'}
+        {revealed
+          ? `${item?.label || 'Keepsake'} revealed. Tap the card to collect it.`
+          : 'Drawing a mystery keepsake.'}
       </span>
     </div>
   )

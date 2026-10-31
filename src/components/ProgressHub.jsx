@@ -1,21 +1,25 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
+import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { YearInReview } from './YearInReview.jsx'
 import {
   BASE_THEME_CARDS,
   FLOWER_STAGES,
-  FLOWER_STAGE_EMOJI,
   NUDGE_COOLDOWN_MS,
   TROPHIES,
   UNLOCKABLE_THEMES,
   fetchCoupleJournalExport,
   localDateStr,
   nextAnniversaryCountdown,
+  activeFlowerSpecies,
   resolveFlower,
   spendableHearts,
   resolveKouponLabel,
 } from '../features/couple/progressService.js'
+import { getFlowerSpecies } from '../flower/flowerSpecies.js'
+
+const FlowerScene = lazy(() => import('../flower/FlowerScene.jsx').then((module) => ({ default: module.FlowerScene })))
 
 function timeAgo(timestamp) {
   if (!timestamp?.toDate) {
@@ -205,11 +209,15 @@ function ThemePicker() {
 }
 
 function FlowerCard() {
-  const { couple, progress, waterFlower } = useCouple()
+  const { couple, pickFlower, progress, waterFlower } = useCouple()
   const { userId } = useFirebaseApp()
+  const { playAction, playSuccess } = useAudio()
   const [watering, setWatering] = useState(false)
+  const [picking, setPicking] = useState(false)
   const [note, setNote] = useState('')
+  const [revealedId, setRevealedId] = useState(null)
   const flower = resolveFlower(progress)
+  const activeSpecies = activeFlowerSpecies(flower)
   const stage = FLOWER_STAGES[flower.stage] || FLOWER_STAGES[0]
   const nextStage = FLOWER_STAGES[flower.stage + 1]
   const iWatered = (flower.wateredBy || []).includes(userId)
@@ -224,9 +232,11 @@ function FlowerCard() {
     setWatering(true)
     setNote('')
     try {
+      playAction?.()
       const result = await waterFlower()
       const event = result?.events?.find((entry) => entry.type === 'flower-watered')
       if (event?.grew) {
+        playSuccess?.()
         setNote('You both watered today — it grew a little.')
       } else {
         setNote('Watered. It grows once your partner waters today too.')
@@ -236,40 +246,54 @@ function FlowerCard() {
     }
   }
 
+  async function handlePick() {
+    if (picking || flower.stage < 3) return
+    setPicking(true)
+    try {
+      playAction?.()
+      const result = await pickFlower()
+      const picked = result?.events?.find((entry) => entry.type === 'flower-picked')
+      if (picked) {
+        setRevealedId(picked.speciesId)
+        setNote('')
+        playSuccess?.()
+      }
+    } finally {
+      setPicking(false)
+    }
+  }
+
   return (
     <div className="progress-section">
-      <h3>Our flower</h3>
+      <h3>Our Bloom</h3>
       <div className="companion-card">
-        <span className="companion-emoji" aria-hidden="true">
-          {FLOWER_STAGE_EMOJI[flower.stage] || '🫘'}
-        </span>
-        <div>
-          <strong>{stage.label}</strong>
+        {activeSpecies ? (
+          <Suspense fallback={<div className="flower-scene" aria-hidden="true" />}>
+            <FlowerScene onPick={flower.stage === 3 ? handlePick : undefined} speciesId={activeSpecies.id} stage={flower.stage} wateredCount={flower.wateredBy?.length || 0} />
+          </Suspense>
+        ) : <div className="flower-scene flower-complete" aria-hidden="true">✦</div>}
+        <div className="flower-card-copy">
+          <strong>{activeSpecies ? `${stage.label} · mystery flower` : 'Our garden is in bloom'}</strong>
           <span className="companion-stage">
-            {iWatered ? 'You watered today' : 'You have not watered today'}
-            {partnerWatered
-              ? ` · ${partnerName} watered today`
-              : ` · Waiting on ${partnerName}`}
+            {activeSpecies && (flower.stage === 3
+              ? 'Fully grown. Pick it to discover what you grew.'
+              : <>{iWatered ? 'You watered today' : 'You have not watered today'}
+                {partnerWatered ? ` · ${partnerName} watered today` : ` · Waiting on ${partnerName}`}</>)}
           </span>
-          {nextStage ? (
+          {activeSpecies && nextStage ? (
             <span className="companion-progress">
               {flower.growth}/{nextStage.growthNeeded} days both watered to {nextStage.label}
             </span>
-          ) : (
-            <span className="companion-progress">In full bloom. What a pair you are.</span>
-          )}
+          ) : null}
         </div>
-        <button
-          className="primary-btn alt"
-          disabled={iWatered || watering}
-          onClick={handleWater}
-          type="button"
-        >
-          {iWatered ? '✓ Watered' : watering ? 'Watering…' : 'Water 💧'}
-        </button>
+        {activeSpecies && (flower.stage === 3
+          ? <button className="primary-btn alt" disabled={picking} onClick={handlePick} type="button">{picking ? 'Picking…' : 'Pick the bloom'}</button>
+          : <button className="primary-btn alt" disabled={iWatered || watering} onClick={handleWater} type="button">{iWatered ? '✓ Watered' : watering ? 'Watering…' : 'Water 💧'}</button>)}
       </div>
       {note && <p className="support-copy">{note}</p>}
-      <p className="support-copy">It only grows on days you both water it.</p>
+      {revealedId && <div className="flower-reveal" role="status"><strong>You grew a {getFlowerSpecies(revealedId).name} together.</strong><span>It’s now part of your collection.</span><button aria-label="Dismiss flower reveal" onClick={() => setRevealedId(null)} type="button">×</button></div>}
+      {flower.collected.length > 0 && <div className="flower-collection"><h4>Our collection · {flower.collected.length}</h4><div className="flower-collection-grid">{flower.collected.map((speciesId) => <div className="flower-collection-item" key={speciesId}><Suspense fallback={<div className="flower-scene compact" aria-hidden="true" />}><FlowerScene compact revealName speciesId={speciesId} stage={3} /></Suspense><span>{getFlowerSpecies(speciesId).name}</span></div>)}</div></div>}
+      {activeSpecies && <p className="support-copy">It grows only on days you both water it. Its name stays a mystery until you pick it.</p>}
     </div>
   )
 }
@@ -409,7 +433,9 @@ function ExportSection() {
             stage: companion.stage || 0,
           },
           flower: {
+            collected: flower.collected || [],
             growth: flower.growth || 0,
+            speciesIndex: flower.speciesIndex || 0,
             stage: flower.stage || 0,
             wateredBy: flower.wateredBy || [],
             wateredDate: flower.wateredDate || null,

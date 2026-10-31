@@ -64,12 +64,14 @@ import {
   UNLOCKABLE_THEMES,
   applyNightComplete,
   applyWater,
+  collectBloom,
   buildDefaultFlower,
   buildDefaultProgress,
   clearNudge,
   companionStageForHearts,
   fetchCoupleJournalExport,
   flowerStageForGrowth,
+  pickFlower,
   grantKoupon,
   localDateStr,
   nextAnniversaryCountdown,
@@ -478,8 +480,8 @@ describe('progressService shared flower', () => {
   it('starts every new couple with a seed flower', () => {
     const progress = buildDefaultProgress('couple-1')
 
-    expect(progress.flower).toEqual({ growth: 0, stage: 0, wateredBy: [], wateredDate: null })
-    expect(buildDefaultFlower()).toEqual({ growth: 0, stage: 0, wateredBy: [], wateredDate: null })
+    expect(progress.flower).toEqual({ collected: [], growth: 0, speciesIndex: 0, stage: 0, wateredBy: [], wateredDate: null })
+    expect(buildDefaultFlower()).toEqual(progress.flower)
   })
 
   it('steps the flower through stages by both-watered days', () => {
@@ -539,7 +541,9 @@ describe('progressService shared flower', () => {
     const result = applyWater(oldDoc, { dateStr: '2026-10-30', uid: 'u1' })
 
     expect(result.progress.flower).toEqual({
+      collected: [],
       growth: 0,
+      speciesIndex: 0,
       stage: 0,
       wateredBy: ['u1'],
       wateredDate: '2026-10-30',
@@ -558,5 +562,46 @@ describe('progressService shared flower', () => {
     expect(second.events).toEqual([{ grew: true, type: 'flower-watered' }])
     expect(second.progress.flower.growth).toBe(1)
     expect(second.progress.flower.stage).toBe(1)
+  })
+
+  it('keeps a bloom mysterious until picked, then adds it to the collection', () => {
+    const almost = progressFixture({ flower: { ...buildDefaultFlower(), growth: 5, stage: 2 } })
+    const first = applyWater(almost, { dateStr: '2026-10-30', uid: 'u1' })
+    const second = applyWater(first.progress, { dateStr: '2026-10-30', uid: 'u2' })
+
+    expect(second.progress.flower.stage).toBe(3)
+    expect(second.progress.flower.collected).toEqual([])
+    expect(applyWater(second.progress, { dateStr: '2026-10-31', uid: 'u1' }).events).toEqual([{ type: 'flower-ready-to-pick' }])
+
+    const picked = collectBloom(second.progress)
+    expect(picked.events).toEqual([{ type: 'flower-picked', speciesId: 'daisy' }])
+    expect(picked.progress.flower).toMatchObject({ collected: ['daisy'], speciesIndex: 1, growth: 0, stage: 0 })
+    expect(applyWater(picked.progress, { dateStr: '2026-10-30', uid: 'u1' }).events).toEqual([{ type: 'already-watered' }])
+  })
+
+  it('cannot pick a seed and stops after the last distinct flower', () => {
+    expect(collectBloom(progressFixture()).events).toEqual([{ type: 'flower-not-ready' }])
+    const final = progressFixture({ flower: {
+      ...buildDefaultFlower(),
+      collected: ['daisy', 'tulip', 'sunflower', 'rose'],
+      speciesIndex: 4,
+      growth: 6,
+      stage: 3,
+    } })
+    const picked = collectBloom(final)
+    expect(picked.events).toEqual([{ type: 'flower-picked', speciesId: 'cosmos' }])
+    expect(picked.progress.flower.collected).toHaveLength(5)
+    expect(applyWater(picked.progress, { dateStr: '2026-11-01', uid: 'u1' }).events).toEqual([{ type: 'garden-complete' }])
+  })
+
+  it('picks a bloom transactionally so two taps cannot collect it twice', async () => {
+    const db = {}
+    const coupleId = 'couple-flower-pick'
+    firestoreStore.set(`coupleProgress/${coupleId}`, progressFixture({ flower: { ...buildDefaultFlower(), growth: 6, stage: 3 } }))
+    const first = await pickFlower(db, coupleId)
+    const second = await pickFlower(db, coupleId)
+    expect(first.events).toEqual([{ type: 'flower-picked', speciesId: 'daisy' }])
+    expect(second.events).toEqual([{ type: 'flower-not-ready' }])
+    expect(second.progress.flower.collected).toEqual(['daisy'])
   })
 })

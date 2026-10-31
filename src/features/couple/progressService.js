@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore'
 
 import { momentId, momentPayload } from './milestoneService.js'
+import { FLOWER_DAYS_TO_BLOOM, FLOWER_SPECIES } from '../../flower/flowerSpecies.js'
 
 export const BASE_THEME_CARDS = [
   { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy' },
@@ -119,7 +120,7 @@ export const COMPANION_STAGES = [
 
 export const COMPANION_STAGE_EMOJI = ['🥚', '🐣', '✨', '🌟']
 
-// Shared flower: the couple's companion, grown by daily check-ins. It only
+// Our Bloom is grown by daily check-ins. It only
 // grows on days both partners water it — one partner watering alone marks
 // the day but never grows it.
 export const FLOWER_STAGES = [
@@ -129,14 +130,16 @@ export const FLOWER_STAGES = [
   { growthNeeded: 6, label: 'In bloom' },
 ]
 
-export const FLOWER_STAGE_EMOJI = ['🫘', '🌱', '🌷', '🌸']
-
 export function buildDefaultFlower() {
-  return { growth: 0, stage: 0, wateredBy: [], wateredDate: null }
+  return { collected: [], growth: 0, speciesIndex: 0, stage: 0, wateredBy: [], wateredDate: null }
 }
 
 export function resolveFlower(progress) {
-  return { ...buildDefaultFlower(), ...(progress?.flower || {}) }
+  return { ...buildDefaultFlower(), ...progress?.flower }
+}
+
+export function activeFlowerSpecies(flower) {
+  return FLOWER_SPECIES[flower.speciesIndex] || null
 }
 
 export function flowerStageForGrowth(growth) {
@@ -156,6 +159,12 @@ export function flowerStageForGrowth(growth) {
  */
 export function applyWater(progress, { dateStr, uid }) {
   const flower = resolveFlower(progress)
+  if (!activeFlowerSpecies(flower)) {
+    return { events: [{ type: 'garden-complete' }], progress: { ...progress, flower } }
+  }
+  if (flower.stage >= 3) {
+    return { events: [{ type: 'flower-ready-to-pick' }], progress: { ...progress, flower } }
+  }
   if (flower.wateredDate !== dateStr) {
     flower.wateredDate = dateStr
     flower.wateredBy = []
@@ -168,11 +177,31 @@ export function applyWater(progress, { dateStr, uid }) {
   flower.wateredBy = wateredBy
   let grew = false
   if (wateredBy.length >= 2) {
-    flower.growth = (flower.growth || 0) + 1
+    flower.growth = Math.min(FLOWER_DAYS_TO_BLOOM, (flower.growth || 0) + 1)
     flower.stage = flowerStageForGrowth(flower.growth)
     grew = true
   }
   return { events: [{ grew, type: 'flower-watered' }], progress: { ...progress, flower } }
+}
+
+export function collectBloom(progress) {
+  const flower = resolveFlower(progress)
+  const species = activeFlowerSpecies(flower)
+  if (!species) {
+    return { events: [{ type: 'garden-complete' }], progress: { ...progress, flower } }
+  }
+  if (flower.stage < 3) {
+    return { events: [{ type: 'flower-not-ready' }], progress: { ...progress, flower } }
+  }
+  flower.collected = [...flower.collected, species.id]
+  flower.speciesIndex += 1
+  flower.growth = 0
+  flower.stage = 0
+  // Keep today's waterers so a newly revealed seed cannot be watered twice.
+  return {
+    events: [{ type: 'flower-picked', speciesId: species.id }],
+    progress: { ...progress, flower },
+  }
 }
 
 export const NUDGE_COOLDOWN_MS = 12 * 60 * 60 * 1000
@@ -594,6 +623,11 @@ export async function waterFlower(db, coupleId, { dateStr, uid }) {
     return { events: localEvents, progress: next }
   })
 
+  return { events, progress }
+}
+
+export async function pickFlower(db, coupleId) {
+  const { events, progress } = await transactProgress(db, coupleId, collectBloom)
   return { events, progress }
 }
 

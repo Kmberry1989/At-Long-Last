@@ -18,6 +18,7 @@ import {
   ensureCoupleProgress,
   fulfillKoupon as fulfillKouponDocument,
   localDateStr,
+  pickFlower as pickFlowerDocument,
   redeemKoupon as redeemKouponDocument,
   renameCompanion as renameCompanionDocument,
   selectTheme as selectThemeDocument,
@@ -579,6 +580,10 @@ export function CoupleProvider({ children }) {
     return runProgressAction(waterFlowerDocument, { dateStr: localDateStr(), uid: userId })
   }
 
+  function pickFlower() {
+    return runProgressAction(pickFlowerDocument)
+  }
+
   function setAnniversary(dateStr) {
     return runProgressAction(setAnniversaryDocument, dateStr)
   }
@@ -628,6 +633,7 @@ export function CoupleProvider({ children }) {
       setAnniversary,
       unlockTheme,
       waterFlower,
+      pickFlower,
       publicLobbyMessages,
       publicLobbies,
       sessionPreset: couple?.sessionPreset || 'standard',

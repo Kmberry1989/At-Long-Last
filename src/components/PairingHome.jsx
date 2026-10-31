@@ -11,6 +11,7 @@ import { ProgressHub } from './ProgressHub.jsx'
 import { PairingStory } from './Milestones.jsx'
 import { JournalTimeline } from './JournalTimeline.jsx'
 import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/emailInvitationService.js'
+import { MilestonesHub } from './MilestonesHub.jsx'
 import './PairingHome.css'
 
 export function PairingHome({ avatar, onAvatarChange }) {
@@ -28,6 +29,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
+  const [vaultOpen, setVaultOpen] = useState(false)
   const partner = couple?.players?.find((player) => player.uid !== user?.uid)
   const paired = couple?.playerIds?.length === 2
   const committed = hasCommitted(couple)
@@ -130,8 +132,12 @@ export function PairingHome({ avatar, onAvatarChange }) {
           <button className="primary-btn" disabled={disabled} onClick={() => act(() => beginNight(preset))} type="button">New night</button>
         </>}
         {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Your saved game is unavailable. Try Continue again, or sign out and back in.' : 'Could not start your night. Try New night again.'}</p>}
+        <button className="secondary-btn" onClick={() => setVaultOpen(true)} style={{ margin: '8px 0' }} type="button">
+          ✦ The Couple&apos;s Vault &amp; Milestones
+        </button>
         <Disclosure label="Scrapbook"><PairingStory /><JournalTimeline entries={journalEntries || []} /></Disclosure>
         <Disclosure label="Collection"><LoginStreak streak={profile?.loginStreak} /><ProgressHub /></Disclosure>
+        {vaultOpen && <MilestonesHub onClose={() => setVaultOpen(false)} />}
       </>}
 
       {couple && !committed && <div className="pairing-unpair">

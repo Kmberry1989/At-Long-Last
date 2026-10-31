@@ -1514,13 +1514,38 @@ service cloud.firestore {
       function isValidFlower(data) {
         return data is map
           && data.keys().hasAll(['growth', 'stage', 'wateredBy', 'wateredDate'])
-          && data.keys().hasOnly(['growth', 'stage', 'wateredBy', 'wateredDate'])
+          && data.keys().hasOnly(['growth', 'stage', 'wateredBy', 'wateredDate', 'speciesIndex', 'collected'])
           && data.growth is int
           && data.growth >= 0
           && data.growth <= 1000000
           && isBoundedInt(data.stage, 0, 3)
           && data.wateredBy is list
           && data.wateredBy.size() <= 2
+          && data.wateredBy.hasOnly(
+            get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds
+          )
+          && (data.wateredBy.size() < 2 || data.wateredBy[0] != data.wateredBy[1])
+          && (
+            (!('speciesIndex' in data) && !('collected' in data))
+            || (
+              isBoundedInt(data.speciesIndex, 0, 5)
+              && data.growth <= 6
+              && (
+                (data.growth == 0 && data.stage == 0)
+                || (data.growth >= 1 && data.growth <= 2 && data.stage == 1)
+                || (data.growth >= 3 && data.growth <= 5 && data.stage == 2)
+                || (data.growth == 6 && data.stage == 3)
+              )
+              && data.collected is list
+              && data.collected.size() == data.speciesIndex
+              && data.collected.hasOnly(['daisy', 'tulip', 'sunflower', 'rose', 'cosmos'])
+              && (data.collected.size() < 1 || data.collected[0] == 'daisy')
+              && (data.collected.size() < 2 || data.collected[1] == 'tulip')
+              && (data.collected.size() < 3 || data.collected[2] == 'sunflower')
+              && (data.collected.size() < 4 || data.collected[3] == 'rose')
+              && (data.collected.size() < 5 || data.collected[4] == 'cosmos')
+            )
+          )
           && (data.wateredDate == null || isDateString(data.wateredDate));
       }
 

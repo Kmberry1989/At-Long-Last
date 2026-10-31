@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react'
 import { activityDefinitions } from './contentPackData.js'
 import { createConnectionGameEntry } from './connectionGameRegistry.jsx'
 import { createSealedActivityEntry } from './sealedActivityRegistry.jsx'
@@ -6,18 +5,30 @@ import { createWaveTwoGameEntry } from './waveTwoGameRegistry.jsx'
 import { createWaveThreeGameEntry } from './waveThreeGameRegistry.jsx'
 import { createWaveFourGameEntry } from './waveFourGameRegistry.jsx'
 import { pickActivityPrompt } from './expandedPromptData.js'
+import { ActivityCardModal } from '../../components/ActivityCardModal.jsx'
 
 function buildEntrySummary(definition, entries, players) {
   if (entries.length < 2) {
     return `${definition.label} started.`
   }
 
-  return `${players[0].displayName} and ${players[1].displayName} left a ${definition.vibe} ${definition.type} beat together.`
+  const p1 = players[0]?.displayName || 'Player 1'
+  const p2 = players[1]?.displayName || 'Player 2'
+  return `${p1} and ${p2} left a ${definition.vibe} ${definition.type} beat together.`
 }
 
 function buildEntryText(entries, players) {
   return entries
-    .map((entry) => `${players[entry.playerIndex].displayName}: ${entry.text}`)
+    .map((entry) => {
+      const playerName = players[entry.playerIndex]?.displayName || `Player ${entry.playerIndex + 1}`
+      let line = `${playerName}: ${entry.text}`
+      if (entry.guess) {
+        const partnerIndex = entry.playerIndex === 0 ? 1 : 0
+        const partnerName = players[partnerIndex]?.displayName || 'Partner'
+        line += `\n  (Guessed for ${partnerName}: "${entry.guess}")`
+      }
+      return line
+    })
     .join('\n')
 }
 
@@ -31,103 +42,10 @@ function buildOpenAt(definition) {
   return openAt.toISOString()
 }
 
-function ActivityCard({
-  activity,
-  disabled,
-  onSkip,
-  onSubmit,
-  playerIndex,
-  players,
-}) {
-  const [text, setText] = useState('')
-  const definition = useMemo(
-    () => activityDefinitions.find((entry) => entry.id === activity.type),
-    [activity.type],
-  )
-  const activityType = definition?.type || 'prompt'
-  const activeName =
-    activity.state.turnIndex >= 0
-      ? players[activity.state.turnIndex]?.displayName
-      : null
-  const revealed = activity.state.entries.length >= 2
-  const responsePlaceholder = useMemo(() => {
-    if (activityType === 'ritual') {
-      return 'Describe what you left, chose, or imagined.'
-    }
-
-    if (activityType === 'journal') {
-      return 'Write a couple of lines worth keeping.'
-    }
-
-    return 'One or two sentences is enough.'
-  }, [activityType])
-
-  return (
-    <div className={`overlay-card activity-card vibe-${definition.vibe}`}>
-      <div className="overlay-head">
-        <p className="eyebrow">{activity.vibe} {activityType}</p>
-        {definition.skippable && (
-          <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
-            Skip This
-          </button>
-        )}
-      </div>
-      <h3>{definition?.label || definition?.title || 'Shared Moment'}</h3>
-      <p className="support-copy">{definition?.description}</p>
-      <div className="activity-prompt">
-        <p>{activity.state.prompt}</p>
-      </div>
-      <div className="turn-badge">
-        <strong>{activeName}</strong>
-        <span>is up now</span>
-        <span className="sealed-chip">{activity.state.entries.length}/2 sealed</span>
-      </div>
-      <textarea
-        className="text-entry"
-        disabled={disabled}
-        onChange={(event) => setText(event.target.value)}
-        placeholder={responsePlaceholder}
-        rows={4}
-        value={text}
-      />
-      <button
-        className="primary-btn"
-        disabled={disabled || !text.trim()}
-        onClick={() => {
-          onSubmit({ text })
-          setText('')
-        }}
-        type="button"
-      >
-        Send It
-      </button>
-      <div className="activity-log">
-        {revealed && (
-          <p className="reveal-flourish" aria-live="polite">✨ revealed together</p>
-        )}
-        {activity.state.entries.map((entry, index) => {
-          const isMine = entry.playerIndex === playerIndex
-          const showText = revealed || isMine
-
-          return (
-            <div key={`${entry.playerIndex}-${index}`} className="activity-log-card">
-              <strong>{players[entry.playerIndex].displayName}</strong>
-              {showText ? (
-                <p>{entry.text}</p>
-              ) : (
-                <p className="sealed-answer">✉️ Sealed — reveals when you both answer.</p>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 function createRegistryEntry(definition) {
   return {
     ...definition,
+    supportsPrivateFlow: true,
     createInitialState(_players, { random = Math.random, history = [] } = {}) {
       return {
         activityId: definition.id,
@@ -137,11 +55,14 @@ function createRegistryEntry(definition) {
       }
     },
     advance(state, { input, playerIndex }) {
+      const existing = state.entries || []
+      const filtered = existing.filter((e) => e.playerIndex !== playerIndex)
       const nextEntries = [
-        ...state.entries,
+        ...filtered,
         {
           playerIndex,
-          text: input.text.trim(),
+          text: (input?.text || '').trim(),
+          ...(input?.guess ? { guess: input.guess.trim() } : {}),
         },
       ]
 
@@ -150,12 +71,12 @@ function createRegistryEntry(definition) {
         state: {
           ...state,
           entries: nextEntries,
-          turnIndex: state.turnIndex === 0 ? 1 : 0,
+          turnIndex: nextEntries.length >= 2 ? -1 : (playerIndex === 0 ? 1 : 0),
         },
       }
     },
     render(props) {
-      return <ActivityCard {...props} definition={definition} />
+      return <ActivityCardModal {...props} definition={definition} />
     },
     resolve(state, players) {
       const openAt = buildOpenAt(definition)

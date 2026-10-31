@@ -332,6 +332,41 @@ export function createAudioEngine(suppliedContext = null) {
       playTone({ frequency: 392, volume: 0.038, duration: 0.08 })
       playTone({ frequency: 523.25, volume: 0.026, duration: 0.12 })
     },
+    playDiceRattle() {
+      playTone({ frequency: 580 + Math.random() * 140, type: 'triangle', volume: 0.024, duration: 0.025 })
+      playTone({ frequency: 720 + Math.random() * 160, type: 'sine', volume: 0.018, duration: 0.02 })
+    },
+    playDiceCast() {
+      playTone({ frequency: 440, type: 'triangle', volume: 0.028, duration: 0.06 })
+      setTimeout(() => {
+        playTone({ frequency: 280, type: 'sine', volume: 0.035, duration: 0.05 })
+        playTone({ frequency: 320, type: 'triangle', volume: 0.025, duration: 0.04 })
+      }, 70)
+    },
+    playPieceStep() {
+      playTone({ frequency: 260, type: 'triangle', volume: 0.032, duration: 0.045 })
+      playTone({ frequency: 196, type: 'sine', volume: 0.028, duration: 0.06 })
+    },
+    playCardFlip() {
+      playTone({ frequency: 880, type: 'triangle', volume: 0.03, duration: 0.035 })
+      setTimeout(() => {
+        playTone({ frequency: 1240, type: 'sine', volume: 0.02, duration: 0.025 })
+      }, 30)
+    },
+    playCardSeal() {
+      playTone({ frequency: 140, type: 'sine', volume: 0.045, duration: 0.08 })
+      playTone({ frequency: 220, type: 'triangle', volume: 0.025, duration: 0.05 })
+    },
+    playCardSlide() {
+      playTone({ frequency: 480, type: 'triangle', volume: 0.022, duration: 0.04 })
+      setTimeout(() => {
+        playTone({ frequency: 360, type: 'sine', volume: 0.026, duration: 0.05 })
+      }, 35)
+    },
+    playChoiceTap() {
+      playTone({ frequency: 523.25, type: 'sine', volume: 0.025, duration: 0.04 })
+      playTone({ frequency: 783.99, type: 'triangle', volume: 0.015, duration: 0.03 })
+    },
     playButton() {
       playTone({ frequency: 466.16, volume: 0.03, duration: 0.05 })
       playTone({ frequency: 698.46, volume: 0.016, duration: 0.09 })
@@ -354,6 +389,15 @@ export function createAudioEngine(suppliedContext = null) {
     playSuccess() {
       playTone({ frequency: 523.25, volume: 0.03, duration: 0.08 })
       playTone({ frequency: 659.25, volume: 0.022, duration: 0.12 })
+    },
+    playDuelPulse(step = 1) {
+      if (step === 0) {
+        playTone({ frequency: 587.33, type: 'triangle', volume: 0.04, duration: 0.1 })
+        playTone({ frequency: 880, type: 'sine', volume: 0.03, duration: 0.16 })
+      } else {
+        playTone({ frequency: 220 + step * 40, type: 'triangle', volume: 0.035, duration: 0.07 })
+        playTone({ frequency: 165, type: 'sine', volume: 0.03, duration: 0.09 })
+      }
     },
     setMuted(nextMuted) {
       muted = nextMuted
@@ -530,9 +574,17 @@ export function AudioProvider({ children }) {
       setMusicTheme,
       setBassStyle,
       playAction: () => getExistingEngine()?.playAction(),
+      playDiceRattle: () => getExistingEngine()?.playDiceRattle(),
+      playDiceCast: () => getExistingEngine()?.playDiceCast(),
+      playPieceStep: () => getExistingEngine()?.playPieceStep(),
+      playCardFlip: () => getExistingEngine()?.playCardFlip(),
+      playCardSeal: () => getExistingEngine()?.playCardSeal(),
+      playCardSlide: () => getExistingEngine()?.playCardSlide(),
+      playChoiceTap: () => getExistingEngine()?.playChoiceTap(),
       playError: () => getExistingEngine()?.playError(),
       playPhase: (phase) => getExistingEngine()?.playPhase(phase),
       playSuccess: () => getExistingEngine()?.playSuccess(),
+      playDuelPulse: (step) => getExistingEngine()?.playDuelPulse(step),
       playCelebration: (kind) => {
         const engine = ensureEngine()
         if (!engine?.context) return null

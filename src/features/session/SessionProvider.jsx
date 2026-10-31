@@ -29,12 +29,15 @@ import {
   buildFinalSummary,
   buildInitialSession,
   choosePendingActivity,
+  createTradeOffer,
+  dismissTradeOffer as dismissTradeOfferState,
   ensureSessionArcState,
   evaluateDuelRound,
   finalizeVibeSetup,
   resolveActivityCompletion,
   resolveKeepsakeDecision,
   resolveSkippedActivity,
+  resolveTradeOffer,
   skipOpeningSetup,
 } from './sessionLogic.js'
 import {
@@ -655,7 +658,7 @@ export function SessionProvider({ children }) {
       })
   }, [couple?.id, db, enabled, isHost, journalEntries.length, session])
 
-  async function rollTurn() {
+  async function rollTurn(explicitDice = null) {
     if (!session || !canRoll || working) {
       return
     }
@@ -664,7 +667,13 @@ export function SessionProvider({ children }) {
     setError('')
 
     try {
-      const roll = Math.floor(Math.random() * 6) + 1
+      const die1 = Array.isArray(explicitDice) && explicitDice.length === 2
+        ? Number(explicitDice[0]) || 1
+        : Math.floor(Math.random() * 6) + 1
+      const die2 = Array.isArray(explicitDice) && explicitDice.length === 2
+        ? Number(explicitDice[1]) || 1
+        : Math.floor(Math.random() * 6) + 1
+      const roll = die1 + die2
       // The night's first roll is seeded by the couple's combined mood pulse:
       // the opening activity leans into how they actually arrived tonight.
       const isFirstRoll = session.lastRoll == null
@@ -688,6 +697,7 @@ export function SessionProvider({ children }) {
       const nextSession = applyRollToSession(session, {
         activityOptions,
         activityType,
+        dice: [die1, die2],
         keepsakeId,
         roll,
       })
@@ -807,6 +817,65 @@ export function SessionProvider({ children }) {
         }
         : null
       await updateSessionStateWithJournal(db, session.id, nextSession, [keepsakeEntry], 'keepsake')
+    } catch (nextError) {
+      setError(nextError.message)
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function sendTradeOffer({ offeredInstanceId, requestedInstanceId = null, note = '' }) {
+    if (!session || working) return
+    setWorking(true)
+    setError('')
+    try {
+      const nextSession = createTradeOffer(session, {
+        fromPlayerIndex: playerIndex,
+        offeredInstanceId,
+        requestedInstanceId,
+        note,
+      })
+      if (!enabled) {
+        setSession(nextSession)
+        return
+      }
+      await updateSessionState(db, session.id, nextSession)
+    } catch (nextError) {
+      setError(nextError.message)
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function respondTradeOffer(accept) {
+    if (!session || working) return
+    setWorking(true)
+    setError('')
+    try {
+      const nextSession = resolveTradeOffer(session, { accept })
+      if (!enabled) {
+        setSession(nextSession)
+        return
+      }
+      await updateSessionState(db, session.id, nextSession)
+    } catch (nextError) {
+      setError(nextError.message)
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function dismissTradeOffer() {
+    if (!session || working) return
+    setWorking(true)
+    setError('')
+    try {
+      const nextSession = dismissTradeOfferState(session)
+      if (!enabled) {
+        setSession(nextSession)
+        return
+      }
+      await updateSessionState(db, session.id, nextSession)
     } catch (nextError) {
       setError(nextError.message)
     } finally {
@@ -1295,6 +1364,10 @@ export function SessionProvider({ children }) {
     [journalEntries, session],
   )
 
+  const pendingTradeOffer = session?.lastMove?.tradeOffer?.status === 'pending'
+    ? session.lastMove.tradeOffer
+    : null
+
   const value = useMemo(
     () => ({
       ackDuelReveal,
@@ -1311,6 +1384,7 @@ export function SessionProvider({ children }) {
       chooseKeepsake,
       connectionState,
       continuePreviewDuel,
+      dismissTradeOffer,
       error,
       enabled,
       finalSummary,
@@ -1322,10 +1396,13 @@ export function SessionProvider({ children }) {
       myDuelResult,
       myMoodVote,
       myVibeVote,
+      pendingTradeOffer,
       playerIndex,
       readyToPlay: (!enabled || ready) && hasPartner && Boolean(session),
+      respondTradeOffer,
       resumeSession,
       rollTurn,
+      sendTradeOffer,
       session,
       sessionPreset,
       sessionStatusMessage,
@@ -1361,6 +1438,7 @@ export function SessionProvider({ children }) {
       myDuelResult,
       myMoodVote,
       myVibeVote,
+      pendingTradeOffer,
       playerIndex,
       ready,
       session,

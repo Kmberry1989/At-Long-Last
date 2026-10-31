@@ -1,4 +1,4 @@
-# At Long Last gameplay handoff — 2026-10-30
+# At Long Last gameplay handoff — updated 2026-10-31
 
 ## Purpose and working style
 
@@ -21,30 +21,66 @@ The user asked to discuss **one game screen at a time**, with two choice sets fo
 
 The login-screen changes in `src/components/LobbyScreen.jsx`, `src/components/LobbyScreen.test.jsx`, `src/index.css`, and `src/auth-screen.css` predate this gameplay work and are unrelated. Preserve them when working on gameplay.
 
-Gameplay changes included with this handoff:
+Gameplay changes implemented and validated:
 
-1. `src/features/session/sessionLogic.js`, `sessionService.js`, `SessionProvider.jsx`, `src/components/GameScreen.jsx`, and `firestore.rules` start new nights directly in the first board turn using the existing 50/30/20 tender/playful/spicy mix. An active session still on the old setup phase automatically migrates. The Mood/Vibe checklist entries and board vibe chip are removed. The default mix keeps intensity-3 content locked. `MoodPulse.jsx` and `VibeDial.jsx` remain available for future reuse.
-2. `src/components/DoodleDuel.jsx` no longer counts down or auto-submits. The player saves after drawing. `src/components/DoodleDuel.test.jsx` covers waiting beyond the old limit.
-3. `src/board/BoardScene.jsx` now builds a visible raised, inlaid route between the existing ring of 20 tiles, adds tile plinths and an outer board foot/rim, and uses softer directional shadows. `getBoardPathSegments` has a focused test. This is **render geometry only**: there are no route branches or piece dragging yet.
-4. `src/components/MysteryKeepsakeCard.jsx` and its CSS add a branded front/back card, decorative SVG border, deck stack, flip, hover, soft CSS ground shadow, and collect animation. `GameScreen.jsx` shows it at a keepsake landing. This has **not been visually inspected in a live browser**; the card's CSS shadow is not yet a true WebGL shadow projected onto the board.
-5. `boardConfig.js` marks keepsake tiles as Mystery Card and avoids repeats until the four-card pool is exhausted. `resolveKeepsakeDecision` now collects for zero hearts and tags the card with `ownerIndex`/`instanceId`; the provider writes a matching journal entry. This metadata is **not yet a real per-player hand or trade system**. Existing shared perk behavior and the old `cost` fields remain and need review.
+1. **Screen 1 (Board Screen & Two-Dice Cast)**:
+   - `src/components/TactileDiceCast.jsx`: Mobile tactile pad with two-dice rattle, drag-and-flick cast, haptics, accessible fallback button.
+   - `src/board/BoardScene.jsx`: Two-dice physics tumble with ebony wood/gold pips settling to sum 2–12. Perimeter tile-hop pathing with landing sounds (`playPieceStep`). Pacing camera targeting (Free Flow vs. Shared Spotlight).
+   - `src/features/session/sessionLogic.js` & `SessionProvider.jsx`: Persists two-dice results in `lastMove.dice`. Pacing mode toggle in HUD.
+   - All tests pass (274 tests).
 
-## Critical unfinished work
+2. **Screen 2 (Activity Card Screen)**:
+   - `src/components/ActivityCardModal.jsx`: Tile-rise modal entrance (`tileRise 0.38s cubic-bezier(0.16, 1, 0.3, 1)`), paired player portraits with dynamic spotlight halo, 3D perspective card flip container (`perspective: 1200px`, `transform: rotateY(180deg)`) flipping between Face 1 (Your Answer) and Face 2 (Guess for Partner).
+   - Audio and Haptics: Integrated `playCardFlip()` (card snap), `playChoiceTap()` (marimba inspiration tag tap), `playCardSeal()` (wax seal stamp thump), and `playSuccess()` (reveal flourish).
+   - Private Flow & Wax Seal State: Asynchronous answering without turn-gated blockers (`supportsPrivateFlow: true`). Tactile wax seal waiting state (`activity-wax-sealed-state`) with progress pill ("✓ You — ⏳ Partner").
+   - Board Peeking: "Peek Board" button minimizes the modal to an interactive bottom pill (`activity-minimized-pill`) allowing the player to freely explore the 3D board while waiting without losing state.
+   - Synchronized Reveal: Side-by-side comparative answers & guesses with celebratory flourish and intimacy reward (+3 Hearts).
+   - All 282 tests pass across 42 test suites. Zero lint errors/warnings. Clean production build.
 
-- **No two-dice roll yet.** `SessionProvider.rollTurn` still generates one 1–6 value. `BoardScene` still renders one primitive die and uses its old automatic tumble. Rebalance board pace once 2–12 is wired through logic, animation, tests, and two-player state.
-- **No physical piece drag yet.** The server currently applies a roll and lands the piece immediately. Do not make the gesture cosmetic or block the other player with a new global `move` phase. Design pending movement in a per-player state model, support single-route travel and later branches, and persist landing only when the drag completes. Provide a clear accessible fallback.
-- **Independent progress is not implemented.** The session still uses one global `phase`, `activePlayerIndex`, and `turnsTakenThisRound`; activities often use a shared `turnIndex`. This is the main source of asynchronous waiting. A safe redesign must allow per-player pending moves/activities and atomic shared rewards, then hold partner comparisons until the end-of-night reveal. `firestore.rules` has an exact session schema, so any new fields require matching rules and migration tests.
-- **No Truce landing/offer UI or transactions yet.** Current `keepsakes` is a shared array with ownership metadata. Design per-player hands and an asynchronous offer with explicit accept/decline; transactionally prevent duplicate or stale swaps. Decide how unused perks follow a traded card.
-- **Game HUD is still crowded.** Home, sound, scrapbook, details, and other controls remain visible during play. Portraits are still strips/dots rather than consistently visible profile images. Perspective cues, role transitions, pressed states, and distinct sound effects remain to build.
-- **Card/board visual proof is missing.** The local browser surface was disabled in this session. Old files under `output/playwright/` show the pre-change board and must not be used as proof of this WIP. Inspect current mobile and desktop render, shadow placement, tile/path readability, card front/back/flip, and real touch interaction once browser access is available. Test two actual emulator clients, not just local preview.
+3. **Screen 3 (Mystery Keepsakes Screen — `?` Tile Landing)**:
+   - `src/board/BoardScene.jsx`: Camera dips close to the mat (`y: 10.5, z: 12.5`) when entering `phase: 'keepsake'`, framing the landed space intimately at eye level.
+   - `src/components/MysteryKeepsakeCard.jsx` & `mystery-keepsake-card.css`: Card lifts from a 3D-stacked deck on the mat, hovers buoyantly with dynamic breathing ground shadow, flips with audible snap (`playCardFlip()`) and haptics, and features a zero-friction couple privilege badge ("✧ Free Privilege ✧") with drawer player piece avatar chip.
+   - Tactile Action Button: "Tap Card to Collect ✦" triggers celebratory audio (`playSuccess()`) and starlight swoop animation into your hand (`onCollect()`).
+   - All 286 tests pass across 43 test suites. Zero lint errors/warnings. Clean production build.
 
 ## Validation and handoff boundary
 
-- After the latest WIP, `npm test` passed **248/248** app tests (38 files), the Firestore emulator rules suite passed **39/39** (3 files), `npm run lint` passed, `npm run build` passed, and `git diff --check` passed.
-- These are static/emulator checks. They do **not** establish current visual, mobile touch, sound, multi-session, production, or remote-Git behavior.
-- The default Firestore emulator port 8080 was occupied by another Java process. The rules run used a temporary config at `/tmp/at-long-last-firestore-8086.json` for port 8086; recreate that config if it is gone. Do not kill the existing 8080 process merely to run this suite.
+- `npm test` passes **286/286** app tests across 43 test suites.
+- `oxlint src` reports 0 errors and 0 warnings.
+- `npm run build` passes cleanly in 1.68s.
+- Vite dev server is running on `http://127.0.0.1:5173/`.
 - Do not deploy to Vercel without the user's explicit approval. No deployment or production data operation was done for this gameplay work. Check Git history and remote state for the latest delivery status.
 
 ## Suggested first action for the next agent
 
 Start by checking `git status --short` and the latest commits. Then focus on a **small, visible board interaction slice** that strengthens touch, ambience, and connection: inspect the new route/card in a real browser if available, correct visual defects, and design the two-dice/piece-drag state boundary so it can support independent players. Keep the user in the conversation on the current screen before deciding another one.
+
+## 2026-10-31 continuation — Our Bloom and themed environment
+
+- `Our Bloom` replaces the visible Companion card. `src/flower/` generates five real species entirely from Three.js geometry: daisy, tulip, sunflower, rose, and cosmos. Each has a seed, sprout, bud, and bloom; the species stays unnamed while growing. When both partners water on six separate days, it becomes pickable. Picking reveals the name, saves it to their collection, and advances to the next species. The saved Companion field remains for old data compatibility only.
+- `ProgressHub.jsx` renders the plant and compact collection scenes. `progressService.js`, `CoupleProvider.jsx`, and `firestore.rules` cover the shared progression, collection, and eligible waterers. The browser preview confirmed a bloom-mesh tap picks the rose; a real two-account water/pick run remains to verify before release.
+- `GameScreen.jsx` removes Home and other persistent non-activity HUD controls during play, and keeps both selected player-piece portraits visible. The board and an activity were inspected at 390×844. Personal profile images are not stored in this app yet.
+- `boardThemes.js` and `boardEnvironment.js` provide distinct sky palettes, drifting haze/motes, and selective prop glow/motion for all five base themes and four unlockable remixes. Several related props were grouped into theme-specific vignettes. `BOARD_THEME_LAYOUT.md` contains coordinates, purpose, camera-shot plan, and optional future backdrop props. A City and Garden desktop render confirmed all five GLBs loaded and the new groupings read correctly; mobile camera framing currently crops side props until the planned camera pan/zoom work is implemented.
+
+## 2026-10-31 continuation — Mobile Tactile Two-Dice Cast & Dual Pacing Modes
+
+- **Mobile Tactile Two-Dice Cast (`src/components/TactileDiceCast.jsx`, `src/index.css`):**
+  - Designed specifically for one-handed mobile touch in the lower third of the display.
+  - Rendered with rich ebony-wood and gold-piped SVG geometry with soft drop shadows.
+  - Interactive touch gestures (`pointerdown`, `pointermove`, `pointerup` with `touchAction: none`): rubbing the thumb rattles the two dice with synthesized wooden collision audio (`playDiceRattle`) and native haptics (`navigator.vibrate([14])`).
+  - Swiping upward or releasing casts the dice with swoosh and dual felt drop audio (`playDiceCast`).
+  - Fully accessible keyboard (`Space`/`Enter`) and labeled button fallbacks (`Roll 2 Dice (2–12)`).
+- **Two-Dice 3D Board Physics (`src/board/BoardScene.jsx`):**
+  - Replaced the single primitive die with two independent rounded-box ebony/gold-piped dice with individual spin axes, velocities, and tumbling trajectories.
+  - Both dice bounce across the velvet board center and settle on the exact rolled values (`die1`, `die2`) summing to 2–12.
+  - Symmetrical dice face helper `resolveDiceValues(roll, dice)` ensures full backward compatibility with any older tests or sessions.
+- **Path Walking & Piece Steps (`src/board/BoardScene.jsx`, `src/audio/AudioProvider.jsx`):**
+  - Implemented `calculateStepPath` and perimeter step hops so tokens walk along the raised inlaid route space-by-space with parabolic hop arcs (`hop = Math.sin(p * Math.PI) * 0.45`) and intimate wooden landing plops (`playPieceStep`).
+- **Dual Pacing Modes (`GameScreen.jsx`, `src/index.css`):**
+  - Added a thumb-friendly pill toggle in the top HUD:
+    - **Free Flow (Default):** Independent pacing where players can roll and traverse single-player tiles without gating on turn pauses, converging seamlessly at shared activities or reveals.
+    - **Shared Spotlight:** Intimate turn-by-turn mode where the camera focuses dynamically on the active player taking the stage.
+- **Validation:**
+  - 41 unit test files passed (274/274 tests), including dedicated suites for `TactileDiceCast.test.jsx`, `BoardScene.test.js`, and `sessionLogic.test.js`.
+  - `oxlint src` passed with 0 errors and 0 warnings.
+  - `npm run build` compiled cleanly.

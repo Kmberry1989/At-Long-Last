@@ -533,6 +533,7 @@ export function applyRollToSession(
   {
     activityOptions = [],
     activityType,
+    dice = null,
     keepsakeId,
     roll,
   },
@@ -545,10 +546,15 @@ export function applyRollToSession(
   nextPositions[activePlayerIndex] = to
   const space = getBoardSpace(to)
 
+  const resolvedDice = Array.isArray(dice) && dice.length === 2
+    ? [Number(dice[0]) || 1, Number(dice[1]) || 1]
+    : null
+
   const base = {
     ...nextSession,
     actionText: `${nextSession.players[activePlayerIndex].displayName} landed on ${space.label}.`,
     lastMove: {
+      dice: resolvedDice,
       from,
       playerIndex: activePlayerIndex,
       spaceId: space.id,
@@ -1047,3 +1053,102 @@ export function buildFinalSummary(session, journalEntries = []) {
     vibes: finaleTone.vibes,
   }
 }
+
+export function createTradeOffer(session, { fromPlayerIndex, offeredInstanceId, requestedInstanceId = null, note = '' }) {
+  const currentSession = ensureSessionArcState(session)
+  const tradeOffer = {
+    createdAt: new Date().toISOString(),
+    fromPlayerIndex,
+    note: (note || '').trim(),
+    offeredInstanceId,
+    requestedInstanceId,
+    status: 'pending',
+  }
+
+  const offeredCard = currentSession.keepsakes?.find((k) => k.instanceId === offeredInstanceId)
+  const pName = currentSession.players[fromPlayerIndex]?.displayName || 'Partner'
+  const actionText = `${pName} offered to trade ${offeredCard?.label || 'a keepsake'}.`
+
+  return {
+    ...currentSession,
+    actionText,
+    lastMove: {
+      ...currentSession.lastMove,
+      tradeOffer,
+    },
+  }
+}
+
+export function resolveTradeOffer(session, { accept }) {
+  const currentSession = ensureSessionArcState(session)
+  const currentOffer = currentSession.lastMove?.tradeOffer
+  if (!currentOffer || currentOffer.status !== 'pending') {
+    return currentSession
+  }
+
+  if (!accept) {
+    const declinerIndex = currentOffer.fromPlayerIndex === 0 ? 1 : 0
+    const declinerName = currentSession.players[declinerIndex]?.displayName || 'Partner'
+    return {
+      ...currentSession,
+      actionText: `${declinerName} gently passed on the trade offer.`,
+      lastMove: {
+        ...currentSession.lastMove,
+        tradeOffer: {
+          ...currentOffer,
+          status: 'declined',
+        },
+      },
+    }
+  }
+
+  const { fromPlayerIndex, offeredInstanceId, requestedInstanceId } = currentOffer
+  const toPlayerIndex = fromPlayerIndex === 0 ? 1 : 0
+
+  const nextKeepsakes = (currentSession.keepsakes || []).map((card) => {
+    if (card.instanceId === offeredInstanceId) {
+      return { ...card, ownerIndex: toPlayerIndex }
+    }
+    if (requestedInstanceId && card.instanceId === requestedInstanceId) {
+      return { ...card, ownerIndex: fromPlayerIndex }
+    }
+    return card
+  })
+
+  const offeredCard = currentSession.keepsakes?.find((k) => k.instanceId === offeredInstanceId)
+  const requestedCard = currentSession.keepsakes?.find((k) => k.instanceId === requestedInstanceId)
+
+  const p1 = currentSession.players[fromPlayerIndex]?.displayName || 'Player 1'
+  const p2 = currentSession.players[toPlayerIndex]?.displayName || 'Player 2'
+  const actionText = requestedCard
+    ? `${p1} and ${p2} traded ${offeredCard?.label || 'keepsake'} for ${requestedCard?.label || 'keepsake'}!`
+    : `${p1} gifted ${offeredCard?.label || 'keepsake'} to ${p2}! 💛`
+
+  return {
+    ...currentSession,
+    actionText,
+    hearts: currentSession.hearts + 2,
+    keepsakes: nextKeepsakes,
+    lastMove: {
+      ...currentSession.lastMove,
+      tradeOffer: {
+        ...currentOffer,
+        status: 'accepted',
+      },
+    },
+  }
+}
+
+export function dismissTradeOffer(session) {
+  const currentSession = ensureSessionArcState(session)
+  if (!currentSession.lastMove?.tradeOffer) {
+    return currentSession
+  }
+  const nextLastMove = { ...currentSession.lastMove }
+  delete nextLastMove.tradeOffer
+  return {
+    ...currentSession,
+    lastMove: nextLastMove,
+  }
+}
+

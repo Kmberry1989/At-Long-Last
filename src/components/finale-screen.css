@@ -1,0 +1,325 @@
+/* Finale Screen - Theme-Adaptive Scrapbook & Keepsake Capsule (Mobile 390x844) */
+
+.finale-screen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 930;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: finaleFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes finaleFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Base Theme Styling & Material Backgrounds */
+.finale-folio-container {
+  width: 100%;
+  max-width: 440px;
+  border-radius: 28px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #fffaf0;
+  animation: finaleFolioRise 420ms cubic-bezier(0.18, 0.89, 0.32, 1.15) forwards;
+}
+
+@keyframes finaleFolioRise {
+  from { transform: translateY(28px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 1. Cozy Night In Theme: Wine-Velvet Scrapbook */
+.theme-cozy .finale-folio-container {
+  background: radial-gradient(circle at 50% 20%, #351c33 0%, #1a0d1e 100%);
+  border: 2px solid rgba(255, 199, 151, 0.45);
+  box-shadow: 0 20px 60px rgba(45, 15, 35, 0.6), inset 0 2px 16px rgba(255, 199, 151, 0.15);
+}
+
+.theme-cozy .finale-theme-ribbon {
+  background: linear-gradient(90deg, #d94b68 0%, #ff8b75 50%, #d94b68 100%);
+  color: #fff5f5;
+  box-shadow: 0 3px 12px rgba(217, 75, 104, 0.45);
+}
+
+/* 2. Secret Garden Theme: Botanical Herbarium */
+.theme-garden .finale-folio-container {
+  background: radial-gradient(circle at 50% 20%, #153324 0%, #0c1a12 100%);
+  border: 2px solid rgba(162, 230, 186, 0.45);
+  box-shadow: 0 20px 60px rgba(15, 45, 25, 0.6), inset 0 2px 16px rgba(162, 230, 186, 0.15);
+}
+
+.theme-garden .finale-theme-ribbon {
+  background: linear-gradient(90deg, #387b53 0%, #83c99a 50%, #387b53 100%);
+  color: #f2fff6;
+  box-shadow: 0 3px 12px rgba(56, 123, 83, 0.45);
+}
+
+/* 3. Sunset Beach Theme: Driftwood & Sea-Glass */
+.theme-beach .finale-folio-container {
+  background: radial-gradient(circle at 50% 20%, #223755 0%, #111d2e 100%);
+  border: 2px solid rgba(255, 204, 128, 0.45);
+  box-shadow: 0 20px 60px rgba(20, 35, 60, 0.6), inset 0 2px 16px rgba(255, 204, 128, 0.15);
+}
+
+.theme-beach .finale-theme-ribbon {
+  background: linear-gradient(90deg, #f39c5b 0%, #fbd578 50%, #f39c5b 100%);
+  color: #1e130a;
+  box-shadow: 0 3px 12px rgba(243, 156, 91, 0.45);
+}
+
+/* 4. City Skyline Theme: Midnight Leather Folio */
+.theme-city .finale-folio-container {
+  background: radial-gradient(circle at 50% 20%, #252438 0%, #12111d 100%);
+  border: 2px solid rgba(220, 185, 255, 0.4);
+  box-shadow: 0 20px 60px rgba(25, 20, 45, 0.6), inset 0 2px 16px rgba(220, 185, 255, 0.15);
+}
+
+.theme-city .finale-theme-ribbon {
+  background: linear-gradient(90deg, #9b6bff 0%, #d4b5ff 50%, #9b6bff 100%);
+  color: #1a0f2e;
+  box-shadow: 0 3px 12px rgba(155, 107, 255, 0.45);
+}
+
+/* 5. Winter Holiday Theme: Evergreen & Cinnamon */
+.theme-holiday .finale-folio-container {
+  background: radial-gradient(circle at 50% 20%, #2b1f22 0%, #151012 100%);
+  border: 2px solid rgba(255, 215, 130, 0.5);
+  box-shadow: 0 20px 60px rgba(45, 20, 25, 0.6), inset 0 2px 16px rgba(255, 215, 130, 0.2);
+}
+
+.theme-holiday .finale-theme-ribbon {
+  background: linear-gradient(90deg, #b8333e 0%, #e8a860 50%, #b8333e 100%);
+  color: #fff9f0;
+  box-shadow: 0 3px 12px rgba(184, 51, 62, 0.45);
+}
+
+/* Unspooling Memory Ribbon */
+.finale-theme-ribbon {
+  padding: 7px 18px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Folio Content Area */
+.finale-folio-body {
+  padding: 22px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+}
+
+.finale-headline {
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #fffaf0;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.finale-coda {
+  font-size: 0.88rem;
+  color: rgba(255, 246, 238, 0.8);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Metrics Pill Row */
+.finale-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.finale-stat-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.finale-stat-value {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #ffd899;
+}
+
+.finale-stat-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 246, 238, 0.65);
+}
+
+/* Keepsake Capsule Postcard Card */
+.finale-capsule-card {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px dashed rgba(255, 215, 160, 0.4);
+  border-radius: 18px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.finale-capsule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffd899;
+}
+
+.finale-capsule-vibe-chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 216, 153, 0.15);
+  border: 1px solid rgba(255, 216, 153, 0.3);
+}
+
+.finale-capsule-moments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.finale-capsule-moment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #fffaf0;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 7px 10px;
+  border-radius: 10px;
+}
+
+.finale-capsule-moment-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.finale-capsule-moment-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Copy Confirmation Toast */
+.finale-toast {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd899;
+  color: #1a0e1c;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  animation: toastFade 2.4s ease forwards;
+}
+
+@keyframes toastFade {
+  0% { opacity: 0; transform: translate(-50%, -10px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+/* Footer Action Buttons */
+.finale-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.finale-btn {
+  min-height: 48px;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 180ms ease;
+  border: none;
+  touch-action: manipulation;
+}
+
+.finale-primary-btn {
+  background: linear-gradient(135deg, #ffd899 0%, #f5ab53 100%);
+  color: #1a1024;
+  box-shadow: 0 6px 20px rgba(245, 171, 83, 0.4);
+}
+
+.finale-primary-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.finale-secondary-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fffaf0;
+}
+
+.finale-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.finale-sub-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.finale-sub-btn {
+  flex: 1;
+  min-height: 42px;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 246, 238, 0.75);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.finale-sub-btn:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}

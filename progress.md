@@ -1,5 +1,42 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-10-31 — Screen 3: Mystery Keepsakes Screen (3D Camera Dip, Buoyant Deck Lift, Zero-Friction Privileges)
+
+- Enhanced `src/board/BoardScene.jsx` with camera targeting for `phase: 'keepsake'`, smoothly dipping down close to the mat (`y: 10.5, z: 12.5`) to intimately frame the landed space at eye level.
+- Re-architected `src/components/MysteryKeepsakeCard.jsx` and `mystery-keepsake-card.css`:
+  - Three-layer floating card deck on the mat (`mystery-card-deck-one`, `two`, `three`).
+  - Buoyant card hover with breathing soft ground shadow (`mysteryShadow`) and starlight sparkles.
+  - Card flip with audio snap (`playCardFlip()`) and mobile tactile vibration.
+  - Zero-friction free draw without spending hearts, featuring a glowing "✧ Free Privilege ✧" badge and drawer avatar chip ("Drawn by [Player]").
+  - Tactile action button ("Tap Card to Collect ✦") with celebratory chime (`playSuccess()`) and starlight swoop animation (`mysteryCardCollect`).
+- Added unit test suite `src/components/MysteryKeepsakeCard.test.jsx`.
+- Validation: 43 test suites / 286 tests passed, 0 lint warnings/errors, and production build succeeded. Generated 9:16 mobile UI renders and detailed walkthrough artifact (`mystery_keepsakes_walkthrough.md`).
+
+## 2026-10-31 — Screen 2: Activity Card Screen (Tile-Rise, 3D Perspective Flip, Wax Seal, Synchronized Reveal)
+
+- Built `src/components/ActivityCardModal.jsx`: Tile-rise modal container with spring physics (`tileRise 0.38s cubic-bezier(0.16, 1, 0.3, 1)`), paired player avatar spotlights reflecting custom pieces and colors, 3D perspective flip container (`perspective: 1200px`, `transform: rotateY(180deg)`) for "Your Answer" (Face 1) vs. "Guess for [Partner]" (Face 2).
+- Audio and Haptics: Added and integrated `playCardFlip()` (card snap), `playChoiceTap()` (marimba inspiration tap), `playCardSeal()` (wax seal stamp thump), and `playSuccess()` (reveal flourish) with subtle mobile tactile vibrations.
+- Private Flow & Wax Seal State: Asynchronous answering without turn-gated blockers (`supportsPrivateFlow: true`). Tactile wax seal waiting state (`activity-wax-sealed-state`) with progress pill ("✓ You — ⏳ Partner").
+- Board Peeking: Added "Peek Board" button that minimizes the modal into an interactive bottom pill (`activity-minimized-pill`), allowing players to explore the 3D board while waiting without losing state.
+- Synchronized Reveal: Side-by-side comparative reflections & partner guesses with celebratory flourish and intimacy reward (+3 Hearts).
+- Validation: 42 test suites / 282 tests passed, 0 lint warnings/errors, and production build succeeded. Generated 9:16 mobile UI renders and detailed walkthrough artifact (`activity_card_screen_walkthrough.md`).
+
+## 2026-10-31 — Mobile tactile two-dice cast, 3D dice physics, and dual pacing modes
+
+- Built mobile-first tactile two-dice cast component (`src/components/TactileDiceCast.jsx`) designed for one-handed thumb ergonomics in the lower third of the viewport. Supports rubbing gestures with haptic pulses (`navigator.vibrate`) and Web Audio wooden clatter (`playDiceRattle`), upward swipe/flick or tap to cast (`playDiceCast`), and accessible keyboard/screen-reader button fallbacks.
+- Replaced the single primitive die with two independent 3D ebony/gold-piped dice in `BoardScene.jsx`, animating realistic independent tumbling, velvet bounce, and settling to reveal the combined 2–12 roll sum.
+- Added path step walking with parabolic hop arcs and wooden plop audio (`playPieceStep`) so pieces physically traverse the raised inlaid route space-by-space rather than teleporting across the center.
+- Added dual pacing modes ("Free Flow" for independent simultaneous pacing vs "Shared Spotlight" for intimate turn-by-turn focus) with an accessible thumb-friendly top HUD toggle.
+- Validation: 41 test files / 274 tests passed, 0 lint warnings/errors, and production build succeeded.
+
+## 2026-10-31 — Our Bloom, lean gameplay HUD, and theme environments
+
+- Pulled the latest shared-flower commit from `origin/main` before editing. Implemented `Our Bloom`: five procedural real-flower species, species-shaped seed/sprout/bud/bloom stages, two-partner daily watering, mystery until the picked final bloom, collection, and automatic next species. Kept historical Companion data compatible without showing the old UI.
+- Removed Home, scrapbook, details, and global sound/account controls from the active game overlay. Both selected player-piece thumbnails remain visible on the board and one inspected activity at 390×844. These are game-piece portraits, not uploaded profile photos.
+- Added procedural per-theme sky gradients, drifting haze and ambient motes, optional stars/aurora, subtle existing-prop motion and glow, plus some more coherent prop pairings. Documented each theme and remix in `BOARD_THEME_LAYOUT.md`. City and Garden desktop browser screenshots confirm all five existing GLBs loaded; the mobile follow camera crops side vignettes until the planned pans are built.
+- Browser evidence: all five flower blooms inspected in the temporary flower preview; rose silhouette adjusted and its direct tap reported `picked: true` with no console error. Board and activity mobile screenshots checked for portrait and card fit. City and Garden loaded-prop desktop screenshots checked. No production or real two-account flow was exercised.
+- Validation: full app suite 262/262 before the last presentation edits; after those edits, focused board/flower/progress suite 50/50, focused Firestore emulator rules 24/24, lint, build, and whitespace check passed. The required web-game client captured the final Garden board with all five decorations and both avatars loaded, and the rose bloom tap reported `picked: true`. No push or deployment in this pass.
+
 ## 2026-10-29 — Combined repository delivery
 
 - User requested waiting for the connection-process chat to finish and committing/pushing all work together. Confirmed that chat completed before preparing the combined snapshot.
