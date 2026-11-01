@@ -37,14 +37,13 @@ const constellationDust = [
 
 export function MilestonesHub({ initialTab = 'constellation', onClose, open = true }) {
   const audio = useAudio()
-  const { couple, fulfillKoupon, grantKoupon, progress, redeemKoupon, setAnniversary } = useCouple()
+  const { couple, fulfillKoupon, progress, redeemKoupon, setAnniversary } = useCouple()
   const { db } = useFirebaseApp()
   const { moments = [] } = useMilestones()
 
   const [activeTab, setActiveTab] = useState(initialTab)
   const [selectedStar, setSelectedStar] = useState(null)
   const [toastMessage, setToastMessage] = useState('')
-  const [customPinkie, setCustomPinkie] = useState('')
   const [workingPromise, setWorkingPromise] = useState('')
   const [capsuleIndex, setCapsuleIndex] = useState(0)
   const [pinkieIndex, setPinkieIndex] = useState(0)
@@ -316,20 +315,6 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
     }
   }
 
-  // Handle creating a new Pinkie Swear
-  function handleSealPinkie(e) {
-    e.preventDefault()
-    const label = customPinkie.trim()
-    if (!label || workingPromise) return
-    setWorkingPromise('new')
-    Promise.resolve(grantKoupon?.(label)).then((result) => {
-      if (!result?.granted) throw new Error('Promise could not be saved')
-      chime('celebration')
-      showToast('Promise saved')
-      setCustomPinkie('')
-    }).catch((error) => showToast(error?.message ? `Could not save: ${error.message}` : 'Could not save. Try again.')).finally(() => setWorkingPromise(''))
-  }
-
   async function handleRedeemPinkie(promise) {
     if (workingPromise) return
     setWorkingPromise(promise.id)
@@ -599,22 +584,6 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
               </div>}
             </div>
 
-            <form className="capsule-vow-form" onSubmit={handleSealPinkie}>
-              <input
-                className="text-input"
-                id="custom-pinkie-input"
-                maxLength={80}
-                onChange={(e) => setCustomPinkie(e.target.value)}
-                placeholder="A promise to add…"
-                aria-label="A promise to add"
-                value={customPinkie}
-              />
-              <button
-                className="capsule-vow-submit"
-                disabled={!customPinkie.trim()}
-                type="submit"
-              ><BrandText text={workingPromise === 'new' ? 'Saving…' : 'Add'} /></button>
-            </form>
           </section>
         )}
 

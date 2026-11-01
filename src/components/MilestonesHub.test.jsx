@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MilestonesHub } from './MilestonesHub.jsx'
 
-const promiseActions = vi.hoisted(() => ({ fulfill: vi.fn(), grant: vi.fn(), redeem: vi.fn() }))
+const promiseActions = vi.hoisted(() => ({ fulfill: vi.fn(), redeem: vi.fn() }))
 
 vi.mock('../audio/AudioProvider.jsx', () => ({
   useAudio: () => ({
@@ -21,7 +21,6 @@ vi.mock('../features/couple/CoupleProvider.jsx', () => ({
       ],
     },
     fulfillKoupon: promiseActions.fulfill,
-    grantKoupon: promiseActions.grant,
     setAnniversary: vi.fn().mockResolvedValue({}),
     progress: {
       anniversary: '2025-11-15',
@@ -75,7 +74,6 @@ describe('MilestonesHub (Screen 7: Milestones & Year-in-Review Hub)', () => {
     vi.clearAllMocks()
     promiseActions.redeem.mockResolvedValue({ redeemed: true })
     promiseActions.fulfill.mockResolvedValue({ progress: { koupons: [{ id: 'k2', status: 'fulfilled' }] } })
-    promiseActions.grant.mockResolvedValue({ granted: { id: 'new-promise' } })
     Object.assign(navigator, {
       clipboard: {
         writeText: vi.fn().mockResolvedValue(),
@@ -181,12 +179,11 @@ describe('MilestonesHub (Screen 7: Milestones & Year-in-Review Hub)', () => {
     expect(await screen.findByText('Marked as kept')).toBeInTheDocument()
   })
 
-  it('saves custom promises instead of showing a local-only confirmation', async () => {
+  it('does not let the couple choose pinky swears from the random night deck', () => {
     render(<MilestonesHub initialTab="pinkieswears" onClose={vi.fn()} open />)
-    fireEvent.change(screen.getByRole('textbox', { name: 'A promise to add' }), { target: { value: 'Walk at sunset' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
-    expect(promiseActions.grant).toHaveBeenCalledWith('Walk at sunset')
-    expect(await screen.findByText('Promise saved')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'A promise to add' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument()
+    expect(promiseActions).not.toHaveProperty('grant')
   })
 
   it('switches to Celestial Recap tab and copies share text', async () => {

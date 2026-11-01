@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { FinaleScreen } from './FinaleScreen.jsx'
 
 const audioMocks = {
+  playHeartTick: vi.fn(),
   playAction: vi.fn(),
   playSuccess: vi.fn(),
 }
@@ -15,6 +16,7 @@ describe('FinaleScreen', () => {
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()
+    vi.useRealTimers()
   })
 
   const mockSession = {
@@ -46,6 +48,7 @@ describe('FinaleScreen', () => {
   ]
 
   it('renders theme-adaptive ribbon for Cozy Night In', () => {
+    vi.useFakeTimers()
     render(
       <FinaleScreen
         session={mockSession}
@@ -58,7 +61,11 @@ describe('FinaleScreen', () => {
 
     expect(screen.getByText(/Wine-Velvet Scrapbook/i)).toBeDefined()
     expect(screen.getByText('Spark & Laughter')).toBeDefined()
-    expect(screen.getByText('14')).toBeDefined()
+    expect(screen.getByLabelText('0 of 14 hearts counted')).toBeDefined()
+    act(() => { vi.advanceTimersByTime(4000) })
+    expect(screen.getByLabelText('14 of 14 hearts counted')).toBeDefined()
+    expect(screen.getByText('Congratulations!')).toBeDefined()
+    expect(audioMocks.playHeartTick).toHaveBeenCalledTimes(14)
     expect(screen.getByText('2')).toBeDefined()
   })
 

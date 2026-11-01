@@ -17,7 +17,6 @@ import {
   clearNudge as clearNudgeDocument,
   ensureCoupleProgress,
   fulfillKoupon as fulfillKouponDocument,
-  grantKoupon as grantKouponDocument,
   localDateStr,
   pickFlower as pickFlowerDocument,
   redeemKoupon as redeemKouponDocument,
@@ -584,10 +583,6 @@ export function CoupleProvider({ children }) {
     return runPromiseAction(fulfillKouponDocument, kouponId)
   }
 
-  function grantKoupon(label) {
-    return runPromiseAction(grantKouponDocument, { label: label.trim() })
-  }
-
   function renameCompanion(name) {
     return runProgressAction(renameCompanionDocument, name)
   }
@@ -642,7 +637,6 @@ export function CoupleProvider({ children }) {
       previewMode: !enabled,
       progress,
       fulfillKoupon,
-      grantKoupon,
       renameCompanion,
       redeemKoupon,
       selectTheme,

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OpeningSplash } from './OpeningSplash.jsx'
 
@@ -9,7 +9,9 @@ describe('opening splash', () => {
     vi.useFakeTimers()
     const onComplete = vi.fn()
     const { container } = render(<OpeningSplash onComplete={onComplete} />)
-    expect(screen.getByAltText('')).toHaveAttribute('src', '/assets/ui/atlonglast-wordmark-wide.png')
+    expect(container.querySelector('.opening-splash-wordmark')).toHaveStyle({
+      backgroundImage: "url('/assets/ui/atlonglast-wordmark-wide.png')",
+    })
     expect(container.querySelector('.opening-splash')).not.toHaveClass('is-leaving')
 
     act(() => { vi.advanceTimersByTime(1350) })

@@ -174,6 +174,56 @@
   color: rgba(255, 246, 238, 0.65);
 }
 
+.finale-heart-flight-layer {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.finale-flying-heart {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  color: #ffd28f;
+  filter: drop-shadow(0 0 8px rgba(255, 181, 128, .72));
+  animation: finaleHeartFlight 780ms cubic-bezier(.18, .72, .26, 1) both;
+}
+
+.finale-flying-heart .brand-icon {
+  width: var(--heart-flight-size);
+  height: var(--heart-flight-size);
+  fill: currentColor;
+  stroke-width: 1.1;
+}
+
+@keyframes finaleHeartFlight {
+  0% { opacity: 0; transform: translate3d(0, 10px, 0) scale(.35) rotate(-22deg); }
+  18% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(var(--heart-flight-x), var(--heart-flight-y), 0) scale(.3) rotate(18deg); }
+}
+
+.finale-heart-count { overflow: visible; }
+.finale-heart-count-number { display: inline-block; animation: finaleCountFlip 220ms cubic-bezier(.2, .8, .25, 1); }
+@keyframes finaleCountFlip {
+  0% { opacity: .45; transform: translateY(-5px) scale(.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.finale-heart-congratulations {
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  color: #ffd899;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  transition: opacity 320ms ease, height 320ms ease;
+}
+.finale-heart-congratulations.is-visible { height: 14px; opacity: 1; }
+
 /* Keepsake Capsule Postcard Card */
 .finale-capsule-card {
   background: rgba(0, 0, 0, 0.4);
@@ -322,4 +372,9 @@
 .finale-sub-btn:hover {
   border-color: rgba(255, 255, 255, 0.35);
   color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finale-flying-heart, .finale-heart-count-number { animation: none; }
+  .finale-heart-congratulations { transition: none; }
 }

@@ -433,3 +433,11 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Commit `ef021eb` was pushed to `main` and its Vercel production deployment reached READY. The live lobby and all nine panoramic backgrounds plus all four remix fabric SVGs returned HTTP 200.
 - Firestore project `at-long-last` is Standard edition. The local authenticated two-player emulator flow passed again with four independent rolls and eight comparisons per player, with no page errors. All 48 Firestore emulator rules tests passed. `firebase deploy --only firestore:rules` completed and reported the current rules were already up to date.
 - Nine board captures were refreshed under `.playwright-mcp/board-fabric-review/board-*`. Production multiplayer was not exercised; the production account/game reset was intentionally preserved.
+
+## 2026-11-01 — Splash flash, finale heart count, and random pinky draws
+
+- Set the initial HTML canvas to the splash's dark color and moved the transparent wordmark into a CSS background, removing its filtered image layer. Phone-sized browser captures show a clean dark first frame, the logo fade, and the app handoff without page errors.
+- The finale now counts shared hearts one at a time, sends a small animated heart toward the ticker per point, plays a soft ascending chime per count, and shows the final total and congratulations when finished. Reduced-motion mode keeps the count and sound while skipping the flying hearts.
+- Pinky swears are dealt randomly from the deck when a completed night is first banked. Removed the custom-promise chooser and its unused provider path; the existing active-card duplicate avoidance, redeem, and fulfill flow remains.
+- Verification: 56 test files / 348 tests passed; lint, build, and a 100-second Web Audio render passed. The local two-phone emulator walkthrough again saved four independent rolls and eight comparisons for each player with no browser errors. Finale captures are under `.playwright-mcp/finale-heart-counting.png` and `.playwright-mcp/finale-heart-total.png`; splash first-paint captures are under `.playwright-mcp/splash-first-frame.png` and `.playwright-mcp/splash-logo.png`.
+- Visual browser review used Chrome mobile emulation; a local WebKit binary was unavailable, so the reported iPhone Safari behavior was not directly reproduced on-device.

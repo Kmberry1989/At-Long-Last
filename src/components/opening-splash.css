@@ -17,19 +17,19 @@
 
 .opening-splash-wordmark {
   width: min(72vw, 350px);
-  height: auto;
+  aspect-ratio: 3 / 1;
+  background: url('/assets/ui/atlonglast-wordmark-wide.png') center / contain no-repeat;
   opacity: 0;
   transform: translateY(9px) scale(.975);
-  filter: blur(8px) drop-shadow(0 0 24px rgba(232, 184, 127, .32));
   animation: wordmarkFromDark 1250ms cubic-bezier(.18, .72, .22, 1) 140ms forwards;
 }
 
 @keyframes wordmarkFromDark {
-  0% { opacity: 0; transform: translateY(9px) scale(.975); filter: blur(8px) drop-shadow(0 0 24px rgba(232, 184, 127, .32)); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0) drop-shadow(0 0 12px rgba(232, 184, 127, .2)); }
+  0% { opacity: 0; transform: translateY(9px) scale(.975); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .opening-splash { transition-duration: 180ms; }
-  .opening-splash-wordmark { animation: none; opacity: 1; transform: none; filter: none; }
+  .opening-splash-wordmark { animation: none; opacity: 1; transform: none; }
 }

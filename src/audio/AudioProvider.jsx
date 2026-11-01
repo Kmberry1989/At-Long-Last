@@ -511,6 +511,12 @@ export function createAudioEngine(suppliedContext = null) {
       playTone({ frequency: 523.25, volume: 0.03, duration: 0.08 })
       playTone({ frequency: 659.25, volume: 0.022, duration: 0.12 })
     },
+    playHeartTick(step = 1) {
+      if (muted) return
+      const note = 500 + ((Math.max(1, step) - 1) % 12) * 15
+      playTone({ frequency: note, type: 'sine', volume: 0.014, duration: 0.035, release: 0.13 })
+      playTone({ frequency: note * 2, type: 'triangle', volume: 0.004, duration: 0.025, release: 0.09 })
+    },
     playDuelPulse(step = 1) {
       if (step === 0) {
         playTone({ frequency: 587.33, type: 'triangle', volume: 0.04, duration: 0.1 })
@@ -721,6 +727,7 @@ export function AudioProvider({ children }) {
       playError: () => getExistingEngine()?.playError(),
       playPhase: (phase) => getExistingEngine()?.playPhase(phase),
       playSuccess: () => getExistingEngine()?.playSuccess(),
+      playHeartTick: (step) => getExistingEngine()?.playHeartTick(step),
       playDuelPulse: (step) => getExistingEngine()?.playDuelPulse(step),
       playThemeArrival: (themeId) => getExistingEngine()?.playThemeArrival(themeId),
       playCelebration: (kind) => {

@@ -421,13 +421,13 @@ describe('nudge cooldown', () => {
 describe('promise grants', () => {
   const db = {}
 
-  it('returns the granted promise record', async () => {
+  it('deals a random unused promise from the deck when a night is banked', async () => {
     firestoreStore.clear()
 
-    const { granted, progress } = await grantKoupon(db, 'couple-1')
+    const { granted, progress } = await grantKoupon(db, 'couple-1', () => 0.999999)
 
     expect(granted).not.toBeNull()
-    expect(granted.label).toBeTruthy()
+    expect(granted.label).toBe(KOUPON_DECK.at(-1).label)
     expect(progress.koupons).toHaveLength(1)
   })
 

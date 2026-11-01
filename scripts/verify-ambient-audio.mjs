@@ -14,6 +14,8 @@ try {
     engine.playDiceImpact({ energy: .86, side: 0 })
     engine.playDiceImpact({ energy: .52, side: 1 })
     engine.playDiceImpact({ energy: .28, side: 0 })
+    engine.playHeartTick(1)
+    engine.playHeartTick(2)
     for (let tick = 0; tick < 32; tick++) {
       engine.setStage(tick < 16 ? 'menu' : 'reflective', tick * 2.4)
       engine.scheduleTick(tick, tick * 2.4)

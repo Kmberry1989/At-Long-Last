@@ -548,9 +548,9 @@ export async function selectTheme(db, coupleId, themeId) {
   return progress
 }
 
-export async function grantKoupon(db, coupleId, entry = null, random = Math.random) {
+export async function grantKoupon(db, coupleId, random = Math.random) {
   const { granted, progress } = await transactProgress(db, coupleId, (current) => {
-    const pick = entry || pickKouponForGrant(current, random)
+    const pick = pickKouponForGrant(current, random)
 
     if (!pick) {
       return { events: [], granted: null, progress: current }
