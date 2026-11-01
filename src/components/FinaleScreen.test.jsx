@@ -90,7 +90,7 @@ describe('FinaleScreen', () => {
       />,
     )
 
-    expect(screen.getByText(/✦ Tonight's Keepsake Capsule ✦/i)).toBeDefined()
+    expect(screen.getByText(/Tonight's Keepsake Capsule/i)).toBeDefined()
     expect(screen.getByText('Sunset Promise')).toBeDefined()
     expect(screen.getByText('Doodle Duel in sync')).toBeDefined()
 

@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 import { Suspense, lazy, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
@@ -75,12 +76,11 @@ function StreakRow() {
   return (
     <div className="progress-row streak-row">
       <div className="streak-flame" aria-label={`${progress?.streakCount || 0} night streak`}>
-        <span aria-hidden="true">🔥</span>
+        <span aria-hidden="true"><BrandText text={"🔥"} /></span>
         <strong>{progress?.streakCount || 0}</strong>
       </div>
       {(progress?.freezeTokens || 0) > 0 && (
-        <span className="freeze-chip">
-          ❄️ {progress.freezeTokens}
+        <span className="freeze-chip"><BrandText text={"❄️ "} />{progress.freezeTokens}
         </span>
       )}
       <div className="nudge-zone">
@@ -101,7 +101,7 @@ function StreakRow() {
               onClick={handleNudge}
               type="button"
             >
-              {coolingDown ? 'Nudged ✓' : nudging ? 'Sending…' : 'Nudge 💌'}
+              <BrandText text={coolingDown ? 'Nudged ✓' : nudging ? 'Sending…' : 'Nudge 💌'} />
             </button>
             {nudgeNote && <p className="support-copy">{nudgeNote}</p>}
           </>
@@ -118,7 +118,7 @@ function HeartsRow() {
   return (
     <div className="progress-row hearts-row">
       <div className="love-tank-mini" aria-label={`${spendable} hearts to spend`}>
-        <span aria-hidden="true">💗</span>
+        <span aria-hidden="true"><BrandText text={"💗"} /></span>
         <strong>{spendable}</strong>
       </div>
       <span className="lifetime-chip">{progress?.lifetimeNights || 0} nights together</span>
@@ -154,7 +154,7 @@ function ThemePicker() {
         >
           <span className="theme-name">Surprise us</span>
 
-          {selected === null && <span className="theme-check">✓</span>}
+          {selected === null && <span className="theme-check"><BrandText text={"✓"} /></span>}
         </button>
         {BASE_THEME_CARDS.map((theme) => (
           <button
@@ -165,7 +165,7 @@ function ThemePicker() {
           >
             <img alt="" className="theme-art" loading="lazy" src={theme.art} />
             <span className="theme-name">{theme.label}</span>
-            {selected === theme.id && <span className="theme-check">✓</span>}
+            {selected === theme.id && <span className="theme-check"><BrandText text={"✓"} /></span>}
           </button>
         ))}
         {UNLOCKABLE_THEMES.map((theme) => {
@@ -188,7 +188,7 @@ function ThemePicker() {
                   onClick={() => selectTheme(theme.id)}
                   type="button"
                 >
-                  {selected === theme.id ? '✓' : 'Use'}
+                  <BrandText text={selected === theme.id ? '✓' : 'Use'} />
                 </button>
               ) : (
                 <button
@@ -197,7 +197,7 @@ function ThemePicker() {
                   onClick={() => handleUnlock(theme)}
                   type="button"
                 >
-                  {unlockingId === theme.id ? 'Unlocking…' : `Unlock · 💗${theme.cost}`}
+                  <BrandText text={unlockingId === theme.id ? 'Unlocking…' : `Unlock · 💗${theme.cost}`} />
                 </button>
               )}
             </div>
@@ -271,7 +271,7 @@ function FlowerCard() {
           <Suspense fallback={<div className="flower-scene" aria-hidden="true" />}>
             <FlowerScene onPick={flower.stage === 3 ? handlePick : undefined} speciesId={activeSpecies.id} stage={flower.stage} wateredCount={flower.wateredBy?.length || 0} />
           </Suspense>
-        ) : <div className="flower-scene flower-complete" aria-hidden="true">✦</div>}
+        ) : <div className="flower-scene flower-complete" aria-hidden="true"><BrandText text={"✦"} /></div>}
         <div className="flower-card-copy">
           <strong>{activeSpecies ? `${stage.label} · mystery flower` : 'Our garden is in bloom'}</strong>
           <span className="companion-stage">
@@ -288,10 +288,10 @@ function FlowerCard() {
         </div>
         {activeSpecies && (flower.stage === 3
           ? <button className="primary-btn alt" disabled={picking} onClick={handlePick} type="button">{picking ? 'Picking…' : 'Pick the bloom'}</button>
-          : <button className="primary-btn alt" disabled={iWatered || watering} onClick={handleWater} type="button">{iWatered ? '✓ Watered' : watering ? 'Watering…' : 'Water 💧'}</button>)}
+          : <button className="primary-btn alt" disabled={iWatered || watering} onClick={handleWater} type="button"><BrandText text={iWatered ? '✓ Watered' : watering ? 'Watering…' : 'Water 💧'} /></button>)}
       </div>
       {note && <p className="support-copy">{note}</p>}
-      {revealedId && <div className="flower-reveal" role="status"><strong>You grew a {getFlowerSpecies(revealedId).name} together.</strong><span>It’s now part of your collection.</span><button aria-label="Dismiss flower reveal" onClick={() => setRevealedId(null)} type="button">×</button></div>}
+      {revealedId && <div className="flower-reveal" role="status"><strong>You grew a {getFlowerSpecies(revealedId).name} together.</strong><span>It’s now part of your collection.</span><button aria-label="Dismiss flower reveal" onClick={() => setRevealedId(null)} type="button"><BrandText text={"×"} /></button></div>}
       {flower.collected.length > 0 && <div className="flower-collection"><h4>Our collection · {flower.collected.length}</h4><div className="flower-collection-grid">{flower.collected.map((speciesId) => <div className="flower-collection-item" key={speciesId}><Suspense fallback={<div className="flower-scene compact" aria-hidden="true" />}><FlowerScene compact revealName speciesId={speciesId} stage={3} /></Suspense><span>{getFlowerSpecies(speciesId).name}</span></div>)}</div></div>}
       {activeSpecies && <p className="support-copy">It grows only on days you both water it. Its name stays a mystery until you pick it.</p>}
     </div>
@@ -310,7 +310,7 @@ function TrophyCase() {
 
           return (
             <div className={`trophy${hasIt ? ' earned' : ' locked'}`} key={trophy.id}>
-              <span aria-hidden="true">{hasIt ? '🏆' : '🔒'}</span>
+              <span aria-hidden="true"><BrandText text={hasIt ? '🏆' : '🔒'} /></span>
               <strong>{trophy.label}</strong>
             </div>
           )
@@ -343,7 +343,7 @@ function PromiseWallet() {
                   Redeem
                 </button>
                 <button aria-label={`Mark ${resolveKouponLabel(promise.label)} fulfilled`} className="secondary-link" onClick={() => fulfillKoupon(promise.id)} type="button">
-                  <span aria-hidden="true">✓</span>
+                  <span aria-hidden="true"><BrandText text={"✓"} /></span>
                 </button>
               </div>
             </div>
@@ -371,8 +371,7 @@ function AnniversaryRow() {
     <div className="progress-section">
       <h3>Anniversary</h3>
       {countdown && (
-        <p className="support-copy">
-          💍 <strong>{countdown.days} days</strong> · {countdown.label}
+        <p className="support-copy"><BrandText text={"💍 "} /><strong>{countdown.days} days</strong> · {countdown.label}
         </p>
       )}
       {!editing ? (
@@ -481,7 +480,7 @@ function ExportSection() {
         onClick={handleExport}
         type="button"
       >
-        {busy ? 'Gathering…' : done ? '✓' : 'Download'}
+        <BrandText text={busy ? 'Gathering…' : done ? '✓' : 'Download'} />
       </button>
     </div>
   )

@@ -1,0 +1,4 @@
+.brand-icon { display: inline-block; width: 1.15em; height: 1.15em; flex-shrink: 0; vertical-align: -.18em; overflow: visible; }
+button .brand-icon, summary .brand-icon { pointer-events: none; }
+.token .brand-icon { width: 55%; height: 55%; }
+.keepsake-front-mark .brand-icon, .keepsake-back-star .brand-icon, .wax-stamp-monogram .brand-icon, .duel-sealed-wax-stamp .brand-icon { width: 1em; height: 1em; }

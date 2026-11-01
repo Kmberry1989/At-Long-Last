@@ -1,3 +1,4 @@
+import { BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { RevealBurst } from '../../components/DuelRevealOverlay.jsx'
 import { useAudio } from '../../audio/AudioProvider.jsx'
@@ -56,7 +57,7 @@ function SealedHead({ definition, onSkip, sealedCount }) {
       <h3>{definition.label}</h3>
       <p className="support-copy">{definition.description}</p>
       <div className="turn-badge">
-        <span aria-hidden="true">✉️</span>
+        <span aria-hidden="true"><BrandText text={"✉️"} /></span>
         <span><strong>{sealedCount}/2 sealed</strong></span>
       </div>
     </>
@@ -67,7 +68,7 @@ function RevealContinue({ acked, busy, onContinue, partnerName }) {
   if (acked) {
     return (
       <div className="connection-waiting-card">
-        <span aria-hidden="true">💛</span>
+        <span aria-hidden="true"><BrandText text={"💛"} /></span>
         <strong>Waiting for {partnerName}…</strong>
         <p>Take your time — this moment stays right here until you both continue.</p>
       </div>
@@ -80,9 +81,7 @@ function RevealContinue({ acked, busy, onContinue, partnerName }) {
       disabled={busy}
       onClick={onContinue}
       type="button"
-    >
-      Continue together 💛
-    </button>
+    ><BrandText text={"Continue together 💛 "} /></button>
   )
 }
 
@@ -205,15 +204,13 @@ function MindMeldCard({
               setDraft('')
             }}
             type="button"
-          >
-            Seal It ✉️
-          </button>
+          ><BrandText text={"Seal It ✉️ "} /></button>
         </>
       )}
 
       {!revealed && myAnswer && (
         <div className="connection-waiting-card">
-          <span aria-hidden="true">✉️</span>
+          <span aria-hidden="true"><BrandText text={"✉️"} /></span>
           <strong>Your answer is sealed.</strong>
           <p>The reveal happens the moment your partner seals theirs.</p>
         </div>
@@ -221,7 +218,7 @@ function MindMeldCard({
 
       {revealed && !decided && (
         <SealedRevealMoment>
-          <p className="eyebrow">✨ revealed together</p>
+          <p className="eyebrow"><BrandText text={"✨ revealed together"} /></p>
           {[0, 1].map((index) => (
             <div className="activity-log-card" key={index}>
               <strong>{getPlayerName(players, index)}</strong>
@@ -236,9 +233,7 @@ function MindMeldCard({
                   className="primary-btn"
                   onClick={() => onSubmit({ matched: true })}
                   type="button"
-                >
-                  We matched ✨
-                </button>
+                ><BrandText text={"We matched ✨ "} /></button>
                 <button
                   className="secondary-btn"
                   onClick={() => onSubmit({ matched: false })}
@@ -250,7 +245,7 @@ function MindMeldCard({
             </div>
           ) : (
             <div className="connection-waiting-card">
-              <span aria-hidden="true">👀</span>
+              <span aria-hidden="true"><BrandText text={"👀"} /></span>
               <strong>{getPlayerName(players, activity.state.turnIndex)} is calling it.</strong>
               <p>Did your minds meld?</p>
             </div>
@@ -261,7 +256,7 @@ function MindMeldCard({
       {revealed && decided && (
         <div className="sealed-reveal">
           <p className="eyebrow">
-            {matched ? '✨ minds melded' : '💛 revealed with honesty'}
+            <BrandText text={matched ? '✨ minds melded' : '💛 revealed with honesty'} />
           </p>
           {[0, 1].map((index) => (
             <div className="activity-log-card" key={index}>
@@ -432,7 +427,7 @@ function MutualYesCard({
           </div>
           {!bothSalts ? (
             <div className="connection-waiting-card">
-              <span aria-hidden="true">✉️</span>
+              <span aria-hidden="true"><BrandText text={"✉️"} /></span>
               <strong>Preparing your sealed envelope…</strong>
               <p>Just a moment while both phones get ready.</p>
             </div>
@@ -457,7 +452,7 @@ function MutualYesCard({
 
       {!decided && mySealed && (
         <div className="connection-waiting-card">
-          <span aria-hidden="true">✉️</span>
+          <span aria-hidden="true"><BrandText text={"✉️"} /></span>
           <strong>Your answer is sealed.</strong>
           <p>
             {bothSealed
@@ -470,7 +465,7 @@ function MutualYesCard({
       {decided && (
         <SealedRevealMoment>
           <p className="eyebrow">
-            {outcome.mutualYes ? '🔥 mutual yes' : '💛 sealed with care'}
+            <BrandText text={outcome.mutualYes ? '🔥 mutual yes' : '💛 sealed with care'} />
           </p>
           <p className="support-copy">
             {outcome.mutualYes

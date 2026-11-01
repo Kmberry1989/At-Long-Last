@@ -1,3 +1,6 @@
+import { usePressFeedback } from './components/usePressFeedback.js'
+import { PortraitProvider } from './components/PlayerPortrait.jsx'
+import { BrandIcon } from './components/BrandIcon.jsx'
 import { Suspense, lazy } from 'react'
 import { AudioProvider } from './audio/AudioProvider.jsx'
 import { AccountToggle } from './components/AccountToggle.jsx'
@@ -15,6 +18,7 @@ const GameScreen = lazy(() =>
 )
 
 function AppContent() {
+  usePressFeedback()
   return (
     <div className="app-shell">
       <AudioToggle />
@@ -22,7 +26,7 @@ function AppContent() {
       <Suspense
         fallback={(
           <div aria-live="polite" className="app-loading" role="status">
-            <span aria-hidden="true" className="app-loading-mark">♥</span>
+            <span aria-hidden="true" className="app-loading-mark"><BrandIcon name="heart" /></span>
             <span>Loading…</span>
           </div>
         )}
@@ -40,7 +44,7 @@ export default function App() {
       <FirebaseAppProvider>
         <CoupleProvider>
           <SessionProvider>
-            <MilestonesProvider><AppContent /></MilestonesProvider>
+            <PortraitProvider><MilestonesProvider><AppContent /></MilestonesProvider></PortraitProvider>
           </SessionProvider>
         </CoupleProvider>
       </FirebaseAppProvider>

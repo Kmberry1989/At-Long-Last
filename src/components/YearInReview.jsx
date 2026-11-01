@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 import { useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
@@ -84,7 +85,7 @@ function recapShareText(recap) {
 function StatTile({ emoji, label, value }) {
   return (
     <div aria-label={label ? undefined : `${value} night streak`} className="recap-tile">
-      <span aria-hidden="true">{emoji}</span>
+      <span aria-hidden="true"><BrandText text={emoji} /></span>
       <strong>{value}</strong>
       {label && <span>{label}</span>}
     </div>
@@ -179,7 +180,7 @@ export function YearInReview() {
           </div>
           <div className="button-row">
             <button aria-label={copied ? "Copied" : undefined} className="secondary-btn" onClick={handleCopy} type="button">
-              {copied ? '✓' : 'Copy'}
+              <BrandText text={copied ? '✓' : 'Copy'} />
             </button>
             <button className="secondary-link" onClick={handleGenerate} type="button">
               Refresh

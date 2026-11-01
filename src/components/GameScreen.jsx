@@ -1,3 +1,6 @@
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { BrandText } from './BrandIcon.jsx'
+import { IndependentNight } from './IndependentNight.jsx'
 import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import { DuelRevealOverlay } from './DuelRevealOverlay.jsx'
 import { DuelArena } from './DuelArena.jsx'
@@ -9,7 +12,6 @@ import { MysteryKeepsakeCard } from './MysteryKeepsakeCard.jsx'
 import { TactileDiceCast } from './TactileDiceCast.jsx'
 import { TruceTradeModal } from './TruceTradeModal.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
-import { getPlayerPiece } from '../features/couple/playerAvatar.js'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
 import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
@@ -49,6 +51,11 @@ function getActivitySubmissionCount(state) {
 }
 
 export function GameScreen() {
+  const { session } = useSession()
+  return session?.pacingVersion === 1 ? <IndependentNight key={session.id} /> : <LegacyGameScreen />
+}
+
+function LegacyGameScreen() {
   const { couple, hasPartner, progress } = useCouple()
   const { playAction, playPieceStep, playSuccess } = useAudio()
   const [pacingMode, setPacingMode] = useState(() => {
@@ -399,11 +406,11 @@ export function GameScreen() {
             aria-label="Open Keepsake Trade"
             title="Open Keepsake Trade and Truce"
           >
-            <span aria-hidden="true">🕊️</span>
+            <span aria-hidden="true"><BrandText text={"🕊️"} /></span>
             <span className="trade-hud-label">Trade</span>
           </button>
           <div className="chip" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
-            <span aria-hidden="true">◷</span><strong>{session.round}/{session.totalRounds}</strong>
+            <span aria-hidden="true"><BrandText text={"◷"} /></span><strong>{session.round}/{session.totalRounds}</strong>
           </div>
         </div>
         {pendingTradeOffer && pendingTradeOffer.fromPlayerIndex !== playerIndex && (
@@ -413,8 +420,7 @@ export function GameScreen() {
               className="truce-hud-notification-pill"
               onClick={() => setTradeModalOpen(true)}
               aria-label={`Trade offer from ${session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'Partner'}. Tap to review.`}
-            >
-              🕊️ Trade Offer from {session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'Partner'} • Review
+            ><BrandText text={"🕊️ Trade Offer from "} />{session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'Partner'} • Review
             </button>
           </div>
         )}
@@ -425,7 +431,7 @@ export function GameScreen() {
               aria-label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === session.activePlayerIndex ? ', taking this turn' : ''}`}
               className={`player-strip${index === session.activePlayerIndex ? ' active' : ''}${index === playerIndex ? ' mine' : ''}`}
             >
-              <img alt="" className="player-portrait" src={getPlayerPiece(player.avatar)?.thumbnail || '/assets/players/thumbs/heart.webp'} />
+              <PlayerPortrait player={player} />
               <strong title={player.displayName}>{player.displayName}</strong>
             </div>
           ))}

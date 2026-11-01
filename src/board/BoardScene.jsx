@@ -1,3 +1,5 @@
+import { BrandIcon } from '../components/BrandIcon.jsx'
+import { drawBrandIcon } from '../components/brandIcons.js'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import {
@@ -117,18 +119,9 @@ function makeTileMarkTexture(label, type) {
   ctx.font = "900 88px 'Avenir Next', sans-serif"
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const symbol =
-    type === 'heart'
-      ? '♥'
-      : type === 'oops'
-        ? '!'
-        : type === 'duel'
-          ? '✦'
-          : type === 'keepsake'
-          ? '?'
-            : '∞'
-  ctx.strokeText(symbol, canvas.width / 2, 105)
-  ctx.fillText(symbol, canvas.width / 2, 105)
+  const icon = { heart: 'heart', oops: 'trade', duel: 'duel', keepsake: 'gift', connection: 'promise' }[type] || 'sparkle'
+  ctx.strokeStyle = '#f1cf91'
+  drawBrandIcon(ctx, icon, canvas.width / 2, 105, 108)
 
   ctx.strokeStyle = 'rgba(54, 20, 40, 0.78)'
   ctx.lineWidth = 7
@@ -1153,7 +1146,7 @@ export function BoardScene({
         delete window.advanceTime
       }
       dracoLoader.dispose()
-      if (dieRef.current === die) {
+      if (dieRef.current === dice) {
         dieRef.current = null
       }
       resetViewRef.current = null
@@ -1173,7 +1166,7 @@ export function BoardScene({
         aria-label="Board view controls. Drag to look around, pinch to zoom, and use two fingers to move the board."
         className="board-view-controls"
       >
-        <span aria-hidden="true">↻</span>
+        <BrandIcon name="reset" />
         <button
           aria-label="Center the board on the current player"
           onClick={() => resetViewRef.current?.()}

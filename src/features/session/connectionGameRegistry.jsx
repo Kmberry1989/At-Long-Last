@@ -1,3 +1,4 @@
+import { BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useState } from 'react'
 import {
   MIND_MELD_PROMPTS,
@@ -41,7 +42,7 @@ function ChoiceGameCard({
   const stageCopy = isPrediction
     ? isPredictor
       ? `Predict the answer ${getPlayerName(players, state.subjectIndex)} will choose.`
-      : `${getPlayerName(players, state.predictorIndex)} sealed a prediction. Choose your honest answer.`
+      : `Choose your honest answer. ${getPlayerName(players, state.predictorIndex)} is sealing a private prediction.`
     : 'Choose the answer you think your partner will choose. No peeking.'
 
   useEffect(() => {
@@ -159,7 +160,7 @@ function ChoiceGameCard({
 
       {ownAnswer ? (
         <div className="connection-waiting-card">
-          <span aria-hidden="true">✦</span>
+          <span aria-hidden="true"><BrandText text={"✦"} /></span>
           <strong>Your answer is sealed.</strong>
           <p>It stays hidden until both choices are locked.</p>
         </div>
@@ -247,7 +248,7 @@ function VaultCard({
 
       {ownEntry ? (
         <div className="connection-waiting-card">
-          <span aria-hidden="true">✉</span>
+          <span aria-hidden="true"><BrandText text={"✉"} /></span>
           <strong>Your note is in the Vault.</strong>
           <p>It will open in the scrapbook when this night reaches its finale.</p>
         </div>

@@ -1,3 +1,4 @@
+import { BrandIcon } from './BrandIcon.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 
@@ -235,7 +236,7 @@ export function TactileDiceCast({
             <span className="hint-text animate-pulse">Casting dice…</span>
           ) : canRoll ? (
             <span className="hint-text">
-              <span className="hint-arrow">▲</span> Rub to rattle • Swipe or tap to cast
+              <BrandIcon name="arrow" className="hint-arrow" /> Rub to rattle • Swipe or tap to cast
             </span>
           ) : (
             <span className="hint-text">{statusLabel}</span>

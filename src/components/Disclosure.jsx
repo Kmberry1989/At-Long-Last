@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 import { useId, useState } from 'react'
 
 /**
@@ -18,7 +19,7 @@ export function Disclosure({ children, label }) {
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
-        <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+        <span aria-hidden="true"><BrandText text={open ? '▾' : '▸'} /></span>
         <span>{label}</span>
       </button>
       {open && (

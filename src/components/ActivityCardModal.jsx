@@ -1,6 +1,8 @@
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { BrandIcon, BrandText } from './BrandIcon.jsx'
 import { useMemo, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
-import { getPlayerPiece, PLAYER_THEMES } from '../features/couple/playerAvatar.js'
+import { PLAYER_THEMES } from '../features/couple/playerAvatar.js'
 
 const VIBE_INSPIRATIONS = {
   tender: ['A quiet moment I cherish', 'How safe you make me feel', 'The look in your eyes when…', 'A gratitude I rarely say'],
@@ -13,6 +15,7 @@ const VIBE_INSPIRATIONS = {
 export function ActivityCardModal({
   activity,
   definition,
+  deferReveal = false,
   disabled = false,
   error = null,
   isMinimized = false,
@@ -37,8 +40,6 @@ export function ActivityCardModal({
   const currentTheme = PLAYER_THEMES[playerIndex] || PLAYER_THEMES[0]
   const partnerTheme = PLAYER_THEMES[partnerIndex] || PLAYER_THEMES[1]
 
-  const currentPiece = getPlayerPiece(currentPlayer.avatar)
-  const partnerPiece = getPlayerPiece(partnerPlayer.avatar)
 
   const entries = activity?.state?.entries || []
   const myEntry = entries.find((e) => e.playerIndex === playerIndex)
@@ -47,7 +48,7 @@ export function ActivityCardModal({
   const isMyAnswerSubmitted = Boolean(myEntry)
   const isPartnerAnswerSubmitted = Boolean(partnerEntry)
   const isBothSubmitted = isMyAnswerSubmitted && isPartnerAnswerSubmitted
-  const isRevealed = isBothSubmitted || revealedLocally
+  const isRevealed = !deferReveal && (isBothSubmitted || revealedLocally)
 
   const vibe = definition?.vibe || activity?.vibe || 'tender'
   const activityType = definition?.type || activity?.type || 'reflection'
@@ -101,7 +102,7 @@ export function ActivityCardModal({
     }
 
     // If partner already submitted, locally trigger reveal for smooth delight before unmounting
-    if (isPartnerAnswerSubmitted) {
+    if (isPartnerAnswerSubmitted && !deferReveal) {
       setRevealedLocally(true)
     }
 
@@ -133,18 +134,18 @@ export function ActivityCardModal({
           type="button"
           aria-label={`Resume active moment: ${definition?.label || 'Moment'}`}
         >
-          <span className="minimized-seal-badge" aria-hidden="true">✉️</span>
+          <span className="minimized-seal-badge" aria-hidden="true"><BrandText text={"✉️"} /></span>
           <div className="minimized-pill-info">
             <strong>{definition?.label || 'Shared Moment'}</strong>
             <span className="minimized-pill-status">
-              {isBothSubmitted
+              <BrandText text={isBothSubmitted
                 ? '✨ Ready to reveal — Tap to view'
                 : isMyAnswerSubmitted
                   ? `Sealed • Waiting for ${partnerPlayer.displayName}`
-                  : 'In progress • Tap to resume'}
+                  : 'In progress • Tap to resume'} />
             </span>
           </div>
-          <span className="minimized-expand-arrow" aria-hidden="true">↗</span>
+          <span className="minimized-expand-arrow" aria-hidden="true"><BrandText text={"↗"} /></span>
         </button>
       </div>
     )
@@ -165,7 +166,7 @@ export function ActivityCardModal({
               type="button"
               aria-label="Peek at the board"
             >
-              <span aria-hidden="true">👁️</span> Peek Board
+              <span aria-hidden="true"><BrandText text={"👁️"} /></span> Peek Board
             </button>
           )}
         </div>
@@ -192,35 +193,25 @@ export function ActivityCardModal({
           style={{ '--player-color': currentTheme.color }}
         >
           <div className="portrait-avatar-wrapper">
-            {currentPiece?.thumbnail ? (
-              <img
-                src={currentPiece.thumbnail}
-                alt=""
-                className="portrait-avatar-thumb"
-              />
-            ) : (
-              <span className="portrait-avatar-initial">
-                {currentPlayer.displayName?.[0] || 'Y'}
-              </span>
-            )}
+            <PlayerPortrait player={currentPlayer} />
             {isMyAnswerSubmitted && (
-              <span className="sealed-check-mark" aria-label="Response sealed">✓</span>
+              <span className="sealed-check-mark" aria-label="Response sealed"><BrandText text={"✓"} /></span>
             )}
           </div>
           <span className="portrait-name">{currentPlayer.displayName}</span>
           <span className="portrait-role">
-            {isRevealed
+            <BrandText text={isRevealed
               ? 'Shared'
               : isMyAnswerSubmitted
                 ? '✉️ Sealed'
                 : !flipped
                   ? 'Your Turn'
-                  : 'Ready'}
+                  : 'Ready'} />
           </span>
         </div>
 
         <div className="portraits-connection-line">
-          <span className="connection-heart-icon" aria-hidden="true">💛</span>
+          <span className="connection-heart-icon" aria-hidden="true"><BrandText text={"💛"} /></span>
         </div>
 
         <div
@@ -228,30 +219,20 @@ export function ActivityCardModal({
           style={{ '--player-color': partnerTheme.color }}
         >
           <div className="portrait-avatar-wrapper">
-            {partnerPiece?.thumbnail ? (
-              <img
-                src={partnerPiece.thumbnail}
-                alt=""
-                className="portrait-avatar-thumb"
-              />
-            ) : (
-              <span className="portrait-avatar-initial">
-                {partnerPlayer.displayName?.[0] || 'P'}
-              </span>
-            )}
+            <PlayerPortrait player={partnerPlayer} />
             {isPartnerAnswerSubmitted && (
-              <span className="sealed-check-mark" aria-label="Partner response sealed">✓</span>
+              <span className="sealed-check-mark" aria-label="Partner response sealed"><BrandText text={"✓"} /></span>
             )}
           </div>
           <span className="portrait-name">{partnerPlayer.displayName}</span>
           <span className="portrait-role">
-            {isRevealed
+            <BrandText text={isRevealed
               ? 'Shared'
               : isPartnerAnswerSubmitted
                 ? '✉️ Sealed'
                 : flipped
                   ? 'Guessing'
-                  : 'Waiting'}
+                  : 'Waiting'} />
           </span>
         </div>
       </div>
@@ -260,9 +241,9 @@ export function ActivityCardModal({
       {isRevealed ? (
         <div className="activity-reveal-card" role="status" aria-live="polite">
           <div className="reveal-banner">
-            <span className="reveal-sparkle" aria-hidden="true">✨</span>
+            <span className="reveal-sparkle" aria-hidden="true"><BrandText text={"✨"} /></span>
             <h3>Revealed Together</h3>
-            <span className="reveal-sparkle" aria-hidden="true">✨</span>
+            <span className="reveal-sparkle" aria-hidden="true"><BrandText text={"✨"} /></span>
           </div>
 
           <p className="activity-modal-title">{definition?.label || 'Shared Moment'}</p>
@@ -309,7 +290,7 @@ export function ActivityCardModal({
           </div>
 
           <div className="reveal-reward-banner">
-            <span className="reward-heart" aria-hidden="true">💛</span>
+            <span className="reward-heart" aria-hidden="true"><BrandText text={"💛"} /></span>
             <span>+{2 + (definition?.intensity || 1)} Hearts Added to Your Bloom</span>
           </div>
 
@@ -327,7 +308,7 @@ export function ActivityCardModal({
           <div className="wax-seal-ornament">
             <div className="wax-stamp-outer">
               <div className="wax-stamp-inner">
-                <span className="wax-stamp-monogram" aria-hidden="true">✉️</span>
+                <span className="wax-stamp-monogram" aria-hidden="true"><BrandText text={"✉️"} /></span>
               </div>
             </div>
             <div className="wax-shimmer-ring" />
@@ -339,9 +320,9 @@ export function ActivityCardModal({
           </p>
 
           <div className="sealed-progress-pill">
-            <span className="sealed-dot is-complete">✓ You</span>
+            <span className="sealed-dot is-complete"><BrandText text={"✓ You"} /></span>
             <span className="sealed-dot-divider">—</span>
-            <span className="sealed-dot is-pending">⏳ {partnerPlayer.displayName}</span>
+            <span className="sealed-dot is-pending"><BrandText text={"⏳ "} />{partnerPlayer.displayName}</span>
           </div>
 
           {onToggleMinimize && (
@@ -349,9 +330,7 @@ export function ActivityCardModal({
               className="secondary-btn activity-peek-board-btn"
               onClick={onToggleMinimize}
               type="button"
-            >
-              👁️ Peek at Board While Waiting
-            </button>
+            ><BrandText text={"👁️ Peek at Board While Waiting "} /></button>
           )}
 
           {error && <p className="error-copy">{error}</p>}
@@ -406,11 +385,9 @@ export function ActivityCardModal({
                   onClick={handleFlipToGuess}
                   type="button"
                 >
-                  Next: Guess for {partnerPlayer.displayName} ↷
+                  Next: Guess for {partnerPlayer.displayName} <BrandIcon name="arrow" />
                 </button>
-                <span className="private-hint-copy">
-                  🔒 Kept private until both of you seal tonight's moment.
-                </span>
+                <span className="private-hint-copy"><BrandText text={"🔒 Kept private for tonight’s comparison. "} /></span>
               </div>
             </div>
 
@@ -448,7 +425,7 @@ export function ActivityCardModal({
                   onClick={handleFlipToAnswer}
                   type="button"
                 >
-                  ↶ My Answer
+                  <BrandIcon name="back" /> My Answer
                 </button>
                 <button
                   className="primary-btn seal-btn"
@@ -456,16 +433,16 @@ export function ActivityCardModal({
                   onClick={handleSealAndSubmit}
                   type="button"
                 >
-                  {isPartnerAnswerSubmitted
+                  <BrandText text={!deferReveal && isPartnerAnswerSubmitted
                     ? '✨ Seal & Reveal'
-                    : 'Seal My Turn ✉️'}
+                    : 'Seal My Turn ✉️'} />
                 </button>
               </div>
 
               <span className="private-hint-copy">
-                {isPartnerAnswerSubmitted
+                <BrandText text={deferReveal ? 'Seal your answer, then continue. Compare at the end of the night.' : isPartnerAnswerSubmitted
                   ? `💛 ${partnerPlayer.displayName} has sealed their response! Ready to reveal.`
-                  : `✉️ Stamped in wax until ${partnerPlayer.displayName} answers.`}
+                  : `✉️ Stamped in wax until ${partnerPlayer.displayName} answers.`} />
               </span>
             </div>
           </div>

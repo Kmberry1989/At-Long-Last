@@ -1,3 +1,4 @@
+import { drawBrandIcon } from './brandIcons.js'
 import { useEffect, useRef, useState } from 'react'
 
 export function KissCourier({
@@ -47,7 +48,8 @@ export function KissCourier({
         context.globalAlpha = particle.life
         context.fillStyle = particle.color
         context.font = '18px serif'
-        context.fillText('♥', particle.x, particle.y)
+        context.strokeStyle = particle.color
+        drawBrandIcon(context, 'heart', particle.x, particle.y, 18)
       })
       context.globalAlpha = 1
 

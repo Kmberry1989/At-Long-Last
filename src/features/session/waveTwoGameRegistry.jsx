@@ -1,3 +1,4 @@
+import { BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   TEMPO_TAP_ROUNDS,
@@ -255,7 +256,7 @@ function TempoTapCard({
 
       {ownResult ? (
         <div className="connection-waiting-card">
-          <span aria-hidden="true">♥</span>
+          <span aria-hidden="true"><BrandText text={"♥"} /></span>
           <strong>Your {ownResult.accuracy}% rhythm is locked.</strong>
           <p>The shared tempo reveals after both turns.</p>
         </div>
@@ -275,7 +276,7 @@ function TempoTapCard({
               style={{ '--tempo-duration': `${state.targetIntervalMs}ms` }}
               type="button"
             >
-              <span>♥</span>
+              <span><BrandText text={"♥"} /></span>
             </button>
             <div className="tempo-progress" aria-label={`${tapTimes.length} of 5 taps`}>
               {[0, 1, 2, 3, 4].map((index) => (

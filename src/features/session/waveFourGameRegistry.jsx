@@ -1,3 +1,4 @@
+import { BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useMemo, useState } from 'react'
 import {
   BLUFF_BIDDING_TOPICS,
@@ -101,7 +102,7 @@ function BluffBiddingCard({
 
       {disabled ? (
         <div className="connection-waiting-card compact">
-          <span aria-hidden="true">♠</span>
+          <span aria-hidden="true"><BrandText text={"♠"} /></span>
           <strong>{activeName} decides the next move.</strong>
           <p>{state.phase === 'bidding' ? 'Raise or challenge?' : 'The bidder is proving the claim.'}</p>
         </div>

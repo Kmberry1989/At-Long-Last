@@ -1,0 +1,8 @@
+.independent-tray { max-height: 58dvh; overflow-y: auto; }
+.night-action-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.night-action-list button { min-height: 44px; }
+.independent-overlay { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-top: 80px; }
+.night-back, .night-seal-note { flex-shrink: 0; position: relative; z-index: 2; }
+.night-seal-note { text-align: center; font-size: .8rem; color: #f4dfb5; margin: 0; }
+.night-error { position: fixed; bottom: 16px; left: 16px; right: 16px; z-index: 200; background: #351e24; padding: 12px; border-radius: 12px; }
+.independent-night .hud.top { flex-wrap: wrap; }

@@ -1,3 +1,6 @@
+import { InkToolbar } from '../../components/InkToolbar.jsx'
+import { drawInkSegment } from '../../components/drawingInk.js'
+import { BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BLIND_CANVAS_PROMPTS,
@@ -128,7 +131,7 @@ function MazeCard({
               className={`${obstacle ? 'obstacle' : ''}${goal ? ' goal' : ''}${token ? ' token' : ''}`}
               key={`${cell.x}-${cell.y}`}
             >
-              {goal && '♥'}
+              <BrandText text={goal && '♥'} />
               {token && <i>●</i>}
             </span>
           )
@@ -194,6 +197,10 @@ function CanvasCard({
 }) {
   const state = activity.state
   const canvasRef = useRef(null)
+  const [brush, setBrush] = useState('calligraphy')
+  const [color, setColor] = useState('#201718')
+  const [size, setSize] = useState(1)
+  const inkRef = useRef({ width: null })
   const drawingRef = useRef(false)
   const lastPointRef = useRef(null)
   const [strokeCount, setStrokeCount] = useState(0)
@@ -206,7 +213,7 @@ function CanvasCard({
       setupDrawingCanvas(canvasRef.current)
     }
     setStrokeCount(0)
-  }, [activity.id, state.turnIndex])
+  }, [activity.id, playerIndex])
 
   useActivityUiState(useMemo(() => ({
     control: 'drawing-canvas',
@@ -220,6 +227,7 @@ function CanvasCard({
     return {
       x: ((event.clientX - rect.left) / rect.width) * canvas.width,
       y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+      time: event.timeStamp, scale: canvas.width / rect.width,
     }
   }
 
@@ -227,22 +235,21 @@ function CanvasCard({
     if (disabled) {
       return
     }
+    if (event.isPrimary === false || drawingRef.current) return
     event.currentTarget.setPointerCapture(event.pointerId)
+    inkRef.current = { width: null, pointerId: event.pointerId, style: { brush, color, size } }
     drawingRef.current = true
     lastPointRef.current = getCanvasPoint(event)
   }
 
   function draw(event) {
-    if (!drawingRef.current || disabled) {
+    if (!drawingRef.current || disabled || event.pointerId !== inkRef.current.pointerId) {
       return
     }
     const canvas = canvasRef.current
     const context = canvas.getContext('2d')
     const point = getCanvasPoint(event)
-    context.beginPath()
-    context.moveTo(lastPointRef.current.x, lastPointRef.current.y)
-    context.lineTo(point.x, point.y)
-    context.stroke()
+    inkRef.current.width = drawInkSegment(context, lastPointRef.current, point, event, inkRef.current.style, inkRef.current.width)
     lastPointRef.current = point
   }
 
@@ -291,7 +298,7 @@ function CanvasCard({
 
       {ownHalf ? (
         <div className="connection-waiting-card">
-          <span aria-hidden="true">✎</span>
+          <span aria-hidden="true"><BrandText text={"✎"} /></span>
           <strong>Your {side} half is hidden.</strong>
           <p>The full picture appears after the other half is sealed.</p>
         </div>
@@ -303,6 +310,7 @@ function CanvasCard({
         </div>
       ) : (
         <>
+          <InkToolbar brush={brush} color={color} size={size} onBrushChange={setBrush} onColorChange={setColor} onSizeChange={setSize} disabled={disabled} />
           <div className={`blind-canvas-wrap side-${side}`}>
             <span>{side} half</span>
             <canvas
@@ -355,7 +363,7 @@ function HarmonicLockCard({
 
   useEffect(() => {
     setValue(50)
-  }, [activity.id, state.turnIndex])
+  }, [activity.id, playerIndex])
 
   useActivityUiState(useMemo(() => ({
     control: 'resonance-dial',

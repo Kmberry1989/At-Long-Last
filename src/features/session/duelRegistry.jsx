@@ -1,3 +1,4 @@
+import { BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DoodleDuel } from '../../components/DoodleDuel.jsx'
 import { KissCourier } from '../../components/KissCourier.jsx'
@@ -168,9 +169,7 @@ function TargetTapDuel({ disabled, duel, onComplete, onSkip }) {
     <DuelShell duel={duel} onSkip={onSkip}>
       <div className="target-stage">
         {running && (
-          <button className="moving-target" onClick={hitTarget} style={style} type="button">
-            ♥
-          </button>
+          <button className="moving-target" onClick={hitTarget} style={style} type="button"><BrandText text={"♥ "} /></button>
         )}
       </div>
       <button
@@ -565,8 +564,7 @@ function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, p
         ))}
       </div>
 
-      <p className="sealed-note">
-        🔒 Sealed — {partnerName} can&apos;t see this until you both finish.
+      <p className="sealed-note"><BrandText text={"🔒 Sealed — "} />{partnerName} can&apos;t see this until you both finish.
       </p>
 
       <button

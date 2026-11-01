@@ -1,6 +1,7 @@
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
-import { getPlayerPiece } from '../features/couple/playerAvatar.js'
 import './mystery-keepsake-card.css'
 
 const CARD_MARKS = {
@@ -28,17 +29,16 @@ function CardFrame() {
 }
 
 export function KeepsakeCard({ item, player = null, revealed = true, compact = false, className = '' }) {
-  const playerPiece = player?.avatar ? getPlayerPiece(player.avatar) : null
 
   return (
     <div className={`keepsake-card${revealed ? ' is-revealed' : ''}${compact ? ' is-compact' : ''} ${className}`}>
       {/* Back of Card (Face Down in Deck) */}
       <div aria-hidden={revealed} className="keepsake-card-face keepsake-card-back">
         <CardFrame />
-        <span aria-hidden="true" className="keepsake-back-star">✧</span>
+        <span aria-hidden="true" className="keepsake-back-star"><BrandText text={"✧"} /></span>
         <span className="keepsake-back-brand">AT LONG LAST</span>
         <span className="keepsake-back-free-tag">MYSTERY KEEPSAKE</span>
-        <span aria-hidden="true" className="keepsake-back-seal">A <span>✦</span> L</span>
+        <span aria-hidden="true" className="keepsake-back-seal">A <span><BrandText text={"✦"} /></span> L</span>
         <span className="keepsake-back-caption">A little gift for tonight</span>
       </div>
 
@@ -47,16 +47,16 @@ export function KeepsakeCard({ item, player = null, revealed = true, compact = f
         <CardFrame />
         <div className="keepsake-front-top">
           <span className="keepsake-front-brand">AT LONG LAST</span>
-          <span className="keepsake-free-draw-badge">✧ Free Privilege ✧</span>
+          <span className="keepsake-free-draw-badge"><BrandText text={"✧ Free Privilege ✧"} /></span>
         </div>
 
-        <span aria-hidden="true" className="keepsake-front-mark">{CARD_MARKS[item?.id] || '✦'}</span>
+        <span aria-hidden="true" className="keepsake-front-mark"><BrandText text={CARD_MARKS[item?.id] || '✦'} /></span>
         <span className="keepsake-front-kind">KEEPSAKE</span>
         <strong className="keepsake-front-title">{item?.label || 'A surprise'}</strong>
         <span className="keepsake-front-blurb">{item?.blurb || ''}</span>
 
         <div className="keepsake-perk-box">
-          <span className="keepsake-perk-tag">✦ {item?.perkLabel || 'Special Privilege'} ✦</span>
+          <span className="keepsake-perk-tag"><BrandText text={"✦ "} />{item?.perkLabel || 'Special Privilege'}<BrandText text={" ✦"} /></span>
           {item?.perkDescription && (
             <span className="keepsake-perk-desc">{item.perkDescription}</span>
           )}
@@ -64,9 +64,7 @@ export function KeepsakeCard({ item, player = null, revealed = true, compact = f
 
         {player && (
           <div className="keepsake-front-drawer">
-            {playerPiece?.thumbnail && (
-              <img src={playerPiece.thumbnail} alt="" className="drawer-thumb" />
-            )}
+            <PlayerPortrait player={player} className="drawer-thumb" />
             <span>Drawn by {player.displayName}</span>
           </div>
         )}
@@ -141,11 +139,9 @@ export function MysteryKeepsakeCard({ item, onCollect, onReveal, player = null }
           onClick={collect}
           type="button"
         >
-          {collecting ? 'Collecting to your hand… ✨' : 'Tap Card to Collect ✦'}
+          <BrandText text={collecting ? 'Collecting to your hand… ✨' : 'Tap Card to Collect ✦'} />
         </button>
-        <span className="mystery-zero-friction-hint">
-          🎁 Free gift for landing on this space — no hearts spent.
-        </span>
+        <span className="mystery-zero-friction-hint"><BrandText text={"🎁 Free gift for landing on this space — no hearts spent. "} /></span>
       </div>
 
       <span aria-live="polite" className="sr-only">

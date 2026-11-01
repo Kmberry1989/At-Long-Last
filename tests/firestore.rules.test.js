@@ -1,3 +1,5 @@
+import { beginPairingNight } from '../src/features/couple/pairingService.js'
+import { runNightCommand } from '../src/features/session/independentNightService.js'
 import { readFile } from 'node:fs/promises'
 import {
   assertFails,
@@ -981,5 +983,85 @@ describe('session lifecycle boundaries', () => {
         })
       }),
     )
+  })
+})
+
+
+describe('independent night two-account transactions', () => {
+  it('preserves simultaneous rolls, frees either player after sealing, and survives duplicate saves', async () => {
+    const { couple, hostDb, guestDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    const step = doc(hostDb, 'sessions', sessionId, 'steps', 'roll-1-0')
+    await setDoc(step, {
+      kind: 'activity', type: 'comfort-menu', round: 1, ownerIndex: 0,
+      state: activityRegistry['comfort-menu'].createInitialState(couple.players, { random: () => 0 }),
+      ready: false, completed: false, skipped: false, updatedAt: serverTimestamp(),
+    })
+    await Promise.all([
+      runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: 'roll-1-0', input: { text: 'Host answer', guess: 'Host guess' } }),
+      runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'submit', stepId: 'roll-1-0', input: { text: 'Guest answer', guess: 'Guest guess' } }),
+    ])
+    await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: 'roll-1-0', input: { text: 'Overwrite' } })
+    expect((await getDoc(step)).data().state.entries.map(row => row.text).sort()).toEqual(['Guest answer', 'Host answer'])
+    expect((await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
+    await Promise.all([
+      runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'roll', round: 2, dice: [1, 2] }),
+      runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'roll', round: 1, dice: [1, 2] }),
+    ])
+    const saved = (await getDoc(doc(hostDb, 'sessions', sessionId))).data()
+    expect(saved.positions).toEqual([3, 3])
+    await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'roll', round: 2, dice: [1, 2] })
+    expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data().positions).toEqual([3, 3])
+    await assertFails(getDocs(collection(authedDb(OUTSIDER_UID), 'sessions', sessionId, 'steps')))
+    await assertFails(updateDoc(step, { state: { entries: [] }, updatedAt: serverTimestamp() }))
+  })
+
+  it('lets the faster player finish every roll and duel input before the partner, then closes once with durable reveals', async () => {
+    const { couple, hostDb, guestDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    for (const [db, uid] of [[guestDb, GUEST_UID], [hostDb, HOST_UID]]) {
+      for (let round = 1; round <= 4; round++) {
+        await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: round === 1 ? [1, 2] : [1, 1] })
+        await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: uid === HOST_UID ? 1 : 3, won: true } })
+      }
+      if (uid === GUEST_UID) {
+        await expect(runNightCommand(db, sessionId, uid, { kind: 'finish' })).rejects.toThrow('still moments')
+        expect((await getDoc(doc(db, 'sessions', sessionId))).data().positions).toEqual([0, 9])
+        expect((await getDocs(query(collection(db, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
+      }
+    }
+    await Promise.all([
+      runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'finish' }),
+      runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'finish' }),
+    ])
+    const final = (await getDoc(doc(guestDb, 'sessions', sessionId))).data()
+    expect(final).toMatchObject({ phase: 'finale', status: 'completed', round: 4, positions: [9, 9] })
+    const entries = (await getDocs(query(collection(guestDb, 'journalEntries'), where('coupleId', '==', couple.id)))).docs.map(record => record.data())
+    expect(entries.filter(entry => entry.type === 'duel')).toHaveLength(4)
+    expect(entries.filter(entry => entry.type === 'finale')).toHaveLength(1)
+    await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'finish' })
+    expect((await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(5)
+    await assertFails(updateDoc(doc(hostDb, 'sessions', sessionId, 'steps', 'duel-1'), { ready: false, updatedAt: serverTimestamp() }))
+  })
+})
+
+
+describe('long independent nights', () => {
+  it.each([['standard', 6], ['long', 8]])('closes a full %s preset with all round artifacts', async (preset, rounds) => {
+    const { couple, hostDb, guestDb } = await createAndJoinRoom()
+    const sessionId = await beginPairingNight({ db: hostDb, coupleId: couple.id, preset })
+    const dice = [[1,2], [1,1], [1,1], [1,1], [2,3], [2,2], [3,3], [2,3]]
+    for (const [db, uid] of [[hostDb, HOST_UID], [guestDb, GUEST_UID]]) {
+      for (let round = 1; round <= rounds; round++) {
+        await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: dice[round - 1] })
+        if (round === 7) await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `roll-${round}-${uid === HOST_UID ? 0 : 1}`, input: { collect: true } })
+        await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: uid === HOST_UID ? 1 : 3, won: true } })
+      }
+    }
+    await runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'finish' })
+    expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data().status).toBe('completed')
+    const entries = (await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).docs.map(record => record.data())
+    expect(entries.filter(entry => entry.type === 'duel')).toHaveLength(rounds)
+    expect(entries.filter(entry => entry.type === 'finale')).toHaveLength(1)
   })
 })

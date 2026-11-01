@@ -167,8 +167,8 @@ describe('ActivityCardModal', () => {
 
     expect(screen.getByText('Sealed with Care')).toBeDefined()
     expect(screen.getByText(/Your reflection and guess are locked in wax/i)).toBeDefined()
-    expect(screen.getByText(/✓ You/i)).toBeDefined()
-    expect(screen.getByText(/⏳ Morgan/i)).toBeDefined()
+    expect(screen.getByText(/^You$/i)).toBeDefined()
+    expect(screen.getAllByText(/^Morgan$/i).length).toBeGreaterThan(0)
   })
 
   it('renders synchronized reveal state when both entries exist', () => {

@@ -1,4 +1,5 @@
-import { getPlayerPiece } from '../features/couple/playerAvatar.js'
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { BrandText } from './BrandIcon.jsx'
 import './duel-arena.css'
 
 export function DuelArena({
@@ -17,8 +18,6 @@ export function DuelArena({
   const partnerIndex = playerIndex === 0 ? 1 : 0
   const partner = players[partnerIndex]
 
-  const myPiece = myPlayer?.avatar ? getPlayerPiece(myPlayer.avatar) : null
-  const partnerPiece = partner?.avatar ? getPlayerPiece(partner.avatar) : null
 
   const partnerLockedIn = Boolean(partner?.uid && session?.duelResults?.[partner.uid])
   const myLockedIn = Boolean(myDuelResult)
@@ -28,7 +27,7 @@ export function DuelArena({
       {/* Top Header */}
       <div className="duel-arena-header">
         <div className="duel-arena-meta">
-          <span className="duel-arena-vibe-tag">✦ {duel?.vibe || 'Playful'} Duel ✦</span>
+          <span className="duel-arena-vibe-tag"><BrandText text={"✦ "} />{duel?.vibe || 'Playful'}<BrandText text={" Duel ✦"} /></span>
           <h2 className="duel-arena-title">{duel?.label || 'Head-to-Head Duel'}</h2>
         </div>
         {duel?.skippable && (
@@ -48,11 +47,7 @@ export function DuelArena({
         <div className="duel-partner-zone" aria-label={`${partner?.displayName || 'Partner'}'s arena frame`}>
           <div className="duel-player-badge">
             <div className="duel-avatar-wrap">
-              <img
-                src={partnerPiece?.thumbnail || '/assets/players/thumbs/heart.webp'}
-                alt=""
-                className="duel-avatar-img"
-              />
+              <PlayerPortrait player={partner} />
             </div>
             <div className="duel-player-info">
               <span className="duel-player-name">{partner?.displayName || 'Partner'}</span>
@@ -61,7 +56,7 @@ export function DuelArena({
           </div>
 
           <div className={`duel-partner-status ${partnerLockedIn ? 'is-locked' : ''}`}>
-            {partnerLockedIn ? '✓ Locked In' : 'Thinking… 💭'}
+            <BrandText text={partnerLockedIn ? '✓ Locked In' : 'Thinking… 💭'} />
           </div>
         </div>
 
@@ -79,15 +74,11 @@ export function DuelArena({
           <div className="duel-my-header">
             <div className="duel-player-badge">
               <div className="duel-avatar-wrap">
-                <img
-                  src={myPiece?.thumbnail || '/assets/players/thumbs/heart.webp'}
-                  alt=""
-                  className="duel-avatar-img"
-                />
+                <PlayerPortrait player={myPlayer} />
               </div>
               <div className="duel-player-info">
                 <span className="duel-player-name">{myPlayer?.displayName || 'You'}</span>
-                <span className="duel-player-role">{myLockedIn ? 'Locked In ✓' : 'Your Challenge'}</span>
+                <span className="duel-player-role"><BrandText text={myLockedIn ? 'Locked In ✓' : 'Your Challenge'} /></span>
               </div>
             </div>
           </div>
@@ -95,9 +86,7 @@ export function DuelArena({
           {/* Interactive Game or Sealed Waiting State */}
           {myLockedIn ? (
             <div className="duel-sealed-waiting-card">
-              <div className="duel-sealed-wax-stamp" aria-hidden="true">
-                ✦
-              </div>
+              <div className="duel-sealed-wax-stamp" aria-hidden="true"><BrandText text={"✦ "} /></div>
               <h3 className="duel-sealed-title">Your Answer is Sealed</h3>
               <p className="duel-sealed-desc">
                 {partnerLockedIn

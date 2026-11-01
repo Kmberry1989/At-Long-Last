@@ -69,10 +69,10 @@ describe('DuelArena & DuelRevealOverlay', () => {
       />,
     )
 
-    expect(screen.getByText(/✦ Playful Duel ✦/i)).toBeDefined()
+    expect(screen.getByText(/Playful Duel/i)).toBeDefined()
     expect(screen.getByText(/Doodle Duel/i)).toBeDefined()
     expect(screen.getByText('Elaine')).toBeDefined()
-    expect(screen.getByText(/Thinking… 💭/i)).toBeDefined()
+    expect(screen.getByText(/Thinking…/i)).toBeDefined()
     expect(screen.getByText(/Head-to-Head Arena/i)).toBeDefined()
     expect(screen.getByText('Kyle')).toBeDefined()
     expect(screen.getByTestId('dummy-minigame')).toBeDefined()
@@ -123,7 +123,7 @@ describe('DuelArena & DuelRevealOverlay', () => {
       />,
     )
 
-    expect(screen.getByText(/✓ Locked In/i)).toBeDefined()
+    expect(screen.getByText(/Locked In/i)).toBeDefined()
   })
 
   it('renders DuelRevealOverlay with countdown pulses and Co-Op Harmony outcome (Zero Losers)', () => {
@@ -171,14 +171,14 @@ describe('DuelArena & DuelRevealOverlay', () => {
     // Co-op Harmony revealed
     expect(screen.getAllByText(/Pure Resonance/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/In Perfect Sync!/i)).toBeDefined()
-    expect(screen.getByText(/\+4 shared hearts 💞/i)).toBeDefined()
+    expect(screen.getByText(/\+4 shared hearts/i)).toBeDefined()
     expect(audioMocks.playSuccess).toHaveBeenCalled()
 
     // Comparative split cards
     expect(screen.getByText(/Synchronized/i)).toBeDefined()
 
     // Acknowledge tap
-    const ackBtn = screen.getByRole('button', { name: /We saw it 💞/i })
+    const ackBtn = screen.getByRole('button', { name: /We saw it/i })
     fireEvent.click(ackBtn)
     expect(onAck).toHaveBeenCalled()
 

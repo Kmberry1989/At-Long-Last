@@ -1,6 +1,7 @@
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { BrandText } from './BrandIcon.jsx'
 import { useMemo, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
-import { getPlayerPiece } from '../features/couple/playerAvatar.js'
 import { KeepsakeCard } from './MysteryKeepsakeCard.jsx'
 import './truce-trade-modal.css'
 
@@ -31,8 +32,6 @@ export function TruceTradeModal({
   const partnerIndex = playerIndex === 0 ? 1 : 0
   const partnerPlayer = session?.players?.[partnerIndex]
 
-  const myPiece = myPlayer?.avatar ? getPlayerPiece(myPlayer.avatar) : null
-  const partnerPiece = partnerPlayer?.avatar ? getPlayerPiece(partnerPlayer.avatar) : null
 
   const myKeepsakes = useMemo(
     () => (session?.keepsakes || []).filter((k) => k.ownerIndex === playerIndex),
@@ -86,7 +85,7 @@ export function TruceTradeModal({
 
   function handleTagClick(tag) {
     playChoiceTap?.()
-    setNote((prev) => (prev ? `${prev} ${tag}` : tag))
+    setNote((prev) => (prev ? `${prev} $<BrandText text={tag} />` : tag))
   }
 
   function handleSend() {
@@ -124,7 +123,7 @@ export function TruceTradeModal({
         <div className="truce-trade-header">
           <div className="truce-sheet-handle" />
           <span className="truce-header-badge">
-            {isIncomingOffer ? '✦ Trade Offer Received ✦' : '🕊️ Sweet Truce & Trade'}
+            <BrandText text={isIncomingOffer ? '✦ Trade Offer Received ✦' : '🕊️ Sweet Truce & Trade'} />
           </span>
           <h2 className="truce-trade-title">
             {isIncomingOffer
@@ -141,9 +140,7 @@ export function TruceTradeModal({
             className="truce-close-btn"
             onClick={onClose}
             aria-label="Close trade sheet"
-          >
-            ✕
-          </button>
+          ><BrandText text={"✕ "} /></button>
         </div>
 
         <div className="truce-trade-body">
@@ -153,7 +150,7 @@ export function TruceTradeModal({
               <div className="truce-velvet-coaster">
                 <div className="truce-coaster-label">
                   <span>From {partnerPlayer?.displayName || 'Partner'}</span>
-                  <span>{incomingRequestedCard ? '⇄ Trade Proposal' : '💛 Pure Gift (+2 Hearts)'}</span>
+                  <span><BrandText text={incomingRequestedCard ? '⇄ Trade Proposal' : '💛 Pure Gift (+2 Hearts)'} /></span>
                 </div>
                 <div className="truce-coaster-slots">
                   <div className="truce-coaster-slot is-filled">
@@ -164,7 +161,7 @@ export function TruceTradeModal({
 
                   <div className="truce-coaster-connector">
                     <span className={`truce-connector-badge ${incomingRequestedCard ? '' : 'truce-gift-highlight'}`}>
-                      {incomingRequestedCard ? '⇄ For' : '💛 Gift For You'}
+                      <BrandText text={incomingRequestedCard ? '⇄ For' : '💛 Gift For You'} />
                     </span>
                   </div>
 
@@ -175,7 +172,7 @@ export function TruceTradeModal({
                       </div>
                     ) : (
                       <div className="truce-slot-prompt">
-                        <span className="truce-slot-prompt-icon">💛</span>
+                        <span className="truce-slot-prompt-icon"><BrandText text={"💛"} /></span>
                         <span>No return requested</span>
                       </div>
                     )}
@@ -196,7 +193,7 @@ export function TruceTradeModal({
               <div className="truce-velvet-coaster">
                 <div className="truce-coaster-label">
                   <span>Your Offer</span>
-                  <span>{activeRequestedCard ? '⇄ Exchange' : '💛 Gift (+2 Hearts)'}</span>
+                  <span><BrandText text={activeRequestedCard ? '⇄ Exchange' : '💛 Gift (+2 Hearts)'} /></span>
                   <span>Partner Request</span>
                 </div>
 
@@ -216,7 +213,7 @@ export function TruceTradeModal({
                       </div>
                     ) : (
                       <div className="truce-slot-prompt">
-                        <span className="truce-slot-prompt-icon">☝️</span>
+                        <span className="truce-slot-prompt-icon"><BrandText text={"☝️"} /></span>
                         <span>Pick from your tray</span>
                       </div>
                     )}
@@ -225,7 +222,7 @@ export function TruceTradeModal({
                   {/* Middle Connector */}
                   <div className="truce-coaster-connector">
                     <span className={`truce-connector-badge ${activeRequestedCard ? '' : 'truce-gift-highlight'}`}>
-                      {activeRequestedCard ? '⇄ Trade' : '💛 Gift'}
+                      <BrandText text={activeRequestedCard ? '⇄ Trade' : '💛 Gift'} />
                     </span>
                   </div>
 
@@ -244,7 +241,7 @@ export function TruceTradeModal({
                       </div>
                     ) : (
                       <div className="truce-slot-prompt">
-                        <span className="truce-slot-prompt-icon">🎁</span>
+                        <span className="truce-slot-prompt-icon"><BrandText text={"🎁"} /></span>
                         <span>Leave blank to Gift</span>
                       </div>
                     )}
@@ -256,9 +253,7 @@ export function TruceTradeModal({
               <div className="truce-felt-tray">
                 <div className="truce-tray-header">
                   <div className="truce-tray-player-chip">
-                    {myPiece?.thumbnail && (
-                      <img src={myPiece.thumbnail} alt="" className="truce-tray-avatar-thumb" />
-                    )}
+                    <PlayerPortrait player={myPlayer} className="truce-tray-avatar-thumb" />
                     <span className="truce-tray-player-name">Your Keepsakes ({myPlayer?.displayName || 'You'})</span>
                   </div>
                   <span className="truce-tray-count">{myKeepsakes.length} available</span>
@@ -283,8 +278,8 @@ export function TruceTradeModal({
                           }}
                           aria-label={`Select ${card.label} to offer`}
                         >
-                          {isSelected && <span className="truce-tray-selected-badge">✓</span>}
-                          <span className="truce-tray-card-mark">✦</span>
+                          {isSelected && <span className="truce-tray-selected-badge"><BrandText text={"✓"} /></span>}
+                          <span className="truce-tray-card-mark"><BrandText text={"✦"} /></span>
                           <span className="truce-tray-card-title">{card.label}</span>
                           <span className="truce-tray-card-perk">{card.perkLabel || 'Privilege'}</span>
                         </div>
@@ -292,9 +287,7 @@ export function TruceTradeModal({
                     })}
                   </div>
                 ) : (
-                  <p className="truce-tray-empty-hint">
-                    No keepsakes in hand yet! Land on Keepsake tiles (✧) to collect privileges, or send an offer once you have one.
-                  </p>
+                  <p className="truce-tray-empty-hint"><BrandText text={"No keepsakes in hand yet! Land on Keepsake tiles (✧) to collect privileges, or send an offer once you have one. "} /></p>
                 )}
               </div>
 
@@ -302,9 +295,7 @@ export function TruceTradeModal({
               <div className="truce-felt-tray">
                 <div className="truce-tray-header">
                   <div className="truce-tray-player-chip">
-                    {partnerPiece?.thumbnail && (
-                      <img src={partnerPiece.thumbnail} alt="" className="truce-tray-avatar-thumb" />
-                    )}
+                    <PlayerPortrait player={partnerPlayer} className="truce-tray-avatar-thumb" />
                     <span className="truce-tray-player-name">{partnerPlayer?.displayName || 'Partner'}'s Keepsakes</span>
                   </div>
                   <span className="truce-tray-count">{partnerKeepsakes.length} available</span>
@@ -329,8 +320,8 @@ export function TruceTradeModal({
                           }}
                           aria-label={`Select ${card.label} from ${partnerPlayer?.displayName || 'partner'}`}
                         >
-                          {isSelected && <span className="truce-tray-selected-badge">✓</span>}
-                          <span className="truce-tray-card-mark">✦</span>
+                          {isSelected && <span className="truce-tray-selected-badge"><BrandText text={"✓"} /></span>}
+                          <span className="truce-tray-card-mark"><BrandText text={"✦"} /></span>
                           <span className="truce-tray-card-title">{card.label}</span>
                           <span className="truce-tray-card-perk">{card.perkLabel || 'Privilege'}</span>
                         </div>
@@ -357,7 +348,7 @@ export function TruceTradeModal({
                       className={`truce-tag-pill ${note.includes(tag) ? 'is-active' : ''}`}
                       onClick={() => handleTagClick(tag)}
                     >
-                      {tag}
+                      <BrandText text={tag} />
                     </button>
                   ))}
                 </div>
@@ -382,15 +373,13 @@ export function TruceTradeModal({
                 type="button"
                 className="truce-action-btn truce-secondary-btn"
                 onClick={handleDeclineIncoming}
-              >
-                Politely Pass 🕊️
-              </button>
+              ><BrandText text={"Politely Pass 🕊️ "} /></button>
               <button
                 type="button"
                 className="truce-action-btn truce-primary-btn"
                 onClick={handleAcceptIncoming}
               >
-                {incomingRequestedCard ? 'Accept Trade ✨' : 'Accept Gift 💛'}
+                <BrandText text={incomingRequestedCard ? 'Accept Trade ✨' : 'Accept Gift 💛'} />
               </button>
             </>
           ) : (
@@ -408,9 +397,9 @@ export function TruceTradeModal({
                 disabled={!selectedOfferedId}
                 onClick={handleSend}
               >
-                {activeRequestedCard
+                <BrandText text={activeRequestedCard
                   ? 'Send Trade Offer 🕊️'
-                  : `Gift to ${partnerPlayer?.displayName || 'Partner'} 💛 (+2 Hearts)`}
+                  : `Gift to ${partnerPlayer?.displayName || 'Partner'} 💛 (+2 Hearts)`} />
               </button>
             </>
           )}

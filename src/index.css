@@ -1250,7 +1250,11 @@ p {
 }
 
 .piece-option.active::after {
-  content: '✓';
+  content: '';
+  background-image: url('/assets/brand/check.svg');
+  background-size: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
   position: absolute;
   top: 7px;
   right: 7px;
@@ -1260,7 +1264,7 @@ p {
   place-items: center;
   border-radius: 999px;
   color: #fff8f1;
-  background: var(--app-rose-strong);
+  background-color: var(--app-rose-strong);
   box-shadow: 0 5px 12px rgba(35, 28, 29, 0.2);
 }
 

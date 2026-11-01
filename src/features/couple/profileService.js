@@ -22,6 +22,8 @@ export function buildProfilePatch({
   }
 }
 
+const profileWrites = new WeakMap()
+
 export async function ensureProfileDocument({
   db,
   user,
@@ -30,8 +32,11 @@ export async function ensureProfileDocument({
     return
   }
 
+  let writes = profileWrites.get(db)
+  if (!writes) { writes = new Map(); profileWrites.set(db, writes) }
+  if (writes.has(user.uid)) return writes.get(user.uid)
   const profileRef = doc(db, 'profiles', user.uid)
-  await runTransaction(db, async (transaction) => {
+  const pending = runTransaction(db, async (transaction) => {
     const existing = await transaction.get(profileRef)
     const patch = buildProfilePatch({
       displayName: user.displayName,
@@ -41,6 +46,8 @@ export async function ensureProfileDocument({
     patch.loginStreak = advanceLoginStreak(existing.data()?.loginStreak)
     transaction.set(profileRef, patch, { merge: true })
   })
+  writes.set(user.uid, pending)
+  try { await pending } finally { if (writes.get(user.uid) === pending) writes.delete(user.uid) }
 }
 
 export async function saveProfileDisplayName({

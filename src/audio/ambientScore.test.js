@@ -43,3 +43,17 @@ describe('continuous ambient score', () => {
     }
   })
 })
+
+describe('menu and reflective orchestration', () => {
+  it('adds sparse menu timpani, with no drums under a reflective reveal', () => {
+    const hits = Array.from({ length: SCORE_LOOP_STEPS }, (_, tick) => tick).filter(tick => scoreFrame(tick, 'menu').timpani)
+    expect(hits).toEqual([0, 16, 32, 48, 64, 80, 96, 112])
+    for (const stage of ['reflective', 'reveal']) expect(Array.from({ length: SCORE_LOOP_STEPS }, (_, tick) => scoreFrame(tick, stage).timpani).some(Boolean)).toBe(false)
+  })
+  it('varies later phrases and lifts pads for reflective and finale scenes', () => {
+    expect(Array.from({ length: 16 }, (_, tick) => scoreFrame(tick).piano)).not.toEqual(Array.from({ length: 16 }, (_, tick) => scoreFrame(tick + 16).piano))
+    expect(scoreFrame(0, 'reflective').padLevel).toBeGreaterThan(scoreFrame(0, 'board').padLevel)
+    expect(scoreFrame(9, 'menu').musicBox).toBeGreaterThanOrEqual(0)
+    expect(scoreFrame(3, 'menu').pizzicato).toBeGreaterThanOrEqual(0)
+  })
+})

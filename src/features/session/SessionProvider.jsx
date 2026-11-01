@@ -1376,6 +1376,7 @@ export function SessionProvider({ children }) {
       closeGame,
       beginNight,
       activity,
+      applyPreviewNight: (next, entries = []) => { setSession(next); setJournalEntries(current => [...entries, ...current]) },
       boardState,
       canRecoverSession,
       canRoll,

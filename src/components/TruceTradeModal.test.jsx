@@ -82,12 +82,12 @@ describe('TruceTradeModal', () => {
     expect(audioMocks.playCardSlide).toHaveBeenCalledTimes(2)
 
     // Add note via quick tag
-    const quickTag = screen.getByText('Breakfast in bed ♡')
+    const quickTag = screen.getByRole('button', { name: /Breakfast in bed/ })
     fireEvent.click(quickTag)
     expect(audioMocks.playChoiceTap).toHaveBeenCalled()
 
     // Send Trade Offer
-    const sendBtn = screen.getByRole('button', { name: /Send Trade Offer 🕊️/i })
+    const sendBtn = screen.getByRole('button', { name: /Send Trade Offer/i })
     fireEvent.click(sendBtn)
 
     expect(onSendOffer).toHaveBeenCalledWith({
@@ -118,7 +118,7 @@ describe('TruceTradeModal', () => {
     fireEvent.click(myCardBtn)
 
     // Gift button should be active with couple heart bonus
-    const giftBtn = screen.getByRole('button', { name: /Gift to Elaine 💛 \(\+2 Hearts\)/i })
+    const giftBtn = screen.getByRole('button', { name: /Gift to Elaine \(\+2 Hearts\)/i })
     expect(giftBtn).toBeDefined()
     fireEvent.click(giftBtn)
 
@@ -160,7 +160,7 @@ describe('TruceTradeModal', () => {
     expect(screen.getByText(/"Trade massage for coffee tomorrow\? ♡"/i)).toBeDefined()
 
     // Click Accept Trade
-    const acceptBtn = screen.getByRole('button', { name: /Accept Trade ✨/i })
+    const acceptBtn = screen.getByRole('button', { name: /Accept Trade/i })
     fireEvent.click(acceptBtn)
     expect(onRespondOffer).toHaveBeenCalledWith(true)
     expect(audioMocks.playSuccess).toHaveBeenCalled()
@@ -177,7 +177,7 @@ describe('TruceTradeModal', () => {
       />,
     )
 
-    const passBtn = screen.getByRole('button', { name: /Politely Pass 🕊️/i })
+    const passBtn = screen.getByRole('button', { name: /Politely Pass/i })
     fireEvent.click(passBtn)
     expect(onRespondOffer).toHaveBeenCalledWith(false)
     expect(audioMocks.playCardSlide).toHaveBeenCalled()

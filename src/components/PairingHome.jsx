@@ -1,3 +1,6 @@
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { PortraitFrames } from './PortraitFrames.jsx'
+import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
@@ -62,7 +65,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   return (
     <>
       <div className={`account-strip${!paired ? ' account-compact' : ''}`}>
-        <div className="account-copy"><strong>{name}</strong>{user?.email && <p>{user.email}</p>}</div>
+        <div className="account-profile"><PlayerPortrait player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} /><div className="account-copy"><strong>{name}</strong>{user?.email && <p>{user.email}</p>}</div></div>
         <div className="account-actions">
           <button className="ghost-btn" onClick={() => setEditingName(!editingName)} type="button">{editingName ? 'Done' : 'Edit Name'}</button>
         </div>
@@ -111,7 +114,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
           {invitationError && <p role="alert" className="error-copy">{invitationError}</p>}
         </>}
       </> : <>
-        <div className="pairing-title"><h2>You &amp; {partner?.displayName || 'your person'}</h2>{committed && <span className="pairing-committed">♥ Committed</span>}</div>
+        <div className="pairing-title"><h2>You &amp; {partner?.displayName || 'your person'}</h2>{committed && <span className="pairing-committed"><BrandText text={"♥ Committed"} /></span>}</div>
         {!committed && <div className="pairing-commit">
           <h3>Commit</h3>
           <p className="support-copy">One person. One permanent commitment.</p>
@@ -132,11 +135,9 @@ export function PairingHome({ avatar, onAvatarChange }) {
           <button className="primary-btn" disabled={disabled} onClick={() => act(() => beginNight(preset))} type="button">New night</button>
         </>}
         {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Your saved game is unavailable. Try Continue again, or sign out and back in.' : 'Could not start your night. Try New night again.'}</p>}
-        <button className="secondary-btn" onClick={() => setVaultOpen(true)} style={{ margin: '8px 0' }} type="button">
-          ✦ The Couple&apos;s Vault &amp; Milestones
-        </button>
+        <button className="secondary-btn" onClick={() => setVaultOpen(true)} style={{ margin: '8px 0' }} type="button"><BrandText text={"✦ The Couple's Vault & Milestones "} /></button>
         <Disclosure label="Scrapbook"><PairingStory /><JournalTimeline entries={journalEntries || []} /></Disclosure>
-        <Disclosure label="Collection"><LoginStreak streak={profile?.loginStreak} /><ProgressHub /></Disclosure>
+        <Disclosure label="Collection"><PortraitFrames /><LoginStreak streak={profile?.loginStreak} /><ProgressHub /></Disclosure>
         {vaultOpen && <MilestonesHub onClose={() => setVaultOpen(false)} />}
       </>}
 

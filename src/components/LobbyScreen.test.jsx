@@ -83,7 +83,7 @@ describe('permanent pairing menus', () => {
   it('does not offer unpair or another commitment after mutual commitment', () => {
     pair(); state.couple.couple.commitments = ['a', 'b']; state.couple.couple.commitmentEmails = { a: 'alex@example.test', b: 'blair@example.test' }
     render(<LobbyScreen />)
-    expect(screen.getByText('♥ Committed')).toBeVisible()
+    expect(screen.getByText('Committed')).toBeVisible()
     expect(screen.queryByRole('button', { name: /Unpair|Cancel connection|Commit forever/ })).toBeNull()
   })
   it('requires email verification before commitment', () => {

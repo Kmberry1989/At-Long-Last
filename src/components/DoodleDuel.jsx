@@ -1,3 +1,5 @@
+import { InkToolbar } from './InkToolbar.jsx'
+import { drawInkSegment, inkPoint } from './drawingInk.js'
 import { useEffect, useRef, useState } from 'react'
 
 export function DoodleDuel({
@@ -7,6 +9,10 @@ export function DoodleDuel({
   prompt = 'Draw it from memory.',
 }) {
   const canvasRef = useRef(null)
+  const strokeRef = useRef(null)
+  const [brush, setBrush] = useState('calligraphy')
+  const [color, setColor] = useState('#201718')
+  const [size, setSize] = useState(1)
   const [isDrawing, setIsDrawing] = useState(false)
   const [isDone, setIsDone] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
@@ -26,9 +32,8 @@ export function DoodleDuel({
     const rect = canvas.getBoundingClientRect()
     canvas.width = rect.width * devicePixelRatio
     canvas.height = rect.height * devicePixelRatio
-    context.scale(devicePixelRatio, devicePixelRatio)
     context.fillStyle = '#fffaf4'
-    context.fillRect(0, 0, rect.width, rect.height)
+    context.fillRect(0, 0, canvas.width, canvas.height)
     context.strokeStyle = '#201718'
     context.lineWidth = 4
     context.lineCap = 'round'
@@ -36,52 +41,39 @@ export function DoodleDuel({
     return undefined
   }, [])
 
-  function getCoordinates(event) {
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const clientX = event.touches ? event.touches[0].clientX : event.clientX
-    const clientY = event.touches ? event.touches[0].clientY : event.clientY
-
-    return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
-    }
-  }
-
   function startDrawing(event) {
-    if (disabled || isDone) {
-      return
-    }
-
-    const context = canvasRef.current?.getContext('2d')
-    if (!context) {
-      return
-    }
-
-    const { x, y } = getCoordinates(event)
-    context.beginPath()
-    context.moveTo(x, y)
+    if (disabled || isDone || strokeRef.current || event.isPrimary === false) return
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    if (!context) return
+    canvas.setPointerCapture?.(event.pointerId)
+    const point = inkPoint(event, canvas)
+    const style = { brush, color, size }
+    const width = drawInkSegment(context, point, point, event, style)
+    strokeRef.current = { point, pointerId: event.pointerId, style, width }
     setIsDrawing(true)
-  }
-
-  function moveDrawing(event) {
-    if (!isDrawing || disabled || isDone) {
-      return
-    }
-
-    const context = canvasRef.current?.getContext('2d')
-    if (!context) {
-      return
-    }
-
-    const { x, y } = getCoordinates(event)
-    context.lineTo(x, y)
-    context.stroke()
     setHasDrawn(true)
   }
 
-  function stopDrawing() {
+  function moveDrawing(event) {
+    const stroke = strokeRef.current
+    if (!stroke || event.pointerId !== stroke.pointerId || disabled || isDone) return
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+    const samples = event.nativeEvent?.getCoalescedEvents?.() || []
+    for (const sample of [...samples, event]) {
+      const point = inkPoint(sample, canvas)
+      stroke.width = drawInkSegment(context, stroke.point, point, sample, stroke.style, stroke.width)
+      stroke.point = point
+    }
+  }
+
+  function stopDrawing(event) {
+    const stroke = strokeRef.current
+    if (!stroke || (event && event.pointerId !== stroke.pointerId)) return
+    strokeRef.current = null
     setIsDrawing(false)
+    if (canvasRef.current?.hasPointerCapture?.(stroke.pointerId)) canvasRef.current.releasePointerCapture(stroke.pointerId)
   }
 
   function clearCanvas() {
@@ -91,9 +83,10 @@ export function DoodleDuel({
       return
     }
 
-    const rect = canvas.getBoundingClientRect()
+    strokeRef.current = null
+    setIsDrawing(false)
     context.fillStyle = '#fffaf4'
-    context.fillRect(0, 0, rect.width, rect.height)
+    context.fillRect(0, 0, canvas.width, canvas.height)
     setHasDrawn(false)
   }
 
@@ -125,16 +118,16 @@ export function DoodleDuel({
       </div>
       <h3>Doodle Duel</h3>
       <p className="support-copy">{prompt}</p>
+      <InkToolbar brush={brush} color={color} size={size} onBrushChange={setBrush} onColorChange={setColor} onSizeChange={setSize} disabled={disabled || isDone} />
       <div className="doodle-stage">
         <canvas
           className="doodle-canvas"
-          onMouseDown={startDrawing}
-          onMouseLeave={stopDrawing}
-          onMouseMove={moveDrawing}
-          onMouseUp={stopDrawing}
-          onTouchEnd={stopDrawing}
-          onTouchMove={moveDrawing}
-          onTouchStart={startDrawing}
+          aria-label="Drawing canvas"
+          onPointerDown={startDrawing}
+          onPointerMove={moveDrawing}
+          onPointerUp={stopDrawing}
+          onPointerCancel={stopDrawing}
+          onLostPointerCapture={stopDrawing}
           ref={canvasRef}
         />
         {!isDrawing && !hasDrawn && (

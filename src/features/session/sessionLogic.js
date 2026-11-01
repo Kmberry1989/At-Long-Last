@@ -308,6 +308,7 @@ export function buildInitialSession(couple) {
     pendingActivityType: null,
     pendingKeepsake: null,
     phase: 'turn',
+    pacingVersion: 1,
     players: couple.players,
     positions: [0, 0],
     preset: preset.id,
@@ -351,6 +352,7 @@ export function skipOpeningSetup(session) {
     sessionPreset: session.preset,
   })
 
+  delete defaults.pacingVersion
   return finalizeVibeSetup({
     ...defaults,
     ...session,

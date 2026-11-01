@@ -1,8 +1,9 @@
+import { BrandText } from './BrandIcon.jsx'
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { acknowledgeMoment, subscribeToCelebrationReceipts, subscribeToMoments } from '../features/couple/milestoneService.js'
-import { getPlayerPiece } from '../features/couple/playerAvatar.js'
+import { PlayerPortrait } from './PlayerPortrait.jsx'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import './Milestones.css'
 
@@ -48,8 +49,8 @@ export function MomentCelebration({ moment, onContinue }) {
   const root = useRef(null)
   const playback = useRef(null)
   const copy = momentCopy(moment)
-  const playerA = getPlayerPiece(moment.avatars[0])
-  const playerB = getPlayerPiece(moment.avatars[1])
+  const { couple } = useCouple()
+  const people = moment.names.map(name => couple?.players?.find(player => player.displayName === name) || { displayName: name })
   useEffect(() => {
     const previousFocus = document.activeElement
     root.current?.focus()
@@ -77,7 +78,7 @@ export function MomentCelebration({ moment, onContinue }) {
     <div aria-hidden="true" className="moment-stars">{Array.from({ length: 22 }, (_, index) => <i key={index} style={{ '--i': index, left: `${5 + index * 37 % 90}%`, top: `${8 + index * 17 % 80}%`, animationDuration: `${6 + index % 5}s` }} />)}</div>
     <div className="moment-content">
       <p className="moment-chapter">{copy.chapter}</p>
-      <div className="moment-pieces" aria-hidden="true"><img src={playerA.thumbnail} alt="" /><span className="moment-seal">{copy.icon}</span><img src={playerB.thumbnail} alt="" /></div>
+      <div className="moment-pieces" aria-hidden="true"><PlayerPortrait player={people[0]} /><span className="moment-seal"><BrandText text={copy.icon} /></span><PlayerPortrait player={people[1]} /></div>
       <p className="moment-names">{moment.names[0]} <span>&amp;</span> {moment.names[1]}</p>
       <h2 id="moment-title">{copy.title}</h2>
       <p className="moment-line">{copy.line}</p>
@@ -100,7 +101,7 @@ export function PairingStory() {
       const copy = momentCopy(moment)
       const date = moment.createdAt?.toDate?.()
       return <article className={`story-moment story-${moment.kind}`} key={moment.id}>
-        <span className="story-moment-seal" aria-hidden="true">{copy.icon}</span>
+        <span className="story-moment-seal" aria-hidden="true"><BrandText text={copy.icon} /></span>
         <div><p className="eyebrow">{copy.chapter}</p><h3>{copy.title}</h3><p>{moment.names.join(' & ')}</p>{date && <time dateTime={date.toISOString()}>{date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</time>}</div>
       </article>
     })}

@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 const ENTRY_LABELS = {
   'activity-pass': 'Passed Prompt',
   bluff: 'Bidding Receipt',
@@ -121,20 +122,21 @@ function getDuelRows(entry) {
     const label = labels[index]
     const metrics = []
 
-    if (typeof result.time === 'number' && result.time < 90) {
+    if (!result.dataUrl && typeof result.time === 'number' && result.time < 90) {
       metrics.push(`${result.time.toFixed(2)}s`)
     }
 
-    if (typeof result.score === 'number') {
+    if (!result.dataUrl && typeof result.score === 'number') {
       const score = Number.isInteger(result.score) ? result.score : result.score.toFixed(1)
       metrics.push(`${score} pts`)
     }
 
-    if (typeof result.value === 'number') {
+    if (!result.dataUrl && typeof result.value === 'number') {
       metrics.push(`Match ${result.value}`)
     }
 
     return {
+      imageDataUrl: result.dataUrl || null,
       highlight:
         label?.text ||
         result.highlight ||
@@ -185,8 +187,8 @@ function ActivityEntryCard({ entry }) {
   return (
     <>
       <div className="scrapbook-headline">
-        <strong>{entry.title}</strong>
-        <p>{entry.summary}</p>
+        <strong><BrandText text={entry.title} /></strong>
+        <p><BrandText text={entry.summary} /></p>
       </div>
       {entry.payload?.prompt && (
         <div className="scrapbook-prompt">
@@ -234,8 +236,8 @@ function ChoiceRevealCard({ entry }) {
   return (
     <>
       <div className="scrapbook-headline">
-        <strong>{entry.title}</strong>
-        <p>{entry.summary}</p>
+        <strong><BrandText text={entry.title} /></strong>
+        <p><BrandText text={entry.summary} /></p>
       </div>
       <div className={`scrapbook-match-banner${matched ? ' matched' : ''}`}>
         <span>{revealLabel}</span>
@@ -272,7 +274,7 @@ function VaultEntryCard({ entry, revealed }) {
   return (
     <>
       <div className="scrapbook-headline">
-        <strong>{entry.title} — Opened</strong>
+        <strong><BrandText text={entry.title} /> — Opened</strong>
         <p>The finale broke the seal. Keep these somewhere close.</p>
       </div>
       <div className="scrapbook-prompt">
@@ -310,8 +312,8 @@ function WaveTwoResultCard({ entry }) {
   return (
     <>
       <div className="scrapbook-headline">
-        <strong>{entry.title}</strong>
-        <p>{entry.summary}</p>
+        <strong><BrandText text={entry.title} /></strong>
+        <p><BrandText text={entry.summary} /></p>
       </div>
       <div className="scrapbook-match-banner matched">
         <span>{bannerLabel}</span>
@@ -364,8 +366,8 @@ function CooperativeResultCard({ entry }) {
   return (
     <>
       <div className="scrapbook-headline">
-        <strong>{entry.title}</strong>
-        <p>{entry.summary}</p>
+        <strong><BrandText text={entry.title} /></strong>
+        <p><BrandText text={entry.summary} /></p>
       </div>
 
       {entry.type === 'maze' && (
@@ -423,8 +425,8 @@ function WaveFourResultCard({ entry }) {
     return (
       <>
         <div className="scrapbook-headline">
-          <strong>{entry.title}</strong>
-          <p>{entry.summary}</p>
+          <strong><BrandText text={entry.title} /></strong>
+          <p><BrandText text={entry.summary} /></p>
         </div>
         <div className="scrapbook-prompt">
           <span>Photo prompt</span>
@@ -453,8 +455,8 @@ function WaveFourResultCard({ entry }) {
   return (
     <>
       <div className="scrapbook-headline">
-        <strong>{entry.title}</strong>
-        <p>{entry.summary}</p>
+        <strong><BrandText text={entry.title} /></strong>
+        <p><BrandText text={entry.summary} /></p>
       </div>
       <div className={`scrapbook-match-banner${succeeded ? ' matched' : ''}`}>
         <span>{succeeded ? 'Boast proved' : 'Bluff caught'}</span>
@@ -476,25 +478,29 @@ function WaveFourResultCard({ entry }) {
 function DuelEntryCard({ entry }) {
   const duelRows = getDuelRows(entry)
   const imageDataUrl = entry.payload?.imageDataUrl || null
+  const hasDrawings = duelRows.some(row => row.imageDataUrl)
+  const wavelength = Boolean(entry.payload?.wavelength)
 
   return (
     <>
       <div className="scrapbook-headline">
-        <strong>{entry.title}</strong>
-        <p>{entry.summary}</p>
+        <strong><BrandText text={entry.title} /></strong>
+        <p><BrandText text={entry.summary} /></p>
       </div>
       <div className="scrapbook-duel-banner">
         <span>Shared hearts</span>
         <strong>+{entry.payload?.heartBonus || 0}</strong>
       </div>
-      {imageDataUrl && <img alt={entry.title} className="scrapbook-image" src={imageDataUrl} />}
+      {imageDataUrl && !hasDrawings && <img alt={entry.title} className="scrapbook-image" src={imageDataUrl} />}
+      {wavelength && <div className="scrapbook-wavelength-scorecard"><BrandText text={entry.text} /></div>}
       <div className="scrapbook-duel-grid">
-        {duelRows.map((row, index) => (
+        {!wavelength && duelRows.map((row, index) => (
           <div
             key={`${row.label}-${index}`}
             className={`scrapbook-duel-card${row.won ? ' winner' : ''}${row.skipped ? ' skipped' : ''}`}
           >
             <span>{row.label}</span>
+            {row.imageDataUrl && <img alt={`${row.label}'s drawing`} className="scrapbook-image" src={row.imageDataUrl} />}
             <p>{row.highlight}</p>
             {row.metrics.length > 0 && <strong>{row.metrics.join('  |  ')}</strong>}
           </div>
@@ -518,7 +524,7 @@ function KeepsakeEntryCard({ entry }) {
         </div>
         <div>
           <span>Saved as</span>
-          <strong>{entry.summary}</strong>
+          <strong><BrandText text={entry.summary} /></strong>
         </div>
       </div>
     </div>
@@ -573,7 +579,7 @@ function FinaleEntryCard({ entry }) {
 function DefaultEntryCard({ entry }) {
   return (
     <div className="scrapbook-headline">
-      <strong>{entry.title}</strong>
+      <strong><BrandText text={entry.title} /></strong>
       <p>{entry.text || entry.summary}</p>
     </div>
   )

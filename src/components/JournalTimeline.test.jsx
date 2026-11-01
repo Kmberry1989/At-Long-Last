@@ -348,3 +348,14 @@ describe('JournalTimeline', () => {
     expect(screen.getByText('Still my favorite accidental detour.')).toBeInTheDocument()
   })
 })
+
+it('compares both saved drawings and shows the complete end-of-night prediction scorecard', () => {
+  render(<JournalTimeline entries={[
+    { id:'drawings', type:'duel', title:'Portrait Panic', text:'Avery: A drawing\nRowan: A drawing', summary:'Two portraits saved.', payload:{heartBonus:3,results:{a:{highlight:'A drawing',dataUrl:'data:image/png;base64,AAAA'},b:{highlight:'A drawing',dataUrl:'data:image/png;base64,BBBB'}}} },
+    { id:'predictions', type:'duel', title:'Wavelength', text:'1. Your favorite evening?\nAvery said tea, guessed coffee.\nRowan said coffee, guessed tea.', summary:'Two private predictions opened.',payload:{heartBonus:3,wavelength:{matches:2,total:2},results:{}} },
+  ]} />)
+  expect(screen.getByRole('img',{name:"Avery's drawing"})).toBeVisible()
+  expect(screen.getByRole('img',{name:"Rowan's drawing"})).toBeVisible()
+  expect(screen.getByText(/Avery said tea, guessed coffee/)).toBeVisible()
+  expect(screen.getByText(/Rowan said coffee, guessed tea/)).toBeVisible()
+})

@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
@@ -279,9 +280,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
           className="milestones-hub-close-btn"
           onClick={onClose}
           type="button"
-        >
-          ✕
-        </button>
+        ><BrandText text={"✕ "} /></button>
       </header>
 
       {/* Segmented Navigation Tabs */}
@@ -296,7 +295,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
           role="tab"
           type="button"
         >
-          <span aria-hidden="true" className="tab-icon">✦</span>
+          <span aria-hidden="true" className="tab-icon"><BrandText text={"✦"} /></span>
           <span>Stars</span>
         </button>
 
@@ -310,7 +309,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
           role="tab"
           type="button"
         >
-          <span aria-hidden="true" className="tab-icon">🔒</span>
+          <span aria-hidden="true" className="tab-icon"><BrandText text={"🔒"} /></span>
           <span>Capsules</span>
         </button>
 
@@ -324,7 +323,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
           role="tab"
           type="button"
         >
-          <span aria-hidden="true" className="tab-icon">🤙</span>
+          <span aria-hidden="true" className="tab-icon"><BrandText text={"🤙"} /></span>
           <span>Pinkies</span>
         </button>
 
@@ -338,7 +337,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
           role="tab"
           type="button"
         >
-          <span aria-hidden="true" className="tab-icon">✨</span>
+          <span aria-hidden="true" className="tab-icon"><BrandText text={"✨"} /></span>
           <span>Recap</span>
         </button>
       </nav>
@@ -426,9 +425,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
                       className="star-detail-dismiss"
                       onClick={() => setSelectedStar(null)}
                       type="button"
-                    >
-                      ✕
-                    </button>
+                    ><BrandText text={"✕ "} /></button>
                   </div>
                   <p className="star-detail-desc">{selectedStar.copy.line}</p>
                   <p className="star-detail-meta">
@@ -465,7 +462,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
                 >
                   <div className="capsule-card-top">
                     <span aria-hidden="true" className="capsule-wax-seal">
-                      {capsule.seal}
+                      <BrandText text={capsule.seal} />
                     </span>
                     <span className="capsule-status-tag">{capsule.countdownText}</span>
                   </div>
@@ -494,9 +491,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
                 className="capsule-vow-submit"
                 disabled={!secretVow.trim()}
                 type="submit"
-              >
-                Seal in Vault 🔒✨
-              </button>
+              ><BrandText text={"Seal in Vault 🔒✨ "} /></button>
             </form>
           </section>
         )}
@@ -507,7 +502,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
         {activeTab === 'pinkieswears' && (
           <section aria-label="Pinkie Swears Ledger" className="pinkieswears-view">
             <div className="pinkieswears-hero">
-              <span aria-hidden="true" className="pinkie-hero-stamp">🤙</span>
+              <span aria-hidden="true" className="pinkie-hero-stamp"><BrandText text={"🤙"} /></span>
               <div className="pinkie-hero-text">
                 <h4>Pinkie Swears Vault</h4>
                 <p>Gentle promises made, honored, and saved forever.</p>
@@ -519,7 +514,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
                 <div className="pinkie-swear-item" key={promise.id}>
                   <div className="pinkie-swear-info">
                     <strong>{resolveKouponLabel(promise.label)}</strong>
-                    <span className="pinkie-swear-status">Pinkie Promise Active 🤙</span>
+                    <span className="pinkie-swear-status"><BrandText text={"Pinkie Promise Active 🤙"} /></span>
                   </div>
                   <div className="pinkie-swear-actions">
                     <button
@@ -542,9 +537,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
                         showToast(`Pinkie Swear fulfilled! ✓ 💖`)
                       }}
                       type="button"
-                    >
-                      ✓
-                    </button>
+                    ><BrandText text={"✓ "} /></button>
                   </div>
                 </div>
               ))}
@@ -566,9 +559,7 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
                 className="capsule-vow-submit"
                 disabled={!customPinkie.trim()}
                 type="submit"
-              >
-                Seal Pinkie Swear 🤙
-              </button>
+              ><BrandText text={"Seal Pinkie Swear 🤙 "} /></button>
             </form>
           </section>
         )}
@@ -585,25 +576,25 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
 
             <div className="recap-grid-custom">
               <div className="recap-stat-card">
-                <span aria-hidden="true" className="recap-stat-emoji">🌙</span>
+                <span aria-hidden="true" className="recap-stat-emoji"><BrandText text={"🌙"} /></span>
                 <span className="recap-stat-value">{progress?.lifetimeNights || 0}</span>
                 <span className="recap-stat-label">Nights Played</span>
               </div>
 
               <div className="recap-stat-card">
-                <span aria-hidden="true" className="recap-stat-emoji">💞</span>
+                <span aria-hidden="true" className="recap-stat-emoji"><BrandText text={"💞"} /></span>
                 <span className="recap-stat-value">{progress?.lifetimeHearts || 0}</span>
                 <span className="recap-stat-label">Hearts Earned</span>
               </div>
 
               <div className="recap-stat-card">
-                <span aria-hidden="true" className="recap-stat-emoji">🔥</span>
+                <span aria-hidden="true" className="recap-stat-emoji"><BrandText text={"🔥"} /></span>
                 <span className="recap-stat-value">{progress?.streakCount || 0}</span>
                 <span className="recap-stat-label">Night Streak</span>
               </div>
 
               <div className="recap-stat-card">
-                <span aria-hidden="true" className="recap-stat-emoji">🤙</span>
+                <span aria-hidden="true" className="recap-stat-emoji"><BrandText text={"🤙"} /></span>
                 <span className="recap-stat-value">
                   {(progress?.koupons || []).filter((k) => k.status === 'fulfilled').length}
                 </span>
@@ -615,15 +606,13 @@ export function MilestonesHub({ initialTab = 'constellation', onClose, open = tr
               className="recap-share-btn"
               onClick={handleShareRecap}
               type="button"
-            >
-              Share Celestial Story 💌
-            </button>
+            ><BrandText text={"Share Celestial Story 💌 "} /></button>
           </section>
         )}
       </main>
 
       {/* Floating Toast */}
-      {toastMessage && <div className="milestones-toast">{toastMessage}</div>}
+      {toastMessage && <div className="milestones-toast"><BrandText text={toastMessage} /></div>}
     </aside>
   )
 }

@@ -58,9 +58,9 @@ describe('persistent pairing and permanent email commitments', () => {
     await assertFails(updateDoc(doc(a, 'couples', id), { commitments: [], commitmentEmails: deleteField(), committedAt: deleteField() }))
     await expect(createPairingInvite({ db: dbFor('new-uid', email('alpha').toUpperCase()), userId: 'new-uid', displayName: 'New', origin: 'http://localhost' })).rejects.toThrow()
   })
-  it('lets either partner start one shared night under concurrent requests', async () => {
+  it.each(['quick', 'standard', 'long'])('lets either partner start one shared %s night under concurrent requests', async (preset) => {
     const { a, b, id } = await connect()
-    const results = await Promise.all([beginPairingNight({ db: b, coupleId: id, preset: 'quick' }), beginPairingNight({ db: a, coupleId: id, preset: 'quick' })])
+    const results = await Promise.all([beginPairingNight({ db: b, coupleId: id, preset }), beginPairingNight({ db: a, coupleId: id, preset })])
     expect(results[0]).toBe(results[1])
     expect((await getDoc(doc(a, 'couples', id))).data().playerIds).toEqual(['alpha', 'beta'])
   })

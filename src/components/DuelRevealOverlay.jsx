@@ -1,3 +1,5 @@
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
@@ -9,7 +11,6 @@ import {
   wavelengthVerdict,
 } from '../features/session/wavelengthDuelData.js'
 import { evaluateDuelRound } from '../features/session/sessionLogic.js'
-import { getPlayerPiece } from '../features/couple/playerAvatar.js'
 import './duel-arena.css'
 
 const COUNTDOWN_START = 3
@@ -34,7 +35,7 @@ export function RevealBurst() {
     <div className="duel-burst" aria-hidden="true">
       {burstHearts().map((heart) => (
         <span className="duel-burst-heart" key={heart.key} style={heart.style}>
-          {heart.emoji}
+          <BrandText text={heart.emoji} />
         </span>
       ))}
     </div>
@@ -67,11 +68,11 @@ function WavelengthScorecard({ duelResults, players, prompts }) {
           <li className="duel-scorecard-row" key={row.prompt.id}>
             <p className="duel-scorecard-prompt">{row.prompt.text}</p>
             <p className={row.oneHit ? 'hit' : 'miss'}>
-              <span aria-hidden="true">{row.oneHit ? '✓' : '✗'}</span> {nameOne} said
+              <span aria-hidden="true"><BrandText text={row.oneHit ? '✓' : '✗'} /></span> {nameOne} said
               “{getWavelengthOptionLabel(index, row.oneAnswer, prompts)}”
             </p>
             <p className={row.twoHit ? 'hit' : 'miss'}>
-              <span aria-hidden="true">{row.twoHit ? '✓' : '✗'}</span> {nameTwo} said
+              <span aria-hidden="true"><BrandText text={row.twoHit ? '✓' : '✗'} /></span> {nameTwo} said
               “{getWavelengthOptionLabel(index, row.twoAnswer, prompts)}”
             </p>
           </li>
@@ -137,8 +138,6 @@ export function DuelRevealOverlay({
   const myUid = players[playerIndex]?.uid
   const partner = players[playerIndex === 0 ? 1 : 0]
   const myPlayer = players[playerIndex]
-  const myPiece = myPlayer?.avatar ? getPlayerPiece(myPlayer.avatar) : null
-  const partnerPiece = partner?.avatar ? getPlayerPiece(partner.avatar) : null
 
   const acks = session.currentDuel?.revealAcks || {}
   const myAcked = myUid ? acks[myUid] === true : false
@@ -224,7 +223,7 @@ export function DuelRevealOverlay({
         <div className="duel-reveal-card">
           <div className="duel-harmony-container">
             <span className={`duel-harmony-badge ${isResonance ? 'resonance' : 'contrast'}`}>
-              {isResonance ? '✨ Pure Resonance ✨' : '💫 Playful Contrast 💫'}
+              <BrandText text={isResonance ? '✨ Pure Resonance ✨' : '💫 Playful Contrast 💫'} />
             </span>
             <h3 className="duel-harmony-title">
               {isResonance ? 'In Perfect Sync!' : 'Sparks in Difference!'}
@@ -233,22 +232,17 @@ export function DuelRevealOverlay({
               {revealStatement({ duel, outcome, players })}
             </p>
             <div className="duel-harmony-hearts" aria-live="polite">
-              +{awardedHearts} shared hearts 💞
-            </div>
+              +{awardedHearts}<BrandText text={" shared hearts 💞 "} /></div>
           </div>
 
           {/* Comparative Arena Cards across dividing beam */}
           <div className="duel-comparative-arena">
             <div className="duel-comparative-card">
               <div className="duel-comparative-player">
-                <img
-                  src={partnerPiece?.thumbnail || '/assets/players/thumbs/heart.webp'}
-                  alt=""
-                  className="duel-comparative-avatar"
-                />
+                <PlayerPortrait player={partner} />
                 <span className="duel-comparative-name">{partner?.displayName || 'Partner'}</span>
               </div>
-              <span className="duel-comparative-answer">{formatResultExcerpt(partnerResult)}</span>
+              <span className="duel-comparative-answer"><BrandText text={formatResultExcerpt(partnerResult)} /></span>
             </div>
 
             <div className="duel-comparative-divider" aria-hidden="true">
@@ -257,14 +251,10 @@ export function DuelRevealOverlay({
 
             <div className="duel-comparative-card">
               <div className="duel-comparative-player">
-                <img
-                  src={myPiece?.thumbnail || '/assets/players/thumbs/heart.webp'}
-                  alt=""
-                  className="duel-comparative-avatar"
-                />
+                <PlayerPortrait player={myPlayer} />
                 <span className="duel-comparative-name">{myPlayer?.displayName || 'You'}</span>
               </div>
-              <span className="duel-comparative-answer">{formatResultExcerpt(myResult)}</span>
+              <span className="duel-comparative-answer"><BrandText text={formatResultExcerpt(myResult)} /></span>
             </div>
           </div>
 
@@ -281,12 +271,10 @@ export function DuelRevealOverlay({
               Continue
             </button>
           ) : !myAcked ? (
-            <button className="primary-btn" onClick={onAck} type="button">
-              We saw it 💞
-            </button>
+            <button className="primary-btn" onClick={onAck} type="button"><BrandText text={"We saw it 💞 "} /></button>
           ) : (
             <div className="duel-ack-status">
-              <p>✓ You · {partnerAcked ? '✓' : '…'}{' '}{partner?.displayName || 'Partner'}</p>
+              <p><BrandText text={"✓ You · "} /><BrandText text={partnerAcked ? '✓' : '…'} />{' '}{partner?.displayName || 'Partner'}</p>
               {!partnerAcked && <p className="duel-ack-wait">Waiting for them to tap “We saw it”…</p>}
               {partnerAcked && <p className="duel-ack-wait">Both in — continuing…</p>}
             </div>

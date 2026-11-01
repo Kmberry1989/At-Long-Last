@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 /**
  * Shared two-phone state components. Every turn follows the same
  * orient -> act -> wait -> reveal contract so the non-active phone always
@@ -23,7 +24,7 @@ export function WaitingState({
   return (
     <div aria-live="polite" className="play-state play-state-waiting" role="status">
       <p className="play-state-kicker">
-        <span aria-hidden="true" className="play-state-pulse">◌</span>
+        <span aria-hidden="true" className="play-state-pulse"><BrandText text={"◌"} /></span>
         {` ${actorName} is ${activityVerb}…`}
       </p>
       {privateNote && <p className="play-state-private">{privateNote}</p>}

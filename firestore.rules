@@ -910,7 +910,7 @@ service cloud.firestore {
           'roundDuelBonus', 'spotlight', 'startingPlayerIndex', 'status',
           'totalRounds', 'turnsTakenThisRound', 'usedActivityIds',
           'usedDuelIds', 'usedKeepsakePerks', 'vibeVotes', 'vibeWeights',
-          'moodVotes', 'progressRecorded', 'sealedMatches',
+          'pacingVersion', 'moodVotes', 'progressRecorded', 'sealedMatches',
           'mutualYesMatches', 'sharedDuelWins',
           'createdAt', 'startedAt', 'endedAt', 'lastActionAt', 'updatedAt'
         ]);
@@ -948,6 +948,7 @@ service cloud.firestore {
         && couple.playerIds.size() == 2
         && data.players == couple.players
         && data.hostId == couple.playerIds[0]
+        && (!('pacingVersion' in data) || data.pacingVersion == 1)
         && data.preset == couple.sessionPreset
         && (
           (
@@ -987,7 +988,8 @@ service cloud.firestore {
     }
 
     function isValidSessionIdentity() {
-      return request.resource.data.coupleId == resource.data.coupleId
+      return request.resource.data.get('pacingVersion', 0) == resource.data.get('pacingVersion', 0)
+        && request.resource.data.coupleId == resource.data.coupleId
         && request.resource.data.players == resource.data.players
         && request.resource.data.preset == resource.data.preset
         && request.resource.data.totalRounds == resource.data.totalRounds
@@ -1051,7 +1053,7 @@ service cloud.firestore {
           || (
             resource.data.status == 'active'
             && after.status == 'completed'
-            && resource.data.phase == 'duel'
+            && (resource.data.phase == 'duel' || (resource.data.get('pacingVersion', 0) == 1 && resource.data.phase == 'turn'))
             && resource.data.round == resource.data.totalRounds
             && after.phase == 'finale'
             && after.round == resource.data.totalRounds
@@ -1075,6 +1077,17 @@ service cloud.firestore {
             ? isValidDuelResultSubmission()
             : true
         );
+    }
+
+    function isValidIndependentCompletion() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return before.get('pacingVersion', 0) == 1 && before.status == 'active'
+        && before.phase == 'turn' && before.round == before.totalRounds
+        && after.phase == 'finale' && after.status == 'completed'
+        && after.endedAt == request.time && after.lastActionAt == request.time && after.updatedAt == request.time
+        && after.diff(before).affectedKeys().hasOnly(['phase', 'status', 'endedAt', 'lastActionAt', 'updatedAt', 'round', 'currentDuel', 'actionText', 'hearts', 'momentum', 'spotlight', 'completedSpotlightActs', 'usedKeepsakePerks', 'sealedMatches', 'mutualYesMatches', 'sharedDuelWins', 'lastDuelOutcome'])
+        && after.hearts is int && after.hearts >= 0 && after.hearts <= 1000;
     }
 
     // Historical sessions created before the spotlight/momentum arc can be
@@ -1119,6 +1132,7 @@ service cloud.firestore {
         && after.endedAt == null
         && after.coupleId == resource.data.coupleId
         && after.players == resource.data.players
+        && after.get('pacingVersion', 0) == resource.data.get('pacingVersion', 0)
         && after.preset == resource.data.preset
         && after.totalRounds == resource.data.totalRounds
         && after.goals == resource.data.goals
@@ -1336,6 +1350,41 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)
         && request.resource.data.keys().hasOnly(['seenAt']) && request.resource.data.seenAt == request.time;
+      allow delete: if false;
+    }
+
+    function portraitFrameCost(frame) {
+      return {'ribbon': 0, 'ivory': 0, 'midnight': 0, 'starlight': 24, 'rose': 48, 'laurel': 80}.get(frame, -1);
+    }
+    match /couplePortraits/{coupleId}/players/{userId} {
+      function validPortrait(data) {
+        return data.keys().hasAll(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt'])
+          && data.keys().hasOnly(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt'])
+          && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1800
+            && data.photoURL.matches('^https://([a-zA-Z0-9-]+[.])?googleusercontent[.]com/.+$')))
+          && data.ownedFrames is list && data.ownedFrames.size() <= 6
+          && data.ownedFrames.toSet().size() == data.ownedFrames.size()
+          && data.ownedFrames.hasAll(['ribbon', 'ivory', 'midnight'])
+          && data.ownedFrames.hasOnly(['ribbon', 'ivory', 'midnight', 'starlight', 'rose', 'laurel'])
+          && data.selectedFrame in data.ownedFrames && data.updatedAt == request.time;
+      }
+      function paidForFrame() {
+        let before = resource.data.ownedFrames;
+        let after = request.resource.data;
+        let oldProgress = get(/databases/$(database)/documents/coupleProgress/$(coupleId)).data;
+        let nextProgress = getAfter(/databases/$(database)/documents/coupleProgress/$(coupleId)).data;
+        return after.ownedFrames.size() == before.size() + 1
+          && after.ownedFrames.hasAll(before)
+          && after.ownedFrames.hasOnly(before.concat([after.selectedFrame]))
+          && !(after.selectedFrame in before) && portraitFrameCost(after.selectedFrame) > 0
+          && nextProgress.heartsSpent == oldProgress.heartsSpent + portraitFrameCost(after.selectedFrame)
+          && nextProgress.diff(oldProgress).affectedKeys().hasOnly(['heartsSpent', 'updatedAt']);
+      }
+      allow read: if isParticipant(coupleId);
+      allow create: if isOwner(userId) && isActiveParticipant(coupleId) && validPortrait(request.resource.data)
+        && request.resource.data.ownedFrames == ['ribbon', 'ivory', 'midnight'];
+      allow update: if isOwner(userId) && isActiveParticipant(coupleId) && validPortrait(request.resource.data)
+        && (request.resource.data.ownedFrames == resource.data.ownedFrames || paidForFrame());
       allow delete: if false;
     }
 
@@ -1665,8 +1714,69 @@ service cloud.firestore {
         && isActiveParticipant(resource.data.coupleId)
         && (request.resource.data.status == 'abandoned'
           ? (isValidLegacySessionAbandon(sessionId) || isValidSessionUpdateCompact())
-          : (isValidActiveSessionMutationBudget() || isValidSessionUpdateCompact()));
+          : (isValidIndependentCompletion() || isValidActiveSessionMutationBudget() || isValidSessionUpdateCompact()));
 
+      allow delete: if false;
+    }
+
+
+    // Bounded independent-night slots. Parent membership gates even missing
+    // slots so both phones can transactionally read the same round schedule.
+    match /sessions/{sessionId}/steps/{stepId} {
+      function night() {
+        return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
+      }
+      function validStep(data) {
+        return data.keys().hasAll(['kind', 'type', 'round', 'ownerIndex', 'state', 'ready', 'completed', 'skipped', 'updatedAt'])
+          && data.keys().hasOnly(['kind', 'type', 'round', 'ownerIndex', 'state', 'ready', 'completed', 'skipped', 'updatedAt'])
+          && data.kind in ['activity', 'duel', 'keepsake', 'board']
+          && isBoundedString(data.type, 1, 100)
+          && data.round is int && data.round >= 1 && data.round <= night().totalRounds
+          && data.ownerIndex in [-1, 0, 1]
+          && data.state is map && data.state.keys().size() <= 25
+          && data.ready is bool && data.completed is bool && data.skipped is bool
+          && data.updatedAt == request.time;
+      }
+      function ownMapOnly(key, mine) {
+        return request.resource.data.state.get(key, {}).diff(resource.data.state.get(key, {})).affectedKeys().hasOnly([mine]);
+      }
+      function ownListOnly(key, mine) {
+        let before = resource.data.state.get(key, []);
+        let after = request.resource.data.state.get(key, []);
+        return after == before || (after.size() == before.size() + 1
+          && after.hasAll(before) && after[after.size() - 1].playerIndex == mine);
+      }
+      function preservesPartnerInput() {
+        let index = night().players[0].uid == request.auth.uid ? 0 : 1;
+        let mine = string(index);
+        let keys = resource.data.state.keys();
+        return resource.data.kind == 'duel' ? ownMapOnly('results', mine)
+          : keys.hasAny(['entries']) ? ownListOnly('entries', index)
+          : keys.hasAny(['halves']) ? ownListOnly('halves', index)
+          : keys.hasAny(['commitments']) ? (ownMapOnly('commitments', mine) && ownMapOnly('answers', mine))
+          : keys.hasAny(['sealed']) ? (ownMapOnly('sealed', mine) && ownMapOnly('salts', mine))
+          : keys.hasAny(['answers']) ? ownMapOnly('answers', mine)
+          : keys.hasAny(['values']) ? ownMapOnly('values', mine)
+          : keys.hasAny(['results']) ? ownMapOnly('results', mine)
+          : keys.hasAny(['submissions']) ? ownMapOnly('submissions', mine)
+          : keys.hasAny(['captions']) ? ownMapOnly('captions', mine) : true;
+      }
+      allow read: if isAuthenticated() && request.auth.uid in [night().players[0].uid, night().players[1].uid];
+      allow create: if isActiveParticipant(night().coupleId)
+        && night().get('pacingVersion', 0) == 1 && night().status == 'active'
+        && validStep(request.resource.data)
+        && (request.resource.data.kind == 'duel'
+          ? (request.resource.data.ownerIndex == -1 && stepId == 'duel-' + string(request.resource.data.round) && request.resource.data.type in ['constellation-home', 'heartbeat-hold-tender', 'letterpress-one-word', 'sync-breath', 'gratitude-duel', 'doodle-duel-memory', 'portrait-panic-directed', 'wavelength-slider', 'emoji-court', 'reaction-heart', 'kiss-courier', 'fever-dream-date', 'voice-note-trailer', 'temperature-check', 'slow-draw-portrait-romantic', 'wavelength-duel'])
+          : (request.resource.data.ownerIndex in [0, 1]
+            && night().players[request.resource.data.ownerIndex].uid == request.auth.uid
+            && stepId == 'roll-' + string(request.resource.data.round) + '-' + string(request.resource.data.ownerIndex)))
+        && (request.resource.data.kind != 'activity' || request.resource.data.type in activityIds());
+      allow update: if isActiveParticipant(night().coupleId)
+        && night().status == 'active' && validStep(request.resource.data)
+        && preservesPartnerInput()
+        && (resource.data.kind != 'keepsake' || night().players[resource.data.ownerIndex].uid == request.auth.uid)
+        && !resource.data.completed && !resource.data.skipped
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'ready', 'completed', 'skipped', 'updatedAt']);
       allow delete: if false;
     }
 

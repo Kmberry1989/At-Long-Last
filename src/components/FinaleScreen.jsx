@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 import { useMemo, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import './finale-screen.css'
@@ -107,14 +108,14 @@ export function FinaleScreen({
 
   return (
     <div className={`finale-screen-overlay theme-${themeId}`} role="dialog" aria-modal="true">
-      {toastMessage && <div className="finale-toast">{toastMessage}</div>}
+      {toastMessage && <div className="finale-toast"><BrandText text={toastMessage} /></div>}
 
       <div className="finale-folio-container">
         {/* Unspooling Memory Ribbon */}
         <div className="finale-theme-ribbon">
-          <span>{activeTheme.icon}</span>
-          <span>{activeTheme.ribbon}</span>
-          <span>{activeTheme.icon}</span>
+          <span><BrandText text={activeTheme.icon} /></span>
+          <span><BrandText text={activeTheme.ribbon} /></span>
+          <span><BrandText text={activeTheme.icon} /></span>
         </div>
 
         <div className="finale-folio-body">
@@ -145,14 +146,14 @@ export function FinaleScreen({
           {/* One-Tap Keepsake Capsule (Zero Homework) */}
           <div className="finale-capsule-card">
             <div className="finale-capsule-header">
-              <span>✦ Tonight's Keepsake Capsule ✦</span>
+              <span><BrandText text={"✦ Tonight's Keepsake Capsule ✦"} /></span>
               <span className="finale-capsule-vibe-chip">{finalSummary?.tierLabel || 'Connected'}</span>
             </div>
 
             <div className="finale-capsule-moments">
               {topMoments.map((moment, idx) => (
                 <div key={idx} className="finale-capsule-moment-item">
-                  <span className="finale-capsule-moment-icon" aria-hidden="true">{moment.icon}</span>
+                  <span className="finale-capsule-moment-icon" aria-hidden="true"><BrandText text={moment.icon} /></span>
                   <span className="finale-capsule-moment-text">{moment.title}</span>
                 </div>
               ))}
@@ -165,17 +166,13 @@ export function FinaleScreen({
               type="button"
               className="finale-btn finale-primary-btn"
               onClick={handleOpenScrapbook}
-            >
-              Open Bound Scrapbook 📖
-            </button>
+            ><BrandText text={"Open Bound Scrapbook 📖 "} /></button>
 
             <button
               type="button"
               className="finale-btn finale-secondary-btn"
               onClick={handleShareCapsule}
-            >
-              Share Keepsake Capsule 💌
-            </button>
+            ><BrandText text={"Share Keepsake Capsule 💌 "} /></button>
 
             <div className="finale-sub-actions">
               {canPlayAgain && (
@@ -184,9 +181,7 @@ export function FinaleScreen({
                   className="finale-sub-btn"
                   disabled={working}
                   onClick={onPlayAgain}
-                >
-                  Play Another Night ✦
-                </button>
+                ><BrandText text={"Play Another Night ✦ "} /></button>
               )}
             </div>
           </div>

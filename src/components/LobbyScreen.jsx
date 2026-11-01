@@ -1,3 +1,6 @@
+import { Disclosure } from './Disclosure.jsx'
+import { LoginSky } from './LoginSky.jsx'
+import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
@@ -54,7 +57,7 @@ export function LobbyScreen() {
   }
 
   return <section className={`screen lobby-screen${active ? ' active' : ' inactive'}${authScreen ? ' auth-screen' : ''}`}>
-    <div aria-hidden="true" className="lobby-backdrop"><div className="orbital orbital-a" /><div className="orbital orbital-b" /><div className="orbital orbital-c" /><div className="board-fragment fragment-a" /><div className="board-fragment fragment-b" /><div className="board-fragment fragment-c" /><div className="token token-heart">♥</div><div className="token token-die">✦</div><div className="token token-note">♫</div><div className="path-ribbon ribbon-a" /><div className="path-ribbon ribbon-b" /></div>
+    <div aria-hidden="true" className="lobby-backdrop"><LoginSky /><div className="orbital orbital-a" /><div className="orbital orbital-b" /><div className="orbital orbital-c" /><div className="board-fragment fragment-a" /><div className="board-fragment fragment-b" /><div className="board-fragment fragment-c" /><div className="token token-heart"><BrandText text={"♥"} /></div><div className="token token-die"><BrandText text={"✦"} /></div><div className="token token-note"><BrandText text={"♫"} /></div><div className="path-ribbon ribbon-a" /><div className="path-ribbon ribbon-b" /></div>
     <div className="lobby-content">
       <div className={`title-band${enabled ? ' auth-title-band' : ''}`}>
         <img alt="At Long Last" className="brand-logo" src="/assets/ui/atlonglast-wordmark-wide.png" />
@@ -63,7 +66,7 @@ export function LobbyScreen() {
         {!ready ? <h2>Loading…</h2> : !enabled ? <>
           <h2>Preview</h2><p className="support-copy">Local play</p>
           <input aria-label="Name" className="text-input" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} />
-          <PlayerPiecePicker value={avatar} onChange={setAvatar} />
+          <Disclosure label="Your piece"><PlayerPiecePicker value={avatar} onChange={setAvatar} /></Disclosure>
           <button className="primary-btn" onClick={() => launchPreview(name || 'You', avatar)} type="button">Play</button>
         </> : !isSignedIn ? <>
           <div className="auth-intro">

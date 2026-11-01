@@ -32,9 +32,9 @@ describe('DoodleDuel', () => {
     expect(screen.queryByText(/seconds? left/i)).not.toBeInTheDocument()
 
     const canvas = container.querySelector('canvas')
-    fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 })
-    fireEvent.mouseMove(canvas, { clientX: 20, clientY: 20 })
-    fireEvent.mouseUp(canvas)
+    fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10, pointerId: 1, isPrimary: true })
+    fireEvent.pointerMove(canvas, { clientX: 20, clientY: 20, pointerId: 1, isPrimary: true })
+    fireEvent.pointerUp(canvas, { pointerId: 1, isPrimary: true })
     expect(save).toBeEnabled()
 
     vi.advanceTimersByTime(120_000)

@@ -1,0 +1,63 @@
+/* Branded atmosphere is shared by sign-in, invitations, and the couple home.
+   Login form structure, providers, and behavior retain their own styles. */
+.lobby-backdrop,
+.lobby-screen.auth-screen .lobby-backdrop {
+  background: linear-gradient(180deg, #091c1e20, #091c1e70), url('/assets/brand/night-table-background.webp') center / cover no-repeat;
+}
+.lobby-backdrop > *,
+.lobby-screen.auth-screen .lobby-backdrop::before,
+.lobby-screen.auth-screen .lobby-backdrop::after { display: none; }
+.lobby-screen::before, .lobby-screen::after { display: none; }
+.lobby-screen { background: #10292b; }
+.lobby-screen .brand-logo { filter: drop-shadow(0 2px 12px #060f1260); }
+.audio-toggle, .music-options > summary { color: #f7dbaf; border-color: #b28e5e80; background: #10292be8; }
+
+/* Press is transient and independent of selected/expanded state. Animate the
+   individual scale/translate properties so existing component transforms survive. */
+.lobby-screen :is(.public-lobby-card, .primary-btn, .secondary-btn, .ghost-btn, .disclosure-toggle),
+.audio-controls :is(button, summary), .portrait-frame-grid button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 240ms cubic-bezier(.2,1.4,.4,1), translate 240ms cubic-bezier(.2,1.4,.4,1), box-shadow 180ms ease, filter 180ms ease, border-color 180ms ease;
+}
+.lobby-screen :is(.public-lobby-card, .primary-btn, .secondary-btn, .ghost-btn, .disclosure-toggle):not(:disabled):is(:active, [data-pressed=true]),
+.audio-controls :is(button, summary):not(:disabled):is(:active, [data-pressed=true]) {
+  transform: none;
+  scale: .975;
+  translate: 0 2px;
+  filter: brightness(.94);
+  box-shadow: inset 0 3px 9px #4b2d242e, 0 3px 8px #0b0d1314;
+  transition-duration: 65ms;
+}
+.lobby-screen :is(button, summary):focus-visible { outline: 3px solid #9e6739; outline-offset: 4px; }
+.secondary-btn {
+  min-height: 52px;
+  border-radius: 18px;
+  border: 1px solid #c6a274;
+  padding: 14px 18px;
+  color: #49392b;
+  background: linear-gradient(140deg, #fff7e9, #ecd7b9);
+  font: inherit;
+  font-weight: 700;
+  box-shadow: 0 8px 24px #1d292b18, inset 0 1px 0 #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lobby-screen :is(.public-lobby-card, .primary-btn, .secondary-btn, .ghost-btn, .disclosure-toggle),
+  .audio-controls :is(button, summary), .portrait-frame-grid button { transition: none; }
+  .lobby-screen :is(.public-lobby-card, .primary-btn, .secondary-btn, .ghost-btn, .disclosure-toggle):not(:disabled):is(:active, [data-pressed=true]),
+  .audio-controls :is(button, summary):is(:active, [data-pressed=true]) { scale: 1; translate: none; filter: brightness(.9); }
+}
+
+/* Script is a celebratory accent; gameplay and form text retain the reading face. */
+.pairing-title h2, .finale-headline, .milestones-hub-title,
+.keepsake-front-title, .story-moment-title {
+  font-family: 'Petit Formal Script', 'Snell Roundhand', 'Apple Chancery', cursive;
+  font-weight: 400;
+  letter-spacing: -.025em;
+  line-height: 1.55;
+  text-wrap: balance;
+}
+.pairing-title h2 { font-size: clamp(25px, 6.4vw, 38px); }
+.finale-headline { font-size: clamp(30px, 7.5vw, 48px); }
+.keepsake-front-title { font-size: clamp(23px, 5vw, 34px); }
+.scrapbook-wavelength-scorecard { white-space: pre-line; overflow-wrap: anywhere; line-height: 1.7; color: var(--app-ink); padding: 14px; background: #fff8ef; border: 1px solid #d9c3a6; border-radius: 14px; }

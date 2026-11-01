@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 import { nightChecklistProgress } from '../features/session/sessionLogic.js'
 
 /**
@@ -23,7 +24,7 @@ export function ChecklistRail({ session }) {
           key={item.id}
           title={item.label}
         >
-          <span aria-hidden="true">{item.done ? '✓' : '○'}</span>
+          <span aria-hidden="true"><BrandText text={item.done ? '✓' : '○'} /></span>
           <span className="checklist-label">{item.label}</span>
         </span>
       ))}

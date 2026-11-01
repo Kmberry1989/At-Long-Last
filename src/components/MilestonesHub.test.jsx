@@ -147,7 +147,7 @@ describe('MilestonesHub (Screen 7: Milestones & Year-in-Review Hub)', () => {
     expect(screen.getByText('8')).toBeInTheDocument() // 8 nights
     expect(screen.getByText('42')).toBeInTheDocument() // 42 hearts
 
-    const shareBtn = screen.getByRole('button', { name: /Share Celestial Story 💌/i })
+    const shareBtn = screen.getByRole('button', { name: /Share Celestial Story/i })
     await act(async () => {
       fireEvent.click(shareBtn)
     })

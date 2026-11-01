@@ -1,3 +1,4 @@
+import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useRef, useState } from 'react'
 
 const LOVE_TANK_GOAL = 24
@@ -53,7 +54,7 @@ export function LoveTank({ hearts, onOpenGuide }) {
       type="button"
     >
       <span className="love-tank-liquid" style={{ height: `${fillPercent}%` }} aria-hidden="true" />
-      <span className="love-tank-label" aria-hidden="true">♥</span>
+      <span className="love-tank-label" aria-hidden="true"><BrandText text={"♥"} /></span>
       <strong>{displayed}</strong>
     </button>
   )

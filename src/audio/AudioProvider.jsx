@@ -146,7 +146,7 @@ export function createAudioEngine(suppliedContext = null) {
     oscillator.stop(when + duration + 0.05)
   }
 
-  function sustainStrings(chord, when) {
+  function sustainStrings(chord, when, dynamics = 1) {
     chord.slice(0, 3).forEach((frequency) => {
       for (const detune of [-5, 5]) {
         const oscillator = context.createOscillator()
@@ -155,8 +155,13 @@ export function createAudioEngine(suppliedContext = null) {
         oscillator.frequency.value = frequency
         oscillator.detune.value = detune
         envelope.gain.setValueAtTime(0.0001, when)
-        envelope.gain.exponentialRampToValueAtTime(0.012, when + 4)
-        envelope.gain.setTargetAtTime(0.0001, when + 12, 2)
+        envelope.gain.exponentialRampToValueAtTime(0.012 * dynamics, when + 4)
+        envelope.gain.exponentialRampToValueAtTime(0.006 * dynamics, when + 9)
+        envelope.gain.exponentialRampToValueAtTime(0.015 * dynamics, when + 14)
+        envelope.gain.setTargetAtTime(0.0001, when + 17, 1.5)
+        oscillator.detune.setValueAtTime(detune, when)
+        oscillator.detune.linearRampToValueAtTime(detune + 3, when + 8)
+        oscillator.detune.linearRampToValueAtTime(detune - 2, when + 16)
         oscillator.connect(envelope)
         envelope.connect(stringFilter)
         activeNotes.add(oscillator)
@@ -165,6 +170,54 @@ export function createAudioEngine(suppliedContext = null) {
         oscillator.stop(when + 23)
       }
     })
+  }
+
+  function swellingPad(chord, when, level) {
+    chord.forEach((frequency, index) => {
+      const oscillator = context.createOscillator()
+      const envelope = context.createGain()
+      oscillator.type = index % 2 ? 'triangle' : 'sine'
+      oscillator.frequency.value = frequency / (index === 0 ? 2 : 1)
+      oscillator.detune.value = index % 2 ? 7 : -7
+      envelope.gain.setValueAtTime(.0001, when)
+      envelope.gain.exponentialRampToValueAtTime(.014 * level, when + 5)
+      envelope.gain.exponentialRampToValueAtTime(.007 * level, when + 11)
+      envelope.gain.exponentialRampToValueAtTime(.019 * level, when + 16)
+      envelope.gain.exponentialRampToValueAtTime(.0001, when + 27)
+      oscillator.connect(envelope); envelope.connect(stringFilter)
+      activeNotes.add(oscillator)
+      oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); activeNotes.delete(oscillator) }
+      oscillator.start(when); oscillator.stop(when + 27.1)
+    })
+  }
+
+  function timpani(frequency, when, softer = false) {
+    // A felt-mallet attack and inharmonic membrane modes, with a gentle pitch fall.
+    ;[1, 1.505, 2.08].forEach((partial, index) => {
+      const oscillator = context.createOscillator()
+      const envelope = context.createGain()
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(frequency * partial * 1.09, when)
+      oscillator.frequency.exponentialRampToValueAtTime(frequency * partial, when + .16)
+      envelope.gain.setValueAtTime(.0001, when)
+      envelope.gain.exponentialRampToValueAtTime((softer ? .095 : .16) / (1 + index * 3), when + .018)
+      envelope.gain.exponentialRampToValueAtTime(.0001, when + 2.8 / (1 + index * .4))
+      oscillator.connect(envelope); envelope.connect(lowpass)
+      activeNotes.add(oscillator)
+      oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); activeNotes.delete(oscillator) }
+      oscillator.start(when); oscillator.stop(when + 3)
+    })
+  }
+
+  function pizzicato(frequency, when) {
+    softNote(frequency, when, .85, .045, stringFilter, 'triangle')
+    softNote(frequency * 2.003, when, .32, .012, musicBoxBus)
+  }
+
+  function musicBoxPiano(frequency, when) {
+    softNote(frequency, when, 4.5, .045, musicBoxBus)
+    softNote(frequency * 2.756, when, 1.7, .007, musicBoxBus)
+    softNote(frequency * 5.404, when, .8, .0025, musicBoxBus)
   }
 
   function uprightBass(frequency, when, duration = 18) {
@@ -212,7 +265,8 @@ export function createAudioEngine(suppliedContext = null) {
       pluck(chord[0] / 2, when, 0.28)
       chord.forEach((frequency, index) => pluck(frequency, when + index * 0.2, 0.13))
       softNote(chord[0] / 4, when, 12, 0.24, lowpass)
-      sustainStrings(chord, when)
+      sustainStrings(chord, when, frame.padLevel)
+      if (tick % 16 === 0) swellingPad(chord, when, frame.padLevel)
       if (stage !== 'menu') uprightBass(chord[0] / 2, when)
     }
     if (note >= 0) pluck(chord[note] * 2, when, 0.11)
@@ -228,6 +282,9 @@ export function createAudioEngine(suppliedContext = null) {
     if (stage !== 'menu' && bassStyle === 'walking' && (tick % 8 === 4 || tick % 8 === 6)) {
       uprightBass(chord[tick % 8 === 4 ? 2 : 1] / 2, when, tick % 8 === 4 ? 5 : 4)
     }
+    if (frame.pizzicato >= 0) pizzicato(chord[frame.pizzicato] * 2, when + .5)
+    if (frame.musicBox >= 0) musicBoxPiano(chord[frame.musicBox] * 4, when + .8)
+    for (let hit = 0; hit < frame.timpaniCount; hit++) timpani(chord[0] / 3, when + hit * .46, hit > 0)
     if (frame.pulse) {
       for (let hit = 0; hit < frame.pulseCount; hit += 1) {
         const at = when + hit * 0.32
