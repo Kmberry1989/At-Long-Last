@@ -427,3 +427,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Local two-phone Firebase-emulator walkthrough paired two new test users, saved four rolls and private comparison inputs per player, verified player A could advance while player B remained at zero, then verified player B advanced independently. The walkthrough finished with eight comparisons collected per player and no browser errors; four duel cards remained outstanding, so the browser walkthrough stopped before the reveal screen. Focused model tests separately verify deferred reveal, independent acknowledgements, and a single finale artifact.
 - Verification: 44 focused tests passed; lint and production build passed. Offline Web Audio rendered a 100-second sample with dice impacts/rattle (peak 0.0607, RMS 0.00502; no clipping or silence). Captures for all nine board skins are in `output/playwright/current/board-*`.
 - Remaining release evidence: local browser sound output was rendered, not evaluated on a physical device; no production deployment has been performed yet.
+
+## 2026-11-01 — Production release verification
+
+- Commit `ef021eb` was pushed to `main` and its Vercel production deployment reached READY. The live lobby and all nine panoramic backgrounds plus all four remix fabric SVGs returned HTTP 200.
+- Firestore project `at-long-last` is Standard edition. The local authenticated two-player emulator flow passed again with four independent rolls and eight comparisons per player, with no page errors. All 48 Firestore emulator rules tests passed. `firebase deploy --only firestore:rules` completed and reported the current rules were already up to date.
+- Nine board captures were refreshed under `.playwright-mcp/board-fabric-review/board-*`. Production multiplayer was not exercised; the production account/game reset was intentionally preserved.
