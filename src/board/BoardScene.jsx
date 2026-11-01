@@ -174,20 +174,28 @@ export function calculateStepPath(from, steps, boardSize = 20) {
   return path
 }
 
-function createSingleDie(value, velvetTexture, isDie2 = false) {
+function createSingleDie(value, skin, isDie2 = false) {
   const die = new THREE.Group()
+  const bodyGeometry = new RoundedBoxGeometry(0.96, 0.96, 0.96, 5, 0.16)
   const body = new THREE.Mesh(
-    new RoundedBoxGeometry(0.96, 0.96, 0.96, 5, 0.16),
+    bodyGeometry,
     new THREE.MeshStandardMaterial({
-      color: isDie2 ? '#16141a' : '#1e1c22',
-      map: velvetTexture,
-      metalness: 0.16,
-      roughness: 0.82,
+      color: isDie2 ? skin.alternate : skin.face,
+      emissive: isDie2 ? skin.alternate : skin.face,
+      emissiveIntensity: 0.12,
+      metalness: 0.22,
+      roughness: 0.48,
     }),
   )
   body.castShadow = true
   body.receiveShadow = true
   die.add(body)
+  const edge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(bodyGeometry, 34),
+    new THREE.LineBasicMaterial({ color: skin.edge, transparent: true, opacity: 0.72 }),
+  )
+  edge.scale.setScalar(1.002)
+  die.add(edge)
 
   const pipLayouts = {
     1: [[0, 0]],
@@ -197,11 +205,7 @@ function createSingleDie(value, velvetTexture, isDie2 = false) {
     5: [[-0.23, -0.23], [0.23, -0.23], [0, 0], [-0.23, 0.23], [0.23, 0.23]],
     6: [[-0.23, -0.26], [-0.23, 0], [-0.23, 0.26], [0.23, -0.26], [0.23, 0], [0.23, 0.26]],
   }
-  const pipMaterial = new THREE.MeshStandardMaterial({
-    color: '#f5c768',
-    metalness: 0.84,
-    roughness: 0.22,
-  })
+  const pipMaterial = new THREE.MeshStandardMaterial({ color: skin.pip, emissive: skin.pip, emissiveIntensity: 0.22, metalness: 0.42, roughness: 0.28 })
   const pipGeometry = new THREE.SphereGeometry(0.07, 14, 10)
 
   const pipGroups = {}
@@ -233,10 +237,10 @@ function setPrimitiveDieValue(die, value) {
   die.userData.value = resolvedValue
 }
 
-function createPrimitiveDicePair(initialValues = [1, 1], velvetTexture) {
+function createPrimitiveDicePair(initialValues = [1, 1], diceSkin = getBoardThemeById('cozy').diceSkin) {
   const dicePair = new THREE.Group()
-  const die1 = createSingleDie(initialValues[0], velvetTexture, false)
-  const die2 = createSingleDie(initialValues[1], velvetTexture, true)
+  const die1 = createSingleDie(initialValues[0], diceSkin, false)
+  const die2 = createSingleDie(initialValues[1], diceSkin, true)
 
   die1.position.set(-2.0, 0.62, 0.45)
   die1.rotation.set(-0.04, 0.32, -0.06)
@@ -276,8 +280,8 @@ function settlePrimitiveDice(dicePair, values) {
   die2.scale.setScalar(1)
 }
 
-export function createPrimitiveDie(value, velvetTexture) {
-  return createPrimitiveDicePair(resolveDiceValues(value), velvetTexture)
+export function createPrimitiveDie(value, diceSkin) {
+  return createPrimitiveDicePair(resolveDiceValues(value), diceSkin)
 }
 
 export function settlePrimitiveDie(die, value) {
@@ -403,6 +407,8 @@ export function BoardScene({
   dice = null,
   lastRoll,
   onPieceStep = null,
+  onDiceImpact = null,
+  rollGesture = null,
   pacingMode = 'freeFlow',
   phase = null,
   players,
@@ -417,6 +423,8 @@ export function BoardScene({
   const lastRollRef = useRef(lastRoll)
   const dicePropRef = useRef(dice)
   const onPieceStepRef = useRef(onPieceStep)
+  const onDiceImpactRef = useRef(onDiceImpact)
+  const rollGestureRef = useRef(rollGesture)
   const phaseRef = useRef(phase)
   const boardPath = useMemo(() => buildBoardPath(), [])
   const boardTheme = useMemo(
@@ -454,6 +462,11 @@ export function BoardScene({
   useEffect(() => {
     onPieceStepRef.current = onPieceStep
   }, [onPieceStep])
+
+  useEffect(() => {
+    onDiceImpactRef.current = onDiceImpact
+    rollGestureRef.current = rollGesture
+  }, [onDiceImpact, rollGesture])
 
   useEffect(() => {
     lastRollRef.current = lastRoll
@@ -556,7 +569,6 @@ export function BoardScene({
       textureLoader.load(boardTheme.surfaces.inset.texture),
       ...boardTheme.surfaces.inset.repeat,
     )
-
     const floor = new THREE.Mesh(
       new THREE.CylinderGeometry(16, 16, 1.2, 40),
       new THREE.MeshStandardMaterial({
@@ -623,10 +635,7 @@ export function BoardScene({
     insetPiping.castShadow = true
     scene.add(insetPiping)
 
-    const dice = createPrimitiveDicePair(
-      resolveDiceValues(lastRollRef.current || 2, dicePropRef.current),
-      insetVelvet,
-    )
+    const dice = createPrimitiveDicePair(resolveDiceValues(lastRollRef.current || 2, dicePropRef.current), boardTheme.diceSkin)
     let dieRoll = null
     dice.userData.startRoll = (value, explicitDice) => {
       const resolved = resolveDiceValues(value, explicitDice)
@@ -634,6 +643,8 @@ export function BoardScene({
         finalValues: resolved,
         finalValue: resolved[0] + resolved[1],
         startedAt: latestSceneTime,
+        gesture: rollGestureRef.current,
+        lastImpactStep: -1,
       }
     }
     dice.userData.finishRoll = (value, explicitDice) => {
@@ -647,12 +658,12 @@ export function BoardScene({
     scene.add(boardGroup)
 
     const routeMaterial = new THREE.MeshStandardMaterial({
-      color: '#583747',
+      color: boardTheme.diceSkin.alternate,
       metalness: 0.18,
       roughness: 0.67,
     })
     const routeInlayMaterial = new THREE.MeshStandardMaterial({
-      color: '#d8b67d',
+      color: boardTheme.diceSkin.edge,
       metalness: 0.65,
       roughness: 0.36,
     })
@@ -712,8 +723,7 @@ export function BoardScene({
       const panel = new THREE.Mesh(
         new RoundedBoxGeometry(1.92, 0.09, 1.92, 4, 0.14),
         new THREE.MeshStandardMaterial({
-          color: style.tint,
-          map: style.texture === 'rose' ? insetVelvet : tabletopVelvet,
+          color: boardTheme.spaceColors[space.type] || style.tint,
           metalness: 0.02,
           roughness: 0.9,
         }),
@@ -824,59 +834,19 @@ export function BoardScene({
     dracoLoader.setDecoderPath(DRACO_GLTF_CONFIG)
     const loader = new GLTFLoader()
     loader.setDRACOLoader(dracoLoader)
-    const loadedDecorations = new Set()
-    const failedDecorations = new Set()
     const loadedPlayerAvatars = new Set()
-    const animatedDecorations = []
-    const propGlows = []
-
-    boardTheme.decorations.forEach((decoration) => {
-      loader.load(
-        decoration.model,
-        (gltf) => {
-          if (disposed) {
-            disposeObject3D(gltf.scene)
-            return
-          }
-
-          const model = gltf.scene
-          fitModel(model, decoration.size)
-          model.rotation.y = decoration.rotation
-          model.position.add(new THREE.Vector3(...decoration.position))
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = true
-              child.receiveShadow = true
-            }
-          })
-          model.userData.decorationId = decoration.id
-          scene.add(model)
-          loadedDecorations.add(decoration.id)
-          if (decoration.motion) {
-            animatedDecorations.push({
-              model,
-              motion: decoration.motion,
-              baseY: model.position.y,
-              baseRotation: model.rotation.y,
-            })
-          }
-          if (decoration.glow) {
-            const propLight = new THREE.PointLight(
-              decoration.glow.color,
-              decoration.glow.intensity,
-              decoration.glow.distance,
-            )
-            propLight.position.set(decoration.position[0], 1.35, decoration.position[2])
-            scene.add(propLight)
-            propGlows.push({ light: propLight, intensity: decoration.glow.intensity })
-          }
-        },
-        undefined,
-        () => {
-          failedDecorations.add(decoration.id)
-        },
-      )
-    })
+    const overlayTexture = textureLoader.load(boardTheme.skinOverlay)
+    overlayTexture.colorSpace = THREE.SRGBColorSpace
+    overlayTexture.anisotropy = 8
+    const boardSkin = new THREE.Mesh(
+      new THREE.PlaneGeometry(16.94, 12.18),
+      new THREE.MeshBasicMaterial({ map: overlayTexture, transparent: true, opacity: 0.66, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1 }),
+    )
+    boardSkin.name = `2d-theme-skin-${boardTheme.id}`
+    boardSkin.rotation.x = -Math.PI / 2
+    boardSkin.position.y = 0.126
+    boardSkin.renderOrder = 2
+    scene.add(boardSkin)
 
     players.forEach((player, index) => {
       const avatar = resolvePlayerAvatar(player.avatar)
@@ -921,15 +891,6 @@ export function BoardScene({
       latestSceneTime = now + manualTimeOffset
       const elapsed = (latestSceneTime - startedAt) / 1000
       environment.update(elapsed, reducedMotion)
-      animatedDecorations.forEach(({ model, motion, baseY, baseRotation }, index) => {
-        if (reducedMotion) return
-        if (motion === 'flutter') model.position.y = baseY + Math.sin(elapsed * 2.4 + index) * 0.22
-        if (motion === 'perch') model.rotation.y = baseRotation + Math.sin(elapsed * 0.7) * 0.09
-      })
-      propGlows.forEach(({ light, intensity }, index) => {
-        light.intensity = reducedMotion ? intensity : intensity * (0.91 + Math.sin(elapsed * 2.2 + index) * 0.09)
-      })
-
       const activePos = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
       const otherIndex = (activePlayerIndexRef.current + 1) % 2
       const otherPos = boardPath[targetIndicesRef.current[otherIndex]]?.position || activePos
@@ -967,11 +928,14 @@ export function BoardScene({
         const die2 = dice.userData.die2
 
         setPrimitiveDieValue(die1, progress >= 1 ? dieRoll.finalValues[0] : tumbleFace1)
-        die1.position.x = -2.0 + lift1 * 2.2 + Math.sin(progress * Math.PI * 2) * 0.25
-        die1.position.y = 0.62 + lift1 * 2.3
-        die1.position.z = 0.45 + lift1 * 0.55
-        die1.rotation.x = -0.04 + eased * (Math.PI * 4 + dieRoll.finalValues[0] * 0.18)
-        die1.rotation.y = 0.32 + eased * (Math.PI * 5 + dieRoll.finalValues[0] * 0.22)
+        const gesture = dieRoll.gesture || {}
+        const direction = gesture.direction || { x: 0.55, y: -0.3 }
+        const throwPower = 0.78 + Math.max(0, Math.min(1, gesture.power || 0)) * 0.72
+        die1.position.x = -2.0 + lift1 * (1.2 + direction.x * 2.1) + Math.sin(progress * Math.PI * 2) * 0.25
+        die1.position.y = 0.62 + lift1 * 2.05 * throwPower
+        die1.position.z = 0.45 + lift1 * (0.35 + direction.y * 1.4)
+        die1.rotation.x = -0.04 + eased * (Math.PI * (3.5 + throwPower) + dieRoll.finalValues[0] * 0.18)
+        die1.rotation.y = 0.32 + eased * (Math.PI * (4.2 + throwPower) + dieRoll.finalValues[0] * 0.22 + direction.x)
         die1.rotation.z = -0.06 + eased * Math.PI * 3
         die1.scale.setScalar(1 + lift1 * 1.05)
 
@@ -980,13 +944,19 @@ export function BoardScene({
         const lift2 = Math.sin(prog2 * Math.PI)
         const tumbleFace2 = 1 + ((Math.floor(prog2 * 20) + dieRoll.finalValues[1]) % 6)
         setPrimitiveDieValue(die2, prog2 >= 1 ? dieRoll.finalValues[1] : tumbleFace2)
-        die2.position.x = -3.25 + lift2 * 2.5 - Math.sin(prog2 * Math.PI * 2) * 0.28
-        die2.position.y = 0.62 + lift2 * 2.5
-        die2.position.z = 0.82 + lift2 * 0.35
-        die2.rotation.x = 0.08 + eased2 * (Math.PI * 5 + dieRoll.finalValues[1] * 0.16)
-        die2.rotation.y = -0.26 + eased2 * (Math.PI * 4 + dieRoll.finalValues[1] * 0.24)
+        die2.position.x = -3.25 + lift2 * (1.6 + direction.x * 1.8) - Math.sin(prog2 * Math.PI * 2) * 0.28
+        die2.position.y = 0.62 + lift2 * 2.2 * throwPower
+        die2.position.z = 0.82 + lift2 * (0.2 - direction.y * 1.3)
+        die2.rotation.x = 0.08 + eased2 * (Math.PI * (4.4 + throwPower) + dieRoll.finalValues[1] * 0.16)
+        die2.rotation.y = -0.26 + eased2 * (Math.PI * (3.6 + throwPower) + dieRoll.finalValues[1] * 0.24 - direction.x)
         die2.rotation.z = 0.12 - eased2 * Math.PI * 3.2
         die2.scale.setScalar(1 + lift2 * 1.05)
+
+        const impactStep = Math.min(8, Math.floor(progress * 9))
+        if (impactStep > dieRoll.lastImpactStep) {
+          dieRoll.lastImpactStep = impactStep
+          onDiceImpactRef.current?.({ step: impactStep, energy: Math.max(0.24, 0.86 - impactStep * 0.07), side: impactStep % 2 })
+        }
 
         if (progress >= 1) {
           const finalValues = dieRoll.finalValues
@@ -1042,21 +1012,21 @@ export function BoardScene({
           label: boardTheme.label,
           round,
           environment: boardTheme.environment.mode,
+          panorama: boardTheme.environment.panorama,
         },
-        decorations: boardTheme.decorations.map((decoration) => ({
+        decorations: [],
+        hiddenDecorations: boardTheme.decorations.map((decoration) => ({
           id: decoration.id,
           label: decoration.label,
-          failed: failedDecorations.has(decoration.id),
-          loaded: loadedDecorations.has(decoration.id),
         })),
         dice: {
-          construction: 'rounded-box-and-sphere primitives with ebony and gold finish',
+          construction: 'rounded-box-and-sphere primitives with theme finish',
           rolling: Boolean(dieRoll),
           sum: dice.userData.values[0] + dice.userData.values[1],
           values: dice.userData.values,
         },
         die: {
-          construction: 'rounded-box-and-sphere primitives with ebony and gold finish',
+          construction: 'rounded-box-and-sphere primitives with theme finish',
           rolling: Boolean(dieRoll),
           value: dice.userData.value,
         },
@@ -1073,9 +1043,11 @@ export function BoardScene({
           : null,
         mode: 'board',
         surfaces: {
-          boardInset: boardTheme.surfaces.inset.texture,
+          boardInset: { color: boardTheme.surfaces.inset.color, texture: boardTheme.surfaces.inset.texture },
           tabletop: boardTheme.surfaces.tabletop.texture,
-          tiles: 'raised velvet tiles with connected inlaid route',
+          skinOverlay: boardTheme.skinOverlay,
+          spaceColors: boardTheme.spaceColors,
+          tiles: 'theme-colored raised spaces with connected inlaid route',
         },
         path: {
           branchCount: 0,

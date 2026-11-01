@@ -1,4 +1,5 @@
 import { BrandIcon } from './BrandIcon.jsx'
+import { getBoardThemeById } from '../board/boardThemes.js'
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 
@@ -11,7 +12,7 @@ const PIP_COORDINATES = {
   6: [[28, 25], [28, 50], [28, 75], [72, 25], [72, 50], [72, 75]],
 }
 
-export function DieFace({ value = 1, isDie2 = false, offset = { x: 0, y: 0, rot: 0 } }) {
+export function DieFace({ value = 1, isDie2 = false, offset = { x: 0, y: 0, rot: 0 }, skin = getBoardThemeById('cozy').diceSkin }) {
   const pips = PIP_COORDINATES[Math.min(6, Math.max(1, value))] || PIP_COORDINATES[1]
   const baseRotation = isDie2 ? 8 : -6
 
@@ -26,14 +27,12 @@ export function DieFace({ value = 1, isDie2 = false, offset = { x: 0, y: 0, rot:
       <svg className="die-svg" viewBox="0 0 100 100" width="100%" height="100%">
         <defs>
           <radialGradient id={`die-grad-${isDie2 ? '2' : '1'}`} cx="35%" cy="30%" r="65%">
-            <stop offset="0%" stopColor="#2c2833" />
-            <stop offset="60%" stopColor="#18161c" />
-            <stop offset="100%" stopColor="#0e0d11" />
+            <stop offset="0%" stopColor={isDie2 ? skin.alternate : skin.face} />
+            <stop offset="100%" stopColor={isDie2 ? skin.alternate : skin.face} />
           </radialGradient>
-          <radialGradient id="pip-grad" cx="40%" cy="35%" r="60%">
-            <stop offset="0%" stopColor="#ffecb3" />
-            <stop offset="60%" stopColor="#f5c768" />
-            <stop offset="100%" stopColor="#cfa13a" />
+          <radialGradient id={`pip-grad-${isDie2 ? '2' : '1'}`} cx="40%" cy="35%" r="60%">
+            <stop offset="0%" stopColor="#fff9e8" />
+            <stop offset="100%" stopColor={skin.pip} />
           </radialGradient>
           <filter id="die-shadow" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000000" floodOpacity="0.55" />
@@ -47,8 +46,8 @@ export function DieFace({ value = 1, isDie2 = false, offset = { x: 0, y: 0, rot:
           rx="18"
           ry="18"
           fill={`url(#die-grad-${isDie2 ? '2' : '1'})`}
-          stroke="#42394a"
-          strokeWidth="2.5"
+          stroke={skin.edge}
+          strokeWidth="3.5"
           filter="url(#die-shadow)"
         />
         {pips.map(([cx, cy], i) => (
@@ -57,9 +56,9 @@ export function DieFace({ value = 1, isDie2 = false, offset = { x: 0, y: 0, rot:
             cx={cx}
             cy={cy}
             r="8"
-            fill="url(#pip-grad)"
-            stroke="#967527"
-            strokeWidth="0.8"
+            fill={`url(#pip-grad-${isDie2 ? '2' : '1'})`}
+            stroke={skin.edge}
+            strokeWidth="1.1"
           />
         ))}
       </svg>
@@ -74,6 +73,7 @@ export function TactileDiceCast({
   lastDice = [1, 1],
   onRoll,
   statusLabel = '',
+  themeId = 'cozy',
 }) {
   const { playDiceRattle, playDiceCast } = useAudio()
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0, rot: 0 })
@@ -81,6 +81,8 @@ export function TactileDiceCast({
   const lastRattleTimeRef = useRef(0)
   const pointerStartRef = useRef(null)
   const activePointerIdRef = useRef(null)
+  const diceSkin = getBoardThemeById(themeId)?.diceSkin || getBoardThemeById('cozy').diceSkin
+  const defaultGesture = { direction: { x: 0.42, y: -0.36 }, power: 0.46, source: 'tap' }
 
   const triggerHaptic = (ms = 12) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -92,11 +94,11 @@ export function TactileDiceCast({
     }
   }
 
-  const handleRattleFeedback = () => {
+  const handleRattleFeedback = (energy = 0.2) => {
     const now = performance.now()
     if (now - lastRattleTimeRef.current > 75) {
       lastRattleTimeRef.current = now
-      playDiceRattle?.()
+      playDiceRattle?.({ energy })
       triggerHaptic(14)
     }
   }
@@ -111,7 +113,7 @@ export function TactileDiceCast({
       time: performance.now(),
     }
     setIsRubbing(true)
-    handleRattleFeedback()
+    handleRattleFeedback(0.16)
     if (event.currentTarget.setPointerCapture) {
       try {
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -129,7 +131,7 @@ export function TactileDiceCast({
     const distance = Math.hypot(deltaX, deltaY)
 
     if (distance > 6) {
-      handleRattleFeedback()
+      handleRattleFeedback(Math.min(1, distance / 100))
     }
 
     // Limit drag to reasonable thumb zone travel (-60px up, +/-40px sides)
@@ -160,7 +162,13 @@ export function TactileDiceCast({
     if (upwardFlick || tapDistance < 14 || Math.abs(deltaX) > 20) {
       playDiceCast?.()
       triggerHaptic(28)
-      onRoll?.()
+      const durationMs = Math.max(1, performance.now() - start.time)
+      onRoll?.({
+        direction: { x: Math.max(-1, Math.min(1, deltaX / 96)), y: Math.max(-1, Math.min(1, -deltaY / 96)) },
+        power: Math.max(0.18, Math.min(1, tapDistance / 110 + 0.18)),
+        durationMs,
+        source: 'touch',
+      })
     }
   }
 
@@ -177,7 +185,7 @@ export function TactileDiceCast({
       if (canRoll && !disabled && !isRolling) {
         playDiceCast?.()
         triggerHaptic(25)
-        onRoll?.()
+        onRoll?.(defaultGesture)
       }
     }
   }
@@ -194,6 +202,8 @@ export function TactileDiceCast({
   return (
     <div
       className={`tactile-dice-container${isRolling ? ' is-rolling' : ''}${isRubbing ? ' is-rubbing' : ''}${!canRoll ? ' is-disabled' : ''}`}
+      data-theme={themeId}
+      style={{ '--die-face': diceSkin.face, '--die-alternate': diceSkin.alternate, '--die-pip': diceSkin.pip, '--die-edge': diceSkin.edge }}
       aria-label="Tactile dice roll area"
     >
       <div
@@ -215,6 +225,7 @@ export function TactileDiceCast({
           <DieFace
             value={lastDice?.[0] || 1}
             isDie2={false}
+            skin={diceSkin}
             offset={{
               x: dragOffset.x * 0.7 - (isRubbing ? 4 : 0),
               y: dragOffset.y * 0.9,
@@ -224,6 +235,7 @@ export function TactileDiceCast({
           <DieFace
             value={lastDice?.[1] || 1}
             isDie2={true}
+            skin={diceSkin}
             offset={{
               x: dragOffset.x * 0.9 + (isRubbing ? 4 : 0),
               y: dragOffset.y * 0.8,
@@ -251,7 +263,7 @@ export function TactileDiceCast({
         onClick={() => {
           playDiceCast?.()
           triggerHaptic(25)
-          onRoll?.()
+          onRoll?.(defaultGesture)
         }}
         aria-label={isRolling ? 'Rolling two dice' : canRoll ? 'Roll 2 Dice (2–12)' : statusLabel || 'Waiting'}
       >

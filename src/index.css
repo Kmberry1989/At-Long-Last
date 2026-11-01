@@ -1381,6 +1381,142 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   background: linear-gradient(180deg, #0c1716a3, #08100fd1), url('/assets/backgrounds/romance-game-forest.webp') center / cover no-repeat;
 }
 
+/* Let the chosen board mood tint the play frame and its controls. */
+.game-screen[data-board-theme] {
+  --night-glow: #c58a5b;
+  --night-edge: #ddbc8c;
+  --night-action-a: #f2d38f;
+  --night-action-b: #c96872;
+  --night-card-top: #fff0e4;
+  --night-card-bottom: #eed6dc;
+  --night-card-ink: #352432;
+  --night-card-accent: #aa5b72;
+  --dice-pad: #281d30;
+  background-image:
+    radial-gradient(ellipse at 50% 14%, color-mix(in srgb, var(--night-glow) 28%, transparent), transparent 48%),
+    linear-gradient(180deg, #0c17166e, #08100fb8),
+    url('/assets/backgrounds/romance-game-forest.webp');
+}
+.game-screen[data-board-theme="garden"] {
+  --night-glow: #83b77d;
+  --night-edge: #b8d3a0;
+  --night-action-a: #c4e6ad;
+  --night-action-b: #d07c86;
+  --night-card-top: #f3efd9;
+  --night-card-bottom: #dbe3ca;
+  --night-card-ink: #253932;
+  --night-card-accent: #587f62;
+  --dice-pad: #1c3028;
+}
+.game-screen[data-board-theme="beach"] {
+  --night-glow: #6fc4d0;
+  --night-edge: #b9e2db;
+  --night-action-a: #f5d791;
+  --night-action-b: #e88b78;
+  --night-card-top: #f0f7f0;
+  --night-card-bottom: #cce4e3;
+  --night-card-ink: #173f50;
+  --night-card-accent: #248092;
+  --dice-pad: #163746;
+}
+.game-screen[data-board-theme="city"] {
+  --night-glow: #a79ae2;
+  --night-edge: #cec0ed;
+  --night-action-a: #e6c5a1;
+  --night-action-b: #bf728e;
+  --night-card-top: #eee6f4;
+  --night-card-bottom: #d8cde7;
+  --night-card-ink: #312541;
+  --night-card-accent: #7a5b9b;
+  --dice-pad: #24203b;
+}
+.game-screen[data-board-theme="holiday"] {
+  --night-glow: #bf6c65;
+  --night-edge: #d5b67a;
+  --night-action-a: #e7d18d;
+  --night-action-b: #a64d58;
+  --night-card-top: #f7f4e8;
+  --night-card-bottom: #d6e5e7;
+  --night-card-ink: #183845;
+  --night-card-accent: #9b6d41;
+  --dice-pad: #193440;
+}
+.game-screen[data-board-theme="starlit-rooftop"] { --night-glow: #a7b9fb; --night-edge: #c0c5ea; --night-action-a: #d4d7f3; --night-action-b: #817bb7; --night-card-top: #eeebfa; --night-card-bottom: #d2d5ec; --night-card-ink: #252844; --night-card-accent: #6e6dba; --dice-pad: #17243b; }
+.game-screen[data-board-theme="autumn-embers"] { --night-glow: #e9b785; --night-edge: #d6ae75; --night-action-a: #f2d29b; --night-action-b: #b96448; --night-card-top: #f7e9d0; --night-card-bottom: #ebcda9; --night-card-ink: #493027; --night-card-accent: #a65e3d; --dice-pad: #492f30; }
+.game-screen[data-board-theme="cherry-blossom"] { --night-glow: #ffe3eb; --night-edge: #edbed5; --night-action-a: #f8dce7; --night-action-b: #d2789e; --night-card-top: #fff0f4; --night-card-bottom: #efd1e1; --night-card-ink: #442a42; --night-card-accent: #aa5c7b; --dice-pad: #442b49; }
+.game-screen[data-board-theme="aurora-veil"] { --night-glow: #86e8d1; --night-edge: #91d4c6; --night-action-a: #b7ebd6; --night-action-b: #4b9d9e; --night-card-top: #e7f7f2; --night-card-bottom: #c6e5e4; --night-card-ink: #193b43; --night-card-accent: #277f7c; --dice-pad: #103842; }
+.game-screen[data-board-theme] .bottom-tray {
+  border-color: color-mix(in srgb, var(--night-edge) 42%, transparent);
+  box-shadow: 0 18px 48px #05080772, 0 0 34px color-mix(in srgb, var(--night-glow) 13%, transparent);
+  background: linear-gradient(152deg, color-mix(in srgb, var(--night-card-top) 94%, transparent), color-mix(in srgb, var(--night-card-bottom) 94%, transparent));
+  color: var(--night-card-ink);
+}
+.game-screen[data-board-theme] .bottom-tray .primary-btn:not(.alt) {
+  color: #261c1a;
+  background: linear-gradient(118deg, var(--night-action-a), var(--night-action-b));
+  border-color: color-mix(in srgb, var(--night-edge) 70%, transparent);
+  box-shadow: 0 9px 26px color-mix(in srgb, var(--night-glow) 22%, transparent);
+}
+.game-screen[data-board-theme] .overlay-card {
+  border-color: color-mix(in srgb, var(--night-edge) 48%, transparent);
+  box-shadow: 0 20px 64px #05080780, 0 0 36px color-mix(in srgb, var(--night-glow) 14%, transparent);
+  background: linear-gradient(152deg, color-mix(in srgb, var(--night-card-top) 96%, transparent), color-mix(in srgb, var(--night-card-bottom) 94%, transparent));
+  color: var(--night-card-ink);
+}
+.game-screen[data-board-theme] .activity-option-card,
+.game-screen[data-board-theme] .activity-card-face,
+.game-screen[data-board-theme] .activity-reveal-card {
+  background: linear-gradient(155deg, color-mix(in srgb, var(--night-card-top) 97%, white), color-mix(in srgb, var(--night-card-bottom) 94%, white));
+  border: 1px solid color-mix(in srgb, var(--night-edge) 72%, white);
+  color: var(--night-card-ink);
+}
+.game-screen[data-board-theme] .activity-option-card strong,
+.game-screen[data-board-theme] .overlay-card .eyebrow,
+.game-screen[data-board-theme] .activity-card-face .eyebrow {
+  color: var(--night-card-accent);
+}
+.game-screen[data-board-theme] .activity-card-face .activity-modal-title,
+.game-screen[data-board-theme] .activity-reveal-card .activity-modal-title,
+.game-screen[data-board-theme] .activity-reveal-card .entry-head strong {
+  color: var(--night-card-ink);
+}
+.game-screen[data-board-theme] .activity-card-face .activity-prompt-text,
+.game-screen[data-board-theme] .activity-card-face .activity-guess-subtitle,
+.game-screen[data-board-theme] .activity-card-face .activity-prompt-mini,
+.game-screen[data-board-theme] .activity-card-face .inspiration-label,
+.game-screen[data-board-theme] .activity-card-face .inspiration-chip,
+.game-screen[data-board-theme] .activity-card-face .private-hint-copy,
+.game-screen[data-board-theme] .activity-reveal-card .activity-prompt-quote,
+.game-screen[data-board-theme] .activity-reveal-card .entry-answer-text,
+.game-screen[data-board-theme] .activity-reveal-card .entry-role-tag,
+.game-screen[data-board-theme] .activity-reveal-card .entry-guess-preview {
+  color: color-mix(in srgb, var(--night-card-ink) 84%, white);
+}
+.game-screen[data-board-theme] .activity-card-face .activity-prompt-mini,
+.game-screen[data-board-theme] .activity-reveal-card .activity-prompt-quote,
+.game-screen[data-board-theme] .activity-reveal-card .reveal-entry-block {
+  background: color-mix(in srgb, var(--night-card-top) 76%, var(--night-card-bottom));
+  border-color: color-mix(in srgb, var(--night-edge) 60%, transparent);
+}
+.game-screen[data-board-theme] .activity-card-face .inspiration-chip {
+  background: color-mix(in srgb, var(--night-card-bottom) 72%, white);
+  border-color: color-mix(in srgb, var(--night-edge) 68%, white);
+}
+.game-screen[data-board-theme] .activity-card-face .activity-textarea {
+  background: color-mix(in srgb, var(--night-card-top) 88%, white);
+  border-color: color-mix(in srgb, var(--night-edge) 76%, white);
+  color: var(--night-card-ink);
+}
+.game-screen[data-board-theme] .activity-card-face .activity-textarea::placeholder {
+  color: color-mix(in srgb, var(--night-card-ink) 56%, white);
+}
+.game-screen[data-board-theme] .activity-reveal-card .reveal-banner h3 {
+  color: var(--night-card-accent);
+}
+.game-screen[data-board-theme] .activity-reveal-card .reveal-entry-block .entry-answer-text {
+  color: var(--night-card-ink);
+}
+
 @keyframes gameFilmReveal { from { opacity: 0; filter: blur(5px) saturate(.88); transform: translateY(14px) scale(1.008); } to { opacity: 1; filter: blur(0) saturate(1); transform: none; } }
 @media (prefers-reduced-motion: reduce) { .game-screen { animation: none; } }
 
@@ -5352,8 +5488,8 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   position: relative;
   width: 100%;
   min-height: 108px;
-  background: radial-gradient(circle at 50% 30%, rgba(46, 38, 58, 0.65) 0%, rgba(18, 14, 24, 0.85) 100%);
-  border: 1px solid rgba(245, 199, 104, 0.25);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--die-face) 60%, #4c3c58), var(--dice-pad, #17131d));
+  border: 1px solid color-mix(in srgb, var(--die-edge) 48%, transparent);
   border-radius: 20px;
   padding: 10px 14px 6px;
   display: flex;
@@ -5373,8 +5509,8 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 .tactile-dice-pad:active,
 .tactile-dice-container.is-rubbing .tactile-dice-pad {
   cursor: grabbing;
-  border-color: rgba(245, 199, 104, 0.55);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 0 16px rgba(245, 199, 104, 0.2);
+  border-color: var(--die-edge);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 0 18px color-mix(in srgb, var(--die-edge) 36%, transparent);
 }
 
 .tactile-dice-pair {
@@ -5397,13 +5533,13 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 }
 
 @keyframes dice-rattle-jitter {
-  0% { transform: translate3d(-1px, 1px, 0) rotate(-2deg); }
-  100% { transform: translate3d(2px, -1px, 0) rotate(3deg); }
+  0% { translate: -1px 1px; rotate: -2deg; }
+  100% { translate: 2px -1px; rotate: 3deg; }
 }
 
 .tactile-gesture-hint {
   font-size: 11px;
-  color: #cfc5dc;
+  color: color-mix(in srgb, var(--die-edge) 74%, white);
   letter-spacing: 0.02em;
   margin-top: 4px;
   text-align: center;
@@ -5411,7 +5547,7 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 }
 
 .hint-arrow {
-  color: #f5c768;
+  color: var(--die-pip);
   display: inline-block;
   margin-right: 2px;
   animation: bounce-up 1.2s infinite ease-in-out;
@@ -5424,6 +5560,11 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 
 .dice-roll-btn {
   width: 100%;
+}
+.tactile-dice-container[data-theme] .dice-roll-btn {
+  color: var(--night-card-ink, #261c1a);
+  background: linear-gradient(118deg, color-mix(in srgb, var(--die-pip) 92%, white), color-mix(in srgb, var(--die-edge) 88%, #e68982));
+  border-color: color-mix(in srgb, var(--die-edge) 74%, white);
 }
 
 .tactile-dice-container.is-disabled .tactile-dice-pad {

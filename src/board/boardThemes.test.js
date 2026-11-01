@@ -16,7 +16,7 @@ describe('board themes', () => {
   it('uses five named, placeable decorations for every theme', () => {
     Object.values(BOARD_THEME_SETS).forEach((theme) => {
       expect(theme.decorations).toHaveLength(5)
-      expect(theme.surfaces.inset.texture).toMatch(/^\/assets\/board\/.+\.png$/)
+      expect(theme.surfaces.inset.texture).toMatch(/^\/assets\/board\/.+\.(png|jpg|svg)$/)
       expect(theme.surfaces.inset.repeat).toHaveLength(2)
       expect(theme.surfaces.tabletop.texture).toMatch(/^\/assets\/board\/.+\.png$/)
       expect(theme.surfaces.tabletop.repeat).toHaveLength(2)
@@ -27,6 +27,25 @@ describe('board themes', () => {
         expect(decoration.position).toHaveLength(3)
       })
     })
+  })
+
+  it('gives every base and unlockable theme its own panorama, board ink, dice, spaces, and cards', () => {
+    const themes = [
+      ...Object.values(BOARD_THEME_SETS),
+      ...['starlit-rooftop', 'autumn-embers', 'cherry-blossom', 'aurora-veil'].map(getBoardThemeById),
+    ]
+    expect(new Set(themes.map((theme) => theme.environment.panorama)).size).toBe(themes.length)
+    expect(new Set(themes.map((theme) => theme.skinOverlay)).size).toBe(themes.length)
+    expect(new Set(themes.map((theme) => theme.surfaces.inset.texture)).size).toBe(themes.length)
+
+    for (const theme of themes) {
+      expect(theme.environment.panorama).toMatch(/^\/assets\/board\/skyboxes\/.+\.webp$/)
+      expect(theme.skinOverlay).toMatch(/^\/assets\/board\/skins\/.+\.svg$/)
+      expect(theme.surfaces.inset.texture).toMatch(/^\/assets\/board\/.+\.(png|jpg|svg)$/)
+      expect(theme.diceSkin).toMatchObject({ face: expect.stringMatching(/^#/), alternate: expect.stringMatching(/^#/), pip: expect.stringMatching(/^#/), edge: expect.stringMatching(/^#/) })
+      expect(theme.spaceColors).toMatchObject({ connection: expect.stringMatching(/^#/), duel: expect.stringMatching(/^#/), heart: expect.stringMatching(/^#/), keepsake: expect.stringMatching(/^#/), oops: expect.stringMatching(/^#/ ) })
+      expect(theme.cardSkin).toMatchObject({ top: expect.stringMatching(/^#/), bottom: expect.stringMatching(/^#/), ink: expect.stringMatching(/^#/), accent: expect.stringMatching(/^#/), border: expect.stringMatching(/^#/ ) })
+    }
   })
 
   it('gives each base and remix a defined sky and ambient motion without replacing the existing props', () => {

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 720">
+<defs><clipPath id="mat"><ellipse cx="500" cy="360" rx="492" ry="354"/></clipPath></defs>
+<g clip-path="url(#mat)" fill="none" stroke="#e5c8f3" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="500" cy="360" rx="470" ry="332" stroke-width="3" opacity=".58"/><ellipse cx="500" cy="360" rx="448" ry="311" stroke-width="1.5" opacity=".36"/>
+<g stroke-width="3" opacity=".62"><path d="M142 250V194h38v-42h42v82h36v-53h45v69m555 0V194h-38v-42h-42v82h-36v-53h-45v69M165 482v-58h38v-42h42v82h36v-52h45v70m509 0v-58h-38v-42h-42v82h-36v-52h-45v70"/><path d="M165 245h20m-20 13h20m40-48h20m-20 13h20m-20 13h20m555 9h-20m20 13h-20m-40-48h-20m20 13h-20m20 13h-20m-533 219h20m-20 13h20m40-48h20m-20 13h20m-20 13h20m555 9h-20m20 13h-20m-40-48h-20m20 13h-20m20 13h-20"/></g>
+<g opacity=".7" stroke-width="2"><path d="M420 105h160m-130 20h100m-70 20h40M420 575h160m-130 20h100m-70 20h40"/><path d="m500 72 6 15 16 1-12 10 4 16-14-9-14 9 4-16-12-10 16-1z"/><circle cx="292" cy="360" r="4"/><circle cx="708" cy="360" r="4"/></g></g></svg>

@@ -59,3 +59,158 @@
   .lobby-card:has(.pairing-title) .pairing-title h2 { margin: 0; font-size: clamp(24px, 6vw, 30px); line-height: 1.15; }
   .lobby-card:has(.pairing-title) > .night-start-button { min-height: 58px; padding: 10px 14px; }
 }
+
+/* The paired lobby is a full-screen welcome composition, not a small card. */
+.lobby-screen.paired-lobby .lobby-content {
+  height: 100%;
+  min-height: 100%;
+  align-content: center;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+.lobby-card:has(.couple-portrait-stage) {
+  width: 100%;
+  gap: clamp(4px, 1.2vh, 12px);
+  margin: 0;
+  padding: 0;
+  align-content: center;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.couple-portrait-stage {
+  position: relative;
+  isolation: isolate;
+  width: min(92vw, 360px);
+  aspect-ratio: 4 / 3;
+  margin: -4px auto -10px;
+}
+.couple-portrait-stage::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 15% 20%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 226, 182, .72), rgba(236, 177, 155, .24) 42%, transparent 72%);
+  filter: blur(24px);
+  animation: coupleHalo 8s ease-in-out infinite alternate;
+}
+.couple-art-cycle { position: absolute; inset: 0; pointer-events: none; }
+.couple-art-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  opacity: 0;
+  filter: drop-shadow(0 6px 14px rgba(122, 66, 54, .2));
+  animation: coupleArtCrossfade 18s ease-in-out infinite both;
+}
+.couple-art-layer.ribbon { animation-delay: -6s; }
+.couple-art-layer.rose { animation-delay: -12s; }
+.couple-portrait-button {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: min(25vw, 88px);
+  height: min(25vw, 88px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  transform: translate(-50%, -50%);
+}
+.couple-portrait-button.own { z-index: 2; left: 30.5%; box-shadow: 0 0 24px rgba(255, 225, 175, .56); }
+.couple-portrait-button.partner { z-index: 2; left: 69.5%; pointer-events: none; }
+.couple-portrait-button .profile-portrait { width: 100%; height: 100%; }
+.couple-portrait-stage .couple-portrait-button.own:focus-visible { outline: 3px solid #9e6739; outline-offset: 4px; }
+.lobby-screen.paired-lobby .pairing-title h2 { margin: 0 0 10px; font-size: clamp(25px, 6.3vw, 35px); }
+.lobby-screen.paired-lobby .night-start-button { width: min(100%, 390px); justify-self: center; }
+.lobby-screen.paired-lobby .story-open-button { margin-top: 2px; }
+
+@keyframes coupleArtCrossfade {
+  0% { opacity: 0; }
+  5% { opacity: .68; }
+  27% { opacity: .68; }
+  33.34%, 100% { opacity: 0; }
+}
+@keyframes coupleHalo {
+  from { opacity: .48; transform: scale(.9); }
+  to { opacity: .92; transform: scale(1.12); }
+}
+
+.lobby-screen.paired-lobby::before,
+.lobby-screen.paired-lobby::after {
+  display: block;
+  inset: -8%;
+  pointer-events: none;
+  z-index: 1;
+  background-repeat: no-repeat;
+  will-change: transform, opacity, background-position;
+}
+.lobby-screen.paired-lobby::before {
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(255, 199, 147, .34), transparent 42%),
+    radial-gradient(ellipse at 78% 62%, rgba(214, 151, 176, .3), transparent 44%),
+    linear-gradient(118deg, transparent 28%, rgba(255, 240, 205, .2) 49%, transparent 70%);
+  filter: blur(12px) saturate(1.12);
+  animation: lobbyGlowDrift 18s ease-in-out infinite alternate;
+}
+.lobby-screen.paired-lobby::after {
+  background:
+    radial-gradient(circle at 12% 82%, #fff0cbb8 0 2px, transparent 5px),
+    radial-gradient(circle at 36% 94%, #fff0cba0 0 2px, transparent 5px),
+    radial-gradient(circle at 59% 86%, #fff0cbb0 0 2px, transparent 5px),
+    radial-gradient(circle at 77% 96%, #fff0cba8 0 2px, transparent 5px),
+    radial-gradient(circle at 88% 75%, #fff0cba8 0 2px, transparent 5px);
+  animation: lobbyMoteDrift 16s ease-in-out infinite alternate;
+  opacity: .78;
+}
+.lobby-screen.paired-lobby .lobby-backdrop > .login-sky {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.lobby-rise-sparkle {
+  position: absolute;
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+  color: #ffe6b1;
+  opacity: 0;
+  animation: lobbySparkleRise 12s var(--rise-delay) ease-in-out infinite;
+}
+.lobby-rise-sparkle .brand-icon { width: 100%; height: 100%; filter: drop-shadow(0 0 5px rgba(255, 219, 152, .8)); }
+
+@keyframes lobbyGlowDrift {
+  from { transform: translate3d(-2%, 1%, 0) scale(.98); opacity: .5; }
+  to { transform: translate3d(2%, -1%, 0) scale(1.04); opacity: .9; }
+}
+@keyframes lobbyMoteDrift {
+  from { transform: translate3d(0, 1.5%, 0); opacity: .4; }
+  to { transform: translate3d(0, -2%, 0); opacity: .88; }
+}
+@keyframes lobbySparkleRise {
+  0%, 64%, 100% { opacity: 0; transform: translateY(20px) scale(.65) rotate(-18deg); }
+  70% { opacity: .7; }
+  96% { opacity: .08; transform: translateY(-95px) scale(1.04) rotate(20deg); }
+}
+
+@media (max-height: 680px) {
+  .couple-portrait-stage { width: min(76vw, 290px); }
+  .lobby-screen.paired-lobby .lobby-content { padding-top: 8px; padding-bottom: 12px; }
+  .lobby-card:has(.couple-portrait-stage) { gap: 2px; }
+  .lobby-screen.paired-lobby .night-start-button { min-height: 52px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .couple-art-layer, .couple-portrait-stage::before,
+  .lobby-screen.paired-lobby::before, .lobby-screen.paired-lobby::after,
+  .lobby-rise-sparkle { animation: none; }
+  .couple-art-layer.locket { opacity: .64; }
+  .couple-portrait-stage::before { opacity: .65; }
+}

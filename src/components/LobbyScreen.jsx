@@ -56,8 +56,8 @@ export function LobbyScreen() {
     } catch (nextError) { setError(nextError.message) }
   }
 
-  return <section className={`screen lobby-screen${active ? ' active' : ' inactive'}${authScreen ? ' auth-screen' : ''}`}>
-    <div aria-hidden="true" className="lobby-backdrop"><LoginSky /><div className="orbital orbital-a" /><div className="orbital orbital-b" /><div className="orbital orbital-c" /><div className="board-fragment fragment-a" /><div className="board-fragment fragment-b" /><div className="board-fragment fragment-c" /><div className="token token-heart"><BrandText text={"♥"} /></div><div className="token token-die"><BrandText text={"✦"} /></div><div className="token token-note"><BrandText text={"♫"} /></div><div className="path-ribbon ribbon-a" /><div className="path-ribbon ribbon-b" /></div>
+  return <section className={`screen lobby-screen${active ? ' active' : ' inactive'}${authScreen ? ' auth-screen' : ''}${hasPartner && !gameOpen ? ' paired-lobby' : ''}`}>
+    <div aria-hidden="true" className="lobby-backdrop"><LoginSky romantic={hasPartner && !gameOpen} /><div className="orbital orbital-a" /><div className="orbital orbital-b" /><div className="orbital orbital-c" /><div className="board-fragment fragment-a" /><div className="board-fragment fragment-b" /><div className="board-fragment fragment-c" /><div className="token token-heart"><BrandText text={"♥"} /></div><div className="token token-die"><BrandText text={"✦"} /></div><div className="token token-note"><BrandText text={"♫"} /></div><div className="path-ribbon ribbon-a" /><div className="path-ribbon ribbon-b" /></div>
     <div className="lobby-content">
       <div className={`title-band${enabled ? ' auth-title-band' : ''}`}>
         <img alt="At Long Last" className="brand-logo" src="/assets/ui/atlonglast-wordmark-wide.png" />

@@ -2,15 +2,14 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TactileDiceCast, DieFace } from './TactileDiceCast.jsx'
 
+const diceAudio = vi.hoisted(() => ({ playDiceRattle: vi.fn(), playDiceCast: vi.fn() }))
 vi.mock('../audio/AudioProvider.jsx', () => ({
-  useAudio: () => ({
-    playDiceRattle: vi.fn(),
-    playDiceCast: vi.fn(),
-  }),
+  useAudio: () => diceAudio,
 }))
 
 afterEach(() => {
   cleanup()
+  vi.clearAllMocks()
 })
 
 describe('DieFace', () => {
@@ -86,5 +85,28 @@ describe('TactileDiceCast', () => {
     expect(btn).toBeDisabled()
     fireEvent.click(btn)
     expect(handleRoll).not.toHaveBeenCalled()
+  })
+
+  it('uses touch swipe direction and distance to shape a board roll', () => {
+    const onRoll = vi.fn()
+    render(<TactileDiceCast themeId="garden" onRoll={onRoll} />)
+    const pad = screen.getByTestId('tactile-dice-pad')
+
+    fireEvent.pointerDown(pad, { pointerId: 3, clientX: 100, clientY: 120 })
+    fireEvent.pointerMove(pad, { pointerId: 3, clientX: 145, clientY: 55 })
+    fireEvent.pointerUp(pad, { pointerId: 3, clientX: 145, clientY: 55 })
+
+    expect(onRoll).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'touch',
+      direction: { x: expect.closeTo(45 / 96), y: expect.closeTo(65 / 96) },
+      power: expect.closeTo(Math.hypot(45, 65) / 110 + 0.18),
+    }))
+    expect(diceAudio.playDiceRattle).toHaveBeenCalled()
+    expect(diceAudio.playDiceCast).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the selected theme palette on the tactile dice', () => {
+    const { container } = render(<TactileDiceCast themeId="aurora-veil" />)
+    expect(container.querySelector('.tactile-dice-container')).toHaveStyle({ '--die-face': '#174c56' })
   })
 })

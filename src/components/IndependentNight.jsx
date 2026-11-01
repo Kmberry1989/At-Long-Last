@@ -36,10 +36,13 @@ export function IndependentNight() {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [rolling, setRolling] = useState(false)
+  const [rollGesture, setRollGesture] = useState(null)
   const [tradeOpen, setTradeOpen] = useState(false)
   const [journalOpen, setJournalOpen] = useState(false)
   const lock = useRef(false)
   const timer = useRef(null)
+  const arrivalCueKeyRef = useRef('')
+  const phaseCueKeyRef = useRef('')
   const playerIndex = enabled ? session.players.findIndex(player => player.uid === userId) : previewPlayer
   const progress = getNightProgress(session, steps, playerIndex)
   const selected = steps.find(step => step.id === selectedId && canAnswerStep(step, playerIndex, progress.readyToReveal))
@@ -52,7 +55,21 @@ export function IndependentNight() {
     const active = selected?.kind === 'activity' ? { type: selected.type, vibe: entry?.vibe, state: selected.state } : null
     const phase = session.phase === 'finale' ? 'finale' : !gameOpen ? null : selected?.kind === 'duel' ? 'duel' : active ? 'activity' : 'turn'
     audio?.setStage?.(phase ? musicStageFor({ ...session, phase, currentDuel: duelSession?.currentDuel }, active) : 'menu')
-  }, [audio?.setStage, gameOpen, selected?.id, selected?.state?.phase, entry?.vibe, session.phase])
+    if (!gameOpen) {
+      phaseCueKeyRef.current = ''
+      return
+    }
+    const themeId = coupleProgress?.selectedTheme || 'cozy'
+    const arrivalKey = `${session.id}:${themeId}`
+    if (arrivalCueKeyRef.current !== arrivalKey) {
+      arrivalCueKeyRef.current = arrivalKey
+      audio?.playThemeArrival?.(themeId)
+    }
+    const cue = phase === 'finale' || phase === 'duel' || phase === 'activity' ? phase : null
+    const cueKey = cue ? `${session.id}:${selected?.id || 'finale'}:${cue}` : ''
+    if (cueKey && cueKey !== phaseCueKeyRef.current) audio?.playPhase?.(cue)
+    phaseCueKeyRef.current = cueKey
+  }, [audio?.setStage, audio?.playPhase, audio?.playThemeArrival, coupleProgress?.selectedTheme, gameOpen, selected?.id, selected?.state?.phase, entry?.vibe, session.id, session.phase])
 
   useEffect(() => {
     if (!enabled || !db) return undefined
@@ -102,9 +119,10 @@ export function IndependentNight() {
     finally { lock.current = false; setWorking(false) }
   }
 
-  async function roll() {
+  async function roll(gesture) {
     if (!progress.canRoll || working || rolling) return
     audio?.playAction?.()
+    setRollGesture(gesture || null)
     setRolling(true)
     // One-shot development fixture keeps browser QA deterministic without
     // replacing global randomness used by Firebase and the renderer.
@@ -114,7 +132,7 @@ export function IndependentNight() {
     const round = progress.nextRound
     const ok = await run({ kind: 'roll', round, dice, history: journalEntries, ...(fixture ? { selectionSeed: fixture.selectionSeed } : {}) })
     if (ok) setSelectedId(`roll-${round}-${playerIndex}`)
-    timer.current = window.setTimeout(() => setRolling(false), 1450)
+    timer.current = window.setTimeout(() => { setRolling(false); setRollGesture(null) }, 1450)
   }
 
   async function submit(input) {
@@ -140,12 +158,13 @@ export function IndependentNight() {
   const tonight = journalEntries.filter(item => item.sessionId === session.id)
 
   return (
-    <section className={`screen active game-screen independent-night${selected && !rolling ? ' has-gameplay-overlay' : ''}`}>
+    <section className={`screen active game-screen independent-night${selected && !rolling ? ' has-gameplay-overlay' : ''}`} data-board-theme={coupleProgress?.selectedTheme || 'cozy'}>
       <div className="board-wrap">
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
           <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={session.lastMove?.dice} lastRoll={session.lastRoll}
             onPieceStep={() => audio?.playPieceStep?.()} pacingMode="freeFlow" phase={phase} players={session.players}
-            positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling} themeId={coupleProgress?.selectedTheme} />
+            onDiceImpact={audio?.playDiceImpact} rollGesture={rollGesture}
+            positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling} themeId={coupleProgress?.selectedTheme || 'cozy'} />
         </Suspense>
         <div className="hud top">
           <div className="chip"><BrandText text={"♥ "} />{session.hearts}</div>
@@ -161,7 +180,7 @@ export function IndependentNight() {
         </div>
         {!selected && session.phase !== 'finale' && <div className="bottom-tray independent-tray">
           <p className="status-line" role="status">{!loaded ? 'Restoring your night…' : progress.readyToReveal ? 'Your night is ready to unfold.' : 'Go at your pace. Compare at the end of the night.'}</p>
-          {progress.canRoll && <TactileDiceCast canRoll disabled={working || rolling || !loaded} isRolling={rolling} lastDice={session.lastMove?.dice || [1, 1]} onRoll={roll} statusLabel="Roll dice" />}
+          {progress.canRoll && <TactileDiceCast canRoll disabled={working || rolling || !loaded} isRolling={rolling} lastDice={session.lastMove?.dice || [1, 1]} onRoll={roll} themeId={coupleProgress?.selectedTheme || 'cozy'} statusLabel="Roll dice" />}
           <div className="night-action-list" aria-label={progress.readyToReveal ? 'End of night reveals' : 'Your next moments'}>
             {progress.available.map(step => <button className="primary-btn alt" key={step.id} type="button" disabled={working || rolling || !loaded}
               onClick={() => { audio?.playAction?.(); setSelectedId(step.id) }}>

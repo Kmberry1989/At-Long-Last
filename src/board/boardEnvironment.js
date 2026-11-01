@@ -74,7 +74,20 @@ function makeMoteTexture() {
 }
 
 export function createBoardEnvironment(config) {
-  const skyMaterial = new THREE.ShaderMaterial({
+  const panorama = config.panorama ? new THREE.TextureLoader().load(config.panorama) : null
+  if (panorama) {
+    panorama.colorSpace = THREE.SRGBColorSpace
+    panorama.wrapS = THREE.RepeatWrapping
+    panorama.wrapT = THREE.ClampToEdgeWrapping
+    panorama.anisotropy = 4
+  }
+  const skyMaterial = panorama ? new THREE.MeshBasicMaterial({
+    map: panorama,
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    toneMapped: false,
+  }) : new THREE.ShaderMaterial({
     uniforms: {
       uTop: { value: new THREE.Color(config.top) },
       uHorizon: { value: new THREE.Color(config.horizon) },
@@ -115,7 +128,7 @@ export function createBoardEnvironment(config) {
   particles.name = `motes-${config.mode}`
 
   function update(seconds, reducedMotion = false) {
-    skyMaterial.uniforms.uTime.value = reducedMotion ? 0 : seconds
+    if (skyMaterial.uniforms?.uTime) skyMaterial.uniforms.uTime.value = reducedMotion ? 0 : seconds
     if (reducedMotion) return
     origins.forEach(([x, y, z], index) => {
       const drift = seconds * (config.mode === 'snow' ? 0.27 : 0.1)

@@ -22,6 +22,7 @@ import {
 } from '../features/session/wavelengthDuelData.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { useSynth } from './useSynth.js'
+import { musicStageFor } from '../audio/musicPatterns.js'
 import {
   ActiveTurnState,
   PartnerAwayState,
@@ -57,7 +58,9 @@ export function GameScreen() {
 
 function LegacyGameScreen() {
   const { couple, hasPartner, progress } = useCouple()
-  const { playAction, playPieceStep, playSuccess } = useAudio()
+  const { playAction, playPieceStep, playDiceImpact, playSuccess, playPhase, playThemeArrival, setStage } = useAudio()
+  const audioCueKeyRef = useRef('')
+  const arrivalCueKeyRef = useRef('')
   const [pacingMode, setPacingMode] = useState(() => {
     try {
       return localStorage.getItem('atlonglast_pacing_mode') || 'freeFlow'
@@ -121,6 +124,7 @@ function LegacyGameScreen() {
   const [heartGuideOpen, setHeartGuideOpen] = useState(false)
   const [tradeModalOpen, setTradeModalOpen] = useState(false)
   const [diceRolling, setDiceRolling] = useState(false)
+  const [rollGesture, setRollGesture] = useState(null)
   const diceSettleTimerRef = useRef(null)
   const scrapbookMomentCount = getScrapbookMomentCount(journalEntries.filter(entry => entry.sessionId === session?.id))
   const lastMoveKey = session?.lastMove
@@ -144,6 +148,25 @@ function LegacyGameScreen() {
   useSynth(session, activity)
 
   const activityEntry = activity ? activityRegistry[activity.type] : null
+
+  const selectedTheme = progress?.selectedTheme || 'cozy'
+  useEffect(() => {
+    if (!session || !gameOpen) {
+      setStage?.('menu')
+      return
+    }
+    const musicStage = musicStageFor(session, activity)
+    setStage?.(musicStage)
+    const arrivalKey = `${session.id}:${selectedTheme}`
+    if (arrivalCueKeyRef.current !== arrivalKey) {
+      arrivalCueKeyRef.current = arrivalKey
+      playThemeArrival?.(selectedTheme)
+    }
+    const cue = session.phase === 'finale' ? 'finale' : session.phase === 'duel' ? 'duel' : session.phase === 'activity' ? 'activity' : null
+    const cueKey = cue ? `${session.id}:${cue}:${activity?.id || ''}` : ''
+    if (cueKey && cueKey !== audioCueKeyRef.current) playPhase?.(cue)
+    audioCueKeyRef.current = cueKey
+  }, [activity, gameOpen, playPhase, playThemeArrival, selectedTheme, session, setStage])
 
   useEffect(() => {
     if (!session) {
@@ -260,6 +283,7 @@ function LegacyGameScreen() {
     setDiceRolling(true)
     diceSettleTimerRef.current = window.setTimeout(() => {
       setDiceRolling(false)
+      setRollGesture(null)
       diceSettleTimerRef.current = null
     }, 1450)
   }, [lastMoveKey, session?.id])
@@ -348,7 +372,7 @@ function LegacyGameScreen() {
           ? 'Opening board…'
           : 'Waiting…'
 
-  async function handleDiceRoll() {
+  async function handleDiceRoll(gesture) {
     if (!canRoll || working || diceAnimating) {
       return
     }
@@ -357,19 +381,21 @@ function LegacyGameScreen() {
       window.clearTimeout(diceSettleTimerRef.current)
     }
 
+    setRollGesture(gesture || null)
     setDiceRolling(true)
     try {
       await rollTurn()
     } finally {
       diceSettleTimerRef.current = window.setTimeout(() => {
         setDiceRolling(false)
+        setRollGesture(null)
         diceSettleTimerRef.current = null
       }, 1450)
     }
   }
 
   return (
-    <section className={`screen active game-screen${gameplayOverlayOpen ? ' has-gameplay-overlay' : ''}`}>
+    <section className={`screen active game-screen${gameplayOverlayOpen ? ' has-gameplay-overlay' : ''}`} data-board-theme={selectedTheme}>
       <div className="board-wrap">
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
           <BoardScene
@@ -378,13 +404,15 @@ function LegacyGameScreen() {
             dice={session.lastMove?.dice || null}
             lastRoll={session.lastRoll}
             onPieceStep={() => playPieceStep?.()}
+            onDiceImpact={playDiceImpact}
+            rollGesture={rollGesture}
             pacingMode={pacingMode}
             phase={session.phase}
             players={session.players}
             positions={session.positions}
             round={session.round}
             rolling={diceAnimating}
-            themeId={progress?.selectedTheme || null}
+            themeId={selectedTheme}
           />
         </Suspense>
         <div className="hud top">
@@ -447,6 +475,7 @@ function LegacyGameScreen() {
                 isRolling={diceAnimating}
                 lastDice={session.lastMove?.dice || [Math.min(6, Math.max(1, Math.floor((session.lastRoll || 2) / 2))), Math.min(6, Math.max(1, Math.ceil((session.lastRoll || 2) / 2)))]}
                 onRoll={handleDiceRoll}
+                themeId={selectedTheme}
                 statusLabel={rollButtonLabel}
               />
               {session.phase === 'duelWheel' && (

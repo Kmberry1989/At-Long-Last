@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <rect width="160" height="160" fill="#fff"/>
+  <path d="M-20 20 20-20M0 40 40 0M20 60 60 20M40 80 80 40M60 100 100 60M80 120 120 80M100 140 140 100M120 160 160 120M140 180 180 140" stroke="#777" stroke-opacity=".2" stroke-width="8"/>
+  <path d="M-20 40 40-20M0 60 60 0M20 80 80 20M40 100 100 40M60 120 120 60M80 140 140 80M100 160 160 100M120 180 180 120" stroke="#aaa" stroke-opacity=".2" stroke-width="3"/>
+  <path d="M-20 0 0-20M140 180 180 140" stroke="#666" stroke-opacity=".14" stroke-width="1.5"/>
+</svg>

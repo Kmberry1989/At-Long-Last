@@ -374,6 +374,68 @@ export function createAudioEngine(suppliedContext = null) {
     oscillator.stop(now + duration + release + 0.02)
   }
 
+  function playDiceImpact({ energy = 0.52, side = 0 } = {}) {
+    if (muted) return
+    ensureReady()
+
+    // Each contact layers a soft wooden knock, a filtered granular tick, and
+    // a tiny high-frequency edge. Randomized decay and pitch keep the tumble
+    // tactile without turning it into a loud arcade roll.
+    const now = context.currentTime + Math.random() * 0.009
+    const strength = Math.max(0.16, Math.min(1, energy))
+    const pan = (side % 2 ? 1 : -1) * (0.08 + Math.random() * 0.24)
+    const duration = 0.045 + Math.random() * 0.045
+    const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate)
+    const samples = buffer.getChannelData(0)
+    for (let index = 0; index < samples.length; index += 1) {
+      const falloff = Math.exp(-index / samples.length * (7 + Math.random() * 2))
+      samples[index] = (Math.random() * 2 - 1) * falloff
+    }
+    const noise = context.createBufferSource()
+    noise.buffer = buffer
+    const filter = context.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.value = 580 + Math.random() * 1050
+    filter.Q.value = 0.6 + Math.random() * 1.4
+    const noiseGain = context.createGain()
+    const panner = context.createStereoPanner()
+    panner.pan.value = pan
+    noiseGain.gain.setValueAtTime(0.0001, now)
+    noiseGain.gain.exponentialRampToValueAtTime(0.012 + strength * 0.035, now + 0.003)
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+    noise.connect(filter)
+    filter.connect(noiseGain)
+    noiseGain.connect(panner)
+    panner.connect(lowpass)
+    noise.onended = () => {
+      noise.disconnect()
+      filter.disconnect()
+      noiseGain.disconnect()
+      panner.disconnect()
+    }
+    noise.start(now)
+    noise.stop(now + duration + 0.005)
+
+    const thud = context.createOscillator()
+    const thudGain = context.createGain()
+    thud.type = 'sine'
+    thud.frequency.setValueAtTime(105 + Math.random() * 80, now)
+    thud.frequency.exponentialRampToValueAtTime(54 + Math.random() * 18, now + 0.055)
+    thudGain.gain.setValueAtTime(0.0001, now)
+    thudGain.gain.exponentialRampToValueAtTime(0.025 + strength * 0.038, now + 0.004)
+    thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.095 + Math.random() * 0.045)
+    thud.connect(thudGain)
+    thudGain.connect(lowpass)
+    activeNotes.add(thud)
+    thud.onended = () => {
+      thud.disconnect()
+      thudGain.disconnect()
+      activeNotes.delete(thud)
+    }
+    thud.start(now)
+    thud.stop(now + 0.16)
+  }
+
   return {
     ensureReady,
     get context() { return context },
@@ -389,9 +451,11 @@ export function createAudioEngine(suppliedContext = null) {
       playTone({ frequency: 392, volume: 0.038, duration: 0.08 })
       playTone({ frequency: 523.25, volume: 0.026, duration: 0.12 })
     },
-    playDiceRattle() {
-      playTone({ frequency: 580 + Math.random() * 140, type: 'triangle', volume: 0.024, duration: 0.025 })
-      playTone({ frequency: 720 + Math.random() * 160, type: 'sine', volume: 0.018, duration: 0.02 })
+    playDiceRattle({ energy = 0.18 } = {}) {
+      playDiceImpact({ energy: Math.min(0.5, energy + 0.08), side: Math.random() > 0.5 ? 1 : 0 })
+    },
+    playDiceImpact(impact) {
+      playDiceImpact(impact)
     },
     playDiceCast() {
       playTone({ frequency: 440, type: 'triangle', volume: 0.028, duration: 0.06 })
@@ -455,6 +519,21 @@ export function createAudioEngine(suppliedContext = null) {
         playTone({ frequency: 220 + step * 40, type: 'triangle', volume: 0.035, duration: 0.07 })
         playTone({ frequency: 165, type: 'sine', volume: 0.03, duration: 0.09 })
       }
+    },
+    playThemeArrival(themeId = 'cozy') {
+      if (!unlocked || muted) return
+      const when = context.currentTime + 0.04
+      const notesByTheme = {
+        cozy: [392, 523.25],
+        garden: [659.25, 880],
+        beach: [349.23, 523.25],
+        city: [587.33, 783.99],
+        holiday: [783.99, 987.77, 1174.66],
+      }
+      const notes = notesByTheme[themeId] || notesByTheme.cozy
+      notes.forEach((frequency, index) => {
+        softNote(frequency, when + index * 0.22, 0.9, 0.018, musicBoxBus, 'sine')
+      })
     },
     setMuted(nextMuted) {
       muted = nextMuted
@@ -631,7 +710,8 @@ export function AudioProvider({ children }) {
       setMusicTheme,
       setBassStyle,
       playAction: () => getExistingEngine()?.playAction(),
-      playDiceRattle: () => getExistingEngine()?.playDiceRattle(),
+      playDiceRattle: (options) => getExistingEngine()?.playDiceRattle(options),
+      playDiceImpact: (impact) => getExistingEngine()?.playDiceImpact(impact),
       playDiceCast: () => getExistingEngine()?.playDiceCast(),
       playPieceStep: () => getExistingEngine()?.playPieceStep(),
       playCardFlip: () => getExistingEngine()?.playCardFlip(),
@@ -642,6 +722,7 @@ export function AudioProvider({ children }) {
       playPhase: (phase) => getExistingEngine()?.playPhase(phase),
       playSuccess: () => getExistingEngine()?.playSuccess(),
       playDuelPulse: (step) => getExistingEngine()?.playDuelPulse(step),
+      playThemeArrival: (themeId) => getExistingEngine()?.playThemeArrival(themeId),
       playCelebration: (kind) => {
         const engine = ensureEngine()
         if (!engine?.context) return null

@@ -62,12 +62,24 @@ export function PairingHome({ avatar, onAvatarChange }) {
 
   return (
     <>
-      <div className={`account-strip${!paired ? ' account-compact' : ''}`}>
+      {paired ? <div className="couple-portrait-stage">
+        <div aria-hidden="true" className="couple-art-cycle">
+          <img alt="" className="couple-art-layer locket" src="/assets/ui/welcome-locket.webp" />
+          <img alt="" className="couple-art-layer ribbon" src="/assets/ui/welcome-ribbon.webp" />
+          <img alt="" className="couple-art-layer rose" src="/assets/ui/welcome-rose.webp" />
+        </div>
+        <button ref={profileButtonRef} aria-haspopup="dialog" aria-label="Edit profile portrait" className="couple-portrait-button own" onClick={() => setProfileSheetOpen(true)} type="button">
+          <PlayerPortrait label={`${name} portrait`} player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} />
+        </button>
+        <div className="couple-portrait-button partner" aria-hidden="true">
+          <PlayerPortrait label={`${partner?.displayName || 'Your person'} portrait`} player={partner || { uid: 'partner', displayName: 'Your person' }} />
+        </div>
+      </div> : <div className="account-strip account-compact">
         <div className="account-profile">
-          {paired ? <button ref={profileButtonRef} aria-haspopup="dialog" aria-label="Edit profile portrait" className="portrait-open-button" onClick={() => setProfileSheetOpen(true)} type="button"><PlayerPortrait player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} /></button> : <PlayerPortrait player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} />}
+          <PlayerPortrait player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} />
           <div className="account-copy"><strong>{name}</strong>{user?.email && <p>{user.email}</p>}</div>
         </div>
-      </div>
+      </div>}
 
       {loading && !couple ? <p role="status">Loading your connection…</p> : gameOpen && paired && !readyToPlay ? <>
         <h2>{sessionError ? 'Game unavailable' : 'Loading game…'}</h2>

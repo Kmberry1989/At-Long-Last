@@ -9,6 +9,7 @@ import { FirebaseAppProvider } from './features/couple/FirebaseAppContext.jsx'
 import { CoupleProvider } from './features/couple/CoupleProvider.jsx'
 import { MilestonesProvider } from './components/Milestones.jsx'
 import { SessionProvider } from './features/session/SessionProvider.jsx'
+import { OpeningSplash } from './components/OpeningSplash.jsx'
 
 const LobbyScreen = lazy(() =>
   import('./components/LobbyScreen.jsx').then((module) => ({ default: module.LobbyScreen })),
@@ -20,23 +21,29 @@ const GameScreen = lazy(() =>
 function AppContent() {
   usePressFeedback()
   return (
-    <div className="app-shell" onContextMenu={(event) => {
-      if (!event.target.closest?.('input, textarea, [contenteditable="true"]')) event.preventDefault()
-    }}>
-      <AudioToggle />
-      <AccountToggle />
-      <Suspense
-        fallback={(
-          <div aria-live="polite" className="app-loading" role="status">
-            <span aria-hidden="true" className="app-loading-mark"><BrandIcon name="heart" /></span>
-            <span>Loading…</span>
-          </div>
-        )}
+    <>
+      <div
+        className="app-shell"
+        onContextMenu={(event) => {
+          if (!event.target.closest?.('input, textarea, [contenteditable="true"]')) event.preventDefault()
+        }}
       >
-        <LobbyScreen />
-        <GameScreen />
-      </Suspense>
-    </div>
+        <AudioToggle />
+        <AccountToggle />
+        <Suspense
+          fallback={(
+            <div aria-live="polite" className="app-loading" role="status">
+              <span aria-hidden="true" className="app-loading-mark"><BrandIcon name="heart" /></span>
+              <span>Loading…</span>
+            </div>
+          )}
+        >
+          <LobbyScreen />
+          <GameScreen />
+        </Suspense>
+      </div>
+      <OpeningSplash />
+    </>
   )
 }
 

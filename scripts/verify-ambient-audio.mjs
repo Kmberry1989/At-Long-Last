@@ -10,6 +10,10 @@ try {
     const offline = new OfflineAudioContext(2, seconds * rate, rate)
     const engine = createAudioEngine(offline)
     engine.ensureReady()
+    engine.playDiceRattle({ energy: .34 })
+    engine.playDiceImpact({ energy: .86, side: 0 })
+    engine.playDiceImpact({ energy: .52, side: 1 })
+    engine.playDiceImpact({ energy: .28, side: 0 })
     for (let tick = 0; tick < 32; tick++) {
       engine.setStage(tick < 16 ? 'menu' : 'reflective', tick * 2.4)
       engine.scheduleTick(tick, tick * 2.4)
