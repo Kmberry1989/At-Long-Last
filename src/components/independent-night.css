@@ -6,3 +6,40 @@
 .night-seal-note { text-align: center; font-size: .8rem; color: #f4dfb5; margin: 0; }
 .night-error { position: fixed; bottom: 16px; left: 16px; right: 16px; z-index: 200; background: #351e24; padding: 12px; border-radius: 12px; }
 .independent-night .hud.top { flex-wrap: wrap; }
+
+/* Keep the independent-night counters in one compact row above both portraits. */
+.independent-night .hud.top {
+  top: 52px;
+  left: 10px;
+  right: 10px;
+  width: auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+.independent-night .hud.top > .chip,
+.independent-night .hud.top > .trade-hud-btn {
+  height: 40px;
+  min-height: 40px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 18px;
+  flex: 1 1 0;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.independent-night .hud.top > .chip {
+  display: flex;
+  align-items: center;
+  text-align: center;
+}
+.independent-night .hud.top > .trade-hud-btn { flex: 1.25 1 0; }
+.independent-night .hud.top > .chip:first-child { flex: .7 1 0; }
+.independent-night .hud.players { top: 100px; }
+
+@media (max-width: 460px) {
+  .independent-night .hud.players { top: 100px; right: 10px; }
+}

@@ -10,6 +10,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  Timestamp,
   where,
 } from 'firebase/firestore'
 
@@ -348,7 +349,7 @@ export function pickKouponForGrant(progress, random = Math.random) {
 export function buildKouponRecord(entry, random = Math.random) {
   const stamp = Math.floor(random() * 1e9).toString(36)
   return {
-    createdAt: serverTimestamp(),
+    createdAt: Timestamp.now(),
     detail: entry.detail || '',
     fulfilledAt: null,
     id: `koupon-${Date.now().toString(36)}-${stamp}`,
@@ -571,17 +572,20 @@ export async function grantKoupon(db, coupleId, entry = null, random = Math.rand
 }
 
 export async function redeemKoupon(db, coupleId, kouponId) {
-  const { progress } = await transactProgress(db, coupleId, (current) => {
-    const koupons = (current.koupons || []).map((koupon) =>
-      koupon.id === kouponId && koupon.status === 'active'
-        ? { ...koupon, redeemedAt: serverTimestamp(), status: 'redeemed' }
-        : koupon,
-    )
+  const { progress, redeemed } = await transactProgress(db, coupleId, (current) => {
+    let redeemed = false
+    const koupons = (current.koupons || []).map((koupon) => {
+      if (koupon.id === kouponId && koupon.status === 'active') {
+        redeemed = true
+        return { ...koupon, redeemedAt: Timestamp.now(), status: 'redeemed' }
+      }
+      return koupon
+    })
 
-    return { events: [], progress: { ...current, koupons } }
+    return { events: [], progress: { ...current, koupons }, redeemed }
   })
 
-  return progress
+  return { progress, redeemed }
 }
 
 export async function fulfillKoupon(db, coupleId, kouponId) {
@@ -590,7 +594,7 @@ export async function fulfillKoupon(db, coupleId, kouponId) {
     const koupons = (current.koupons || []).map((koupon) => {
       if (koupon.id === kouponId && koupon.status === 'redeemed') {
         fulfilled = true
-        return { ...koupon, fulfilledAt: serverTimestamp(), status: 'fulfilled' }
+        return { ...koupon, fulfilledAt: Timestamp.now(), status: 'fulfilled' }
       }
 
       return koupon

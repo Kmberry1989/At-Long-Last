@@ -33,6 +33,7 @@ export const brandIconPaths = {
   tree: ['M16 2 6 14h5L3 25h26l-8-11h5L16 2Zm0 23v5'],
   glass: ['M9 3h14l2 10c2 12-20 12-18 0L9 3Zm7 20v7m-6 0h12', 'M8 12h16'],
   signal: ['M16 24h.01M11 19c3-3 7-3 10 0M6 14c6-6 14-6 20 0M2 9c8-8 20-8 28 0'],
+  more: ['M6 8h20M6 16h20M6 24h20', 'M3 8h.01M3 16h.01M3 24h.01'],
 }
 
 export const glyphIcons = {

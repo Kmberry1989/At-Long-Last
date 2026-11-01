@@ -150,8 +150,8 @@ export function IndependentNight() {
         <div className="hud top">
           <div className="chip"><BrandText text={"♥ "} />{session.hearts}</div>
           <button className="trade-hud-btn" type="button" onClick={() => setTradeOpen(true)}><BrandIcon name="trade" /> {session.lastMove?.tradeOffer?.status === 'pending' && session.lastMove.tradeOffer.fromPlayerIndex !== playerIndex ? 'Review offer' : 'Trade'}</button>
-          <div className="chip">Your rolls {progress.ownRolls}/{session.totalRounds}</div>
-          <div className="chip"><BrandText text={"✉ "} />{progress.comparisons} for tonight</div>
+          <div className="chip" aria-label={`Your rolls ${progress.ownRolls} of ${session.totalRounds}`}>{progress.ownRolls}/{session.totalRounds}</div>
+          <div className="chip" aria-label={`${progress.comparisons} comparisons tonight`}><BrandText text={"✉ "} />{progress.comparisons}</div>
         </div>
         <div className="hud players" aria-label="Players">
           {session.players.map((player, index) => <div key={player.uid} className={`player-strip${index === playerIndex ? ' active mine' : ''}`}>

@@ -18,3 +18,44 @@
 .account-compact .account-copy strong { font-size: 18px; }
 .account-compact .account-copy p { font-size: 12px; overflow-wrap: anywhere; }
 .account-compact .account-actions button { font-size: 11px; padding: 8px 10px; min-height: 36px; }
+.story-open-button { display: grid; place-items: center; justify-self: center; width: 42px; height: 42px; padding: 8px; color: #8f6644; border: 1px solid #b58b6466; border-radius: 50%; background: #fff5e6d9; box-shadow: 0 5px 16px #281a201f; }
+.story-open-button .brand-icon { width: 22px; height: 22px; }
+.lobby-card:has(.pairing-title) { text-align: center; align-content: center; }
+.lobby-card:has(.pairing-title) .account-strip { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 12px; border: 0; background: transparent; }
+.lobby-card:has(.pairing-title) .account-profile { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.lobby-card:has(.pairing-title) .portrait-open-button { padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: 0 0 0 5px #f6dfbb44, 0 0 28px #e6bb8050; }
+.lobby-card:has(.pairing-title) .profile-portrait { width: 64px; height: 64px; }
+.lobby-card:has(.pairing-title) .account-copy { text-align: center; }
+.lobby-card:has(.pairing-title) .account-copy strong { font-family: 'Fraunces', Georgia, serif; font-size: 19px; }
+.lobby-card:has(.pairing-title) .account-copy p { display: none; }
+.lobby-card:has(.pairing-title) .pairing-title { text-align: center; }
+.lobby-card:has(.pairing-title) .pairing-title h2 { margin: 4px 0 12px; font-family: 'Fraunces', Georgia, serif; }
+.lobby-card:has(.pairing-title) .night-start-button { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 62px; margin-top: 4px; border: 1px solid #ffd895; border-radius: 999px; background: linear-gradient(125deg, #f4d39a, #dfa96c 48%, #c86b78); color: #2d1c24; box-shadow: 0 10px 30px #c8806d44, inset 0 1px #fff8e3; font-family: 'Fraunces', Georgia, serif; font-size: 19px; letter-spacing: .015em; }
+.lobby-card:has(.pairing-title) .night-start-button .brand-icon { width: 25px; height: 25px; }
+.lobby-card:has(.pairing-title) .night-start-button:not(:disabled) { animation: nightButtonGlow 4s ease-in-out infinite; }
+.lobby-card:has(.pairing-title) .night-start-button:active { transform: translateY(2px) scale(.99); }
+.lobby-screen:has(.pairing-title) { padding-top: 68px; }
+.lobby-screen:has(.pairing-title) .title-band { position: absolute; z-index: 12; top: -62px; left: 50%; display: grid; width: min(42vw, 168px); height: 44px; padding: 0; transform: translateX(-50%); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.lobby-screen:has(.pairing-title) .title-band .brand-logo { width: 100%; height: 44px; margin: 0; }
+.app-shell:has(.lobby-screen:has(.pairing-title)) > .account-toggle { top: 12px; left: 12px; min-height: 40px; padding: 8px 10px; font-size: 9px; letter-spacing: .055em; }
+.app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls { top: 8px; right: 10px; gap: 3px; }
+.app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls .audio-toggle,
+.app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls .music-options > summary { min-width: 40px; min-height: 40px; padding: 7px; }
+.app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls .brand-icon { width: 18px; height: 18px; }
+@keyframes nightButtonGlow { 0%, 100% { box-shadow: 0 10px 30px #c8806d35, inset 0 1px #fff8e3; } 50% { box-shadow: 0 12px 38px #e1b47872, inset 0 1px #fff8e3; } }
+@media (prefers-reduced-motion: reduce) { .lobby-card:has(.pairing-title) .night-start-button:not(:disabled) { animation: none; } }
+
+@media (max-width: 460px) {
+  .lobby-screen:has(.pairing-title) { padding-top: 68px; }
+  .lobby-screen:has(.pairing-title) .title-band { top: -61px; width: min(42vw, 168px); height: 44px; padding: 0; }
+  .lobby-screen:has(.pairing-title) .title-band .brand-logo { height: 44px; }
+  .lobby-card:has(.pairing-title) { gap: 8px; padding: 10px 12px; }
+  .lobby-card:has(.pairing-title) .account-strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px; }
+  .lobby-card:has(.pairing-title) .profile-portrait { width: 56px; height: 56px; }
+  .lobby-card:has(.pairing-title) .account-copy { gap: 0; }
+  .lobby-card:has(.pairing-title) .account-copy strong { font-size: 17px; }
+  .lobby-card:has(.pairing-title) .account-copy p { display: none; }
+  .lobby-card:has(.pairing-title) .account-actions { display: none; }
+  .lobby-card:has(.pairing-title) .pairing-title h2 { margin: 0; font-size: clamp(24px, 6vw, 30px); line-height: 1.15; }
+  .lobby-card:has(.pairing-title) > .night-start-button { min-height: 58px; padding: 10px 14px; }
+}

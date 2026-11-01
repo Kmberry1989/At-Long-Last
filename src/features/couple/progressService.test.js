@@ -53,6 +53,7 @@ vi.mock('firebase/firestore', () => {
       }),
     serverTimestamp: () => ({ _serverTimestamp: true }),
     setDoc: async () => {},
+    Timestamp: { now: () => ({ _timestamp: true }) },
     where: (field, op, value) => ({ _where: [field, op, value] }),
   }
 })
@@ -73,6 +74,7 @@ import {
   flowerStageForGrowth,
   pickFlower,
   grantKoupon,
+  redeemKoupon,
   localDateStr,
   nextAnniversaryCountdown,
   pickKouponForGrant,
@@ -427,6 +429,22 @@ describe('promise grants', () => {
     expect(granted).not.toBeNull()
     expect(granted.label).toBeTruthy()
     expect(progress.koupons).toHaveLength(1)
+  })
+
+  it('reports missing or already used promises instead of claiming a redemption succeeded', async () => {
+    firestoreStore.clear()
+    firestoreStore.set('coupleProgress/couple-1', {
+      ...buildDefaultProgress('couple-1'),
+      koupons: [{ id: 'real-promise', label: 'Walk at sunset', status: 'active' }],
+    })
+
+    const missing = await redeemKoupon(db, 'couple-1', 'ps-1')
+    expect(missing.redeemed).toBe(false)
+    expect(firestoreStore.get('coupleProgress/couple-1').koupons[0].status).toBe('active')
+
+    const redeemed = await redeemKoupon(db, 'couple-1', 'real-promise')
+    expect(redeemed.redeemed).toBe(true)
+    expect(firestoreStore.get('coupleProgress/couple-1').koupons[0].status).toBe('redeemed')
   })
 })
 

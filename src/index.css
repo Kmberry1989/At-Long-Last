@@ -96,6 +96,10 @@ p {
     0 28px 90px rgba(4, 7, 13, 0.5);
 }
 
+.app-shell { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: pan-x pan-y; overscroll-behavior: none; }
+.app-shell input, .app-shell textarea, .app-shell [contenteditable="true"] { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
+.app-shell img, .app-shell svg { -webkit-user-drag: none; }
+
 .app-shell::before,
 .app-shell::after {
   content: '';
@@ -280,6 +284,10 @@ p {
   pointer-events: none;
   transform: translateY(-8px);
 }
+body:has(.milestones-hub-overlay) .app-shell > .audio-controls,
+body:has(.milestones-hub-overlay) .app-shell > .account-toggle,
+body:has(.our-story-screen) .app-shell > .audio-controls,
+body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-events: none; transform: translateY(-8px); }
 .app-shell:has(.game-screen.active) > .audio-controls,
 .app-shell:has(.game-screen.active) > .account-toggle {
   display: none;
@@ -1368,9 +1376,13 @@ p {
 .game-screen {
   display: flex;
   flex-direction: column;
-  animation: screenFadeIn 560ms var(--app-ease);
+  animation: gameFilmReveal 560ms var(--app-ease);
   overflow: clip;
+  background: linear-gradient(180deg, #0c1716a3, #08100fd1), url('/assets/backgrounds/romance-game-forest.webp') center / cover no-repeat;
 }
+
+@keyframes gameFilmReveal { from { opacity: 0; filter: blur(5px) saturate(.88); transform: translateY(14px) scale(1.008); } to { opacity: 1; filter: blur(0) saturate(1); transform: none; } }
+@media (prefers-reduced-motion: reduce) { .game-screen { animation: none; } }
 
 .board-wrap {
   position: absolute;
@@ -3676,8 +3688,11 @@ p {
 }
 
 .scrapbook-empty {
-  background:
-    linear-gradient(180deg, rgba(255, 252, 249, 0.86) 0%, rgba(248, 238, 229, 0.92) 100%);
+  gap: 0;
+  padding: 14px 16px;
+  color: #f8ead5;
+  border: 1px solid #dfc18c36;
+  background: linear-gradient(120deg, #fff1d51c, #fff1d508);
 }
 
 .scrapbook-entry {

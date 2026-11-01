@@ -17,6 +17,7 @@ import {
   clearNudge as clearNudgeDocument,
   ensureCoupleProgress,
   fulfillKoupon as fulfillKouponDocument,
+  grantKoupon as grantKouponDocument,
   localDateStr,
   pickFlower as pickFlowerDocument,
   redeemKoupon as redeemKouponDocument,
@@ -556,6 +557,17 @@ export function CoupleProvider({ children }) {
     }
   }
 
+  async function runPromiseAction(action, ...args) {
+    if (!db || !couple?.id) throw new Error('Connect your person before saving promises')
+    setError('')
+    try {
+      return await action(db, couple.id, ...args)
+    } catch (nextError) {
+      setError(nextError.message)
+      throw nextError
+    }
+  }
+
   function unlockTheme(themeId) {
     return runProgressAction(unlockThemeWithHeartsDocument, themeId)
   }
@@ -565,11 +577,15 @@ export function CoupleProvider({ children }) {
   }
 
   function redeemKoupon(kouponId) {
-    return runProgressAction(redeemKouponDocument, kouponId)
+    return runPromiseAction(redeemKouponDocument, kouponId)
   }
 
   function fulfillKoupon(kouponId) {
-    return runProgressAction(fulfillKouponDocument, kouponId)
+    return runPromiseAction(fulfillKouponDocument, kouponId)
+  }
+
+  function grantKoupon(label) {
+    return runPromiseAction(grantKouponDocument, { label: label.trim() })
   }
 
   function renameCompanion(name) {
@@ -626,6 +642,7 @@ export function CoupleProvider({ children }) {
       previewMode: !enabled,
       progress,
       fulfillKoupon,
+      grantKoupon,
       renameCompanion,
       redeemKoupon,
       selectTheme,

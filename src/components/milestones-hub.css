@@ -6,22 +6,26 @@
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: radial-gradient(circle at 50% 20%, #17162e 0%, #0c0b18 55%, #05050c 100%);
+  background: radial-gradient(ellipse at 50% 14%, #17162e 0%, #0d0c1c 58%, #070811 100%);
   color: #f7f3ee;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   font-family: inherit;
   animation: vaultEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  isolation: isolate;
 }
+.milestones-hub-overlay::before { content: ''; position: absolute; z-index: -1; inset: -12px; pointer-events: none; background: linear-gradient(180deg, #0b0b1838, #08091570), url('/assets/backgrounds/romance-vault-indigo.webp') center / cover no-repeat; opacity: .92; transform: translate3d(var(--vault-parallax-x, 0px), 0, 0) scale(1.035); transition: transform 520ms cubic-bezier(.2,.7,.25,1); }
 
 @keyframes vaultEntrance {
   from {
     opacity: 0;
+    filter: blur(5px) saturate(.88);
     transform: scale(0.97) translateY(12px);
   }
   to {
     opacity: 1;
+    filter: blur(0) saturate(1);
     transform: scale(1) translateY(0);
   }
 }
@@ -41,6 +45,8 @@
   background-repeat: repeat;
   background-size: 350px 350px;
   opacity: 0.6;
+  transform: translate3d(calc(var(--vault-parallax-x, 0px) * 1.6), 0, 0);
+  transition: transform 520ms cubic-bezier(.2,.7,.25,1);
 }
 
 /* Header & close button */
@@ -590,6 +596,18 @@
   transform: scale(1.05);
 }
 
+.pinkieswears-view .pinkieswears-hero { padding: 10px 12px; gap: 10px; }
+.pinkieswears-view .pinkie-hero-stamp { font-size: 1.4rem; }
+.pinkieswears-view .pinkie-swear-item { padding: 10px 12px; border-color: rgba(229, 192, 123, .23); }
+.pinkieswears-view .pinkie-swear-status { color: #e5c07b; }
+.pinkieswears-view .pinkie-redeem-btn { min-height: 42px; min-width: 78px; padding: 0 13px; }
+.pinkieswears-view .capsule-vow-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 0; padding: 0; border: 0; background: transparent; }
+.pinkieswears-view .capsule-vow-form .text-input { min-width: 0; min-height: 46px; background: #ffffff0d !important; color: #fff8f0 !important; }
+.pinkieswears-view .capsule-vow-form .text-input::placeholder { color: #d7c8b8 !important; opacity: .82; }
+.pinkieswears-view .capsule-vow-form .capsule-vow-submit { min-height: 46px; min-width: 64px; padding: 0 16px; }
+.pinkie-empty { margin: 0; padding: 16px 4px; color: rgba(247, 243, 238, .72); text-align: center; }
+.pinkieswears-view .milestones-toast { max-width: calc(100vw - 36px); text-align: center; }
+
 /* -------------------------------------------------------------------------- */
 /* TAB 4: Celestial Year in Review                                           */
 /* -------------------------------------------------------------------------- */
@@ -681,7 +699,7 @@
 /* Floating Toast confirmation */
 .milestones-toast {
   position: absolute;
-  bottom: 24px;
+  bottom: calc(68px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   background: rgba(229, 192, 123, 0.95);
@@ -692,6 +710,7 @@
   border-radius: 24px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
   z-index: 100;
+  pointer-events: none;
   animation: toastFade 2.5s ease-in-out forwards;
 }
 
@@ -700,3 +719,77 @@
   15%, 85% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -10px); }
 }
+
+/* Swipe-first Vault pages stay within the phone viewport. */
+.milestones-hub-header { display: none; }
+.milestones-hub-title-block { flex: 1; align-items: center; }
+.milestones-hub-title { margin: 0; color: #fff7e8; font-family: 'Fraunces', Georgia, serif; font-size: 1.35rem; text-shadow: none; }
+.milestones-hub-close-btn { position: absolute; z-index: 4; top: max(10px, env(safe-area-inset-top)); right: 10px; display: grid; place-items: center; width: 38px; height: 38px; min-width: 38px; min-height: 38px; padding: 8px; border: 1px solid #e5c07b55; border-radius: 50%; color: #f5d59e; background: #10101ecc; backdrop-filter: blur(8px); }
+.milestones-hub-close-btn .brand-icon { width: 20px; height: 20px; }
+.milestones-hub-content { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: max(10px, env(safe-area-inset-top)) 18px 4px; touch-action: pan-x pan-y; }
+.milestones-hub-content > section { height: 100%; min-height: 0; justify-content: center; animation: vaultPageIn 260ms ease both; }
+.constellation-view { gap: 8px; }
+.constellation-intro { margin: 0; }
+.constellation-intro h4 { font-family: 'Fraunces', Georgia, serif; font-size: 1.3rem; }
+.constellation-intro p { display: none; }
+.constellation-canvas-wrapper { flex: 1 1 auto; width: min(100%, 430px); height: auto; min-height: 0; max-height: 100%; }
+.constellation-line { animation: none; stroke-opacity: .46; }
+.constellation-star-node { transform-box: fill-box; transform-origin: center; transform: translate(var(--touch-drift-x, 0px), var(--touch-drift-y, 0px)); transition: transform 680ms cubic-bezier(.2,.75,.25,1); }
+.constellation-star-node .star-halo { transform-box: fill-box; transform-origin: center; animation: gentleStarTwinkle var(--twinkle-duration, 5s) ease-in-out var(--twinkle-delay, 0s) infinite; }
+.constellation-star-node > circle:not(.star-halo) { animation: starCoreTwinkle var(--twinkle-duration, 5s) ease-in-out var(--twinkle-delay, 0s) infinite; }
+.constellation-dust circle { fill: #ffe8bb; opacity: .28; transform: translate(var(--touch-drift-x, 0px), var(--touch-drift-y, 0px)); transition: transform 680ms cubic-bezier(.2,.75,.25,1); animation: dustTwinkle var(--dust-duration, 6s) ease-in-out var(--dust-delay, 0s) infinite; }
+.touch-swirl-orbit { transform-box: fill-box; transform-origin: center; animation: fingertipSwirl 2.4s linear infinite; }
+.touch-swirl-trail { fill: none; stroke: #f7d99d; stroke-opacity: .68; stroke-width: .8; stroke-dasharray: 2 6; animation: fingertipTrail 1.2s ease-in-out infinite alternate; }
+.touch-swirl-spark { fill: #fff2d4; filter: drop-shadow(0 0 3px #f3d28e); animation: fingertipSpark 1.1s ease-in-out infinite alternate; }
+@keyframes gentleStarTwinkle { 0%, 100% { opacity: .28; transform: scale(.94); } 45% { opacity: .58; transform: scale(1.05); } 62% { opacity: .38; transform: scale(.98); } }
+@keyframes starCoreTwinkle { 0%, 100% { opacity: .88; } 48% { opacity: 1; } 68% { opacity: .78; } }
+@keyframes dustTwinkle { 0%, 100% { opacity: .14; } 45% { opacity: .54; } 66% { opacity: .24; } }
+@keyframes fingertipSwirl { to { transform: rotate(360deg); } }
+@keyframes fingertipTrail { from { opacity: .3; stroke-dashoffset: 0; } to { opacity: .9; stroke-dashoffset: 16; } }
+@keyframes fingertipSpark { from { opacity: .36; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .constellation-dust circle, .constellation-star-node .star-halo, .constellation-star-node > circle:not(.star-halo), .touch-swirl-orbit, .touch-swirl-trail, .touch-swirl-spark { animation: none; } }
+.capsules-view { height: 100%; justify-content: center; gap: 12px; }
+.capsule-anniversary-banner { min-height: 64px; padding: 9px 12px; }
+.capsule-anniversary-text p { font-size: .62rem; }
+.capsule-anniversary-text h4 { font-size: .95rem; color: #fff7e8; }
+.capsule-countdown-badge { min-height: 38px; padding: 7px 12px; border: 0; cursor: pointer; }
+.capsules-grid.capsule-carousel { position: relative; flex: 0 1 240px; min-height: 180px; justify-content: center; touch-action: pan-y; }
+.capsule-carousel .time-capsule-card { min-height: 190px; justify-content: space-between; padding: 18px; }
+.capsule-carousel .capsule-wax-seal { width: 48px; height: 48px; }
+.capsule-carousel .capsule-card-info h5 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(1.25rem, 5vw, 1.8rem); line-height: 1.15; text-wrap: balance; }
+.capsule-card-pager, .pinkie-card-pager { display: flex; align-items: center; justify-content: center; gap: 20px; min-height: 42px; color: #e7d6ba; font-size: .8rem; }
+.capsule-card-pager button, .pinkie-card-pager button { display: grid; place-items: center; width: 38px; height: 38px; padding: 8px; border: 1px solid #e5c07b55; border-radius: 50%; color: #f5d59e; background: #ffffff08; }
+.capsule-card-pager button:last-child .brand-icon, .pinkie-card-pager button:last-child .brand-icon { transform: rotate(180deg); }
+.capsule-card-pager button:disabled, .pinkie-card-pager button:disabled { opacity: .3; }
+.pinkieswears-view { height: 100%; justify-content: center; gap: 12px; }
+.pinkieswears-view .pinkieswears-hero { justify-content: center; min-height: 52px; margin: 0; }
+.pinkieswears-view .pinkie-swears-list { gap: 8px; }
+.pinkieswears-view .pinkie-swear-item { min-height: 112px; padding: 16px; }
+.pinkieswears-view .pinkie-swear-info strong { font-family: 'Fraunces', Georgia, serif; font-size: 1.2rem; }
+.pinkieswears-view .pinkie-empty { padding: 22px 8px; }
+.pinkieswears-view .capsule-vow-form { margin-top: 0; }
+.recap-view { height: 100%; justify-content: center; gap: 16px; }
+.recap-hero-tile { padding: 12px; }
+.recap-hero-tile h4 { font-family: 'Fraunces', Georgia, serif; }
+.recap-stat-carousel { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+.recap-stat-carousel .recap-stat-card { min-height: 176px; justify-content: center; border-color: #e5c07b44; background: radial-gradient(ellipse at 50% 20%, #e5c07b22, #ffffff05 75%); }
+.recap-stat-carousel .recap-stat-card > .brand-icon { width: 34px; height: 34px; color: #edca8a; }
+.recap-stat-carousel .recap-stat-value { font-size: 2.5rem; font-family: 'Fraunces', Georgia, serif; }
+.recap-stat-carousel .recap-stat-label { font-size: .8rem; }
+.recap-view .recap-share-btn { min-height: 44px; }
+.vault-pager { flex: 0 0 58px; display: flex; justify-content: space-between; align-items: center; padding: 6px 18px max(6px, env(safe-area-inset-bottom)); border-top: 1px solid #e5c07b2b; background: #10101e; }
+.vault-pager > button { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #e5c07b55; border-radius: 50%; padding: 9px; color: #f3d39d; background: #ffffff09; }
+.vault-pager > button:last-child .brand-icon { transform: rotate(180deg); }
+.vault-pager > button:disabled { opacity: .3; }
+.vault-pager-label { display: flex; align-items: center; gap: 12px; color: #fff2dd; }
+.vault-pager-label strong { font-family: 'Fraunces', Georgia, serif; font-size: 1.1rem; }
+.vault-pager-label span { color: #bdab91; font-size: .75rem; }
+.anniversary-date-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #05050ccc; }
+.anniversary-date-dialog { display: grid; width: min(100%, 360px); gap: 16px; padding: 20px; border: 1px solid #e5c07b77; border-radius: 20px; background: #191629; box-shadow: 0 20px 70px #0009; }
+.anniversary-date-dialog h3 { margin: 0; color: #fff2dd; font-family: 'Fraunces', Georgia, serif; }
+.anniversary-date-dialog input { min-height: 48px; color-scheme: dark; }
+.anniversary-date-actions { display: flex; align-items: center; gap: 16px; }
+.anniversary-date-actions .capsule-vow-submit { flex: 1; }
+@keyframes vaultPageIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@media (max-height: 620px) { .milestones-hub-content { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: 2px; } .constellation-canvas-wrapper { height: auto; } .capsule-carousel .time-capsule-card { min-height: 158px; } .pinkieswears-view .pinkie-swear-item { min-height: 88px; } .recap-stat-carousel .recap-stat-card { min-height: 120px; } }
+@media (prefers-reduced-motion: reduce) { .milestones-hub-overlay { animation: none; } .milestones-hub-content > section { animation: none; } .milestones-hub-overlay::before, .milestones-hub-stars { transition: none; transform: none; } }

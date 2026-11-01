@@ -12,17 +12,17 @@ export function PortraitFrames() {
   const owned = saved?.ownedFrames || FREE_FRAME_IDS
   const balance = spendableHearts(progress)
   return <section className="portrait-frames" aria-label="Portrait frames">
-    <h3>Your finishing touch</h3>
-    <p>Frame your Google photo. {balance} shared hearts available.</p>
+    <span aria-label={`${balance} shared hearts available`} className="portrait-heart-balance"><BrandIcon name="heart" />{balance}</span>
     <div className="portrait-frame-grid">{PORTRAIT_FRAMES.map(frame => {
       const selected = (saved?.selectedFrame || 'ribbon') === frame.id
       const unlocked = owned.includes(frame.id)
-      return <button type="button" key={frame.id} aria-pressed={selected} disabled={working || !selectFrame || !saved || (!unlocked && balance < frame.cost)} onClick={() => selectFrame(frame.id)} aria-label={`${frame.label}, ${selected ? 'selected' : unlocked ? 'use frame' : `${frame.cost} shared hearts`}`}>
+      const accessibleStatus = selected ? 'selected' : !frame.cost ? 'free' : unlocked ? 'owned' : `${frame.cost} hearts`
+      return <button type="button" key={frame.id} aria-pressed={selected} disabled={working || !selectFrame || !saved || (!unlocked && balance < frame.cost)} onClick={() => selectFrame(frame.id)} aria-label={`${frame.label}, ${accessibleStatus}`}>
         <PlayerPortrait player={player} frameId={frame.id} />
-        <strong>{frame.label}</strong><span>{selected ? 'Wearing' : unlocked ? frame.cost ? 'Owned · Use' : 'Free · Use' : <><BrandIcon name="heart" /> {frame.cost}</>}</span>
+        <strong>{frame.label}</strong>
+        <span className="portrait-frame-price">{selected ? <BrandIcon name="check" /> : !frame.cost ? 'Free' : unlocked ? 'Owned' : <><BrandIcon name="heart" />{frame.cost}</>}</span>
       </button>
     })}</div>
-    <p className="support-copy">Purchased frames stay in your collection for this connection. Hearts come from your shared saved balance.</p>
     {error && <p className="error-copy" role="alert">{error}</p>}
   </section>
 }

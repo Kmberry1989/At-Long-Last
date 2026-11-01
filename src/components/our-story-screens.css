@@ -1,0 +1,25 @@
+.our-story-screen { position: fixed; inset: 0; z-index: 110; display: grid; grid-template-rows: auto 1fr; overflow: auto; padding: max(18px, env(safe-area-inset-top)) max(18px, calc((100vw - 620px) / 2)) max(20px, env(safe-area-inset-bottom)); color: #f8ead5; background: radial-gradient(ellipse at 50% 18%, #f2c99012, transparent 58%), linear-gradient(180deg, #25152255, #120f1970), url('/assets/backgrounds/romance-story-plum.webp') center / cover no-repeat; animation: storyFilmReveal 460ms ease-out both; }
+@keyframes storyFilmReveal { from { opacity: 0; filter: blur(5px) saturate(.86); transform: scale(1.012); } to { opacity: 1; filter: blur(0) saturate(1); transform: none; } }
+.our-story-header { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; min-height: 56px; margin-bottom: 18px; background: linear-gradient(#211b2a 75%, transparent); }
+.our-story-header h1 { margin: 0; text-align: center; font-family: 'Fraunces', Georgia, serif; font-size: 26px; }
+.our-story-back { display: grid; place-items: center; width: 44px; height: 44px; color: #f7dfb7; border: 1px solid #d8bd8b55; border-radius: 50%; background: #ffffff0b; }
+.our-story-back .brand-icon { width: 22px; height: 22px; }
+.our-story-spacer { width: 44px; }
+.our-story-choices { align-self: start; display: grid; gap: 12px; padding-top: 14px; }
+.our-story-choice { display: grid; grid-template-columns: 42px 1fr 24px; gap: 14px; align-items: center; min-height: 82px; padding: 16px 18px; color: #f8ead5; text-align: left; border: 1px solid #d9bc8755; border-radius: 22px; background: linear-gradient(130deg, #fff2d414, #fff2d407); box-shadow: 0 10px 28px #0003; font: 700 20px 'Fraunces', Georgia, serif; }
+.our-story-choice > .brand-icon { width: 30px; height: 30px; color: #e4c58e; }
+.our-story-choice .our-story-choice-arrow { width: 20px; height: 20px; color: #bb9b70; }
+.our-story-content { width: min(100%, 620px); margin: 0 auto; }
+.our-story-content .progress-hub { padding: 0; }
+.scrapbook-screen-content .pairing-story { margin: 4px 0 24px; }
+.scrapbook-screen-content .pairing-story > .eyebrow { margin: 0; color: #d6b587; letter-spacing: .16em; }
+.scrapbook-screen-content .story-moment { position: relative; grid-template-columns: 34px 1fr; gap: 14px; padding: 16px 16px 16px 12px; border: 1px solid #dfc18c36; border-radius: 17px; background: linear-gradient(120deg, #fff1d51c, #fff1d508); box-shadow: none; color: #f8ead5; }
+.scrapbook-screen-content .story-moment:not(:last-child)::after { content: ''; position: absolute; top: 58px; bottom: -19px; left: 28px; border-left: 1px dashed #d6b58777; }
+.scrapbook-screen-content .story-moment-seal { z-index: 1; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #ebc98699; border-radius: 50%; color: #f0cf94; background: #211b2a; font-size: 18px; }
+.scrapbook-screen-content .story-moment-seal .brand-icon { width: 19px; height: 19px; }
+.scrapbook-screen-content .story-moment .eyebrow { margin: 0 0 5px; color: #d6b587; font-size: 10px; letter-spacing: .14em; }
+.scrapbook-screen-content .story-moment h3 { margin: 0 0 5px; color: #fff0d4; font-size: 23px; line-height: 1.1; }
+.scrapbook-screen-content .story-moment p:not(.eyebrow) { margin: 0; color: #e5d4c3; }
+.scrapbook-screen-content .story-moment time { margin-top: 6px; color: #bba98f; }
+@media (max-width: 460px) { .our-story-screen { padding-left: 16px; padding-right: 16px; } .our-story-choice { min-height: 70px; font-size: 18px; } }
+@media (prefers-reduced-motion: reduce) { .our-story-screen { animation: none; } }

@@ -2,7 +2,7 @@
    Login form structure, providers, and behavior retain their own styles. */
 .lobby-backdrop,
 .lobby-screen.auth-screen .lobby-backdrop {
-  background: linear-gradient(180deg, #091c1e20, #091c1e70), url('/assets/brand/night-table-background.webp') center / cover no-repeat;
+  background: linear-gradient(180deg, #fff6e514, #20141f42), url('/assets/backgrounds/romance-lobby-rose.webp') center / cover no-repeat;
 }
 .lobby-backdrop > *,
 .lobby-screen.auth-screen .lobby-backdrop::before,

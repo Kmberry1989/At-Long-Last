@@ -1,38 +1,32 @@
 import { PlayerPortrait } from './PlayerPortrait.jsx'
-import { PortraitFrames } from './PortraitFrames.jsx'
-import { BrandText } from './BrandIcon.jsx'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { hasCommitted } from '../features/couple/pairingService.js'
-import { SESSION_PRESET_OPTIONS } from '../features/session/sessionPresets.js'
 import { Disclosure } from './Disclosure.jsx'
 import { PlayerPiecePicker } from './PlayerPiecePicker.jsx'
-import { LoginStreak } from './LoginStreak.jsx'
-import { ProgressHub } from './ProgressHub.jsx'
-import { PairingStory } from './Milestones.jsx'
-import { JournalTimeline } from './JournalTimeline.jsx'
+import { ProfileSheet } from './ProfileSheet.jsx'
+import { OurStoryScreens } from './OurStoryScreens.jsx'
+import { BrandIcon } from './BrandIcon.jsx'
 import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/emailInvitationService.js'
-import { MilestonesHub } from './MilestonesHub.jsx'
 import './PairingHome.css'
 
 export function PairingHome({ avatar, onAvatarChange }) {
   const { couple, inviteByEmail, acceptInvitation, declineInvitation, incomingInvitations = [], sentInvitation, invitationsLoading, invitationError, commitPairing, unpair, loading, error, profile } = useCouple()
-  const { user, updateDisplayName, authWorking, verifyEmail, refreshEmailVerification } = useFirebaseApp()
-  const { session, journalEntries, gameOpen, readyToPlay, error: sessionError, beginNight, openGame, closeGame, working: sessionWorking } = useSession()
+  const { user, authWorking, verifyEmail, refreshEmailVerification } = useFirebaseApp()
+  const { session, gameOpen, readyToPlay, error: sessionError, beginNight, openGame, closeGame, working: sessionWorking, journalEntries = [] } = useSession()
   const name = profile?.displayName || user?.displayName || 'Player'
-  const [draftName, setDraftName] = useState(name)
-  const [editingName, setEditingName] = useState(false)
   const [partnerEmail, setPartnerEmail] = useState('')
-  const [preset, setPreset] = useState(couple?.sessionPreset || 'quick')
   const [confirmUnpair, setConfirmUnpair] = useState(false)
   const [confirmCommit, setConfirmCommit] = useState(false)
   const [acceptPermanent, setAcceptPermanent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
-  const [vaultOpen, setVaultOpen] = useState(false)
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false)
+  const [storyScreen, setStoryScreen] = useState('')
+  const profileButtonRef = useRef(null)
   const partner = couple?.players?.find((player) => player.uid !== user?.uid)
   const paired = couple?.playerIds?.length === 2
   const committed = hasCommitted(couple)
@@ -40,8 +34,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const hasCurrentNight = Boolean(couple?.activeSessionId && (!session || session.status === 'active'))
   const disabled = busy || loading || authWorking || sessionWorking
 
-  useEffect(() => { setDraftName(name) }, [name])
-  useEffect(() => { setPreset(couple?.sessionPreset || 'quick'); setConfirmUnpair(false); setConfirmCommit(false); setAcceptPermanent(false); setNotice('') }, [couple?.id, couple?.sessionPreset])
+  useEffect(() => { setConfirmUnpair(false); setConfirmCommit(false); setAcceptPermanent(false); setNotice('') }, [couple?.id])
   useEffect(() => {
     const url = new URL(window.location.href)
     if (url.searchParams.has('invite') || url.searchParams.has('code')) {
@@ -62,18 +55,19 @@ export function PairingHome({ avatar, onAvatarChange }) {
     return <Disclosure label="Your piece"><PlayerPiecePicker disabled={disabled} value={avatar} onChange={onAvatarChange} /></Disclosure>
   }
 
+  const closeProfileSheet = useCallback(() => {
+    setProfileSheetOpen(false)
+    requestAnimationFrame(() => profileButtonRef.current?.focus())
+  }, [])
+
   return (
     <>
       <div className={`account-strip${!paired ? ' account-compact' : ''}`}>
-        <div className="account-profile"><PlayerPortrait player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} /><div className="account-copy"><strong>{name}</strong>{user?.email && <p>{user.email}</p>}</div></div>
-        <div className="account-actions">
-          <button className="ghost-btn" onClick={() => setEditingName(!editingName)} type="button">{editingName ? 'Done' : 'Edit Name'}</button>
+        <div className="account-profile">
+          {paired ? <button ref={profileButtonRef} aria-haspopup="dialog" aria-label="Edit profile portrait" className="portrait-open-button" onClick={() => setProfileSheetOpen(true)} type="button"><PlayerPortrait player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} /></button> : <PlayerPortrait player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} />}
+          <div className="account-copy"><strong>{name}</strong>{user?.email && <p>{user.email}</p>}</div>
         </div>
       </div>
-      {editingName && <form className="pairing-editor" onSubmit={(event) => { event.preventDefault(); act(async () => { await updateDisplayName(draftName); setEditingName(false) }) }}>
-        <input aria-label="Name" className="text-input" value={draftName} onChange={(event) => setDraftName(event.target.value)} maxLength={60} placeholder="Name" />
-        <button className="primary-btn alt" disabled={!draftName.trim() || disabled} type="submit">Save</button>
-      </form>}
 
       {loading && !couple ? <p role="status">Loading your connection…</p> : gameOpen && paired && !readyToPlay ? <>
         <h2>{sessionError ? 'Game unavailable' : 'Loading game…'}</h2>
@@ -114,7 +108,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
           {invitationError && <p role="alert" className="error-copy">{invitationError}</p>}
         </>}
       </> : <>
-        <div className="pairing-title"><h2>You &amp; {partner?.displayName || 'your person'}</h2>{committed && <span className="pairing-committed"><BrandText text={"♥ Committed"} /></span>}</div>
+        <div className="pairing-title"><h2>You &amp; {partner?.displayName || 'your person'}</h2></div>
         {!committed && <div className="pairing-commit">
           <h3>Commit</h3>
           <p className="support-copy">One person. One permanent commitment.</p>
@@ -130,15 +124,9 @@ export function PairingHome({ avatar, onAvatarChange }) {
             <button className="ghost-btn" onClick={() => { setConfirmCommit(false); setAcceptPermanent(false) }} type="button">Not yet</button>
           </form> : <button className="primary-btn" disabled={disabled} onClick={() => setConfirmCommit(true)} type="button">Commit</button>}
         </div>}
-        {hasCurrentNight ? <button className="primary-btn" disabled={disabled} onClick={openGame} type="button">Continue</button> : <>
-          <div className="preset-card"><h3>Length</h3><div className="preset-grid">{SESSION_PRESET_OPTIONS.map((option) => <button className={`public-lobby-card${preset === option.id ? ' active' : ''}`} aria-pressed={preset === option.id} key={option.id} disabled={disabled} onClick={() => setPreset(option.id)} type="button"><strong>{option.label}</strong></button>)}</div></div>
-          <button className="primary-btn" disabled={disabled} onClick={() => act(() => beginNight(preset))} type="button">New night</button>
-        </>}
-        {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Your saved game is unavailable. Try Continue again, or sign out and back in.' : 'Could not start your night. Try New night again.'}</p>}
-        <button className="secondary-btn" onClick={() => setVaultOpen(true)} style={{ margin: '8px 0' }} type="button"><BrandText text={"✦ The Couple's Vault & Milestones "} /></button>
-        <Disclosure label="Scrapbook"><PairingStory /><JournalTimeline entries={journalEntries || []} /></Disclosure>
-        <Disclosure label="Collection"><PortraitFrames /><LoginStreak streak={profile?.loginStreak} /><ProgressHub /></Disclosure>
-        {vaultOpen && <MilestonesHub onClose={() => setVaultOpen(false)} />}
+        {hasCurrentNight ? <button className="primary-btn night-start-button" disabled={disabled} onClick={openGame} type="button"><BrandIcon name="moon" /><span>Continue our night</span></button> : <button className="primary-btn night-start-button" disabled={disabled} onClick={() => act(() => beginNight('long'))} type="button"><BrandIcon name="moon" /><span>Begin our night</span></button>}
+        {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Saved game unavailable. Try Continue again.' : 'Couldn’t start. Try again.'}</p>}
+          <button aria-label="Our Story" className="story-open-button" onClick={() => setStoryScreen('chooser')} type="button"><BrandIcon name="more" /></button>
       </>}
 
       {couple && !committed && <div className="pairing-unpair">
@@ -148,6 +136,8 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </> : <button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(true)} type="button">{paired ? 'Cancel connection' : 'Cancel invite'}</button>}
       </div>}
       {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
+      {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} onClose={closeProfileSheet} />}
+      {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} onClose={() => setStoryScreen('')} />}
     </>
   )
 }

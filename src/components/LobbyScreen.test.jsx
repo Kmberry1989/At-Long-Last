@@ -68,7 +68,7 @@ describe('permanent pairing menus', () => {
     expect(container.querySelector('.lobby-screen')).toHaveClass('active')
     expect(screen.getByRole('heading', { name: 'You & Blair' })).toBeVisible()
     expect(state.session.openGame).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue our night' }))
     expect(state.session.openGame).toHaveBeenCalledOnce()
   })
   it('requires an explicit irreversible confirmation from each player', async () => {
@@ -80,22 +80,58 @@ describe('permanent pairing menus', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Commit forever' }))
     await waitFor(() => expect(state.couple.commitPairing).toHaveBeenCalledOnce())
   })
-  it('does not offer unpair or another commitment after mutual commitment', () => {
+  it('keeps the committed home compact without secondary sections', () => {
     pair(); state.couple.couple.commitments = ['a', 'b']; state.couple.couple.commitmentEmails = { a: 'alex@example.test', b: 'blair@example.test' }
     render(<LobbyScreen />)
-    expect(screen.getByText('Committed')).toBeVisible()
-    expect(screen.queryByRole('button', { name: /Unpair|Cancel connection|Commit forever/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Unpair|Cancel connection|Commit forever|Couple's Vault|Milestones/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Scrapbook' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Collection' })).toBeNull()
+  })
+  it('opens the portrait frames from the profile portrait without adding a lobby section', () => {
+    pair(); state.couple.couple.commitments = ['a', 'b']
+    render(<LobbyScreen />)
+    expect(screen.queryByRole('button', { name: 'Collection' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile portrait' }))
+    expect(screen.getByRole('dialog', { name: 'Frames' })).toBeVisible()
+    expect(screen.getByLabelText('0 day streak')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Close profile' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+  it('opens standalone destinations from one Our Story control', () => {
+    pair(); state.couple.couple.commitments = ['a', 'b']
+    render(<LobbyScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'Our Story' }))
+    expect(screen.getByRole('navigation', { name: 'Our Story sections' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Scrapbook' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Vault' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Collection' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Scrapbook' }))
+    expect(screen.getByRole('heading', { name: 'Scrapbook' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Our Story' }))
+    expect(screen.getByRole('navigation', { name: 'Our Story sections' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Collection' }))
+    expect(screen.getByRole('heading', { name: 'Collection' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Our Story' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vault' }))
+    expect(screen.getByRole('dialog', { name: "The Couple's Vault" })).toBeVisible()
   })
   it('requires email verification before commitment', () => {
     pair(); state.firebase.user.emailVerified = false; render(<LobbyScreen />)
     expect(screen.getByRole('button', { name: 'Verify email' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Commit' })).toBeNull()
   })
-  it('starts the selected length while keeping the pairing', () => {
+  it('starts the longest night from one centered action without lobby editing or length choices', () => {
     pair(); render(<LobbyScreen />)
-    fireEvent.click(screen.getByRole('button', { name: 'Date night' }))
-    fireEvent.click(screen.getByRole('button', { name: 'New night' }))
-    expect(state.session.beginNight).toHaveBeenCalledWith('standard')
+    expect(screen.queryByRole('button', { name: /Couple's Vault|Milestones/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Scrapbook' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Collection' })).toBeNull()
+    expect(screen.queryByText('Length')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Edit Name/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Quick|Date night|Stay awhile/ })).toBeNull()
+    const start = screen.getByRole('button', { name: 'Begin our night' })
+    expect(start.querySelector('.brand-icon')).not.toBeNull()
+    fireEvent.click(start)
+    expect(state.session.beginNight).toHaveBeenCalledWith('long')
   })
   it('keeps a screen visible if opening a saved session fails', () => {
     pair(); state.session.gameOpen = true; state.session.error = 'Permission denied'

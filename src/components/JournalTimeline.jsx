@@ -160,8 +160,7 @@ function getEntryDate(entry) {
 function JournalEmptyState() {
   return (
     <div className="journal-card journal-empty scrapbook-empty">
-      <strong>Your scrapbook is still blank.</strong>
-      <p>The first page appears as soon as a prompt, duel, or keepsake is worth saving.</p>
+      <strong>No keepsakes yet</strong>
     </div>
   )
 }

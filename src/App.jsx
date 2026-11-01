@@ -20,7 +20,9 @@ const GameScreen = lazy(() =>
 function AppContent() {
   usePressFeedback()
   return (
-    <div className="app-shell">
+    <div className="app-shell" onContextMenu={(event) => {
+      if (!event.target.closest?.('input, textarea, [contenteditable="true"]')) event.preventDefault()
+    }}>
       <AudioToggle />
       <AccountToggle />
       <Suspense
