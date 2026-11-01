@@ -35,10 +35,10 @@
 .lobby-card:has(.pairing-title) .night-start-button:not(:disabled) { animation: nightButtonGlow 4s ease-in-out infinite; }
 .lobby-card:has(.pairing-title) .night-start-button:active { transform: translateY(2px) scale(.99); }
 .lobby-screen:has(.pairing-title) { padding-top: 68px; }
-.lobby-screen:has(.pairing-title) .title-band { position: absolute; z-index: 12; top: -62px; left: 50%; display: grid; width: min(42vw, 168px); height: 44px; padding: 0; transform: translateX(-50%); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.lobby-screen:has(.pairing-title) .title-band { position: absolute; z-index: 12; top: max(8px, env(safe-area-inset-top)); left: 50%; display: grid; width: min(36vw, 148px); height: 44px; padding: 0; transform: translateX(-50%); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
 .lobby-screen:has(.pairing-title) .title-band .brand-logo { width: 100%; height: 44px; margin: 0; }
-.app-shell:has(.lobby-screen:has(.pairing-title)) > .account-toggle { top: 12px; left: 12px; min-height: 40px; padding: 8px 10px; font-size: 9px; letter-spacing: .055em; }
-.app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls { top: 8px; right: 10px; gap: 3px; }
+.app-shell:has(.lobby-screen:has(.pairing-title)) > .account-toggle { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); min-height: 40px; padding: 8px 10px; font-size: 9px; letter-spacing: .055em; }
+.app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls { top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); gap: 3px; }
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls .audio-toggle,
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls .music-options > summary { min-width: 40px; min-height: 40px; padding: 7px; }
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls .brand-icon { width: 18px; height: 18px; }
@@ -47,7 +47,7 @@
 
 @media (max-width: 460px) {
   .lobby-screen:has(.pairing-title) { padding-top: 68px; }
-  .lobby-screen:has(.pairing-title) .title-band { top: -61px; width: min(42vw, 168px); height: 44px; padding: 0; }
+  .lobby-screen:has(.pairing-title) .title-band { top: max(8px, env(safe-area-inset-top)); width: min(36vw, 148px); height: 44px; padding: 0; }
   .lobby-screen:has(.pairing-title) .title-band .brand-logo { height: 44px; }
   .lobby-card:has(.pairing-title) { gap: 8px; padding: 10px 12px; }
   .lobby-card:has(.pairing-title) .account-strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px; }
@@ -58,6 +58,14 @@
   .lobby-card:has(.pairing-title) .account-actions { display: none; }
   .lobby-card:has(.pairing-title) .pairing-title h2 { margin: 0; font-size: clamp(24px, 6vw, 30px); line-height: 1.15; }
   .lobby-card:has(.pairing-title) > .night-start-button { min-height: 58px; padding: 10px 14px; }
+}
+
+@media (max-height: 720px) {
+  .lobby-screen:has(.email-onboarding) { padding-top: max(48px, env(safe-area-inset-top)); padding-bottom: 12px; }
+  .lobby-screen:has(.email-onboarding) .lobby-content { gap: 10px; align-content: start; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .lobby-screen:has(.email-onboarding) .title-band { padding-block: 4px 6px; }
+  .lobby-screen:has(.email-onboarding) .brand-logo { height: 48px; }
+  .lobby-screen:has(.email-onboarding) .lobby-card:has(.email-onboarding) { gap: 10px; padding: 14px; }
 }
 
 /* The paired lobby is a full-screen welcome composition, not a small card. */
@@ -82,64 +90,88 @@
 .couple-portrait-stage {
   position: relative;
   isolation: isolate;
-  width: min(92vw, 360px);
-  aspect-ratio: 4 / 3;
-  margin: -4px auto -10px;
+  width: min(92vw, 400px);
+  height: clamp(178px, 52vw, 218px);
+  margin: -2px auto -4px;
+  border-radius: 48% 52% 46% 54% / 54% 45% 55% 46%;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(255, 251, 239, .34), transparent 69%),
+    linear-gradient(115deg, rgba(255, 238, 215, .12), rgba(237, 196, 188, .16) 48%, rgba(248, 227, 205, .1));
+  animation: coupleAtmosphere 13s ease-in-out infinite alternate;
 }
 .couple-portrait-stage::before {
   content: '';
   position: absolute;
   z-index: -1;
-  inset: 15% 20%;
+  inset: 8% 4%;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(255, 226, 182, .72), rgba(236, 177, 155, .24) 42%, transparent 72%);
-  filter: blur(24px);
-  animation: coupleHalo 8s ease-in-out infinite alternate;
+  background: radial-gradient(ellipse, rgba(255, 222, 179, .58), rgba(232, 175, 161, .20) 48%, transparent 74%);
+  filter: blur(30px);
+  animation: coupleHalo 9s ease-in-out infinite alternate;
 }
-.couple-art-cycle { position: absolute; inset: 0; pointer-events: none; }
-.couple-art-layer {
+.couple-portrait-stage::after {
+  content: '';
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  object-fit: contain;
-  opacity: 0;
-  filter: drop-shadow(0 6px 14px rgba(122, 66, 54, .2));
-  animation: coupleArtCrossfade 18s ease-in-out infinite both;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255, 248, 220, .68) 0 1px, transparent 3px),
+    radial-gradient(circle at 80% 30%, rgba(255, 232, 195, .78) 0 1px, transparent 4px),
+    radial-gradient(circle at 23% 76%, rgba(255, 245, 217, .74) 0 1px, transparent 3px),
+    radial-gradient(circle at 77% 73%, rgba(255, 229, 195, .68) 0 1px, transparent 4px);
+  opacity: .58;
 }
-.couple-art-layer.ribbon { animation-delay: -6s; }
-.couple-art-layer.rose { animation-delay: -12s; }
+.couple-atmosphere { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.couple-glint {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff4d6;
+  box-shadow: 0 0 7px 2px rgba(255, 213, 150, .72);
+  opacity: 0;
+  animation: coupleGlintFall 7s linear infinite;
+}
+.glint-one { left: 16%; top: 15%; animation-delay: -1.5s; }
+.glint-two { left: 34%; top: 8%; animation-delay: -5.2s; transform: scale(.7); }
+.glint-three { left: 67%; top: 12%; animation-delay: -3.3s; transform: scale(.8); }
+.glint-four { left: 83%; top: 18%; animation-delay: -6.4s; transform: scale(.65); }
+.glint-five { left: 51%; top: 2%; animation-delay: -.4s; transform: scale(.6); }
 .couple-portrait-button {
   position: absolute;
   top: 50%;
   display: grid;
   place-items: center;
-  width: min(25vw, 88px);
-  height: min(25vw, 88px);
+  width: min(30vw, 112px);
+  height: min(30vw, 112px);
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
   transform: translate(-50%, -50%);
 }
-.couple-portrait-button.own { z-index: 2; left: 30.5%; box-shadow: 0 0 24px rgba(255, 225, 175, .56); }
+.couple-portrait-button.own { z-index: 2; left: 30.5%; }
 .couple-portrait-button.partner { z-index: 2; left: 69.5%; pointer-events: none; }
-.couple-portrait-button .profile-portrait { width: 100%; height: 100%; }
+.lobby-screen.paired-lobby .couple-portrait-button .profile-portrait { width: 100%; height: 100%; max-width: none; }
 .couple-portrait-stage .couple-portrait-button.own:focus-visible { outline: 3px solid #9e6739; outline-offset: 4px; }
 .lobby-screen.paired-lobby .pairing-title h2 { margin: 0 0 10px; font-size: clamp(25px, 6.3vw, 35px); }
 .lobby-screen.paired-lobby .night-start-button { width: min(100%, 390px); justify-self: center; }
 .lobby-screen.paired-lobby .story-open-button { margin-top: 2px; }
 
-@keyframes coupleArtCrossfade {
-  0% { opacity: 0; }
-  5% { opacity: .68; }
-  27% { opacity: .68; }
-  33.34%, 100% { opacity: 0; }
-}
 @keyframes coupleHalo {
   from { opacity: .48; transform: scale(.9); }
   to { opacity: .92; transform: scale(1.12); }
+}
+@keyframes coupleAtmosphere {
+  from { background-position: 0% 50%, 0% 0%; }
+  to { background-position: 100% 50%, 100% 100%; }
+}
+@keyframes coupleGlintFall {
+  0% { opacity: 0; transform: translate3d(0, -4px, 0) scale(.65); }
+  14% { opacity: .8; }
+  72% { opacity: .48; }
+  100% { opacity: 0; transform: translate3d(7px, 152px, 0) scale(1.15); }
 }
 
 .lobby-screen.paired-lobby::before,
@@ -202,15 +234,15 @@
 }
 
 @media (max-height: 680px) {
-  .couple-portrait-stage { width: min(76vw, 290px); }
+  .couple-portrait-stage { width: min(92vw, 360px); height: clamp(160px, 44vw, 190px); }
+  .couple-portrait-button { width: min(29vw, 104px); height: min(29vw, 104px); }
   .lobby-screen.paired-lobby .lobby-content { padding-top: 8px; padding-bottom: 12px; }
   .lobby-card:has(.couple-portrait-stage) { gap: 2px; }
   .lobby-screen.paired-lobby .night-start-button { min-height: 52px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .couple-art-layer, .couple-portrait-stage::before,
+  .couple-portrait-stage, .couple-portrait-stage::before, .couple-glint,
   .lobby-screen.paired-lobby::before, .lobby-screen.paired-lobby::after,
   .lobby-rise-sparkle { animation: none; }
-  .couple-art-layer.locket { opacity: .64; }
   .couple-portrait-stage::before { opacity: .65; }
 }

@@ -63,10 +63,12 @@ export function PairingHome({ avatar, onAvatarChange }) {
   return (
     <>
       {paired ? <div className="couple-portrait-stage">
-        <div aria-hidden="true" className="couple-art-cycle">
-          <img alt="" className="couple-art-layer locket" src="/assets/ui/welcome-locket.webp" />
-          <img alt="" className="couple-art-layer ribbon" src="/assets/ui/welcome-ribbon.webp" />
-          <img alt="" className="couple-art-layer rose" src="/assets/ui/welcome-rose.webp" />
+        <div aria-hidden="true" className="couple-atmosphere">
+          <span className="couple-glint glint-one" />
+          <span className="couple-glint glint-two" />
+          <span className="couple-glint glint-three" />
+          <span className="couple-glint glint-four" />
+          <span className="couple-glint glint-five" />
         </div>
         <button ref={profileButtonRef} aria-haspopup="dialog" aria-label="Edit profile portrait" className="couple-portrait-button own" onClick={() => setProfileSheetOpen(true)} type="button">
           <PlayerPortrait label={`${name} portrait`} player={{ uid: user?.uid, displayName: name }} photoURL={user?.photoURL} />
@@ -110,11 +112,11 @@ export function PairingHome({ avatar, onAvatarChange }) {
             <p className="support-copy">Invitations appear inside the game; no invitation email is sent.</p>
           </section> : incomingInvitations.length ? null : <form className="email-onboarding" aria-label="Invite your person" onSubmit={(event) => { event.preventDefault(); act(() => inviteByEmail(partnerEmail, avatar)) }}>
             <h2>Choose your person</h2>
-            <p>Enter the email they’ll use to sign in. They’ll find your invitation inside the game.</p>
+            <p>Invite them using the email they sign in with.</p>
             <label htmlFor="partner-email">Your person’s email</label>
             <input id="partner-email" className="text-input" autoComplete="off" autoCapitalize="none" spellCheck={false} type="email" required maxLength={254} placeholder="name@example.com" value={partnerEmail} onChange={(event) => setPartnerEmail(event.target.value)} />
             <button className="primary-btn" disabled={disabled || !validPartnerEmail(normalizePartnerEmail(partnerEmail)) || normalizePartnerEmail(partnerEmail) === normalizePartnerEmail(user?.email)} type="submit">Invite your person</button>
-            <p className="support-copy">Already invited? Sign in with the email your person used. Both of you confirm Commit separately.</p>
+            <p className="support-copy">Already invited? They can sign in with that email.</p>
           </form>}
           {piecePicker()}
           {invitationError && <p role="alert" className="error-copy">{invitationError}</p>}

@@ -133,14 +133,15 @@ describe('permanent pairing menus', () => {
     fireEvent.click(start)
     expect(state.session.beginNight).toHaveBeenCalledWith('long')
   })
-  it('keeps both real partner portraits in one anchored welcome artwork stage', () => {
+  it('keeps both real partner portraits over a subtle animated atmosphere', () => {
     pair(); state.couple.couple.commitments = ['a', 'b']
     const { container } = render(<LobbyScreen />)
     const stage = container.querySelector('.couple-portrait-stage')
     expect(stage.querySelectorAll('.profile-portrait')).toHaveLength(2)
     expect(stage.querySelector('.own .profile-portrait')).toHaveAttribute('aria-label', 'Alex portrait')
     expect(stage.querySelector('.partner .profile-portrait')).toHaveAttribute('aria-label', 'Blair portrait')
-    expect(stage.querySelectorAll('.couple-art-layer')).toHaveLength(3)
+    expect(stage.querySelectorAll('.couple-art-layer')).toHaveLength(0)
+    expect(stage.querySelectorAll('.couple-glint')).toHaveLength(5)
     expect(screen.getByRole('button', { name: 'Edit profile portrait' })).toBeVisible()
   })
   it('keeps a screen visible if opening a saved session fails', () => {
