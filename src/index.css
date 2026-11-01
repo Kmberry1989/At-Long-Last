@@ -5202,7 +5202,7 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 
 .companion-card {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-columns: 144px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   padding: 12px;
@@ -5213,8 +5213,8 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 }
 
 .flower-scene {
-  width: 112px;
-  height: 138px;
+  width: 144px;
+  height: 178px;
   overflow: hidden;
   border-radius: 12px;
   touch-action: none;
@@ -5264,8 +5264,8 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 .flower-collection-item { display: grid; justify-items: center; gap: 5px; border: 1px solid #e4cdd0; border-radius: 11px; padding: 7px 3px; background: #fff9f3; color: #674456; font-size: 12px; font-weight: 700; }
 
 @media (max-width: 380px) {
-  .companion-card { grid-template-columns: 88px minmax(0, 1fr); gap: 9px; }
-  .companion-card > .flower-scene { width: 88px; height: 112px; }
+  .companion-card { grid-template-columns: 120px minmax(0, 1fr); gap: 9px; }
+  .companion-card > .flower-scene { width: 120px; height: 150px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
