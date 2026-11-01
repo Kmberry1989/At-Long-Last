@@ -202,7 +202,6 @@ export function FinaleScreen({
                 <span className="finale-heart-count-number" key={heartsCount}>{heartsCount}</span>
               </span>
               <span className="finale-stat-label">Hearts</span>
-              <span aria-live="polite" className={`finale-heart-congratulations${heartsCounted ? ' is-visible' : ''}`}>{heartsCounted ? 'Congratulations!' : ''}</span>
             </div>
             <div className="finale-stat-box">
               <span className="finale-stat-value">{session?.keepsakes?.length || 0}</span>
@@ -212,17 +211,13 @@ export function FinaleScreen({
               <span className="finale-stat-value">{finalSummary?.journalCount || nightEntries.length}</span>
               <span className="finale-stat-label">Moments</span>
             </div>
-            <div className="finale-stat-box">
-              <span className="finale-stat-value">{finalSummary?.dominantVibe || 'warm'}</span>
-              <span className="finale-stat-label">Tone</span>
-            </div>
           </div>
+          <p aria-live="polite" className={`finale-heart-congratulations${heartsCounted ? ' is-visible' : ''}`}>{heartsCounted ? 'Congratulations!' : ''}</p>
 
           {/* One-Tap Keepsake Capsule (Zero Homework) */}
           <div className="finale-capsule-card">
             <div className="finale-capsule-header">
               <span><BrandText text={"✦ Tonight's Keepsake Capsule ✦"} /></span>
-              <span className="finale-capsule-vibe-chip">{finalSummary?.tierLabel || 'Connected'}</span>
             </div>
 
             <div className="finale-capsule-moments">

@@ -60,11 +60,13 @@ describe('FinaleScreen', () => {
     )
 
     expect(screen.getByText(/Wine-Velvet Scrapbook/i)).toBeDefined()
+    expect(screen.queryByText('Tone')).toBeNull()
     expect(screen.getByText('Spark & Laughter')).toBeDefined()
     expect(screen.getByLabelText('0 of 14 hearts counted')).toBeDefined()
     act(() => { vi.advanceTimersByTime(4000) })
     expect(screen.getByLabelText('14 of 14 hearts counted')).toBeDefined()
     expect(screen.getByText('Congratulations!')).toBeDefined()
+    expect(screen.getByText('Congratulations!').closest('.finale-stat-box')).toBeNull()
     expect(audioMocks.playHeartTick).toHaveBeenCalledTimes(14)
     expect(screen.getByText('2')).toBeDefined()
   })
@@ -98,6 +100,7 @@ describe('FinaleScreen', () => {
     )
 
     expect(screen.getByText(/Tonight's Keepsake Capsule/i)).toBeDefined()
+    expect(screen.queryByText('Deep Harmony')).toBeNull()
     expect(screen.getByText('Sunset Promise')).toBeDefined()
     expect(screen.getByText('Doodle Duel in sync')).toBeDefined()
 
