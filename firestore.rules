@@ -828,7 +828,8 @@ service cloud.firestore {
     function isValidJournalPayloadBudget(type, data) {
       return data is map
         && (
-          (type in ['prompt', 'journal', 'ritual', 'milestone', 'trophy'] && data.keys().size() <= 6)
+          (type in ['prompt', 'journal', 'ritual', 'milestone', 'moment-trash', 'moment-treasure'] && data.keys().size() <= 6)
+          || (type == 'trophy' && data.keys().size() <= 7)
           || (type in ['match', 'vault', 'harmonic'] && data.keys().size() <= 7)
           || (type in ['prediction', 'vibe-sync', 'tempo', 'word', 'maze', 'canvas', 'bluff', 'photo'] && data.keys().size() <= 8)
           || (type in ['activity-pass', 'duel', 'finale', 'keepsake', 'vibe-setup'] && data.keys().size() <= 40)
@@ -845,7 +846,7 @@ service cloud.firestore {
             'activity-pass', 'bluff', 'canvas', 'duel', 'finale', 'harmonic',
             'journal', 'keepsake', 'match', 'maze', 'photo', 'prediction',
             'prompt', 'ritual', 'tempo', 'vault', 'vibe-setup', 'vibe-sync',
-            'word', 'milestone', 'trophy'
+            'word', 'milestone', 'trophy', 'moment-trash', 'moment-treasure'
           ]
         );
     }
@@ -1245,7 +1246,7 @@ service cloud.firestore {
           'activity-pass', 'bluff', 'canvas', 'duel', 'finale', 'harmonic',
           'journal', 'keepsake', 'match', 'maze', 'photo', 'prediction',
           'prompt', 'ritual', 'tempo', 'vault', 'vibe-setup', 'vibe-sync',
-          'word', 'milestone', 'trophy'
+          'word', 'milestone', 'trophy', 'moment-trash', 'moment-treasure'
         ]
         && isVibe(data.vibe)
         && isOptionalBoundedString(data, 'openAt', 40)
@@ -1774,8 +1775,11 @@ service cloud.firestore {
       allow update: if isActiveParticipant(night().coupleId)
         && night().status == 'active' && validStep(request.resource.data)
         && preservesPartnerInput()
-        && (resource.data.kind != 'keepsake' || night().players[resource.data.ownerIndex].uid == request.auth.uid)
-        && !resource.data.completed && !resource.data.skipped
+        && (resource.data.kind != 'keepsake' && resource.data.kind != 'board' || night().players[resource.data.ownerIndex].uid == request.auth.uid)
+        && (!resource.data.completed || (resource.data.kind == 'board'
+          && resource.data.state.keys().hasAny(['momentCard'])
+          && !resource.data.state.keys().hasAny(['momentResolution'])))
+        && !resource.data.skipped
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'ready', 'completed', 'skipped', 'updatedAt']);
       allow delete: if false;
     }

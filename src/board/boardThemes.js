@@ -1,12 +1,31 @@
 const BOARD_THEME_ORDER = ['cozy', 'garden', 'beach', 'city', 'holiday']
 
+function blendHexColor(source, target, amount) {
+  const start = source.replace('#', '')
+  const end = target.replace('#', '')
+  const channels = [0, 2, 4].map((offset) => {
+    const from = Number.parseInt(start.slice(offset, offset + 2), 16)
+    const to = Number.parseInt(end.slice(offset, offset + 2), 16)
+    return Math.round(from + (to - from) * amount).toString(16).padStart(2, '0')
+  })
+  return `#${channels.join('')}`
+}
+
+export function getBoardCardPilePalette(theme) {
+  const accent = theme?.cardSkin?.accent || '#9b6d78'
+  return {
+    draw: blendHexColor(accent, '#211a29', 0.38),
+    discard: blendHexColor(accent, '#fff0d8', 0.28),
+  }
+}
+
 export const BOARD_THEME_SETS = {
   cozy: {
     id: 'cozy',
     label: 'Cozy night in',
     environment: { top: '#2c2037', horizon: '#8b576b', bottom: '#372637', glow: '#ffc797', motes: '#f3c78a', mode: 'dust', count: 18, panorama: '/assets/board/skyboxes/cozy.webp' },
     skinOverlay: '/assets/board/skins/cozy.svg',
-    diceSkin: { face: '#493042', alternate: '#382335', pip: '#f4d49b', edge: '#f2d6a0' },
+    diceSkin: { face: '#493042', alternate: '#382335', pip: '#f4d49b', edge: '#f2d6a0', fabric: '#557b78' },
     spaceColors: { connection: '#694a68', duel: '#3c526c', heart: '#8a5367', keepsake: '#705472', oops: '#674355' },
     cardSkin: { top: '#fff0e4', bottom: '#eed6dc', ink: '#352432', accent: '#aa5b72', border: '#eac5bd' },
     surfaces: {
@@ -70,7 +89,7 @@ export const BOARD_THEME_SETS = {
     label: 'Secret garden',
     environment: { top: '#243b4a', horizon: '#b47d92', bottom: '#324b47', glow: '#e4c5a5', motes: '#d8f4a5', mode: 'fireflies', count: 25, panorama: '/assets/board/skyboxes/garden.webp' },
     skinOverlay: '/assets/board/skins/garden.svg',
-    diceSkin: { face: '#315241', alternate: '#243f3b', pip: '#f7e9b8', edge: '#c5dca5' },
+    diceSkin: { face: '#315241', alternate: '#243f3b', pip: '#f7e9b8', edge: '#c5dca5', fabric: '#b88c67' },
     spaceColors: { connection: '#456953', duel: '#3b5260', heart: '#725a4c', keepsake: '#436859', oops: '#71545f' },
     cardSkin: { top: '#f3efd9', bottom: '#dbe3ca', ink: '#253932', accent: '#587f62', border: '#c4d1a9' },
     surfaces: {
@@ -135,7 +154,7 @@ export const BOARD_THEME_SETS = {
     label: 'Seaside date',
     environment: { top: '#2e7696', horizon: '#e6ac8b', bottom: '#65819a', glow: '#f7d4b0', motes: '#f7e8c7', mode: 'sea', count: 20, panorama: '/assets/board/skyboxes/beach.webp' },
     skinOverlay: '/assets/board/skins/beach.svg',
-    diceSkin: { face: '#26556b', alternate: '#183f55', pip: '#f9e5b8', edge: '#aad9df' },
+    diceSkin: { face: '#26556b', alternate: '#183f55', pip: '#f9e5b8', edge: '#aad9df', fabric: '#bd7b72' },
     spaceColors: { connection: '#316b77', duel: '#315b79', heart: '#985e62', keepsake: '#436e78', oops: '#915c62' },
     cardSkin: { top: '#f0f7f0', bottom: '#cce4e3', ink: '#173f50', accent: '#248092', border: '#abd5d5' },
     surfaces: {
@@ -199,7 +218,7 @@ export const BOARD_THEME_SETS = {
     label: 'City date night',
     environment: { top: '#1b1e40', horizon: '#745a8c', bottom: '#2f2946', glow: '#d8b1ef', motes: '#ffd4ab', mode: 'lights', count: 22, panorama: '/assets/board/skyboxes/city.webp' },
     skinOverlay: '/assets/board/skins/city.svg',
-    diceSkin: { face: '#3b315f', alternate: '#25203f', pip: '#ffe0ad', edge: '#d9b6ef' },
+    diceSkin: { face: '#3b315f', alternate: '#25203f', pip: '#ffe0ad', edge: '#d9b6ef', fabric: '#9079a3' },
     spaceColors: { connection: '#55466f', duel: '#38496d', heart: '#78465f', keepsake: '#594c78', oops: '#69465f' },
     cardSkin: { top: '#eee6f4', bottom: '#d8cde7', ink: '#312541', accent: '#7a5b9b', border: '#d0bee4' },
     surfaces: {
@@ -263,7 +282,7 @@ export const BOARD_THEME_SETS = {
     label: 'Holiday sparkle',
     environment: { top: '#1b3447', horizon: '#8097a9', bottom: '#244257', glow: '#dbeaf5', motes: '#f6f6ee', mode: 'snow', count: 42, panorama: '/assets/board/skyboxes/holiday.webp' },
     skinOverlay: '/assets/board/skins/holiday.svg',
-    diceSkin: { face: '#294a56', alternate: '#1b3543', pip: '#f3d58f', edge: '#d6c28d' },
+    diceSkin: { face: '#294a56', alternate: '#1b3543', pip: '#f3d58f', edge: '#d6c28d', fabric: '#a5727d' },
     spaceColors: { connection: '#365d64', duel: '#3f596c', heart: '#82545b', keepsake: '#416171', oops: '#744e56' },
     cardSkin: { top: '#f7f4e8', bottom: '#d6e5e7', ink: '#183845', accent: '#9b6d41', border: '#d2c69a' },
     surfaces: {
@@ -341,7 +360,7 @@ const THEME_REMIXES = {
     label: 'Starlit Rooftop',
     environment: { top: '#0c1533', horizon: '#4b5187', bottom: '#182443', glow: '#a7b9fb', motes: '#fff0c7', mode: 'stars', count: 34, panorama: '/assets/board/skyboxes/starlit-rooftop.webp' },
     skinOverlay: '/assets/board/skins/starlit-rooftop.svg',
-    diceSkin: { face: '#263451', alternate: '#17243b', pip: '#ffe8b0', edge: '#aebeff' },
+    diceSkin: { face: '#263451', alternate: '#17243b', pip: '#ffe8b0', edge: '#aebeff', fabric: '#697eae' },
     spaceColors: { connection: '#3f4e77', duel: '#304767', heart: '#744b69', keepsake: '#464775', oops: '#68445e' },
     cardSkin: { top: '#eeebfa', bottom: '#d2d5ec', ink: '#252844', accent: '#6e6dba', border: '#c0c5ea' },
     surfaces: {
@@ -354,7 +373,7 @@ const THEME_REMIXES = {
     label: 'Autumn Embers',
     environment: { top: '#58384c', horizon: '#d89a6e', bottom: '#674642', glow: '#e9b785', motes: '#f3c977', mode: 'leaves', count: 24, panorama: '/assets/board/skyboxes/autumn-embers.webp' },
     skinOverlay: '/assets/board/skins/autumn-embers.svg',
-    diceSkin: { face: '#684438', alternate: '#472d32', pip: '#ffdc91', edge: '#e6ad61' },
+    diceSkin: { face: '#684438', alternate: '#472d32', pip: '#ffdc91', edge: '#e6ad61', fabric: '#b37a56' },
     spaceColors: { connection: '#735038', duel: '#624653', heart: '#89504a', keepsake: '#765545', oops: '#774746' },
     cardSkin: { top: '#f7e9d0', bottom: '#ebcda9', ink: '#493027', accent: '#a65e3d', border: '#d6ae75' },
     surfaces: {
@@ -367,7 +386,7 @@ const THEME_REMIXES = {
     label: 'Cherry Blossom',
     environment: { top: '#66537c', horizon: '#efb4d0', bottom: '#7c6585', glow: '#ffe3eb', motes: '#ffd8e9', mode: 'petals', count: 32, panorama: '/assets/board/skyboxes/cherry-blossom.webp' },
     skinOverlay: '/assets/board/skins/cherry-blossom.svg',
-    diceSkin: { face: '#65405f', alternate: '#452b4e', pip: '#fff0cd', edge: '#f1b9d5' },
+    diceSkin: { face: '#65405f', alternate: '#452b4e', pip: '#fff0cd', edge: '#f1b9d5', fabric: '#b77d96' },
     spaceColors: { connection: '#7c536f', duel: '#514b71', heart: '#965b72', keepsake: '#75547f', oops: '#875467' },
     cardSkin: { top: '#fff0f4', bottom: '#efd1e1', ink: '#442a42', accent: '#aa5c7b', border: '#edbed5' },
     surfaces: {
@@ -380,7 +399,7 @@ const THEME_REMIXES = {
     label: 'Aurora Veil',
     environment: { top: '#0c3445', horizon: '#4e8f91', bottom: '#174e5a', glow: '#86e8d1', motes: '#abf4db', mode: 'aurora', count: 30, panorama: '/assets/board/skyboxes/aurora-veil.webp' },
     skinOverlay: '/assets/board/skins/aurora-veil.svg',
-    diceSkin: { face: '#174c56', alternate: '#103842', pip: '#c3f5de', edge: '#77d7c2' },
+    diceSkin: { face: '#174c56', alternate: '#103842', pip: '#c3f5de', edge: '#77d7c2', fabric: '#428982' },
     spaceColors: { connection: '#286c70', duel: '#315872', heart: '#79535f', keepsake: '#316a6c', oops: '#75515c' },
     cardSkin: { top: '#e7f7f2', bottom: '#c6e5e4', ink: '#193b43', accent: '#277f7c', border: '#91d4c6' },
     surfaces: {

@@ -189,7 +189,7 @@ function HoldSyncDuel({ disabled, duel, onComplete, onSkip }) {
   const [fill, setFill] = useState(0)
   const startAt = useRef(0)
   const frameRef = useRef(0)
-  const targetTime = duel.id === 'sync-breath' ? 2.6 : 1.8
+  const targetTime = 1.8
 
   useEffect(() => {
     if (!running) {
@@ -263,6 +263,98 @@ function HoldSyncDuel({ disabled, duel, onComplete, onSkip }) {
           Release
         </button>
       </div>
+    </DuelShell>
+  )
+}
+
+const calmPractices = [
+  { id: 'breathe', label: 'Breathe', detail: '3 slow rounds', icon: 'wave' },
+  { id: 'ground', label: 'Ground', detail: '3 · 2 · 1 senses', icon: 'eye' },
+  { id: 'release', label: 'Unclench', detail: 'Jaw · shoulders · hands', icon: 'bloom' },
+]
+const groundingSteps = ['Name 3 things you see', 'Notice 2 things you feel', 'Listen for 1 sound']
+const releaseSteps = ['Soften your jaw', 'Let your shoulders drop', 'Unclench your hands']
+
+function CalmPauseDuel({ disabled, duel, onComplete, onSkip }) {
+  const [practice, setPractice] = useState(null)
+  const [elapsed, setElapsed] = useState(0)
+  const [step, setStep] = useState(0)
+  const startAt = useRef(0)
+  const completed = useRef(false)
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
+
+  function finish(selectedPractice, durationSec) {
+    if (disabled || completed.current) return
+    completed.current = true
+    const selected = calmPractices.find(option => option.id === selectedPractice)
+    onCompleteRef.current({
+      practice: selectedPractice,
+      highlight: selected?.label || 'quiet pause',
+      score: 1,
+      time: durationSec,
+      won: true,
+    })
+  }
+
+  function choosePractice(id) {
+    completed.current = false
+    setElapsed(0)
+    setStep(0)
+    startAt.current = performance.now()
+    setPractice(id)
+  }
+
+  useEffect(() => {
+    if (practice !== 'breathe') return undefined
+    const timer = window.setInterval(() => {
+      const nextElapsed = Math.min((performance.now() - startAt.current) / 1000, 30)
+      setElapsed(nextElapsed)
+      if (nextElapsed >= 30) {
+        window.clearInterval(timer)
+        finish('breathe', 30)
+      }
+    }, 100)
+    return () => window.clearInterval(timer)
+  }, [practice])
+
+  const phaseSeconds = elapsed % 10
+  const breathingIn = phaseSeconds < 4
+  const breathScale = breathingIn ? 0.8 + (phaseSeconds / 4) * 0.38 : 1.18 - ((phaseSeconds - 4) / 6) * 0.38
+  const grounding = practice === 'ground'
+  const steps = grounding ? groundingSteps : releaseSteps
+
+  return (
+    <DuelShell duel={duel} onSkip={onSkip}>
+      {!practice ? (
+        <div className="calm-practice-options" aria-label="Choose a calming pause">
+          {calmPractices.map(option => (
+            <button className="calm-practice-option" disabled={disabled} key={option.id} onClick={() => choosePractice(option.id)} type="button">
+              <BrandIcon name={option.icon} />
+              <span><strong>{option.label}</strong><small>{option.detail}</small></span>
+            </button>
+          ))}
+        </div>
+      ) : practice === 'breathe' ? (
+        <div className="calm-practice-active breathe-practice" aria-live="polite">
+          <div className="breath-orb" style={{ transform: `scale(${breathScale})` }} aria-hidden="true"><BrandIcon name="wave" /></div>
+          <strong>{breathingIn ? 'Breathe in' : 'Breathe out'}</strong>
+          <small>{Math.min(3, Math.floor(elapsed / 10) + 1)} of 3 · easy breath, no hold</small>
+          <button className="secondary-link calm-change" disabled={disabled} onClick={() => setPractice(null)} type="button">Choose another</button>
+        </div>
+      ) : (
+        <div className="calm-practice-active" aria-live="polite">
+          <div className="calm-step-markers" aria-label={`Step ${step + 1} of 3`}>
+            {steps.map((_, index) => <span className={index <= step ? 'is-current' : ''} key={index} />)}
+          </div>
+          <strong className="calm-step-prompt">{steps[step]}</strong>
+          <button className="primary-btn calm-next" disabled={disabled} onClick={() => {
+            if (step === steps.length - 1) finish(practice, (performance.now() - startAt.current) / 1000)
+            else setStep(value => value + 1)
+          }} type="button">{step === steps.length - 1 ? 'Complete pause' : 'Next'}</button>
+          <button className="secondary-link calm-change" disabled={disabled} onClick={() => setPractice(null)} type="button">Choose another</button>
+        </div>
+      )}
     </DuelShell>
   )
 }
@@ -625,8 +717,8 @@ const duelComponentMap = {
     resolveTie: resolveSharedCompletion,
   },
   'sync-breath': {
-    component: HoldSyncDuel,
-    resolveTie: (a, b) => resolveSharedByDelta(a, b, 0.26),
+    component: CalmPauseDuel,
+    resolveTie: resolveSharedCompletion,
   },
   'temperature-check': {
     component: SliderMatchDuel,

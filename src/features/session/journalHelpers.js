@@ -198,6 +198,14 @@ export function buildDuelJournalEntry({
       imageDataUrl,
       outcomeStatus: outcome.status,
       results: duelResults,
+      ...(outcome.status === 'resolved' && Number.isInteger(outcome.winnerIndex) && players.length === 2
+        ? {
+            winnerUid: players[outcome.winnerIndex]?.uid || null,
+            winnerName: players[outcome.winnerIndex]?.displayName || `Player ${outcome.winnerIndex + 1}`,
+            loserUid: players[1 - outcome.winnerIndex]?.uid || null,
+            loserName: players[1 - outcome.winnerIndex]?.displayName || `Player ${2 - outcome.winnerIndex}`,
+          }
+        : {}),
       ...(wavelength ? { wavelength: { matches: wavelength.matches, total: wavelength.total } } : {}),
     },
     sessionId,
@@ -207,6 +215,32 @@ export function buildDuelJournalEntry({
     type: 'duel',
     vibe: duel.vibe,
   }
+}
+
+export function summarizeScrapbookRecord(entries = []) {
+  const record = new Map()
+  const names = new Map()
+  for (const entry of entries) {
+    const payload = entry?.payload
+    if (entry?.type !== 'duel' || payload?.outcomeStatus !== 'resolved') continue
+    if (payload.winnerUid && payload.winnerName) names.set(payload.winnerUid, payload.winnerName)
+    if (payload.loserUid && payload.loserName) names.set(payload.loserUid, payload.loserName)
+  }
+  for (const entry of entries) {
+    const payload = entry?.payload
+    const isDuelWin = entry?.type === 'duel' && payload?.outcomeStatus === 'resolved'
+    const isNightRace = entry?.type === 'trophy' && ['lap', 'progress'].includes(payload?.method)
+    if (!isDuelWin && !isNightRace) continue
+    for (const [field, result] of [['winner', 'wins'], ['loser', 'losses']]) {
+      const uid = payload[`${field}Uid`]
+      if (!uid) continue
+      const stats = record.get(uid) || { uid, name: payload[`${field}Name`] || names.get(uid) || 'Player', wins: 0, losses: 0 }
+      if (payload[`${field}Name`]) stats.name = payload[`${field}Name`]
+      stats[result] += 1
+      record.set(uid, stats)
+    }
+  }
+  return [...record.values()]
 }
 
 export function buildMilestoneJournalEntry({ coupleId, nights, sessionId }) {

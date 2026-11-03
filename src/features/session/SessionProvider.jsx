@@ -160,8 +160,14 @@ function getSkippedDuelOutcome(session) {
 import { beginPairingNight } from '../couple/pairingService.js'
 
 export function SessionProvider({ children }) {
-  const { couple, hasPartner } = useCouple()
-  const [openCoupleId, setOpenCoupleId] = useState(null)
+  const { couple, hasPartner, loading: coupleLoading } = useCouple()
+  const [openCoupleId, setOpenCoupleId] = useState(() => {
+    try {
+      return sessionStorage.getItem('at-long-last:open-couple') || null
+    } catch {
+      return null
+    }
+  })
   const [sessionAttempt, setSessionAttempt] = useState(0)
 
   const { db, enabled, ready, userId } = useFirebaseApp()
@@ -229,21 +235,37 @@ export function SessionProvider({ children }) {
   }, [couple?.boardState])
 
   const gameOpen = !enabled || Boolean(couple?.id && openCoupleId === couple.id)
-  useEffect(() => { if (!couple?.id) setOpenCoupleId(null) }, [couple?.id])
+  useEffect(() => {
+    if (coupleLoading) return
+    if (!couple?.id || (openCoupleId && openCoupleId !== couple.id)) {
+      setOpenCoupleId(null)
+      try { sessionStorage.removeItem('at-long-last:open-couple') } catch { /* Ignore storage errors */ }
+    }
+  }, [couple?.id, coupleLoading, openCoupleId])
+
+  function openCouple(coupleId) {
+    setOpenCoupleId(coupleId)
+    try {
+      if (coupleId) sessionStorage.setItem('at-long-last:open-couple', coupleId)
+      else sessionStorage.removeItem('at-long-last:open-couple')
+    } catch {
+      // The game remains usable when tab storage is unavailable.
+    }
+  }
 
   function openGame() {
     setError('')
     setSessionAttempt((attempt) => attempt + 1)
-    setOpenCoupleId(couple?.id || null)
+    openCouple(couple?.id || null)
   }
-  function closeGame() { setOpenCoupleId(null) }
+  function closeGame() { openCouple(null) }
   async function beginNight(preset = couple?.sessionPreset) {
     if (!couple?.id || working) return
     setWorking(true)
     setError('')
     try {
       if (enabled) await beginPairingNight({ db, coupleId: couple.id, preset })
-      setOpenCoupleId(couple.id)
+      openCouple(couple.id)
     } catch (nextError) { setError(nextError.message) }
     finally { setWorking(false) }
   }

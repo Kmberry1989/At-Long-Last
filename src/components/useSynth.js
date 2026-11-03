@@ -3,8 +3,7 @@ import { useAudio } from '../audio/AudioProvider.jsx'
 import { musicStageFor } from '../audio/musicPatterns.js'
 
 export function useSynth(session, activity) {
-  const { playPhase, playSuccess, setStage } = useAudio()
-  const previousPhase = useRef('')
+  const { playSuccess, setStage } = useAudio()
   const previousRound = useRef(0)
 
   useEffect(() => {
@@ -18,9 +17,5 @@ export function useSynth(session, activity) {
       previousRound.current = session.round
     }
 
-    if (session.phase !== previousPhase.current) {
-      playPhase?.(session.phase)
-      previousPhase.current = session.phase
-    }
-  }, [activity, playPhase, playSuccess, session, setStage])
+  }, [activity, playSuccess, session, setStage])
 }

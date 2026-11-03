@@ -8,6 +8,27 @@ import { JournalTimeline } from './JournalTimeline.jsx'
 describe('JournalTimeline', () => {
   afterEach(cleanup)
 
+  it('shows cumulative duel wins and losses and marks the saved match result', () => {
+    const { container } = render(<JournalTimeline entries={[
+      {
+        id: 'duel-record-1', type: 'duel', title: 'Quick Match', summary: 'Kyle won.',
+        text: 'Kyle: won\nElaine: close finish', vibe: 'playful',
+        payload: { heartBonus: 2, outcomeStatus: 'resolved', winnerUid: 'u1', winnerName: 'Kyle', loserUid: 'u2', loserName: 'Elaine', results: { u1: { highlight: 'won' }, u2: { highlight: 'close finish' } } },
+      },
+      {
+        id: 'duel-record-2', type: 'duel', title: 'Shared Match', summary: 'Shared result.',
+        text: 'Kyle: shared\nElaine: shared', vibe: 'tender',
+        payload: { outcomeStatus: 'shared', results: { u1: { highlight: 'shared' }, u2: { highlight: 'shared' } } },
+      },
+    ]} />)
+    const record = screen.getByRole('region', { name: 'Scrapbook wins and losses' })
+    expect(record).toBeInTheDocument()
+    expect(record.textContent).toContain('1 win')
+    expect(record.textContent).toContain('1 loss')
+    expect(container.querySelectorAll('.scrapbook-duel-record.win')).toHaveLength(1)
+    expect(container.querySelectorAll('.scrapbook-duel-record.loss')).toHaveLength(1)
+  })
+
   it('renders scrapbook cards for activities, duels, keepsakes, and the finale', () => {
     render(
       <JournalTimeline

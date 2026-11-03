@@ -1,9 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import {
+  BOARD_INSET_RADIUS,
+  BOARD_IDLE_ORBIT_SPEED,
+  BOARD_PATH_RADIUS,
+  BOARD_CARD_PILE_RADIUS,
+  BOARD_CARD_PILE_POSITIONS,
+  BOARD_CARD_PILE_LABEL_Y,
+  BOARD_SKIN_SURFACE_Y,
+  DICE_HOME_BASE_HEIGHT,
+  DICE_HOME_BASE_FLOOR_THICKNESS,
+  DICE_HOME_BASE_INNER_RADIUS,
+  DICE_HOME_BASE_RADIUS,
+  DICE_HOME_BASE_FLOAT_HEIGHT,
   calculateStepPath,
+  createPieceMovePlan,
+  getBoardSpaceMotion,
+  getDiceHomeBaseMotion,
+  getSpokeFacingAngle,
+  shouldOrbitBoard,
   getBoardPathSegments,
+  getCircularBoardPosition,
   getTokenTargetPosition,
+  makeDiceRollGesture,
   resolveDiceValues,
 } from './BoardScene.jsx'
 
@@ -13,6 +32,76 @@ const boardPath = [
   { position: new THREE.Vector3(0, 0.35, 4) },
   { position: new THREE.Vector3(-4, 0.35, 0) },
 ]
+
+describe('board inset proportions', () => {
+  it('keeps the fabric field circular and safely inside the round rim', () => {
+    expect(BOARD_INSET_RADIUS).toBe(8.5)
+    expect(BOARD_INSET_RADIUS).toBeLessThan(15.78)
+  })
+})
+
+describe('board card pile markers', () => {
+  it('keeps dotted draw and discard zones within the circular inset and clear of the dice base', () => {
+    const centers = Object.values(BOARD_CARD_PILE_POSITIONS)
+    expect(centers).toHaveLength(2)
+    for (const [x, z] of centers) {
+      expect(Math.hypot(x, z) + BOARD_CARD_PILE_RADIUS).toBeLessThan(BOARD_INSET_RADIUS)
+    }
+    const [draw, discard] = centers
+    expect(Math.hypot(draw[0] - discard[0], draw[1] - discard[1])).toBeGreaterThan(BOARD_CARD_PILE_RADIUS * 2)
+    expect(Math.hypot(draw[0] + 2.62, draw[1] - 0.64)).toBeGreaterThan(BOARD_CARD_PILE_RADIUS + DICE_HOME_BASE_RADIUS)
+    expect(Math.hypot(discard[0] + 2.62, discard[1] - 0.64)).toBeGreaterThan(BOARD_CARD_PILE_RADIUS + DICE_HOME_BASE_RADIUS)
+  })
+
+  it('keeps pile names printed on the board surface rather than camera-facing labels', () => {
+    expect(BOARD_CARD_PILE_LABEL_Y - BOARD_SKIN_SURFACE_Y).toBeLessThan(0.025)
+    expect(BOARD_CARD_PILE_LABEL_Y).toBeGreaterThan(BOARD_SKIN_SURFACE_Y)
+  })
+})
+
+describe('dice home base proportions', () => {
+  it('keeps an open circular box with room inside for both dice', () => {
+    expect(DICE_HOME_BASE_RADIUS).toBeGreaterThan(DICE_HOME_BASE_INNER_RADIUS)
+    expect(DICE_HOME_BASE_HEIGHT).toBeGreaterThan(0)
+    expect(DICE_HOME_BASE_FLOOR_THICKNESS).toBeGreaterThan(0)
+    expect(DICE_HOME_BASE_RADIUS).toBe(1.94)
+  })
+
+  it('floats above the spaces and keeps a soft shadow visually anchored below', () => {
+    const motion = getDiceHomeBaseMotion(1)
+    const still = getDiceHomeBaseMotion(1, true)
+
+    expect(DICE_HOME_BASE_FLOAT_HEIGHT).toBeGreaterThan(0.35)
+    expect(motion.lift).toBeGreaterThan(0.35)
+    expect(motion.shadowOpacity).toBeGreaterThan(0)
+    expect(motion.shadowScale).toBeGreaterThan(0)
+    expect(still.lift).toBe(DICE_HOME_BASE_FLOAT_HEIGHT)
+  })
+})
+
+describe('circular board spaces', () => {
+  it('places all 20 spaces on one circle with even angular spacing', () => {
+    const points = Array.from({ length: 20 }, (_, index) => getCircularBoardPosition(index))
+    const radii = points.map(point => Math.hypot(point.x, point.z))
+    expect(radii.every(radius => Math.abs(radius - BOARD_PATH_RADIUS) < 1e-9)).toBe(true)
+    expect(points[0].x).toBeCloseTo(0)
+    expect(points[0].z).toBeCloseTo(-BOARD_PATH_RADIUS)
+    expect(points[5].x).toBeCloseTo(BOARD_PATH_RADIUS)
+    expect(points[10].z).toBeCloseTo(BOARD_PATH_RADIUS)
+    expect(points[15].x).toBeCloseTo(-BOARD_PATH_RADIUS)
+  })
+
+  it('floats spaces out of sync and adds a weighted dip with brighter underglow', () => {
+    const first = getBoardSpaceMotion(1, 0)
+    const second = getBoardSpaceMotion(1, 1)
+    const occupied = getBoardSpaceMotion(1, 0, { occupied: true })
+
+    expect(first.bob).not.toBe(second.bob)
+    expect(occupied.sinkTarget).toBeGreaterThan(first.sinkTarget)
+    expect(occupied.glowOpacity).toBeGreaterThan(first.glowOpacity)
+    expect(getBoardSpaceMotion(1, 0, { reducedMotion: true }).bob).toBe(0)
+  })
+})
 
 describe('getTokenTargetPosition', () => {
   it('separates player pieces symmetrically when both occupy one tile', () => {
@@ -48,6 +137,84 @@ describe('getBoardPathSegments', () => {
   })
 })
 
+describe('createPieceMovePlan', () => {
+  it('retains every intermediate landing across the board edge', () => {
+    expect(createPieceMovePlan({ playerIndex: 1, from: 18, to: 2, steps: 4, dice: [2, 2] }, 20)).toEqual({
+      key: '1:18:2:1:4',
+      playerIndex: 1,
+      steps: 4,
+      direction: 1,
+      dice: [2, 2],
+      path: [18, 19, 0, 1, 2],
+    })
+  })
+
+  it('ignores incomplete or non-moving records', () => {
+    expect(createPieceMovePlan({ playerIndex: 0, from: 4, steps: 0 })).toBeNull()
+    expect(createPieceMovePlan({ from: 4, steps: 2 })).toBeNull()
+  })
+
+  it('moves backward for a Trash moment effect', () => {
+    expect(createPieceMovePlan({ playerIndex: 0, from: 2, to: 19, steps: -3, cardEffect: true }, 20)).toMatchObject({
+      direction: -1,
+      steps: 3,
+      path: [2, 1, 0, 19],
+    })
+  })
+})
+
+describe('getSpokeFacingAngle', () => {
+  it('turns each space label toward the center of the circular board', () => {
+    expect(getSpokeFacingAngle(new THREE.Vector3(0, 0, -5))).toBeCloseTo(Math.PI)
+    expect(getSpokeFacingAngle(new THREE.Vector3(5, 0, 0))).toBeCloseTo(Math.PI / 2)
+    expect(getSpokeFacingAngle(new THREE.Vector3(0, 0, 5))).toBeCloseTo(0)
+  })
+})
+
+describe('shouldOrbitBoard', () => {
+  const idleTurn = { phase: 'turn', idleMs: 2800 }
+
+  it('orbits when a turn is idle or waiting for the other player', () => {
+    expect(shouldOrbitBoard(idleTurn)).toBe(true)
+  })
+
+  it('holds the view during input, motion, non-turn screens, or reduced motion', () => {
+    expect(shouldOrbitBoard({ ...idleTurn, interacting: true })).toBe(false)
+    expect(shouldOrbitBoard({ ...idleTurn, movingPiece: true })).toBe(false)
+    expect(shouldOrbitBoard({ ...idleTurn, queuedMoves: 1 })).toBe(false)
+    expect(shouldOrbitBoard({ ...idleTurn, rolling: true })).toBe(false)
+    expect(shouldOrbitBoard({ ...idleTurn, phase: 'activity' })).toBe(false)
+    expect(shouldOrbitBoard({ ...idleTurn, reducedMotion: true })).toBe(false)
+    expect(shouldOrbitBoard({ phase: 'turn', idleMs: 2799 })).toBe(false)
+  })
+})
+
+describe('board ambient motion', () => {
+  it('keeps the idle orbit slower and lets each space glow breathe', () => {
+    expect(BOARD_IDLE_ORBIT_SPEED).toBeLessThan(0.62)
+    const dim = getBoardSpaceMotion(0, 0)
+    const bright = getBoardSpaceMotion(Math.PI / 2.1, 0)
+    expect(bright.glowOpacity).toBeGreaterThan(dim.glowOpacity)
+    expect(bright.glowIntensity).toBeGreaterThan(dim.glowIntensity)
+    expect(bright.glowIntensity - dim.glowIntensity).toBeGreaterThan(1)
+  })
+})
+
+describe('makeDiceRollGesture', () => {
+  it('turns a swipe on the board dice into direction and throw strength', () => {
+    expect(makeDiceRollGesture(40, -30, 80)).toEqual({
+      direction: { x: 0.4, y: 0.3 },
+      power: 0.5966666666666667,
+      durationMs: 80,
+      source: 'touch',
+    })
+  })
+
+  it('gives a direct tap a gentle default throw', () => {
+    expect(makeDiceRollGesture(0, 0)).toMatchObject({ direction: { x: 0, y: 0 }, power: 0.18, source: 'touch' })
+  })
+})
+
 describe('resolveDiceValues', () => {
   it('splits roll totals into two valid 1-6 dice', () => {
     expect(resolveDiceValues(2)).toEqual([1, 1])
@@ -65,6 +232,10 @@ describe('calculateStepPath', () => {
   it('generates the clockwise ring sequence from current tile to destination', () => {
     const path = calculateStepPath(18, 4, 20)
     expect(path).toEqual([18, 19, 0, 1, 2])
+  })
+
+  it('generates a backward ring sequence for Trash effects', () => {
+    expect(calculateStepPath(1, -3, 20)).toEqual([1, 0, 19, 18])
   })
 })
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 
 export function DoodleDuel({
   disabled = false,
+  drawingStorageKey = '',
   onComplete,
   onSkip,
   prompt = 'Draw it from memory.',
@@ -16,6 +17,7 @@ export function DoodleDuel({
   const [isDrawing, setIsDrawing] = useState(false)
   const [isDone, setIsDone] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
+  const savedDrawingKey = drawingStorageKey ? `at-long-last:doodle:${drawingStorageKey}` : ''
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -28,18 +30,69 @@ export function DoodleDuel({
       return undefined
     }
 
-    const devicePixelRatio = window.devicePixelRatio || 1
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * devicePixelRatio
-    canvas.height = rect.height * devicePixelRatio
-    context.fillStyle = '#fffaf4'
-    context.fillRect(0, 0, canvas.width, canvas.height)
-    context.strokeStyle = '#201718'
-    context.lineWidth = 4
-    context.lineCap = 'round'
-    context.lineJoin = 'round'
-    return undefined
-  }, [])
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect()
+      const ratio = window.devicePixelRatio || 1
+      const width = Math.max(1, Math.round(rect.width * ratio))
+      const height = Math.max(1, Math.round(rect.height * ratio))
+      if (canvas.width === width && canvas.height === height) return
+
+      const previous = document.createElement('canvas')
+      previous.width = canvas.width
+      previous.height = canvas.height
+      if (previous.width && previous.height) previous.getContext('2d')?.drawImage(canvas, 0, 0)
+      canvas.width = width
+      canvas.height = height
+      context.fillStyle = '#fffaf4'
+      context.fillRect(0, 0, width, height)
+      if (previous.width && previous.height) context.drawImage(previous, 0, 0, width, height)
+      context.strokeStyle = '#201718'
+      context.lineWidth = 4
+      context.lineCap = 'round'
+      context.lineJoin = 'round'
+    }
+
+    resizeCanvas()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resizeCanvas)
+    observer?.observe(canvas)
+    window.addEventListener('resize', resizeCanvas)
+
+    if (savedDrawingKey) {
+      try {
+        const saved = sessionStorage.getItem(savedDrawingKey)
+        if (saved) {
+          const image = new Image()
+          image.onload = () => {
+            if (canvasRef.current !== canvas) return
+            context.drawImage(image, 0, 0, canvas.width, canvas.height)
+            setHasDrawn(true)
+          }
+          image.src = saved
+        }
+      } catch { /* Drawing can continue without tab storage. */ }
+    }
+
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', resizeCanvas)
+    }
+  }, [savedDrawingKey])
+
+  function saveDrawing() {
+    if (!savedDrawingKey || !canvasRef.current) return
+    try { sessionStorage.setItem(savedDrawingKey, canvasRef.current.toDataURL('image/png')) } catch { /* Ignore storage limits. */ }
+  }
+
+  useEffect(() => {
+    const preserve = () => saveDrawing()
+    window.addEventListener('pagehide', preserve)
+    return () => window.removeEventListener('pagehide', preserve)
+  }, [savedDrawingKey])
+
+  function removeSavedDrawing() {
+    if (!savedDrawingKey) return
+    try { sessionStorage.removeItem(savedDrawingKey) } catch { /* Ignore storage errors. */ }
+  }
 
   function startDrawing(event) {
     if (disabled || isDone || strokeRef.current || event.isPrimary === false) return
@@ -74,6 +127,7 @@ export function DoodleDuel({
     strokeRef.current = null
     setIsDrawing(false)
     if (canvasRef.current?.hasPointerCapture?.(stroke.pointerId)) canvasRef.current.releasePointerCapture(stroke.pointerId)
+    saveDrawing()
   }
 
   function clearCanvas() {
@@ -88,6 +142,7 @@ export function DoodleDuel({
     context.fillStyle = '#fffaf4'
     context.fillRect(0, 0, canvas.width, canvas.height)
     setHasDrawn(false)
+    removeSavedDrawing()
   }
 
   function handleDone() {
@@ -97,6 +152,7 @@ export function DoodleDuel({
 
     setIsDone(true)
     const dataUrl = canvasRef.current?.toDataURL('image/png', 0.82) ?? null
+    removeSavedDrawing()
     onComplete({
       dataUrl,
       highlight: 'saved a drawing',
@@ -111,7 +167,7 @@ export function DoodleDuel({
       <div className="overlay-head">
         <p className="eyebrow">Playful Duel</p>
         {onSkip && (
-          <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
+          <button className="secondary-link" disabled={disabled} onClick={() => { removeSavedDrawing(); onSkip() }} type="button">
             Skip Duel
           </button>
         )}

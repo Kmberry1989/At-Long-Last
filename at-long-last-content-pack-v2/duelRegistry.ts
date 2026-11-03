@@ -89,20 +89,20 @@ export const DUELS: Duel[] = [
     id: 'sync-breath',
     vibe: 'tender',
     intensity: 1,
-    name: 'Sync Breath',
-    tagline: 'Breathe with me',
-    durationSec: 60,
+    name: 'Quiet Moment',
+    tagline: 'Choose a quiet reset',
+    durationSec: 30,
     players: 2,
-    mechanics: 'Circle expands/contracts. Tap to inhale/exhale together.',
+    mechanics: 'Choose a short breathing, grounding, or muscle-release pause.',
     howToPlay: [
-      'Circle grows = inhale',
-      'Circle shrinks = exhale',
-      'Try to stay in sync 4 breaths',
-      'Board glows if synced'
+      'Choose a quiet reset',
+      'Follow three easy breaths',
+      'Or notice what is around you',
+      'Or soften your jaw, shoulders, and hands'
     ],
     firebaseEvents: ['duel:breathPhase'],
     boardReward: 'Calm board effect for rest of session',
-    assetsNeeded: ['breathing circle animation'],
+    assetsNeeded: ['breathing orb animation'],
     skippable: true
   },
   {

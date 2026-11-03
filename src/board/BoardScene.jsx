@@ -1,4 +1,3 @@
-import { BrandIcon } from '../components/BrandIcon.jsx'
 import { drawBrandIcon } from '../components/brandIcons.js'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
@@ -11,8 +10,33 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import { BOARD_SPACES } from '../features/session/boardConfig.js'
-import { getBoardThemeById, getBoardThemeForRound } from './boardThemes.js'
+import { getBoardCardPilePalette, getBoardThemeById, getBoardThemeForRound } from './boardThemes.js'
 import { createBoardEnvironment } from './boardEnvironment.js'
+
+export const BOARD_INSET_RADIUS = 8.5
+export const BOARD_PATH_RADIUS = 11.8
+export const BOARD_IDLE_ORBIT_SPEED = 0.2
+export const DICE_HOME_BASE_RADIUS = 1.94
+export const DICE_HOME_BASE_INNER_RADIUS = 1.82
+export const DICE_HOME_BASE_HEIGHT = 0.58
+export const DICE_HOME_BASE_FLOOR_THICKNESS = 0.16
+export const DICE_HOME_BASE_FLOAT_HEIGHT = 0.72
+export const BOARD_SKIN_SURFACE_Y = 0.126
+export const BOARD_CARD_PILE_LABEL_Y = BOARD_SKIN_SURFACE_Y + 0.018
+export const BOARD_CARD_PILE_RADIUS = 2.5
+export const BOARD_CARD_PILE_POSITIONS = {
+  draw: [1.05, -3.45],
+  discard: [1.05, 3.45],
+}
+
+export function getDiceHomeBaseMotion(elapsed, reducedMotion = false) {
+  const bob = reducedMotion ? 0 : Math.sin(elapsed * 0.92 + 0.7)
+  return {
+    lift: DICE_HOME_BASE_FLOAT_HEIGHT + bob * 0.09,
+    shadowOpacity: 0.32 - bob * 0.035,
+    shadowScale: 1 + bob * 0.045,
+  }
+}
 
 const TILE_STYLES = {
   connection: {
@@ -37,20 +61,27 @@ const TILE_STYLES = {
   },
 }
 
+export function getCircularBoardPosition(index, count = BOARD_SPACES.length, radius = BOARD_PATH_RADIUS) {
+  const angle = (index / count) * Math.PI * 2 - Math.PI / 2
+  return new THREE.Vector3(Math.cos(angle) * radius, 0.35, Math.sin(angle) * radius)
+}
+
+export function getBoardSpaceMotion(elapsed, index, { occupied = false, reducedMotion = false } = {}) {
+  const phase = index * 2.399963229728653
+  const pulse = reducedMotion ? 0.5 : (Math.sin(elapsed * 1.05 + phase) + 1) / 2
+  return {
+    bob: reducedMotion ? 0 : Math.sin(elapsed * (1.1 + (index % 5) * 0.075) + phase) * 0.075,
+    sinkTarget: occupied ? 0.2 : 0,
+    glowOpacity: occupied ? 0.72 + pulse * 0.27 : 0.34 + pulse * 0.42,
+    glowIntensity: occupied ? 0.95 + pulse * 2 : 0.15 + pulse * 2.2,
+  }
+}
+
 function buildBoardPath() {
-  return BOARD_SPACES.map((space, index) => {
-    const angle = (index / BOARD_SPACES.length) * Math.PI * 2 - Math.PI / 2
-    const radiusX = 11
-    const radiusZ = 8.2
-    return {
-      ...space,
-      position: new THREE.Vector3(
-        Math.cos(angle) * radiusX,
-        0.35,
-        Math.sin(angle) * radiusZ,
-      ),
-    }
-  })
+  return BOARD_SPACES.map((space, index) => ({
+    ...space,
+    position: getCircularBoardPosition(index),
+  }))
 }
 
 export function getBoardPathSegments(boardPath) {
@@ -141,6 +172,23 @@ function makeTileMarkTexture(label, type) {
   return texture
 }
 
+function makeSpaceGlowTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 128
+  const context = canvas.getContext('2d')
+  const gradient = context.createRadialGradient(64, 64, 4, 64, 64, 64)
+  gradient.addColorStop(0, 'rgba(255,255,255,0.18)')
+  gradient.addColorStop(0.55, 'rgba(255,255,255,0.48)')
+  gradient.addColorStop(0.82, 'rgba(255,255,255,0.7)')
+  gradient.addColorStop(1, 'rgba(255,255,255,0)')
+  context.fillStyle = gradient
+  context.fillRect(0, 0, 128, 128)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
 function configureVelvetTexture(texture, repeatX, repeatY) {
   texture.wrapS = THREE.RepeatWrapping
   texture.wrapT = THREE.RepeatWrapping
@@ -148,6 +196,176 @@ function configureVelvetTexture(texture, repeatX, repeatY) {
   texture.anisotropy = 8
   texture.colorSpace = THREE.SRGBColorSpace
   return texture
+}
+
+function makePileLabelTexture(kind, theme) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 128
+  const context = canvas.getContext('2d')
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = theme.cardSkin.ink
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.shadowColor = 'rgba(255, 244, 220, 0.62)'
+  context.shadowBlur = 7
+  context.font = "800 68px 'Avenir Next', sans-serif"
+  context.fillText(kind === 'draw' ? 'DRAW' : 'DISCARD', 256, 44)
+  context.shadowBlur = 3
+  context.globalAlpha = 0.86
+  context.font = "700 28px 'Avenir Next', sans-serif"
+  context.fillText(kind === 'draw' ? 'TRASH  ·  TREASURES' : 'RESOLVED CARDS', 256, 98)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+function makeCardBackTexture(theme) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 384
+  canvas.height = 448
+  const context = canvas.getContext('2d')
+  context.fillStyle = theme.cardSkin.bottom
+  context.beginPath()
+  context.roundRect(8, 8, 368, 432, 28)
+  context.fill()
+  context.strokeStyle = theme.cardSkin.border
+  context.lineWidth = 9
+  context.stroke()
+  context.beginPath()
+  context.roundRect(24, 24, 336, 400, 22)
+  context.strokeStyle = `${theme.cardSkin.accent}bb`
+  context.lineWidth = 3
+  context.stroke()
+
+  context.fillStyle = theme.cardSkin.ink
+  context.strokeStyle = theme.cardSkin.border
+  context.lineWidth = 4
+  context.beginPath()
+  context.arc(192, 128, 72, 0, Math.PI * 2)
+  context.fillStyle = theme.cardSkin.accent
+  context.fill()
+  context.stroke()
+  context.beginPath()
+  context.arc(192, 320, 72, 0, Math.PI * 2)
+  context.fill()
+  context.stroke()
+
+  context.strokeStyle = theme.cardSkin.top
+  drawBrandIcon(context, 'trash', 192, 128, 116)
+  drawBrandIcon(context, 'treasure', 192, 320, 116)
+  context.setLineDash([7, 10])
+  context.lineWidth = 3
+  context.strokeStyle = theme.cardSkin.accent
+  context.beginPath()
+  context.moveTo(192, 201)
+  context.lineTo(192, 247)
+  context.stroke()
+  context.setLineDash([])
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 8
+  return texture
+}
+
+function makeDiscardCardFaceTexture(theme) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 384
+  canvas.height = 448
+  const context = canvas.getContext('2d')
+  context.fillStyle = theme.cardSkin.top
+  context.beginPath()
+  context.roundRect(8, 8, 368, 432, 28)
+  context.fill()
+  context.strokeStyle = theme.cardSkin.border
+  context.lineWidth = 9
+  context.stroke()
+  context.strokeStyle = theme.cardSkin.accent
+  context.lineWidth = 4
+  context.beginPath()
+  context.arc(192, 224, 94, 0, Math.PI * 2)
+  context.stroke()
+  context.strokeStyle = theme.cardSkin.ink
+  drawBrandIcon(context, 'sparkle', 192, 224, 112)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 8
+  return texture
+}
+
+function createBoardCardPileMarker(theme, kind, color) {
+  const group = new THREE.Group()
+  const isDrawPile = kind === 'draw'
+  const [x, z] = BOARD_CARD_PILE_POSITIONS[kind]
+  group.name = `board-card-${kind}-pile-marker`
+  group.position.set(x, 0, z)
+  group.userData.cardKind = isDrawPile ? 'Trash or Treasure' : 'resolved cards'
+
+  const dotPositions = []
+  const dotCount = 48
+  for (let index = 0; index < dotCount; index += 1) {
+    const angle = (index / dotCount) * Math.PI * 2
+    dotPositions.push(
+      Math.cos(angle) * BOARD_CARD_PILE_RADIUS,
+      BOARD_CARD_PILE_LABEL_Y + 0.006,
+      Math.sin(angle) * BOARD_CARD_PILE_RADIUS,
+    )
+  }
+  const dottedLine = new THREE.Points(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3)),
+    new THREE.PointsMaterial({ color, size: 0.115, sizeAttenuation: true, transparent: true, opacity: 0.92, depthWrite: false }),
+  )
+  dottedLine.name = `${kind}-pile-dotted-outline`
+  dottedLine.renderOrder = 4
+  group.add(dottedLine)
+
+  const cardCount = isDrawPile ? 3 : 1
+  const cardTexture = isDrawPile ? makeCardBackTexture(theme) : makeDiscardCardFaceTexture(theme)
+  for (let index = 0; index < cardCount; index += 1) {
+    const card = new THREE.Group()
+    card.name = `${kind}-pile-card-${index + 1}`
+    card.position.set(isDrawPile ? (index - 1) * 0.045 : 0, 0.225 + index * 0.125, isDrawPile ? (1 - index) * 0.045 : 0)
+    card.rotation.y = isDrawPile ? -0.16 : 0.12
+    const body = new THREE.Mesh(
+      new RoundedBoxGeometry(2, 0.16, 2.24, 0.08, 4),
+      new THREE.MeshStandardMaterial({
+        color: isDrawPile ? (index === cardCount - 1 ? color : theme.cardSkin.bottom) : theme.cardSkin.bottom,
+        emissive: isDrawPile ? color : theme.cardSkin.accent,
+        emissiveIntensity: isDrawPile ? 0.035 : 0.06,
+        metalness: 0.12,
+        roughness: 0.72,
+      }),
+    )
+    card.castShadow = true
+    card.receiveShadow = true
+    body.castShadow = true
+    body.receiveShadow = true
+    card.add(body)
+    const graphic = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.8, 2.02),
+      new THREE.MeshBasicMaterial({ map: cardTexture, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1 }),
+    )
+    graphic.name = isDrawPile
+      ? `${kind}-pile-card-${index + 1}-trash-treasure-crest`
+      : `${kind}-pile-card-${index + 1}-resolved-face`
+    graphic.rotation.x = -Math.PI / 2
+    graphic.position.y = 0.068
+    card.add(graphic)
+    group.add(card)
+  }
+
+  const label = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.5, 0.62),
+    new THREE.MeshBasicMaterial({ map: makePileLabelTexture(kind, theme), transparent: true, opacity: 0.88, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 }),
+  )
+  label.name = `${kind}-pile-label`
+  label.rotation.x = -Math.PI / 2
+    label.position.set(0, BOARD_CARD_PILE_LABEL_Y, 1.72)
+  label.renderOrder = 5
+  group.add(label)
+
+  return group
 }
 
 export function resolveDiceValues(roll, dice) {
@@ -164,14 +382,59 @@ export function resolveDiceValues(roll, dice) {
   return [first, second]
 }
 
+export function makeDiceRollGesture(deltaX, deltaY, durationMs = 1) {
+  const distance = Math.hypot(deltaX, deltaY)
+  return {
+    direction: { x: Math.max(-1, Math.min(1, deltaX / 100)), y: deltaY === 0 ? 0 : Math.max(-1, Math.min(1, -deltaY / 100)) },
+    power: Math.max(0.18, Math.min(1, 0.18 + distance / 120)),
+    durationMs: Math.max(1, durationMs),
+    source: 'touch',
+  }
+}
+
 export function calculateStepPath(from, steps, boardSize = 20) {
   const path = []
   const start = ((from % boardSize) + boardSize) % boardSize
-  const count = Math.max(0, steps)
+  const count = Math.abs(Math.trunc(Number(steps) || 0))
+  const direction = Math.sign(Number(steps) || 1)
   for (let i = 0; i <= count; i += 1) {
-    path.push((start + i) % boardSize)
+    path.push((start + direction * i + boardSize) % boardSize)
   }
   return path
+}
+
+export function createPieceMovePlan(lastMove, boardSize = 20) {
+  const from = Number(lastMove?.from)
+  const signedSteps = Math.trunc(Number(lastMove?.steps) || 0)
+  const steps = Math.abs(signedSteps)
+  const direction = Math.sign(signedSteps) || 1
+  const playerIndex = Number(lastMove?.playerIndex)
+  if (!Number.isInteger(from) || !Number.isInteger(playerIndex) || steps < 1) return null
+  return {
+    key: [playerIndex, from, lastMove?.to, direction, steps].join(':'),
+    playerIndex,
+    steps,
+    direction,
+    dice: lastMove?.dice || null,
+    path: calculateStepPath(from, direction * steps, boardSize),
+  }
+}
+
+export function getSpokeFacingAngle(position) {
+  return Math.atan2(position?.x || 0, position?.z || 0)
+}
+
+export function shouldOrbitBoard({
+  phase,
+  rolling = false,
+  movingPiece = false,
+  queuedMoves = 0,
+  interacting = false,
+  reducedMotion = false,
+  idleMs = 0,
+}) {
+  return phase === 'turn' && !rolling && !movingPiece && queuedMoves === 0 &&
+    !interacting && !reducedMotion && idleMs >= 2800
 }
 
 function createSingleDie(value, skin, isDie2 = false) {
@@ -405,9 +668,16 @@ export function BoardScene({
   activePlayerIndex,
   boardState,
   dice = null,
+  lastMove = null,
   lastRoll,
   onPieceStep = null,
+  onPieceMoveComplete = null,
   onDiceImpact = null,
+  onDiceRattle = null,
+  onDiceCast = null,
+  onRoll = null,
+  canRoll = false,
+  onReady = null,
   rollGesture = null,
   pacingMode = 'freeFlow',
   phase = null,
@@ -419,13 +689,20 @@ export function BoardScene({
 }) {
   const mountRef = useRef(null)
   const dieRef = useRef(null)
-  const resetViewRef = useRef(null)
   const lastRollRef = useRef(lastRoll)
   const dicePropRef = useRef(dice)
   const onPieceStepRef = useRef(onPieceStep)
+  const onPieceMoveCompleteRef = useRef(onPieceMoveComplete)
   const onDiceImpactRef = useRef(onDiceImpact)
+  const onDiceRattleRef = useRef(onDiceRattle)
+  const onDiceCastRef = useRef(onDiceCast)
+  const onRollRef = useRef(onRoll)
+  const canRollRef = useRef(canRoll)
+  const onReadyRef = useRef(onReady)
   const rollGestureRef = useRef(rollGesture)
   const phaseRef = useRef(phase)
+  const pieceMoveQueueRef = useRef([])
+  const observedMoveKeyRef = useRef(createPieceMovePlan(lastMove, 20)?.key || null)
   const boardPath = useMemo(() => buildBoardPath(), [])
   const boardTheme = useMemo(
     () => getBoardThemeById(themeId) || getBoardThemeForRound(round),
@@ -433,6 +710,7 @@ export function BoardScene({
   )
   const targetIndicesRef = useRef(positions)
   const activePlayerIndexRef = useRef(activePlayerIndex)
+  const rollingRef = useRef(rolling)
 
   useEffect(() => {
     phaseRef.current = phase
@@ -456,17 +734,46 @@ export function BoardScene({
   }, [activePlayerIndex])
 
   useEffect(() => {
+    rollingRef.current = rolling
+  }, [rolling])
+
+  useEffect(() => {
     dicePropRef.current = dice
   }, [dice])
+
+  useEffect(() => {
+    const move = createPieceMovePlan(lastMove, boardPath.length)
+    if (!move || move.key === observedMoveKeyRef.current) return
+    observedMoveKeyRef.current = move.key
+    pieceMoveQueueRef.current.push(move)
+  }, [boardPath.length, lastMove])
 
   useEffect(() => {
     onPieceStepRef.current = onPieceStep
   }, [onPieceStep])
 
   useEffect(() => {
+    onPieceMoveCompleteRef.current = onPieceMoveComplete
+  }, [onPieceMoveComplete])
+
+  useEffect(() => {
     onDiceImpactRef.current = onDiceImpact
+    onDiceRattleRef.current = onDiceRattle
+    onDiceCastRef.current = onDiceCast
+    onRollRef.current = onRoll
+    canRollRef.current = canRoll
+    onReadyRef.current = onReady
     rollGestureRef.current = rollGesture
-  }, [onDiceImpact, rollGesture])
+  }, [canRoll, onDiceCast, onDiceImpact, onDiceRattle, onReady, onRoll, rollGesture])
+
+  useEffect(() => {
+    const canvas = mountRef.current?.querySelector('canvas')
+    if (!canvas) return
+    canvas.setAttribute('role', canRoll ? 'button' : 'img')
+    canvas.setAttribute('aria-label', canRoll ? 'Roll dice' : 'Game board dice')
+    canvas.tabIndex = canRoll ? 0 : -1
+    canvas.style.cursor = canRoll ? 'pointer' : 'grab'
+  }, [canRoll])
 
   useEffect(() => {
     lastRollRef.current = lastRoll
@@ -477,10 +784,10 @@ export function BoardScene({
 
     if (rolling) {
       die.userData.startRoll?.(lastRoll || 2, dicePropRef.current)
-    } else {
+    } else if (!lastMove) {
       die.userData.finishRoll?.(lastRoll || 2, dicePropRef.current)
     }
-  }, [lastRoll, rolling])
+  }, [lastMove, lastRoll, rolling])
 
   useEffect(() => {
     const mount = mountRef.current
@@ -516,6 +823,9 @@ export function BoardScene({
     let manualTimeOffset = 0
     let latestSceneTime = performance.now()
     let manualView = false
+    let lastViewInputAt = latestSceneTime
+    let userInteracting = false
+    let previousFrameAt = latestSceneTime
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
@@ -530,8 +840,10 @@ export function BoardScene({
     controls.panSpeed = 0.72
     controls.rotateSpeed = 0.68
     controls.zoomSpeed = 0.82
+    controls.autoRotateSpeed = BOARD_IDLE_ORBIT_SPEED
     controls.screenSpacePanning = true
     controls.target.set(0, 0, 0)
+    const boardCenter = new THREE.Vector3(0, 0, 0)
     controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
     controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY
     controls.mouseButtons.RIGHT = THREE.MOUSE.PAN
@@ -539,6 +851,12 @@ export function BoardScene({
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN
     controls.addEventListener('start', () => {
       manualView = true
+      userInteracting = true
+      lastViewInputAt = performance.now() + manualTimeOffset
+    })
+    controls.addEventListener('end', () => {
+      userInteracting = false
+      lastViewInputAt = performance.now() + manualTimeOffset
     })
 
     const ambient = new THREE.AmbientLight('#ffece2', 1.6)
@@ -608,7 +926,7 @@ export function BoardScene({
     scene.add(outerRim)
 
     const velvetInset = new THREE.Mesh(
-      new THREE.CylinderGeometry(8.5, 8.5, 0.2, 64),
+      new THREE.CylinderGeometry(BOARD_INSET_RADIUS, BOARD_INSET_RADIUS, 0.2, 96),
       new THREE.MeshStandardMaterial({
         map: insetVelvet,
         color: boardTheme.surfaces.inset.color,
@@ -617,12 +935,11 @@ export function BoardScene({
       }),
     )
     velvetInset.position.y = 0.02
-    velvetInset.scale.z = 0.72
     velvetInset.receiveShadow = true
     scene.add(velvetInset)
 
     const insetPiping = new THREE.Mesh(
-      new THREE.TorusGeometry(8.52, 0.08, 12, 96),
+      new THREE.TorusGeometry(BOARD_INSET_RADIUS + 0.02, 0.08, 12, 128),
       new THREE.MeshStandardMaterial({
         color: '#d8aa61',
         metalness: 0.68,
@@ -630,14 +947,113 @@ export function BoardScene({
       }),
     )
     insetPiping.rotation.x = Math.PI / 2
-    insetPiping.scale.y = 0.72
     insetPiping.position.y = 0.14
     insetPiping.castShadow = true
     scene.add(insetPiping)
 
+    // A round open box with a velvet floor gives the dice a clear home base.
+    const diceBox = new THREE.Group()
+    diceBox.name = 'themed-dice-home-base'
+    diceBox.position.set(-2.62, DICE_HOME_BASE_FLOAT_HEIGHT, 0.64)
+    const boxSide = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        DICE_HOME_BASE_RADIUS,
+        DICE_HOME_BASE_RADIUS,
+        DICE_HOME_BASE_HEIGHT,
+        96,
+        1,
+        true,
+      ),
+      new THREE.MeshStandardMaterial({
+        color: boardTheme.diceSkin.alternate,
+        metalness: 0.32,
+        roughness: 0.48,
+        side: THREE.DoubleSide,
+      }),
+    )
+    boxSide.position.y = 0.36
+    boxSide.castShadow = true
+    boxSide.receiveShadow = true
+    diceBox.add(boxSide)
+    const boxBottom = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        DICE_HOME_BASE_RADIUS,
+        DICE_HOME_BASE_RADIUS,
+        DICE_HOME_BASE_FLOOR_THICKNESS,
+        96,
+      ),
+      new THREE.MeshStandardMaterial({
+        color: boardTheme.diceSkin.alternate,
+        metalness: 0.24,
+        roughness: 0.62,
+      }),
+    )
+    boxBottom.name = 'themed-dice-home-base-bottom'
+    boxBottom.position.y = 0.08
+    boxBottom.castShadow = true
+    boxBottom.receiveShadow = true
+    diceBox.add(boxBottom)
+    const boxFabric = new THREE.Mesh(
+      new THREE.CircleGeometry(DICE_HOME_BASE_INNER_RADIUS, 96),
+      new THREE.MeshStandardMaterial({
+        map: insetVelvet,
+        color: boardTheme.diceSkin.fabric || boardTheme.surfaces.inset.color,
+        metalness: 0.01,
+        roughness: 0.94,
+      }),
+    )
+    boxFabric.rotation.x = -Math.PI / 2
+    boxFabric.position.y = 0.17
+    boxFabric.receiveShadow = true
+    diceBox.add(boxFabric)
+    const boxRim = new THREE.Mesh(
+      new THREE.TorusGeometry(DICE_HOME_BASE_RADIUS, 0.075, 10, 96),
+      new THREE.MeshStandardMaterial({
+        color: boardTheme.diceSkin.edge,
+        emissive: boardTheme.diceSkin.edge,
+        emissiveIntensity: 0.28,
+        metalness: 0.76,
+        roughness: 0.3,
+      }),
+    )
+    boxRim.rotation.x = Math.PI / 2
+    boxRim.position.y = DICE_HOME_BASE_HEIGHT + 0.07
+    boxRim.castShadow = true
+    diceBox.add(boxRim)
+    const innerBoxStitch = new THREE.Mesh(
+      new THREE.TorusGeometry(DICE_HOME_BASE_INNER_RADIUS, 0.018, 6, 96),
+      new THREE.MeshBasicMaterial({ color: '#fff0cf', transparent: true, opacity: 0.58 }),
+    )
+    innerBoxStitch.rotation.x = Math.PI / 2
+    innerBoxStitch.position.y = 0.185
+    diceBox.add(innerBoxStitch)
+    scene.add(diceBox)
+
+    const shadowCanvas = document.createElement('canvas')
+    shadowCanvas.width = 128
+    shadowCanvas.height = 128
+    const shadowContext = shadowCanvas.getContext('2d')
+    const shadowGradient = shadowContext.createRadialGradient(64, 64, 12, 64, 64, 62)
+    shadowGradient.addColorStop(0, 'rgba(8, 5, 12, 0.52)')
+    shadowGradient.addColorStop(0.48, 'rgba(8, 5, 12, 0.3)')
+    shadowGradient.addColorStop(1, 'rgba(8, 5, 12, 0)')
+    shadowContext.fillStyle = shadowGradient
+    shadowContext.fillRect(0, 0, 128, 128)
+    const shadowTexture = new THREE.CanvasTexture(shadowCanvas)
+    const diceShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(DICE_HOME_BASE_RADIUS * 3.15, DICE_HOME_BASE_RADIUS * 3.15),
+      new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, depthWrite: false, opacity: 0.32 }),
+    )
+    diceShadow.name = 'dice-home-base-soft-shadow'
+    diceShadow.rotation.x = -Math.PI / 2
+    diceShadow.position.set(-2.62, 0.18, 0.64)
+    diceShadow.renderOrder = 1
+    scene.add(diceShadow)
+
     const dice = createPrimitiveDicePair(resolveDiceValues(lastRollRef.current || 2, dicePropRef.current), boardTheme.diceSkin)
     let dieRoll = null
     dice.userData.startRoll = (value, explicitDice) => {
+      if (dieRoll) return
       const resolved = resolveDiceValues(value, explicitDice)
       dieRoll = {
         finalValues: resolved,
@@ -654,48 +1070,202 @@ export function BoardScene({
     dieRef.current = dice
     scene.add(dice)
 
+    const canvas = renderer.domElement
+    const raycaster = new THREE.Raycaster()
+    const pointerNdc = new THREE.Vector2()
+    let activeDicePointer = null
+    let lastRattleAt = 0
+    const projectPointer = (event) => {
+      const bounds = canvas.getBoundingClientRect()
+      pointerNdc.set(
+        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+        -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+      )
+      raycaster.setFromCamera(pointerNdc, camera)
+    }
+    const hitsDice = (event) => {
+      projectPointer(event)
+      return raycaster.intersectObject(dice, true).length > 0
+    }
+    const consumePointer = (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      event.stopImmediatePropagation?.()
+    }
+    const vibrate = (duration = 12) => {
+      try { navigator.vibrate?.(duration) } catch { /* Haptics are optional. */ }
+    }
+    const handleDicePointerDown = (event) => {
+      if (!event.isPrimary || event.button !== 0 || activeDicePointer || !canRollRef.current || !hitsDice(event)) return
+      consumePointer(event)
+      activeDicePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() }
+      dice.userData.touch = { startedAt: activeDicePointer.time, x: 0, y: 0 }
+      controls.enabled = false
+      canvas.style.cursor = 'grabbing'
+      try { canvas.setPointerCapture(event.pointerId) } catch { /* Pointer capture is not available everywhere. */ }
+      onDiceRattleRef.current?.({ energy: 0.18 })
+      lastRattleAt = performance.now()
+      vibrate(12)
+    }
+    const handleDicePointerMove = (event) => {
+      if (activeDicePointer?.id === event.pointerId) {
+        consumePointer(event)
+        const x = event.clientX - activeDicePointer.x
+        const y = event.clientY - activeDicePointer.y
+        dice.userData.touch = { ...dice.userData.touch, x, y }
+        const now = performance.now()
+        const distance = Math.hypot(x, y)
+        if (distance > 6 && now - lastRattleAt > 75) {
+          onDiceRattleRef.current?.({ energy: Math.min(1, distance / 100) })
+          lastRattleAt = now
+          vibrate(9)
+        }
+        return
+      }
+      if (canRollRef.current) canvas.style.cursor = hitsDice(event) ? 'pointer' : 'grab'
+    }
+    const handleDicePointerUp = (event) => {
+      if (activeDicePointer?.id !== event.pointerId) return
+      consumePointer(event)
+      const start = activeDicePointer
+      const deltaX = event.clientX - start.x
+      const deltaY = event.clientY - start.y
+      activeDicePointer = null
+      dice.userData.touch = null
+      controls.enabled = true
+      canvas.style.cursor = canRollRef.current ? 'pointer' : 'grab'
+      try { canvas.releasePointerCapture(event.pointerId) } catch { /* Already released by the browser. */ }
+      if (!canRollRef.current) return
+      const gesture = makeDiceRollGesture(deltaX, deltaY, performance.now() - start.time)
+      onDiceCastRef.current?.()
+      vibrate(28)
+      onRollRef.current?.(gesture)
+    }
+    const handleDicePointerCancel = (event) => {
+      if (activeDicePointer?.id !== event.pointerId) return
+      consumePointer(event)
+      activeDicePointer = null
+      dice.userData.touch = null
+      controls.enabled = true
+      settlePrimitiveDice(dice, dice.userData.values)
+    }
+    const handleDiceKeyDown = (event) => {
+      if (!canRollRef.current || (event.key !== ' ' && event.key !== 'Enter')) return
+      event.preventDefault()
+      event.stopPropagation()
+      onDiceCastRef.current?.()
+      onRollRef.current?.({ direction: { x: 0, y: -0.2 }, power: 0.42, source: 'keyboard' })
+    }
+    canvas.addEventListener('pointerdown', handleDicePointerDown, true)
+    canvas.addEventListener('pointermove', handleDicePointerMove, true)
+    canvas.addEventListener('pointerup', handleDicePointerUp, true)
+    canvas.addEventListener('pointercancel', handleDicePointerCancel, true)
+    canvas.addEventListener('keydown', handleDiceKeyDown)
+    canvas.setAttribute('role', canRollRef.current ? 'button' : 'img')
+    canvas.setAttribute('aria-label', canRollRef.current ? 'Roll dice' : 'Game board dice')
+    canvas.tabIndex = canRollRef.current ? 0 : -1
+    canvas.style.cursor = canRollRef.current ? 'pointer' : 'grab'
+
     const boardGroup = new THREE.Group()
     scene.add(boardGroup)
 
-    const routeMaterial = new THREE.MeshStandardMaterial({
-      color: boardTheme.diceSkin.alternate,
-      metalness: 0.18,
-      roughness: 0.67,
+    const ringTexture = textureLoader.load(`/assets/board/rings/${boardTheme.id}.svg`)
+    ringTexture.colorSpace = THREE.SRGBColorSpace
+    ringTexture.wrapS = THREE.RepeatWrapping
+    ringTexture.wrapT = THREE.ClampToEdgeWrapping
+    ringTexture.repeat.set(18, 1)
+    ringTexture.anisotropy = 8
+    const ringRadius = 15.48
+    const ringHeight = 1.44
+    const ringCenterY = 0.84
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      map: ringTexture,
+      color: '#fff8ec',
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      toneMapped: false,
     })
-    const routeInlayMaterial = new THREE.MeshStandardMaterial({
-      color: boardTheme.diceSkin.edge,
-      metalness: 0.65,
-      roughness: 0.36,
-    })
-    getBoardPathSegments(boardPath).forEach((segment) => {
-      const route = new THREE.Mesh(
-        new RoundedBoxGeometry(0.96, 0.13, segment.length, 4, 0.09),
-        routeMaterial,
-      )
-      route.position.set(segment.center.x, 0.17, segment.center.z)
-      route.rotation.y = segment.angle
-      route.castShadow = true
-      route.receiveShadow = true
-      boardGroup.add(route)
+    const themeRing = new THREE.Mesh(
+      new THREE.CylinderGeometry(ringRadius, ringRadius, ringHeight, 192, 1, true),
+      ringMaterial,
+    )
+    themeRing.name = `theme-story-ring-${boardTheme.id}`
+    themeRing.position.y = ringCenterY
+    themeRing.renderOrder = 1
+    boardGroup.add(themeRing)
 
-      const inlay = new THREE.Mesh(
-        new RoundedBoxGeometry(0.08, 0.035, segment.length, 3, 0.018),
-        routeInlayMaterial,
-      )
-      inlay.position.set(segment.center.x, 0.255, segment.center.z)
-      inlay.rotation.y = segment.angle
-      inlay.castShadow = true
-      boardGroup.add(inlay)
+    const ringTrimMaterial = new THREE.MeshStandardMaterial({
+      color: boardTheme.diceSkin.edge,
+      emissive: boardTheme.diceSkin.edge,
+      emissiveIntensity: 0.24,
+      metalness: 0.72,
+      roughness: 0.32,
     })
+    for (const y of [ringCenterY - ringHeight / 2, ringCenterY + ringHeight / 2]) {
+      const trim = new THREE.Mesh(new THREE.TorusGeometry(ringRadius, 0.045, 8, 192), ringTrimMaterial)
+      trim.rotation.x = Math.PI / 2
+      trim.position.y = y
+      trim.castShadow = true
+      boardGroup.add(trim)
+    }
+    const ringPostMaterial = new THREE.MeshStandardMaterial({
+      color: boardTheme.diceSkin.edge,
+      emissive: boardTheme.diceSkin.edge,
+      emissiveIntensity: 0.18,
+      metalness: 0.68,
+      roughness: 0.38,
+    })
+    for (let index = 0; index < boardPath.length; index += 1) {
+      const angle = (index / boardPath.length) * Math.PI * 2 - Math.PI / 2
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.075, ringHeight, 8),
+        ringPostMaterial,
+      )
+      post.position.set(Math.cos(angle) * ringRadius, ringCenterY, Math.sin(angle) * ringRadius)
+      post.castShadow = true
+      boardGroup.add(post)
+    }
 
     const tileMarks = new Map()
+    const spaceGlowTexture = makeSpaceGlowTexture()
+    const animatedSpaceTiles = []
     boardPath.forEach((space) => {
       tileMarks.set(space.id, makeTileMarkTexture(space.label, space.type))
     })
 
-    boardPath.forEach((space) => {
+    boardPath.forEach((space, spaceIndex) => {
       const tile = new THREE.Group()
       const style = TILE_STYLES[space.type]
+      const underglow = new THREE.Mesh(
+        new THREE.CircleGeometry(2.08, 40),
+        new THREE.MeshBasicMaterial({
+          map: spaceGlowTexture,
+          color: boardTheme.diceSkin.edge,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          transparent: true,
+          opacity: 0.2,
+          toneMapped: false,
+        }),
+      )
+      underglow.rotation.x = -Math.PI / 2
+      underglow.position.y = -0.2
+      tile.add(underglow)
+      const lightRim = new THREE.Mesh(
+        new THREE.TorusGeometry(1.66, 0.052, 8, 48),
+        new THREE.MeshStandardMaterial({
+          color: boardTheme.diceSkin.edge,
+          emissive: boardTheme.diceSkin.edge,
+          emissiveIntensity: 0.46,
+          metalness: 0.42,
+          roughness: 0.36,
+        }),
+      )
+      lightRim.rotation.x = Math.PI / 2
+      lightRim.position.y = -0.205
+      tile.add(lightRim)
       const plinth = new THREE.Mesh(
         new THREE.CylinderGeometry(1.55, 1.64, 0.18, 24),
         new THREE.MeshStandardMaterial({
@@ -708,8 +1278,23 @@ export function BoardScene({
       plinth.castShadow = true
       plinth.receiveShadow = true
       tile.add(plinth)
+      const embroideredEdge = new THREE.Mesh(
+        new THREE.TorusGeometry(1.53, 0.035, 7, 36),
+        new THREE.MeshStandardMaterial({
+          color: boardTheme.diceSkin.edge,
+          emissive: boardTheme.diceSkin.edge,
+          emissiveIntensity: 0.16,
+          metalness: 0.62,
+          roughness: 0.34,
+          transparent: true,
+          opacity: 0.82,
+        }),
+      )
+      embroideredEdge.rotation.x = Math.PI / 2
+      embroideredEdge.position.y = -0.035
+      tile.add(embroideredEdge)
       const base = new THREE.Mesh(
-        new RoundedBoxGeometry(2.2, 0.4, 2.2, 4, 0.15),
+        new RoundedBoxGeometry(3.1, 0.4, 3.1, 4, 0.21),
         new THREE.MeshStandardMaterial({
           color: '#fff7e9',
           metalness: 0.03,
@@ -721,7 +1306,7 @@ export function BoardScene({
       tile.add(base)
 
       const panel = new THREE.Mesh(
-        new RoundedBoxGeometry(1.92, 0.09, 1.92, 4, 0.14),
+        new RoundedBoxGeometry(2.72, 0.09, 2.72, 4, 0.19),
         new THREE.MeshStandardMaterial({
           color: boardTheme.spaceColors[space.type] || style.tint,
           metalness: 0.02,
@@ -746,6 +1331,13 @@ export function BoardScene({
       tile.add(mark)
 
       tile.position.copy(space.position)
+      tile.rotation.y = getSpokeFacingAngle(space.position)
+      tile.userData.floatRestY = tile.position.y
+      tile.userData.floatPhase = spaceIndex * 2.399963229728653
+      tile.userData.sink = 0
+      tile.userData.underglow = underglow
+      tile.userData.lightRim = lightRim
+      animatedSpaceTiles.push({ index: spaceIndex, group: tile })
       boardGroup.add(tile)
 
     })
@@ -829,6 +1421,8 @@ export function BoardScene({
       scene.add(group)
       return group
     })
+    let activePieceMove = null
+    let completedPieceSteps = 0
 
     const dracoLoader = new DRACOLoader()
     dracoLoader.setDecoderPath(DRACO_GLTF_CONFIG)
@@ -839,14 +1433,19 @@ export function BoardScene({
     overlayTexture.colorSpace = THREE.SRGBColorSpace
     overlayTexture.anisotropy = 8
     const boardSkin = new THREE.Mesh(
-      new THREE.PlaneGeometry(16.94, 12.18),
-      new THREE.MeshBasicMaterial({ map: overlayTexture, transparent: true, opacity: 0.66, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1 }),
+      new THREE.CircleGeometry(BOARD_INSET_RADIUS - 0.12, 96),
+      new THREE.MeshBasicMaterial({ map: overlayTexture, transparent: true, opacity: 0.82, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1 }),
     )
     boardSkin.name = `2d-theme-skin-${boardTheme.id}`
     boardSkin.rotation.x = -Math.PI / 2
-    boardSkin.position.y = 0.126
+    boardSkin.position.y = BOARD_SKIN_SURFACE_Y
     boardSkin.renderOrder = 2
     scene.add(boardSkin)
+
+    const cardPilePalette = getBoardCardPilePalette(boardTheme)
+    const drawPileMarker = createBoardCardPileMarker(boardTheme, 'draw', cardPilePalette.draw)
+    const discardPileMarker = createBoardCardPileMarker(boardTheme, 'discard', cardPilePalette.discard)
+    scene.add(drawPileMarker, discardPileMarker)
 
     players.forEach((player, index) => {
       const avatar = resolvePlayerAvatar(player.avatar)
@@ -889,14 +1488,47 @@ export function BoardScene({
 
     function renderFrame(now = performance.now()) {
       latestSceneTime = now + manualTimeOffset
+      const frameDeltaSeconds = Math.min(0.05, Math.max(0, (latestSceneTime - previousFrameAt) / 1000))
+      previousFrameAt = latestSceneTime
       const elapsed = (latestSceneTime - startedAt) / 1000
       environment.update(elapsed, reducedMotion)
+      const diceHomeMotion = getDiceHomeBaseMotion(elapsed, reducedMotion)
+      diceBox.position.y = diceHomeMotion.lift
+      diceShadow.material.opacity = diceHomeMotion.shadowOpacity
+      diceShadow.scale.setScalar(diceHomeMotion.shadowScale)
+      const occupiedSpaceIndices = [...targetIndicesRef.current]
+      const movingPlan = activePieceMove || pieceMoveQueueRef.current[0]
+      if (movingPlan) {
+        occupiedSpaceIndices[movingPlan.playerIndex] = movingPlan.path[movingPlan.stepIndex || 0]
+      }
+      animatedSpaceTiles.forEach(({ index, group }) => {
+        const occupied = occupiedSpaceIndices.includes(index)
+        const motion = getBoardSpaceMotion(elapsed, index, { occupied, reducedMotion })
+        const sinkEase = 1 - Math.exp(-frameDeltaSeconds * 11)
+        group.userData.sink = THREE.MathUtils.lerp(group.userData.sink, motion.sinkTarget, sinkEase)
+        group.position.y = group.userData.floatRestY + motion.bob - group.userData.sink
+        group.userData.underglow.material.opacity = motion.glowOpacity
+        group.userData.lightRim.material.emissiveIntensity = motion.glowIntensity
+      })
       const activePos = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
       const otherIndex = (activePlayerIndexRef.current + 1) % 2
       const otherPos = boardPath[targetIndicesRef.current[otherIndex]]?.position || activePos
       const midpoint = new THREE.Vector3().addVectors(activePos, otherPos).multiplyScalar(0.5)
 
-      if (!manualView) {
+      const idleOrbit = shouldOrbitBoard({
+        phase: phaseRef.current,
+        rolling: Boolean(rollingRef.current || dieRoll),
+        movingPiece: Boolean(activePieceMove),
+        queuedMoves: pieceMoveQueueRef.current.length,
+        interacting: userInteracting,
+        reducedMotion,
+        idleMs: latestSceneTime - lastViewInputAt,
+      })
+      controls.autoRotate = idleOrbit
+      if (idleOrbit) {
+        camera.position.y = THREE.MathUtils.lerp(camera.position.y, 14.5, Math.min(1, frameDeltaSeconds * 0.55))
+        controls.target.lerp(boardCenter, Math.min(1, frameDeltaSeconds * 0.55))
+      } else if (!manualView) {
         const isKeepsakePhase = phaseRef.current === 'keepsake'
         const targetFocus = pacingMode === 'sharedSpotlight' || isKeepsakePhase ? activePos : midpoint
         const targetY = isKeepsakePhase ? 10.5 : 16
@@ -917,6 +1549,11 @@ export function BoardScene({
         controls.target.z = THREE.MathUtils.lerp(controls.target.z, isKeepsakePhase ? activePos.z * 0.35 : targetFocus.z * 0.38, 0.04)
       }
 
+      if (!dieRoll && !activePieceMove && pieceMoveQueueRef.current.length) {
+        activePieceMove = { ...pieceMoveQueueRef.current.shift(), travelStartedAt: null, stepIndex: 0 }
+        dice.userData.startRoll?.(activePieceMove.steps, activePieceMove.dice)
+      }
+
       if (dieRoll) {
         const duration = 1.35
         const progress = Math.min(1, (latestSceneTime - dieRoll.startedAt) / 1000 / duration)
@@ -932,7 +1569,7 @@ export function BoardScene({
         const direction = gesture.direction || { x: 0.55, y: -0.3 }
         const throwPower = 0.78 + Math.max(0, Math.min(1, gesture.power || 0)) * 0.72
         die1.position.x = -2.0 + lift1 * (1.2 + direction.x * 2.1) + Math.sin(progress * Math.PI * 2) * 0.25
-        die1.position.y = 0.62 + lift1 * 2.05 * throwPower
+        die1.position.y = 0.62 + diceHomeMotion.lift + lift1 * 2.05 * throwPower
         die1.position.z = 0.45 + lift1 * (0.35 + direction.y * 1.4)
         die1.rotation.x = -0.04 + eased * (Math.PI * (3.5 + throwPower) + dieRoll.finalValues[0] * 0.18)
         die1.rotation.y = 0.32 + eased * (Math.PI * (4.2 + throwPower) + dieRoll.finalValues[0] * 0.22 + direction.x)
@@ -945,7 +1582,7 @@ export function BoardScene({
         const tumbleFace2 = 1 + ((Math.floor(prog2 * 20) + dieRoll.finalValues[1]) % 6)
         setPrimitiveDieValue(die2, prog2 >= 1 ? dieRoll.finalValues[1] : tumbleFace2)
         die2.position.x = -3.25 + lift2 * (1.6 + direction.x * 1.8) - Math.sin(prog2 * Math.PI * 2) * 0.28
-        die2.position.y = 0.62 + lift2 * 2.2 * throwPower
+        die2.position.y = 0.62 + diceHomeMotion.lift + lift2 * 2.2 * throwPower
         die2.position.z = 0.82 + lift2 * (0.2 - direction.y * 1.3)
         die2.rotation.x = 0.08 + eased2 * (Math.PI * (4.4 + throwPower) + dieRoll.finalValues[1] * 0.16)
         die2.rotation.y = -0.26 + eased2 * (Math.PI * (3.6 + throwPower) + dieRoll.finalValues[1] * 0.24 - direction.x)
@@ -963,9 +1600,76 @@ export function BoardScene({
           dieRoll = null
           settlePrimitiveDice(dice, finalValues)
         }
+      } else if (dice.userData.touch) {
+        const touch = dice.userData.touch
+        const die1 = dice.userData.die1
+        const die2 = dice.userData.die2
+        const press = Math.min(1, Math.hypot(touch.x, touch.y) / 44)
+        const breathe = Math.sin((latestSceneTime - touch.startedAt) / 1000 * 18) * 0.025
+        die1.position.set(-2 + touch.x * 0.004, 0.62 + diceHomeMotion.lift + breathe, 0.45 - touch.y * 0.004)
+        die1.rotation.set(-0.04 - touch.y * 0.004, 0.32, -0.06 + touch.x * 0.005)
+        die1.scale.setScalar(1 + press * 0.09)
+        die2.position.set(-3.25 + touch.x * 0.004, 0.62 + diceHomeMotion.lift - breathe, 0.82 - touch.y * 0.004)
+        die2.rotation.set(0.08 - touch.y * 0.004, -0.26, 0.12 + touch.x * 0.005)
+        die2.scale.setScalar(1 + press * 0.09)
+      }
+
+      if (!dieRoll && !dice.userData.touch) {
+        dice.userData.die1.position.y = 0.62 + diceHomeMotion.lift
+        dice.userData.die2.position.y = 0.62 + diceHomeMotion.lift
       }
 
       tokenGroups.forEach((token, index) => {
+        if (activePieceMove?.playerIndex === index && !dieRoll) {
+          if (activePieceMove.travelStartedAt === null) activePieceMove.travelStartedAt = latestSceneTime
+          const positionsAtStart = [...targetIndicesRef.current]
+          const positionsAtEnd = [...targetIndicesRef.current]
+          const startSpace = activePieceMove.path[activePieceMove.stepIndex]
+          const endSpace = activePieceMove.path[activePieceMove.stepIndex + 1]
+          positionsAtStart[index] = startSpace
+          positionsAtEnd[index] = endSpace
+          const start = getTokenTargetPosition(boardPath, positionsAtStart, index)
+          const end = getTokenTargetPosition(boardPath, positionsAtEnd, index)
+          const stepDuration = 235
+          let progress = Math.min(1, Math.max(0, (latestSceneTime - activePieceMove.travelStartedAt) / stepDuration))
+          while (progress >= 1 && activePieceMove.stepIndex < activePieceMove.steps) {
+            token.position.copy(end)
+            onPieceStepRef.current?.({
+              playerIndex: index,
+              spaceIndex: endSpace,
+              stepIndex: activePieceMove.stepIndex + 1,
+              steps: activePieceMove.steps,
+            })
+            completedPieceSteps += 1
+            activePieceMove.stepIndex += 1
+            activePieceMove.travelStartedAt += stepDuration
+            if (activePieceMove.stepIndex >= activePieceMove.steps) {
+              const completedMove = activePieceMove
+              activePieceMove = null
+              onPieceMoveCompleteRef.current?.({
+                playerIndex: completedMove.playerIndex,
+                steps: completedMove.steps,
+              })
+              break
+            }
+            const nextStart = [...targetIndicesRef.current]
+            const nextEnd = [...targetIndicesRef.current]
+            nextStart[index] = activePieceMove.path[activePieceMove.stepIndex]
+            nextEnd[index] = activePieceMove.path[activePieceMove.stepIndex + 1]
+            start.copy(getTokenTargetPosition(boardPath, nextStart, index))
+            end.copy(getTokenTargetPosition(boardPath, nextEnd, index))
+            progress = Math.min(1, Math.max(0, (latestSceneTime - activePieceMove.travelStartedAt) / stepDuration))
+          }
+          if (activePieceMove?.playerIndex === index) {
+            const eased = progress * progress * (3 - 2 * progress)
+            token.position.x = THREE.MathUtils.lerp(start.x, end.x, eased)
+            token.position.z = THREE.MathUtils.lerp(start.z, end.z, eased)
+            token.position.y = 0.7 + Math.sin(progress * Math.PI) * 0.58 + Math.sin(elapsed * 3 + index) * 0.04
+          }
+          token.rotation.y = elapsed * 0.35
+          token.scale.setScalar(index === activePlayerIndexRef.current ? 1.04 : 0.96)
+          return
+        }
         const target = getTokenTargetPosition(
           boardPath,
           targetIndicesRef.current,
@@ -978,7 +1682,7 @@ export function BoardScene({
         token.scale.setScalar(index === activePlayerIndexRef.current ? 1.04 : 0.96)
       })
 
-      controls.update()
+      controls.update(frameDeltaSeconds)
       renderer.render(scene, camera)
     }
 
@@ -997,7 +1701,7 @@ export function BoardScene({
         activePlayerIndex: activePlayerIndexRef.current,
         boardState: parsedBoardState,
         camera: {
-          mode: manualView ? 'gesture' : 'follow',
+          mode: controls.autoRotate ? 'idle-orbit' : manualView ? 'gesture' : 'follow',
           position: camera.position.toArray().map((value) => Number(value.toFixed(2))),
           target: controls.target.toArray().map((value) => Number(value.toFixed(2))),
           gestures: {
@@ -1010,6 +1714,8 @@ export function BoardScene({
         theme: {
           id: boardTheme.id,
           label: boardTheme.label,
+          cardPilePalette,
+          ringTexture: `/assets/board/rings/${boardTheme.id}.svg`,
           round,
           environment: boardTheme.environment.mode,
           panorama: boardTheme.environment.panorama,
@@ -1024,12 +1730,28 @@ export function BoardScene({
           rolling: Boolean(dieRoll),
           sum: dice.userData.values[0] + dice.userData.values[1],
           values: dice.userData.values,
+          screenCenters: [dice.userData.die1, dice.userData.die2].map((die) => {
+            const point = die.getWorldPosition(new THREE.Vector3()).project(camera)
+            return {
+              x: Number(((point.x + 1) * mount.clientWidth / 2).toFixed(1)),
+              y: Number(((1 - point.y) * mount.clientHeight / 2).toFixed(1)),
+            }
+          }),
         },
         die: {
           construction: 'rounded-box-and-sphere primitives with theme finish',
           rolling: Boolean(dieRoll),
           value: dice.userData.value,
         },
+        pieceMovement: activePieceMove
+          ? {
+              playerIndex: activePieceMove.playerIndex,
+              stepsLanded: activePieceMove.stepIndex,
+              totalSteps: activePieceMove.steps,
+              nextSpace: activePieceMove.path[activePieceMove.stepIndex + 1] ?? null,
+            }
+          : null,
+        pieceStepsLanded: completedPieceSteps,
         gameplay: gameplay
           ? {
               ...gameplay,
@@ -1043,16 +1765,27 @@ export function BoardScene({
           : null,
         mode: 'board',
         surfaces: {
-          boardInset: { color: boardTheme.surfaces.inset.color, texture: boardTheme.surfaces.inset.texture },
+          boardInset: { color: boardTheme.surfaces.inset.color, texture: boardTheme.surfaces.inset.texture, shape: 'circle', radius: BOARD_INSET_RADIUS },
           tabletop: boardTheme.surfaces.tabletop.texture,
           skinOverlay: boardTheme.skinOverlay,
+          storyRing: { radius: ringRadius, height: ringHeight, hollow: true, texture: `/assets/board/rings/${boardTheme.id}.svg` },
           spaceColors: boardTheme.spaceColors,
-          tiles: 'theme-colored raised spaces with connected inlaid route',
+          tiles: 'separate theme-colored raised spaces with pulsing underglow',
+          connector: 'none',
+        },
+        cardPiles: {
+          deck: 'mixed Trash moments and Treasure moments',
+          cardBack: 'paired branded trash-paper and treasure-gem emblems',
+          labels: 'etched into the board fabric',
+          draw: { position: BOARD_CARD_PILE_POSITIONS.draw, outline: 'dotted', color: cardPilePalette.draw, cards: 3 },
+          discard: { position: BOARD_CARD_PILE_POSITIONS.discard, outline: 'dotted', color: cardPilePalette.discard, cards: 1 },
         },
         path: {
           branchCount: 0,
           segments: boardPath.length,
           visible: true,
+          shape: 'circle',
+          radius: BOARD_PATH_RADIUS,
         },
         toneSelector: window.__atLongLastVibeDialState || null,
         players: players.map((player, index) => {
@@ -1089,19 +1822,8 @@ export function BoardScene({
     }
     window.render_game_to_text = renderGameToText
     window.advanceTime = advanceTime
-    resetViewRef.current = () => {
-      const focus = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
-      manualView = false
-      controls.enableDamping = false
-      controls.reset()
-      camera.position.set(focus.x * 0.22, 16, 18 + focus.z * 0.2)
-      controls.target.set(focus.x * 0.2, 0, focus.z * 0.38)
-      controls.update()
-      controls.enableDamping = true
-
-    }
-
     animate()
+    onReadyRef.current?.()
 
     return () => {
       disposed = true
@@ -1110,6 +1832,11 @@ export function BoardScene({
       }
 
       resizeObserver.disconnect()
+      canvas.removeEventListener('pointerdown', handleDicePointerDown, true)
+      canvas.removeEventListener('pointermove', handleDicePointerMove, true)
+      canvas.removeEventListener('pointerup', handleDicePointerUp, true)
+      canvas.removeEventListener('pointercancel', handleDicePointerCancel, true)
+      canvas.removeEventListener('keydown', handleDiceKeyDown)
       controls.dispose()
       if (window.render_game_to_text === renderGameToText) {
         delete window.render_game_to_text
@@ -1121,7 +1848,6 @@ export function BoardScene({
       if (dieRef.current === dice) {
         dieRef.current = null
       }
-      resetViewRef.current = null
       disposeObject3D(scene)
       renderer.renderLists.dispose()
       renderer.dispose()
@@ -1129,24 +1855,9 @@ export function BoardScene({
         mount.removeChild(renderer.domElement)
       }
     }
-  }, [boardPath, boardStateKey, boardTheme, players, round])
+  }, [boardPath, boardStateKey, boardTheme, players])
 
   return (
-    <>
-      <div className="board-canvas" ref={mountRef} />
-      <div
-        aria-label="Board view controls. Drag to look around, pinch to zoom, and use two fingers to move the board."
-        className="board-view-controls"
-      >
-        <BrandIcon name="reset" />
-        <button
-          aria-label="Center the board on the current player"
-          onClick={() => resetViewRef.current?.()}
-          type="button"
-        >
-          Center
-        </button>
-      </div>
-    </>
+    <div className="board-canvas" ref={mountRef} />
   )
 }

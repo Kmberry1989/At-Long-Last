@@ -141,6 +141,24 @@
   line-height: 1.45;
 }
 
+.finale-night-prize {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: #fff2d4;
+  border: 1px solid rgba(243, 205, 132, .55);
+  border-radius: 18px;
+  background: linear-gradient(115deg, rgba(177, 119, 71, .28), rgba(209, 157, 90, .15));
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .16), inset 0 0 18px rgba(255, 225, 169, .08);
+}
+.finale-night-prize > .brand-icon { width: 34px; height: 34px; color: #f4ce83; }
+.finale-night-prize div { display: grid; justify-items: start; gap: 1px; text-align: left; }
+.finale-night-prize span { color: #e8c990; font-size: .65rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.finale-night-prize strong { color: #fff9eb; font-family: var(--font-display, Georgia, serif); font-size: 1.1rem; line-height: 1.1; }
+.finale-night-prize small { color: rgba(255, 245, 225, .72); font-size: .72rem; }
+
 /* Metrics Pill Row */
 .finale-stat-row {
   display: grid;

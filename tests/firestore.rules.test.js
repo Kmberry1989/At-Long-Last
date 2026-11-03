@@ -98,6 +98,17 @@ async function createAndJoinRoom() {
   }
 }
 
+async function resolvePlayerRoll(db, sessionId, uid, round, ownerIndex) {
+  const stepRef = doc(db, 'sessions', sessionId, 'steps', `roll-${round}-${ownerIndex}`)
+  let step = (await getDoc(stepRef)).data()
+  if (step.state.momentCard) {
+    await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { resolveMoment: true } })
+    step = (await getDoc(stepRef)).data()
+  }
+  if (step.kind === 'activity') await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { skip: true } })
+  if (step.kind === 'keepsake') await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { collect: true } })
+}
+
 async function seedLegacyActiveSession() {
   const hostDb = authedDb(HOST_UID)
   const guestDb = authedDb(GUEST_UID)
@@ -988,6 +999,19 @@ describe('session lifecycle boundaries', () => {
 
 
 describe('independent night two-account transactions', () => {
+  it('lets only the owning player resolve a moment on an already completed board landing', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    const stepRef = doc(hostDb, 'sessions', sessionId, 'steps', 'roll-1-0')
+    const momentCard = { category: 'trash', id: 'cold-coffee', title: 'Cold Coffee Again', scene: 'The morning got away.', effect: 'Coffee detour', movement: -2, lowerDie: 4 }
+    await setDoc(stepRef, { kind: 'board', type: 'connection', round: 1, ownerIndex: 0, state: { momentCard, race: { progress: 3, laps: 0 } }, ready: true, completed: true, skipped: false, updatedAt: serverTimestamp() })
+    await assertFails(updateDoc(doc(guestDb, 'sessions', sessionId, 'steps', 'roll-1-0'), { state: { momentCard, race: { progress: 3, laps: 0 }, momentResolution: { movement: -2 } }, updatedAt: serverTimestamp() }))
+    await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: stepRef.id, input: { resolveMoment: true } })
+    const saved = (await getDoc(stepRef)).data()
+    expect(saved.state.momentResolution).toMatchObject({ movement: -2, lowerDie: 4 })
+    expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data()).toMatchObject({ hearts: 6, positions: [18, 0] })
+  })
+
   it('preserves simultaneous rolls, frees either player after sealing, and survives duplicate saves', async () => {
     const { couple, hostDb, guestDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
@@ -1021,12 +1045,13 @@ describe('independent night two-account transactions', () => {
     const sessionId = await ensureActiveSession(hostDb, couple)
     for (const [db, uid] of [[guestDb, GUEST_UID], [hostDb, HOST_UID]]) {
       for (let round = 1; round <= 4; round++) {
-        await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: round === 1 ? [1, 2] : [1, 1] })
+        await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: round === 1 ? [1, 2] : [1, 1], selectionSeed: 0.01 })
+        await resolvePlayerRoll(db, sessionId, uid, round, uid === HOST_UID ? 0 : 1)
         await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: uid === HOST_UID ? 1 : 3, won: true } })
       }
       if (uid === GUEST_UID) {
         await expect(runNightCommand(db, sessionId, uid, { kind: 'finish' })).rejects.toThrow('still moments')
-        expect((await getDoc(doc(db, 'sessions', sessionId))).data().positions).toEqual([0, 9])
+        expect((await getDoc(doc(db, 'sessions', sessionId))).data().positions).toEqual([0, 5])
         expect((await getDocs(query(collection(db, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
       }
     }
@@ -1035,12 +1060,15 @@ describe('independent night two-account transactions', () => {
       runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'finish' }),
     ])
     const final = (await getDoc(doc(guestDb, 'sessions', sessionId))).data()
-    expect(final).toMatchObject({ phase: 'finale', status: 'completed', round: 4, positions: [9, 9] })
+    expect(final).toMatchObject({ phase: 'finale', status: 'completed', round: 4, positions: [5, 5] })
     const entries = (await getDocs(query(collection(guestDb, 'journalEntries'), where('coupleId', '==', couple.id)))).docs.map(record => record.data())
     expect(entries.filter(entry => entry.type === 'duel')).toHaveLength(4)
+    expect(entries.filter(entry => ['moment-trash', 'moment-treasure'].includes(entry.type))).toHaveLength(8)
+    expect(entries.filter(entry => entry.type === 'trophy')).toHaveLength(1)
     expect(entries.filter(entry => entry.type === 'finale')).toHaveLength(1)
+    const savedEntryCount = (await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size
     await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'finish' })
-    expect((await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(5)
+    expect((await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(savedEntryCount)
     await assertFails(updateDoc(doc(hostDb, 'sessions', sessionId, 'steps', 'duel-1'), { ready: false, updatedAt: serverTimestamp() }))
   })
 })
@@ -1054,7 +1082,7 @@ describe('long independent nights', () => {
     for (const [db, uid] of [[hostDb, HOST_UID], [guestDb, GUEST_UID]]) {
       for (let round = 1; round <= rounds; round++) {
         await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: dice[round - 1] })
-        if (round === 7) await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `roll-${round}-${uid === HOST_UID ? 0 : 1}`, input: { collect: true } })
+        await resolvePlayerRoll(db, sessionId, uid, round, uid === HOST_UID ? 0 : 1)
         await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: uid === HOST_UID ? 1 : 3, won: true } })
       }
     }

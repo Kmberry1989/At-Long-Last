@@ -1,5 +1,31 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-11-01 — Buoyant circular spaces and dice home base
+
+- Kept the 20-space path on a true circle. Each space now bobs on a slightly different phase and tempo; a piece standing on or landing on a space eases it downward, and its underglow brightens. Reduced-motion preference holds the bob and pulse still.
+- Added a theme-colored round open dice box at the dice rest position. The dice sit on the board's velvet texture inside the raised cylindrical wall and gold lip; no oval scaling is used.
+- Focused `BoardScene.test.js`: 17 tests passed. `npm run build`, `npm run lint`, and `git diff --check` passed. Reviewed the local two-player board in the in-app browser; this was a visual pass, not a new end-to-end turn-flow test.
+
+## 2026-11-01 — Compact patterned controls and separated board spaces
+
+- Replaced the long raised path strips between spaces with standalone floating spaces. The debug board description now reports no connector.
+- Reworked reset and HUD actions as a centered, five-slot rail of 40px circular controls. Their light/dark palette alternates in order, and every symbol uses the same 24px square.
+- Reduced OrbitControls auto-rotation speed from 0.62 to 0.2. Increased the independent glow pulse contrast while keeping reduced-motion glow steady.
+- Focused board tests passed (18 tests), along with build, lint, and diff check. Opened the authenticated local two-player board in the browser and verified the new control rail and board. The required Playwright client ran, but its isolated context landed on sign-in; the authenticated board was reviewed directly in the local browser.
+
+## 2026-11-01 — Orbiting board sky and layered atmosphere
+
+- Changed `src/board/boardEnvironment.js` so each theme panorama slowly revolves around the board, with the foreground particle layer orbiting at a separate pace for visible parallax.
+- Moved the motes from near the play surface into a higher, wider atmospheric band around the tabletop. Falling snow, leaves, and petals now cycle through the taller layer.
+- Reduced-motion preference keeps both rotations still. Production build and `git diff --check` passed; no browser or test-suite verification was run in this pass.
+
+## 2026-11-01 — Spoke-facing spaces, tile-by-tile moves, and compact board controls
+
+- Rotated each space card toward the board center, added a subtle gold embroidered rim to each tile, and made the theme embroidery overlay more legible.
+- Reworked the board HUD into one five-slot badge row with icon-only recenter/trade/pacing actions, equal control heights, and no redundant words. Separated the two framed player portraits to opposite sides, enlarged them, and removed the portrait name cards.
+- Connected each move to its intermediate board spaces. Tokens hop one space at a time after the dice settle, and the existing landing sound fires at each arrival. Added a completion callback so local activity overlays wait for that player's movement to finish, including when moves queue behind a partner's animation.
+- Focused board regressions: 11/11 `BoardScene.test.js` tests passed; production build, lint, and `git diff --check` passed. The two-account emulator walkthrough verified the first four-space move and all landing callbacks, then failed later while waiting for an activity submission to clear. A second smoke attempt did not register its initial canvas dice touch, so a complete alternating-player pass remains unverified.
+
 ## 2026-10-31 — Screen 3: Mystery Keepsakes Screen (3D Camera Dip, Buoyant Deck Lift, Zero-Friction Privileges)
 
 - Enhanced `src/board/BoardScene.jsx` with camera targeting for `phase: 'keepsake'`, smoothly dipping down close to the mat (`y: 10.5, z: 12.5`) to intimately frame the landed space at eye level.
@@ -441,3 +467,40 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Pinky swears are dealt randomly from the deck when a completed night is first banked. Removed the custom-promise chooser and its unused provider path; the existing active-card duplicate avoidance, redeem, and fulfill flow remains.
 - Verification: 56 test files / 348 tests passed; lint, build, and a 100-second Web Audio render passed. The local two-phone emulator walkthrough again saved four independent rolls and eight comparisons for each player with no browser errors. Finale captures are under `.playwright-mcp/finale-heart-counting.png` and `.playwright-mcp/finale-heart-total.png`; splash first-paint captures are under `.playwright-mcp/splash-first-frame.png` and `.playwright-mcp/splash-logo.png`.
 - Visual browser review used Chrome mobile emulation; a local WebKit binary was unavailable, so the reported iPhone Safari behavior was not directly reproduced on-device.
+
+## 2026-11-01 — Night transitions, board atmosphere, and activity authoring
+
+- Added nine theme-specific seamless engraved collage textures as a hollow cylinder around the board, with thin gold rails and posts between the spaces and outer rim. Added idle camera orbit after a short quiet period; the camera stops while dice/pieces move, while the player interacts, or when reduced motion is requested.
+- Each gameplay control badge now carries its own faint branded symbol behind the count. Numerals have a contrasting keyline for readability. Added a brief glass-and-gold phase ribbon with a phase-specific chime for turns, activities, keepsakes, duels, activity choice, and the finale.
+- Created `docs/ACTIVITY_AND_PROMPT_AUTHORING_GUIDE.md` with the current night flow, activity family map, privacy and reveal rules, multiple-choice design criteria, a varied sample question/answer library, and implementation/review guidance. It recommends keeping free text for personal reflections and creative work, while changing partner-prediction activities to private, stable-ID choices so mismatches do not feel like a test.
+- Local focused regressions passed: 21 tests across board movement/orbit, independent-night UI, branded transition behavior, and icons. `npm run build`, `npm run lint`, and `git diff --check` passed. The local mobile screenshot `.playwright-mcp/independent-night/roll-control-before.png` shows the ring, watermark badges with outlined counts, and transition ribbon; `.playwright-mcp/independent-night/first-card.png` shows the themed card layer.
+- A live local dice touch advanced the active night's roll counter and opened its keepsake phase. The broader two-phone movement smoke created disposable emulator users and completed player one's step, but timed out waiting for the second client’s cumulative tile counter to increase from four to eight. The browser snapshot showed the second player's roll saved and piece at the expected destination, but did not prove the second set of per-space callbacks; treat that movement result as unresolved. No production writes, commit, push, or deploy were performed in this pass.
+- Follow-up visual fixes: the center velvet inlay and its piping now use the same true circular footprint as the round board, and the theme overlay is clipped to that circle. The document root and app shell are locked to the active viewport while each screen retains its own scrolling behavior. A local signed-in visual check at 520×850 and 1040×1700 reported page bounds equal to the viewport and exactly one active screen at both sizes. Captures: `.playwright-mcp/independent-night/board-round-inset.png` and `zoom-out-containment.png`.
+- After these follow-up fixes, the focused board, independent-night, and banner tests passed (20 tests), and lint/build passed.
+
+## 2026-11-02 — Baggage and Treasures card-pile markers
+
+- Clarified the board deck as a mixed draw pile of Baggage challenges and Treasure gifts, with resolved cards moved to a separate discard pile.
+- Added raised card-stack markers and dotted circular locations inside the round inset. The draw outline uses a darker tint and the discard outline a lighter tint derived from the active theme accent, including all four remixes; marker placement stays clear of the dice box.
+- Updated `docs/ACTIVITY_AND_PROMPT_AUTHORING_GUIDE.md` with the intended card-family meanings and theme-color rule.
+- Focused board/theme tests passed (28 tests); production build and lint passed. Reviewed a 390px local two-player board screenshot at `.playwright-mcp/independent-night/roll-control-before.png`; both dotted zones, category label, and shade contrast fit in the circular inset. The broader movement smoke opened two emulator users and rendered the board, then timed out waiting for the second player's per-space count to advance; treat two-player movement verification as unresolved. This change is a visual board representation only; card draw/effect interactions remain a separate gameplay implementation.
+- Follow-up: replaced billboard labels with flush board-surface ink, and added paired custom line-art baggage-trunk and treasure-gem marks to the card backs. The discard marker uses a generic face-up resolved-card sparkle. Added a visual QA mode to the existing local emulator walkthrough; it verified the board state and captured `.playwright-mcp/independent-night/card-pile-layout.png`. Focused board/theme/icon tests passed (30 tests), as did build, lint, and `git diff --check`.
+# 2026-11-02 — Upsized the board cards and added Trash / Treasure moment decks
+
+- Enlarged the board spaces from 2.2 to 3.1 world units per side and the drawn cards from 1.36 × 1.58 to 2 × 2.24, increasing the visible faces and dotted pile circles while keeping both piles inside the round inset.
+- Replaced Baggage wording and its card-back emblem with Trash, paired with the existing Treasure gem emblem.
+- Added 12 Trash and 12 Treasure moments. Each roll draws a private card; a player can pick a card-specific response for one or two shared hearts while the other player remains free to play. Selected moments are added to the end-of-night journal.
+- Added focused coverage for card library variety, private turn rewards, and recap journaling, plus a responsive MomentCard interaction regression. Six focused test files pass (42 tests); Firestore emulator rules pass (29 tests); production build and `git diff --check` pass.
+- Two local emulator-backed browser players each made one roll that moved four spaces, chose a private moment, and collected the landing keepsake. The second player rolled while the first player's moment was still open. Screenshots: `.playwright-mcp/independent-night/first-card.png` and `.playwright-mcp/independent-night/board-scaled-spaces-and-piles.png`.
+
+## 2026-11-03 — Make Trash and Treasure effects deterministic from the roll and award an individual race prize
+
+- Removed unequal heart choices. A Trash card moves its player backward; a Treasure card moves them forward. The lower d6 face maps directly to its number of spaces: 1 through 6. Shared hearts are unchanged.
+- Movement effects now animate the player's piece step by step in the card's direction. The first full-circuit finisher receives the First Lap Laurel; if nobody completes a circuit, furthest net progress wins the Wayfinder Ribbon, with starting-player priority for an exact tie. The result is stored as a trophy journal entry and shown in the finale.
+- Updated card UI, authoring guidance, and focused gameplay, board movement, and finale regressions. Verification: 41 focused tests passed, Firestore emulator rules suite passed (29 tests), production build passed, lint passed with one existing-style spread fallback warning, and the local emulator-backed two-player movement smoke passed for both players. QA screenshots are in `.playwright-mcp/independent-night/`.
+
+## 2026-11-03 — Add scrapbook win/loss totals and moment-card art
+
+- Save winner and runner-up identities with resolved duel entries and independent-night race prizes. The scrapbook now summarizes lifetime wins/losses and labels each replay; shared outcomes and passes do not change the record.
+- Replaced the clock-specific “Dinner at 8:47” title with “Dinner Runs Late.” Generated individual no-character still-life art for all 24 Trash and Treasure cards and wired each image into the moment card.
+- Verification: 41 focused tests passed; Firestore emulator suite passed (49 tests); production build and whitespace check passed; lint passed with one existing spread-fallback warning. All 24 generated card images are present and the updated late-dinner art has no clock or time markings.

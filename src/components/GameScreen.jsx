@@ -5,11 +5,11 @@ import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState }
 import { DuelRevealOverlay } from './DuelRevealOverlay.jsx'
 import { DuelArena } from './DuelArena.jsx'
 import { FinaleScreen } from './FinaleScreen.jsx'
+import { NightTransitionBanner } from './NightTransitionBanner.jsx'
 
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { LoveTank } from './LoveTank.jsx'
 import { MysteryKeepsakeCard } from './MysteryKeepsakeCard.jsx'
-import { TactileDiceCast } from './TactileDiceCast.jsx'
 import { TruceTradeModal } from './TruceTradeModal.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
@@ -58,8 +58,7 @@ export function GameScreen() {
 
 function LegacyGameScreen() {
   const { couple, hasPartner, progress } = useCouple()
-  const { playAction, playPieceStep, playDiceImpact, playSuccess, playPhase, playThemeArrival, setStage } = useAudio()
-  const audioCueKeyRef = useRef('')
+  const { playAction, playPieceStep, playDiceImpact, playDiceRattle, playDiceCast, playSuccess, playPhase, playThemeArrival, setStage } = useAudio()
   const arrivalCueKeyRef = useRef('')
   const [pacingMode, setPacingMode] = useState(() => {
     try {
@@ -124,6 +123,7 @@ function LegacyGameScreen() {
   const [heartGuideOpen, setHeartGuideOpen] = useState(false)
   const [tradeModalOpen, setTradeModalOpen] = useState(false)
   const [diceRolling, setDiceRolling] = useState(false)
+  const [animatingMoveKey, setAnimatingMoveKey] = useState(null)
   const [rollGesture, setRollGesture] = useState(null)
   const diceSettleTimerRef = useRef(null)
   const scrapbookMomentCount = getScrapbookMomentCount(journalEntries.filter(entry => entry.sessionId === session?.id))
@@ -162,11 +162,7 @@ function LegacyGameScreen() {
       arrivalCueKeyRef.current = arrivalKey
       playThemeArrival?.(selectedTheme)
     }
-    const cue = session.phase === 'finale' ? 'finale' : session.phase === 'duel' ? 'duel' : session.phase === 'activity' ? 'activity' : null
-    const cueKey = cue ? `${session.id}:${cue}:${activity?.id || ''}` : ''
-    if (cueKey && cueKey !== audioCueKeyRef.current) playPhase?.(cue)
-    audioCueKeyRef.current = cueKey
-  }, [activity, gameOpen, playPhase, playThemeArrival, selectedTheme, session, setStage])
+  }, [activity, gameOpen, playThemeArrival, selectedTheme, session, setStage])
 
   useEffect(() => {
     if (!session) {
@@ -269,6 +265,7 @@ function LegacyGameScreen() {
     if (session?.id !== animatedSessionIdRef.current) {
       animatedSessionIdRef.current = session?.id
       animatedMoveKeyRef.current = lastMoveKey
+      setAnimatingMoveKey(null)
       return
     }
 
@@ -277,15 +274,17 @@ function LegacyGameScreen() {
     }
 
     animatedMoveKeyRef.current = lastMoveKey
+    setAnimatingMoveKey(lastMoveKey)
     if (diceSettleTimerRef.current) {
       window.clearTimeout(diceSettleTimerRef.current)
     }
     setDiceRolling(true)
     diceSettleTimerRef.current = window.setTimeout(() => {
       setDiceRolling(false)
+      setAnimatingMoveKey(null)
       setRollGesture(null)
       diceSettleTimerRef.current = null
-    }, 1450)
+    }, 12000)
   }, [lastMoveKey, session?.id])
 
   useEffect(() => {
@@ -362,16 +361,6 @@ function LegacyGameScreen() {
       session.phase === 'duel' ||
       session.phase === 'finale'
     )
-  const rollButtonLabel = diceAnimating
-    ? 'Rolling…'
-    : canRoll
-      ? 'Roll dice'
-      : session.phase === 'turn'
-        ? `${activePlayer.displayName}'s turn`
-        : session.phase === 'vibeSetup'
-          ? 'Opening board…'
-          : 'Waiting…'
-
   async function handleDiceRoll(gesture) {
     if (!canRoll || working || diceAnimating) {
       return
@@ -388,9 +377,10 @@ function LegacyGameScreen() {
     } finally {
       diceSettleTimerRef.current = window.setTimeout(() => {
         setDiceRolling(false)
+        setAnimatingMoveKey(null)
         setRollGesture(null)
         diceSettleTimerRef.current = null
-      }, 1450)
+      }, 1450 + 12 * 235 + 200)
     }
   }
 
@@ -402,16 +392,29 @@ function LegacyGameScreen() {
             activePlayerIndex={session.activePlayerIndex}
             boardState={boardState}
             dice={session.lastMove?.dice || null}
+            lastMove={session.lastMove}
             lastRoll={session.lastRoll}
             onPieceStep={() => playPieceStep?.()}
+            onPieceMoveComplete={({ playerIndex: mover }) => {
+              if (mover !== playerIndex) return
+              if (diceSettleTimerRef.current) window.clearTimeout(diceSettleTimerRef.current)
+              diceSettleTimerRef.current = null
+              setDiceRolling(false)
+              setAnimatingMoveKey(null)
+              setRollGesture(null)
+            }}
             onDiceImpact={playDiceImpact}
+            onDiceRattle={playDiceRattle}
+            onDiceCast={playDiceCast}
+            onRoll={handleDiceRoll}
+            canRoll={canRoll && !working && !diceAnimating}
             rollGesture={rollGesture}
             pacingMode={pacingMode}
             phase={session.phase}
             players={session.players}
             positions={session.positions}
             round={session.round}
-            rolling={diceAnimating}
+            rolling={diceRolling && animatingMoveKey === lastMoveKey}
             themeId={selectedTheme}
           />
         </Suspense>
@@ -419,26 +422,26 @@ function LegacyGameScreen() {
           <LoveTank hearts={session.hearts} onOpenGuide={() => setHeartGuideOpen(true)} />
           <button
             type="button"
-            className={`pacing-mode-pill ${pacingMode}`}
+            className={`pacing-mode-pill control-badge ${pacingMode}`}
             onClick={togglePacingMode}
             aria-label={`Pacing mode: ${pacingMode === 'freeFlow' ? 'Free Flow' : 'Shared Spotlight'}. Tap to switch.`}
             title="Switch between Free Flow (independent pacing) and Shared Spotlight (turn-by-turn focus)"
           >
-            <span className="pacing-dot" aria-hidden="true" />
+            <BrandIcon className="control-badge-mark" name={pacingMode === 'freeFlow' ? 'wave' : 'eye'} />
             <span className="pacing-label">{pacingMode === 'freeFlow' ? 'Free Flow' : 'Spotlight'}</span>
           </button>
           <button
             type="button"
-            className="trade-hud-btn"
+            className="trade-hud-btn control-badge"
             onClick={() => setTradeModalOpen(true)}
             aria-label="Open Keepsake Trade"
             title="Open Keepsake Trade and Truce"
           >
-            <span aria-hidden="true"><BrandText text={"🕊️"} /></span>
+            <BrandIcon className="control-badge-mark" name="trade" />
             <span className="trade-hud-label">Trade</span>
           </button>
-          <div className="chip" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
-            <span aria-hidden="true"><BrandText text={"◷"} /></span><strong>{session.round}/{session.totalRounds}</strong>
+          <div className="chip control-badge" aria-label={`Round ${session.round} of ${session.totalRounds}`}>
+            <BrandIcon className="control-badge-mark" name="timer" /><strong className="control-badge-value">{session.round}/{session.totalRounds}</strong>
           </div>
         </div>
         {pendingTradeOffer && pendingTradeOffer.fromPlayerIndex !== playerIndex && (
@@ -459,8 +462,7 @@ function LegacyGameScreen() {
               aria-label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === session.activePlayerIndex ? ', taking this turn' : ''}`}
               className={`player-strip${index === session.activePlayerIndex ? ' active' : ''}${index === playerIndex ? ' mine' : ''}`}
             >
-              <PlayerPortrait player={player} />
-              <strong title={player.displayName}>{player.displayName}</strong>
+              <PlayerPortrait player={player} label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === session.activePlayerIndex ? ', taking this turn' : ''}`} />
             </div>
           ))}
         </div>
@@ -469,15 +471,6 @@ function LegacyGameScreen() {
             {renderPlayState()}
             {!needsSessionRecovery && <p className="status-line">{sessionStatusMessage}</p>}
             <div className="button-row">
-              <TactileDiceCast
-                canRoll={canRoll}
-                disabled={!canRoll || working || diceAnimating}
-                isRolling={diceAnimating}
-                lastDice={session.lastMove?.dice || [Math.min(6, Math.max(1, Math.floor((session.lastRoll || 2) / 2))), Math.min(6, Math.max(1, Math.ceil((session.lastRoll || 2) / 2)))]}
-                onRoll={handleDiceRoll}
-                themeId={selectedTheme}
-                statusLabel={rollButtonLabel}
-              />
               {session.phase === 'duelWheel' && (
                 <button
                   className="primary-btn alt"
@@ -507,6 +500,7 @@ function LegacyGameScreen() {
           </div>
         )}
       </div>
+      <NightTransitionBanner phase={session.phase} transitionKey={`${session.id}:${session.phase}:${session.round}:${activity?.id || ''}`} playPhase={playPhase} />
 
       {!diceAnimating && session.phase === 'keepsake' && session.pendingKeepsake && (
         <div className="overlay-screen mystery-keepsake-overlay">

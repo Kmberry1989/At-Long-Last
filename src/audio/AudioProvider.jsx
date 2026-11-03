@@ -497,7 +497,16 @@ export function createAudioEngine(suppliedContext = null) {
       playTone({ frequency: 196, type: 'triangle', volume: 0.018, duration: 0.14 })
     },
     playPhase(type) {
-      if (type === 'duel') {
+      if (type === 'turn') {
+        playTone({ frequency: 392, type: 'sine', volume: 0.022, duration: 0.075 })
+        setTimeout(() => playTone({ frequency: 587.33, type: 'triangle', volume: 0.018, duration: 0.11 }), 55)
+      } else if (type === 'keepsake') {
+        playTone({ frequency: 523.25, type: 'sine', volume: 0.026, duration: 0.09 })
+        setTimeout(() => playTone({ frequency: 783.99, type: 'triangle', volume: 0.017, duration: 0.13 }), 65)
+      } else if (type === 'activityChoice') {
+        playTone({ frequency: 440, type: 'sine', volume: 0.021, duration: 0.075 })
+        setTimeout(() => playTone({ frequency: 659.25, type: 'triangle', volume: 0.015, duration: 0.1 }), 55)
+      } else if (type === 'duel') {
         playTone({ frequency: 622.25, type: 'square', volume: 0.05, duration: 0.12 })
       } else if (type === 'activity') {
         playTone({ frequency: 415.3, volume: 0.03, duration: 0.1 })

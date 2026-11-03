@@ -10,18 +10,18 @@
 /* Keep the independent-night counters in one compact row above both portraits. */
 .independent-night .hud.top {
   top: 52px;
-  left: 10px;
+  left: calc(20% + 6px);
   right: 10px;
   width: auto;
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
   gap: 6px;
 }
 .independent-night .hud.top > .chip,
 .independent-night .hud.top > .trade-hud-btn {
-  height: 40px;
-  min-height: 40px;
+  height: 42px;
+  min-height: 42px;
   min-width: 0;
   padding: 6px 10px;
   border-radius: 18px;
@@ -36,8 +36,8 @@
   align-items: center;
   text-align: center;
 }
-.independent-night .hud.top > .trade-hud-btn { flex: 1.25 1 0; }
-.independent-night .hud.top > .chip:first-child { flex: .7 1 0; }
+.independent-night .hud.top > .trade-hud-btn { flex: initial; }
+.independent-night .hud.top > .chip:first-child { flex: initial; }
 .independent-night .hud.players { top: 100px; }
 
 @media (max-width: 460px) {

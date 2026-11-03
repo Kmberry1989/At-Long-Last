@@ -1,4 +1,5 @@
 import { BrandText } from './BrandIcon.jsx'
+import { summarizeScrapbookRecord } from '../features/session/journalHelpers.js'
 const ENTRY_LABELS = {
   'activity-pass': 'Passed Prompt',
   bluff: 'Bidding Receipt',
@@ -121,6 +122,10 @@ function getDuelRows(entry) {
   return results.map((result, index) => {
     const label = labels[index]
     const metrics = []
+    const uid = Object.keys(entry.payload?.results || {})[index]
+    const record = entry.payload?.outcomeStatus === 'resolved'
+      ? uid === entry.payload?.winnerUid ? 'win' : uid === entry.payload?.loserUid ? 'loss' : null
+      : null
 
     if (!result.dataUrl && typeof result.time === 'number' && result.time < 90) {
       metrics.push(`${result.time.toFixed(2)}s`)
@@ -143,6 +148,7 @@ function getDuelRows(entry) {
         (result.skipped ? 'Skipped the replay.' : result.won ? 'Landed it clean.' : 'Locked a close finish.'),
       label: label?.speaker || `Player ${index + 1}`,
       metrics,
+      record,
       skipped: Boolean(result.skipped),
       won: Boolean(result.won),
     }
@@ -499,6 +505,7 @@ function DuelEntryCard({ entry }) {
             className={`scrapbook-duel-card${row.won ? ' winner' : ''}${row.skipped ? ' skipped' : ''}`}
           >
             <span>{row.label}</span>
+            {row.record && <strong className={`scrapbook-duel-record ${row.record}`}>{row.record}</strong>}
             {row.imageDataUrl && <img alt={`${row.label}'s drawing`} className="scrapbook-image" src={row.imageDataUrl} />}
             <p>{row.highlight}</p>
             {row.metrics.length > 0 && <strong>{row.metrics.join('  |  ')}</strong>}
@@ -641,9 +648,21 @@ export function JournalTimeline({ entries }) {
       .filter((entry) => entry.type === 'finale' && entry.sessionId)
       .map((entry) => entry.sessionId),
   )
+  const record = summarizeScrapbookRecord(entries)
 
   return (
     <div className="journal-timeline scrapbook-flow">
+      {record.length > 0 && (
+        <section aria-label="Scrapbook wins and losses" className="scrapbook-record">
+          {record.map((player) => (
+            <div className="scrapbook-record-player" key={player.uid}>
+              <strong>{player.name}</strong>
+              <span><b>{player.wins}</b> {player.wins === 1 ? 'win' : 'wins'}</span>
+              <span><b>{player.losses}</b> {player.losses === 1 ? 'loss' : 'losses'}</span>
+            </div>
+          ))}
+        </section>
+      )}
       {entries.map((entry, index) => (
         <ScrapbookEntry
           entry={entry}

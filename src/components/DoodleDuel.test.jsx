@@ -16,6 +16,7 @@ describe('DoodleDuel', () => {
     vi.useFakeTimers()
     const context = {
       beginPath: vi.fn(),
+      drawImage: vi.fn(),
       fillRect: vi.fn(),
       lineTo: vi.fn(),
       moveTo: vi.fn(),

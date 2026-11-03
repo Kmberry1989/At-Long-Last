@@ -34,7 +34,13 @@ for (let index = 0; index < pages.length; index++) {
   await page.getByLabel('Email', { exact: true }).fill(person.email)
   await page.getByLabel('Password', { exact: true }).fill(person.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('heading', { name: 'Choose your person' }).waitFor()
+  try {
+    await page.getByRole('heading', { name: 'Choose your person' }).waitFor()
+  } catch (error) {
+    console.error('SIGN-IN FLOW FAILED', index, await page.locator('body').innerText(), errors)
+    await page.screenshot({ path: `${out}/sign-in-failure-${index}.png`, fullPage: true })
+    throw error
+  }
 }
 await pages[0].getByLabel('Your person’s email').fill(people[1].email)
 await pages[0].getByRole('button', { name: 'Invite your person', exact: true }).click()
@@ -52,19 +58,72 @@ await writeFile(`${out}/people.json`, JSON.stringify(people))
 await pages[0].screenshot({ path: `${out}/home.png`, fullPage: true })
 await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).click()
 await pages[1].getByRole('button', { name: 'Continue our night', exact: true }).click()
-for (const page of pages) await page.waitForFunction(() => window.__atLongLastGameState?.pacing === 'independent')
+for (const page of pages) {
+  await page.waitForFunction(() => window.__atLongLastGameState?.pacing === 'independent')
+  await page.waitForFunction(() => typeof window.render_game_to_text === 'function')
+  await page.locator('.board-canvas canvas[role="button"]').waitFor()
+}
+await pages[0].screenshot({ path: `${out}/roll-control-before.png`, fullPage: true })
+if (process.env.QA_CAPTURE_BOARD_PILES === '1') {
+  const board = await pages[0].evaluate(() => JSON.parse(window.render_game_to_text()))
+  if (board.cardPiles?.deck !== 'mixed Trash moments and Treasure moments') {
+    throw new Error(`Board card-pile state is missing or incorrect: ${JSON.stringify(board.cardPiles)}`)
+  }
+  if (board.cardPiles?.labels !== 'etched into the board fabric') {
+    throw new Error(`Card-pile labels should be integrated into the board: ${JSON.stringify(board.cardPiles)}`)
+  }
+  if (board.cardPiles.draw?.outline !== 'dotted' || board.cardPiles.discard?.outline !== 'dotted') {
+    throw new Error(`Draw and discard zones must both have dotted outlines: ${JSON.stringify(board.cardPiles)}`)
+  }
+  if (board.cardPiles.draw.color === board.cardPiles.discard.color) {
+    throw new Error(`Draw and discard outlines must use distinct theme shades: ${JSON.stringify(board.cardPiles)}`)
+  }
+  await pages[0].screenshot({ path: `${out}/card-pile-layout.png`, fullPage: true })
+  console.log('board card-pile screenshot captured', board.cardPiles)
+  await browser.close()
+  process.exit(0)
+}
 async function gameState(page) {
   const state = await page.waitForFunction(() => window.__atLongLastGameState || false)
   return state.jsonValue()
 }
-async function rollDice(page) {
+async function rollDice(page, dice = [1, 1], swipe = false) {
   const before = (await gameState(page)).ownRolls
+  const boardBefore = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
+  const mover = boardBefore.activePlayerIndex
+  const startPosition = boardBefore.players[mover].positionIndex
+  const targetPosition = (startPosition + dice[0] + dice[1]) % boardBefore.path.segments
   console.log('roll start', before)
-  await page.evaluate(() => { window.__atLongLastTestRoll = { dice: [1,1], selectionSeed: .01 } })
-  await page.getByRole('button', { name: 'Roll 2 Dice (2–12)', exact: true }).click()
+  await page.evaluate(values => { window.__atLongLastTestRoll = { dice: values, selectionSeed: .01 } }, dice)
+  const board = page.locator('.board-canvas canvas[role="button"]')
+  await board.waitFor()
+  const bounds = await board.boundingBox()
+  const center = await page.evaluate(() => JSON.parse(window.render_game_to_text()).dice.screenCenters[0])
+  const start = { x: bounds.x + center.x, y: bounds.y + center.y }
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  if (swipe) await page.mouse.move(start.x + 22, start.y - 24, { steps: 4 })
+  await page.mouse.up()
   console.log('clicked roll', await page.evaluate(() => window.__atLongLastRollTrace))
   try { await page.waitForFunction(previous => window.__atLongLastGameState?.ownRolls === previous + 1, before, { timeout: 30000 }) } catch (error) { console.log('ROLL FAILED', await page.locator('body').innerText(), errors, await page.evaluate(() => ({ trace: window.__atLongLastRollTrace, read: window.__atLongLastNightRead, fixture: window.__atLongLastTestRoll }))); throw error }
-  await page.waitForTimeout(1700)
+  try {
+    await page.waitForFunction(({ mover, targetPosition }) => {
+      const state = JSON.parse(window.render_game_to_text())
+      return state.pieceMovement?.playerIndex === mover || state.players[mover].positionIndex === targetPosition
+    }, { mover, targetPosition }, { timeout: 10000 })
+    await page.waitForFunction(({ mover, targetPosition }) => {
+      const state = JSON.parse(window.render_game_to_text())
+      return state.pieceMovement === null && state.players[mover].positionIndex === targetPosition
+    }, { mover, targetPosition }, { timeout: 10000 })
+  } catch (error) {
+    console.error('PIECE DID NOT LAND ONE SPACE AT A TIME', await page.evaluate(() => window.render_game_to_text?.()))
+    throw error
+  }
+  await page.waitForTimeout(1650 + (dice[0] + dice[1]) * 235)
+  const boardDice = await page.evaluate(() => window.render_game_to_text?.())
+  if (!boardDice || JSON.stringify(JSON.parse(boardDice).dice.values) !== JSON.stringify(dice)) {
+    throw new Error(`Board dice did not settle to ${JSON.stringify(dice)}: ${boardDice || 'board renderer unavailable'}`)
+  }
 }
 async function sealReflection(page, text, guess) {
   const type = (await gameState(page)).activity.id
@@ -76,16 +135,55 @@ async function sealReflection(page, text, guess) {
   await page.waitForFunction(type => { const state = window.__atLongLastGameState; return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type) }, type)
 }
 async function finishLanding(page, index) {
-  const state = await gameState(page)
+  if (await page.locator('.moment-card').count()) {
+    await page.getByRole('button', { name: 'Resolve moment' }).click()
+    await page.locator('.moment-card').waitFor({ state: 'detached' })
+  }
+  let state = await gameState(page)
+  if (state.phase === 'turn') {
+    const landing = state.available.find(step => step.id.startsWith(`roll-${state.ownRolls}-${state.playerIndex}`))
+    if (landing?.kind === 'keepsake') {
+      await page.locator('.night-action-list button').filter({ hasText: 'Collect mystery card' }).click()
+      state = await gameState(page)
+    } else if (landing?.kind === 'activity') {
+      const label = await page.evaluate(async type => (await import('/src/features/session/activityRegistry.jsx')).activityRegistry[type].label, landing.type)
+      await page.locator('.night-action-list button').filter({ hasText: label }).click()
+      state = await gameState(page)
+    }
+  }
   if (state.phase === 'activity') await sealReflection(page, `${people[index].name} private answer ${state.ownRolls}`, `${people[index].name} prediction`)
   else if (state.phase === 'keepsake') {
     await page.getByRole('button', { name: 'Tap Card to Collect', exact: true }).click()
-    await page.waitForTimeout(700)
+    console.log('collecting keepsake')
+    try { await page.locator('.board-canvas canvas[role="button"]').waitFor() } catch (error) {
+      console.log('KEEPSAKE DID NOT CLOSE', await page.locator('body').innerText(), await gameState(page))
+      throw error
+    }
+    console.log('ready after keepsake', await gameState(page))
   }
 }
-await rollDice(pages[0])
+await rollDice(pages[0], [3,1], true)
 console.log('first landing', await gameState(pages[0]))
 await pages[0].screenshot({ path: `${out}/first-card.png`, fullPage: true })
+if (process.env.QA_MOVEMENT_SMOKE === '1') {
+  await rollDice(pages[1], [2,2], true)
+  await Promise.all(pages.map((page, index) => finishLanding(page, index)))
+  const movementStates = await Promise.all(pages.map(gameState))
+  const landedPositions = await Promise.all(pages.map(async page => {
+    const state = await gameState(page)
+    const board = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
+    return board.players[state.playerIndex].positionIndex
+  }))
+  if (movementStates.some(state => state.ownRolls !== 1) || landedPositions.some(position => position !== 3)) {
+    throw new Error(`Both players should complete every tile landing independently: ${JSON.stringify({ movementStates, landedPositions })}`)
+  }
+  await Promise.all(pages.map((page, index) => page.screenshot({ path: `${out}/movement-player-${index + 1}.png`, fullPage: true })))
+  await pages[0].screenshot({ path: `${out}/board-scaled-spaces-and-piles.png`, fullPage: true })
+  await writeFile(`${out}/movement-smoke.json`, JSON.stringify(movementStates, null, 2))
+  console.log('two-player movement smoke passed', movementStates.map((state, index) => ({ playerIndex: state.playerIndex, ownRolls: state.ownRolls, landedPosition: landedPositions[index] })))
+  await browser.close()
+  process.exit(0)
+}
 await finishLanding(pages[0], 0)
 await rollDice(pages[0])
 await finishLanding(pages[0], 0)

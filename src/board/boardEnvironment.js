@@ -49,11 +49,13 @@ void main() {
 
 function initialParticlePosition(index, count) {
   const angle = index * 2.399963
-  const radius = 1.7 + ((index * 13) % count) / count * 6.2
+  // Place motes in a floating atmospheric band that sits over and just beyond
+  // the board's 16-unit tabletop, leaving the central play surface readable.
+  const radius = 11.5 + ((index * 13) % count) / count * 12
   return [
     Math.cos(angle) * radius,
-    0.85 + ((index * 11) % 17) / 17 * 2.7,
-    Math.sin(angle) * radius * 0.72,
+    2.5 + ((index * 11) % 17) / 17 * 8.5,
+    Math.sin(angle) * radius,
   ]
 }
 
@@ -125,16 +127,18 @@ export function createBoardEnvironment(config) {
       depthWrite: false,
     }),
   )
-  particles.name = `motes-${config.mode}`
+  particles.name = `atmosphere-${config.mode}`
 
   function update(seconds, reducedMotion = false) {
     if (skyMaterial.uniforms?.uTime) skyMaterial.uniforms.uTime.value = reducedMotion ? 0 : seconds
+    sky.rotation.y = reducedMotion ? 0 : seconds * 0.0065
+    particles.rotation.y = reducedMotion ? 0 : seconds * 0.019
     if (reducedMotion) return
     origins.forEach(([x, y, z], index) => {
       const drift = seconds * (config.mode === 'snow' ? 0.27 : 0.1)
       values[index * 3] = x + Math.sin(seconds * 0.23 + index * 1.7) * 0.2
       values[index * 3 + 1] = ['snow', 'leaves', 'petals'].includes(config.mode)
-        ? 0.5 + ((y - drift + 12) % 3.7)
+        ? 2 + ((((y - drift - 2) % 10.5) + 10.5) % 10.5)
         : y + Math.sin(seconds * 0.65 + index * 0.9) * 0.17
       values[index * 3 + 2] = z + Math.cos(seconds * 0.17 + index) * 0.13
     })

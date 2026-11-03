@@ -44,14 +44,15 @@
 html,
 body,
 #root {
+  width: 100%;
+  height: 100%;
   margin: 0;
-  min-height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 body {
-  min-height: 100svh;
-  overflow-x: hidden;
-  overflow-y: auto;
+  min-height: 0;
   color: var(--app-cream);
 }
 
@@ -85,7 +86,7 @@ p {
   width: min(100%, 520px);
   height: 100vh;
   height: 100dvh;
-  min-height: 100svh;
+  min-height: 0;
   margin: 0 auto;
   position: relative;
   overflow: clip;
@@ -3825,6 +3826,25 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   padding-bottom: 12px;
 }
 
+.scrapbook-record {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  color: #f8ead5;
+  border: 1px solid #dfc18c36;
+  border-radius: 18px;
+  background: linear-gradient(120deg, #fff1d51c, #fff1d508);
+}
+
+.scrapbook-record-player { display: grid; gap: 4px; font-size: .78rem; }
+.scrapbook-record-player > strong { color: #f4d49a; font-family: var(--font-display, Georgia, serif); font-size: 1rem; }
+.scrapbook-record-player span { color: #d7c9be; }
+.scrapbook-record-player b { color: #fff4df; }
+.scrapbook-duel-record { display: inline-flex; justify-self: start; padding: 3px 8px; border: 1px solid currentColor; border-radius: 999px; font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; }
+.scrapbook-duel-record.win { color: #e8c27c; }
+.scrapbook-duel-record.loss { color: #d89a9e; }
+
 .scrapbook-empty {
   gap: 0;
   padding: 14px 16px;
@@ -5311,6 +5331,135 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   .game-screen .hud.players { top: 108px; right: 10px; }
 }
 
+/* Keep board controls on one quiet, evenly sized badge rail. Recenter occupies
+   the first slot; the four night controls fill the remaining slots. */
+.game-screen .hud.top {
+  top: max(58px, env(safe-area-inset-top));
+  left: calc(20% + 6px);
+  right: 10px;
+  width: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.game-screen .hud.top .chip,
+.game-screen .hud.top .trade-hud-btn,
+.game-screen .hud.top .pacing-mode-pill {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 5px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.game-screen .hud.top .trade-hud-label,
+.game-screen .hud.top .pacing-label { display: none; }
+.game-screen .hud.top .pacing-mode-pill { gap: 0; }
+.game-screen .hud.top .chip > strong { font-size: 14px; }
+.game-screen .hud.top .chip > span,
+.game-screen .hud.top .trade-hud-btn > span:first-child { flex: 0 0 auto; }
+.game-screen .control-badge {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.game-screen .control-badge .control-badge-mark {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 50%;
+  width: 38px;
+  height: 38px;
+  transform: translate(-50%, -50%);
+  opacity: .22;
+  pointer-events: none;
+}
+.game-screen .control-badge .control-badge-value {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin: 0;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  -webkit-text-stroke: .8px rgba(255, 246, 224, .96);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px rgba(18, 13, 22, .48), 0 0 1px rgba(18, 13, 22, .45);
+}
+.game-screen .pacing-mode-pill .control-badge-mark { width: 34px; height: 34px; opacity: .64; }
+.game-screen .trade-hud-btn .control-badge-mark { width: 34px; height: 34px; opacity: .62; }
+.game-screen .board-view-controls .brand-icon { opacity: .9; }
+.love-tank-liquid { z-index: 0; }
+.love-tank .love-tank-mark { color: #7d2436; opacity: .38; }
+.love-tank .control-badge-value { color: #713445; }
+.game-screen .board-view-controls {
+  top: max(58px, env(safe-area-inset-top));
+  left: 10px;
+  right: auto;
+  width: calc(20% - 8.8px);
+  height: 42px;
+  padding: 0;
+  transform: none;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.game-screen .board-view-controls button {
+  width: 100%;
+  height: 42px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 243, 233, 0.34);
+  border-radius: 15px;
+  background: rgba(21, 26, 38, 0.72);
+  color: var(--app-cream);
+  box-shadow: 0 8px 18px rgba(6, 8, 12, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.game-screen .board-view-controls .brand-icon { width: 18px; height: 18px; }
+.game-screen .hud.players {
+  top: max(108px, calc(env(safe-area-inset-top) + 96px));
+  left: 26px;
+  right: 26px;
+  width: auto;
+  justify-content: space-between;
+  align-items: start;
+  flex-direction: row;
+  gap: 0;
+  pointer-events: none;
+}
+.game-screen .player-strip {
+  display: block;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.game-screen .player-strip.active .profile-portrait {
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--night-glow) 72%, transparent));
+}
+.game-screen .player-strip strong { display: none; }
+.game-screen .player-strip .profile-portrait { width: 70px; height: 70px; }
+
+@media (max-height: 820px) {
+  .game-screen .hud.top,
+  .game-screen .board-view-controls { top: max(52px, env(safe-area-inset-top)); }
+}
+
 .companion-stage {
   font-size: 13px;
   opacity: 0.8;
@@ -5330,6 +5479,231 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   font-weight: 700;
   padding: 4px 0;
   text-decoration: underline;
+}
+
+/* Compact five-slot board rail: reset + four counters/actions. */
+.game-screen .hud.top,
+.game-screen.independent-night .hud.top {
+  top: max(52px, env(safe-area-inset-top));
+  left: calc(50% - 86px);
+  right: auto;
+  width: 232px;
+  display: grid;
+  grid-template-columns: repeat(4, 52px);
+  gap: 8px;
+  transform: none;
+}
+
+.game-screen.independent-night .hud.top {
+  left: 50%;
+  right: auto;
+  top: max(14px, calc(env(safe-area-inset-top) + 8px));
+  width: 52px;
+  grid-template-columns: 52px;
+  transform: translateX(-50%);
+}
+
+.game-screen .board-view-controls,
+.game-screen.independent-night .board-view-controls {
+  top: max(52px, env(safe-area-inset-top));
+  left: calc(50% - 146px);
+  right: auto;
+  width: 52px;
+  height: 52px;
+}
+
+.game-screen .board-view-controls button,
+.game-screen.independent-night .board-view-controls button,
+.game-screen .hud.top > .control-badge,
+.game-screen.independent-night .hud.top > .control-badge {
+  box-sizing: border-box;
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  height: 52px;
+  min-height: 52px;
+  max-height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.game-screen .hud.top > .control-badge:nth-child(odd),
+.game-screen.independent-night .hud.top > .control-badge:nth-child(odd) {
+  color: #382735;
+  border: 1px solid rgba(255, 241, 220, 0.92);
+  background: linear-gradient(145deg, rgba(255, 246, 231, 0.98), rgba(229, 211, 190, 0.96));
+  box-shadow: 0 5px 12px rgba(18, 11, 20, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.game-screen .hud.top > .control-badge:nth-child(even),
+.game-screen.independent-night .hud.top > .control-badge:nth-child(even) {
+  color: #faecd6;
+  border: 1px solid rgba(224, 189, 131, 0.68);
+  background: linear-gradient(145deg, rgba(40, 30, 43, 0.97), rgba(20, 25, 36, 0.97));
+  box-shadow: 0 5px 12px rgba(18, 11, 20, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.game-screen .hud.top > .control-badge:hover,
+.game-screen.independent-night .hud.top > .control-badge:hover {
+  filter: brightness(1.08);
+}
+
+.game-screen .hud.top > .love-tank,
+.game-screen.independent-night .hud.top > .love-tank {
+  min-width: 52px;
+  overflow: hidden;
+}
+
+.game-screen .love-tank-liquid,
+.game-screen.independent-night .love-tank-liquid { border-radius: 50%; }
+
+.game-screen .control-badge .control-badge-mark,
+.game-screen.independent-night .control-badge .control-badge-mark,
+.game-screen .board-view-controls .brand-icon,
+.game-screen.independent-night .board-view-controls .brand-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.game-screen .hud.top > .control-badge .control-badge-mark,
+.game-screen.independent-night .hud.top > .control-badge .control-badge-mark {
+  opacity: 0.46;
+}
+
+.game-screen .hud.top > .control-badge .control-badge-value,
+.game-screen.independent-night .hud.top > .control-badge .control-badge-value {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.game-screen .hud.top > .control-badge:nth-child(even) .control-badge-value,
+.game-screen.independent-night .hud.top > .control-badge:nth-child(even) .control-badge-value {
+  -webkit-text-stroke-color: rgba(25, 19, 31, 0.9);
+}
+
+.game-screen .hud.players,
+.game-screen.independent-night .hud.players {
+  top: max(14px, calc(env(safe-area-inset-top) + 8px));
+  left: 10px;
+  right: 10px;
+  width: auto;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.game-screen.independent-night .player-strip .profile-portrait {
+  width: clamp(92px, 20vw, 124px);
+  height: clamp(92px, 20vw, 124px);
+}
+
+.game-screen .hud.top > .control-badge,
+.game-screen.independent-night .hud.top > .control-badge {
+  overflow: visible;
+}
+
+.game-screen .hud.top > .control-badge::after,
+.game-screen.independent-night .hud.top > .control-badge::after,
+.game-screen .board-view-controls::after,
+.game-screen.independent-night .board-view-controls::after {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 5px;
+  border: 1px solid rgba(224, 189, 131, 0.48);
+  border-radius: 8px;
+  background: rgba(25, 19, 29, 0.88);
+  color: #fff0d8;
+  font-family: 'DM Sans', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.game-screen .board-view-controls::after,
+.game-screen.independent-night .board-view-controls::after {
+  content: 'Center';
+  z-index: 1;
+}
+
+.game-screen.independent-night .hud.top > .control-badge:nth-child(1)::after { content: 'Trade'; }
+.game-screen:not(.independent-night) .hud.top > .control-badge:nth-child(1)::after { content: 'Hearts'; }
+.game-screen:not(.independent-night) .hud.top > .control-badge:nth-child(2)::after { content: 'Pace'; }
+.game-screen:not(.independent-night) .hud.top > .control-badge:nth-child(3)::after { content: 'Trade'; }
+.game-screen:not(.independent-night) .hud.top > .control-badge:nth-child(4)::after { content: 'Round'; }
+
+/* Corner portraits and the lone trade control read as one intentional board frame. */
+.game-screen.independent-night .hud.players { isolation: isolate; }
+.game-screen.independent-night .player-strip {
+  position: relative;
+  isolation: isolate;
+}
+.game-screen.independent-night .player-strip::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -24%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--night-glow, #e8bd85) 46%, transparent), transparent 69%);
+  filter: blur(7px);
+  opacity: .7;
+  animation: portraitCornerAura 6.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.game-screen.independent-night .player-strip:nth-child(2)::before { animation-delay: -3.4s; }
+.game-screen.independent-night .player-strip .profile-portrait {
+  filter: drop-shadow(0 4px 9px rgba(11, 8, 16, .52)) drop-shadow(0 0 8px color-mix(in srgb, var(--night-glow, #e8bd85) 30%, transparent));
+}
+.profile-portrait .portrait-frame-art {
+  stroke-width: 1.05;
+  filter: drop-shadow(0 1px 1px rgba(28, 18, 20, .4));
+}
+.frame-ribbon .portrait-frame-art,
+.frame-laurel .portrait-frame-art { opacity: .9; }
+.frame-ivory .portrait-frame-art,
+.frame-starlight .portrait-frame-art { opacity: .82; }
+.portrait-frame-grid button {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(153, 119, 78, .36);
+  background: linear-gradient(155deg, #fffaf2, #f0e3d3);
+  box-shadow: 0 5px 14px rgba(67, 45, 31, .09), inset 0 1px 0 rgba(255, 255, 255, .88);
+}
+.portrait-frame-grid button[aria-pressed="true"] {
+  border-color: #a47b43;
+  background: linear-gradient(155deg, #fff4dc, #e8d2ad);
+  box-shadow: inset 0 0 0 1px #a47b43, 0 7px 18px rgba(93, 64, 35, .16);
+}
+.game-screen.independent-night .hud.top > .trade-hud-btn {
+  position: relative;
+  border: 1px solid rgba(237, 207, 158, .78);
+  color: #fff2dc;
+  background: radial-gradient(circle at 34% 24%, #654a50, #252032 72%);
+  box-shadow: 0 6px 18px rgba(15, 9, 20, .38), inset 0 1px 0 rgba(255, 248, 229, .28), 0 0 22px color-mix(in srgb, var(--night-glow, #e8bd85) 24%, transparent);
+}
+.game-screen.independent-night .hud.top > .trade-hud-btn .control-badge-mark {
+  opacity: .9;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .4));
+}
+.game-screen.independent-night .hud.top > .trade-hud-btn::after {
+  border-color: rgba(237, 207, 158, .48);
+  background: rgba(28, 22, 35, .92);
+}
+@keyframes portraitCornerAura {
+  0%, 100% { transform: scale(.92); opacity: .48; }
+  50% { transform: scale(1.08); opacity: .8; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-screen.independent-night .player-strip::before { animation: none; opacity: .6; }
 }
 
 .trophy-grid {
@@ -5558,15 +5932,6 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 @keyframes bounce-up {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
-}
-
-.dice-roll-btn {
-  width: 100%;
-}
-.tactile-dice-container[data-theme] .dice-roll-btn {
-  color: var(--night-card-ink, #261c1a);
-  background: linear-gradient(118deg, color-mix(in srgb, var(--die-pip) 92%, white), color-mix(in srgb, var(--die-edge) 88%, #e68982));
-  border-color: color-mix(in srgb, var(--die-edge) 74%, white);
 }
 
 .tactile-dice-container.is-disabled .tactile-dice-pad {

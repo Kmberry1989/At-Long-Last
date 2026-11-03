@@ -13,6 +13,7 @@ import {
   buildTrophyJournalEntry,
   buildVibeSetupJournalEntry,
   getScrapbookMomentCount,
+  summarizeScrapbookRecord,
 } from './journalHelpers.js'
 import { encodeWavelengthSubmission, getWavelengthPromptsForSession } from './wavelengthDuelData.js'
 
@@ -105,6 +106,21 @@ describe('journalHelpers', () => {
 
     expect(entry?.payload.imageDataUrl).toContain('data:image/png')
     expect(entry?.vibe).toBe('playful')
+    expect(entry?.payload.winnerUid).toBe('u1')
+    expect(entry?.payload.loserUid).toBe('u2')
+  })
+
+  it('aggregates duel and nightly-race wins and losses across the scrapbook', () => {
+    expect(summarizeScrapbookRecord([
+      { type: 'duel', payload: { outcomeStatus: 'resolved', winnerUid: 'u1', winnerName: 'Kyle', loserUid: 'u2', loserName: 'Elaine' } },
+      { type: 'duel', payload: { outcomeStatus: 'resolved', winnerUid: 'u2', winnerName: 'Elaine', loserUid: 'u1', loserName: 'Kyle' } },
+      { type: 'trophy', payload: { method: 'lap', winnerUid: 'u2', loserUid: 'u1' } },
+      { type: 'duel', payload: { outcomeStatus: 'shared' } },
+      { type: 'prompt', payload: {} },
+    ])).toEqual([
+      { uid: 'u1', name: 'Kyle', wins: 1, losses: 2 },
+      { uid: 'u2', name: 'Elaine', wins: 2, losses: 1 },
+    ])
   })
 
   it('writes a wavelength scorecard into the duel journal entry', () => {

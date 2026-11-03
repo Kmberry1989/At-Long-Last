@@ -1,0 +1,51 @@
+.night-transition-banner {
+  position: fixed;
+  z-index: 40;
+  top: max(166px, calc(env(safe-area-inset-top) + 150px));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: min(88vw, 420px);
+  padding: 11px 22px 11px 14px;
+  overflow: hidden;
+  color: #fff5df;
+  border: 1px solid rgba(255, 221, 154, .58);
+  border-radius: 999px;
+  background: linear-gradient(110deg, rgba(34, 24, 38, .94), rgba(93, 40, 58, .9) 58%, rgba(41, 39, 55, .94));
+  box-shadow: 0 12px 38px rgba(16, 11, 20, .3), inset 0 1px rgba(255,255,255,.16);
+  pointer-events: none;
+  transform: translate(-50%, -18px) scale(.96);
+  opacity: 0;
+  animation: night-banner-arrive 2.45s cubic-bezier(.2,.75,.25,1) both;
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+}
+
+.night-transition-banner-mark {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #ffdda0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 225, 168, .22), rgba(255, 225, 168, .04) 72%);
+}
+
+.night-transition-banner-mark .brand-icon { width: 22px; height: 22px; }
+.night-transition-banner-title { font: 600 13px/1.2 var(--font-sans, sans-serif); letter-spacing: .15em; text-transform: uppercase; white-space: nowrap; }
+.night-transition-banner-glint { position: absolute; inset: -80% auto -80% -30%; width: 22%; transform: rotate(22deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent); animation: night-banner-glint 1.35s .15s ease-out both; }
+
+@keyframes night-banner-arrive {
+  0% { opacity: 0; transform: translate(-50%, -18px) scale(.96); }
+  14%, 72% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -5px) scale(1.015); }
+}
+@keyframes night-banner-glint { to { left: 125%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .night-transition-banner, .night-transition-banner-glint { animation: none; }
+  .night-transition-banner { opacity: 1; transform: translate(-50%, 0); }
+}

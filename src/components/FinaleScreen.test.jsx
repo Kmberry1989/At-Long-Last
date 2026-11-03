@@ -40,6 +40,7 @@ describe('FinaleScreen', () => {
     { id: 'e1', sessionId: 'sess-1', title: 'Sunset Promise', type: 'activity' },
     { id: 'e2', sessionId: 'sess-1', title: 'Doodle Duel in sync', type: 'duel' },
     { id: 'e3', sessionId: 'sess-1', title: 'Collected Coffee Pass', type: 'keepsake' },
+    { id: 'e4', sessionId: 'sess-1', title: "Tonight's Prize", type: 'trophy', payload: { winnerIndex: 1, prize: 'First Lap Laurel' } },
   ]
 
   const mockPlayers = [
@@ -62,6 +63,8 @@ describe('FinaleScreen', () => {
     expect(screen.getByText(/Wine-Velvet Scrapbook/i)).toBeDefined()
     expect(screen.queryByText('Tone')).toBeNull()
     expect(screen.getByText('Spark & Laughter')).toBeDefined()
+    expect(screen.getByLabelText('Elaine won First Lap Laurel')).toBeInTheDocument()
+    expect(screen.getByText('Elaine')).toBeInTheDocument()
     expect(screen.getByLabelText('0 of 14 hearts counted')).toBeDefined()
     act(() => { vi.advanceTimersByTime(4000) })
     expect(screen.getByLabelText('14 of 14 hearts counted')).toBeDefined()

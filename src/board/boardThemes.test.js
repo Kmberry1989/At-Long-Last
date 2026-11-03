@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_THEME_SETS, getBoardThemeById, getBoardThemeForRound } from './boardThemes.js'
+import { BOARD_THEME_SETS, getBoardCardPilePalette, getBoardThemeById, getBoardThemeForRound } from './boardThemes.js'
 
 describe('board themes', () => {
   it('moves through each theme before repeating', () => {
@@ -42,7 +42,7 @@ describe('board themes', () => {
       expect(theme.environment.panorama).toMatch(/^\/assets\/board\/skyboxes\/.+\.webp$/)
       expect(theme.skinOverlay).toMatch(/^\/assets\/board\/skins\/.+\.svg$/)
       expect(theme.surfaces.inset.texture).toMatch(/^\/assets\/board\/.+\.(png|jpg|svg)$/)
-      expect(theme.diceSkin).toMatchObject({ face: expect.stringMatching(/^#/), alternate: expect.stringMatching(/^#/), pip: expect.stringMatching(/^#/), edge: expect.stringMatching(/^#/) })
+      expect(theme.diceSkin).toMatchObject({ face: expect.stringMatching(/^#/), alternate: expect.stringMatching(/^#/), pip: expect.stringMatching(/^#/), edge: expect.stringMatching(/^#/), fabric: expect.stringMatching(/^#/) })
       expect(theme.spaceColors).toMatchObject({ connection: expect.stringMatching(/^#/), duel: expect.stringMatching(/^#/), heart: expect.stringMatching(/^#/), keepsake: expect.stringMatching(/^#/), oops: expect.stringMatching(/^#/ ) })
       expect(theme.cardSkin).toMatchObject({ top: expect.stringMatching(/^#/), bottom: expect.stringMatching(/^#/), ink: expect.stringMatching(/^#/), accent: expect.stringMatching(/^#/), border: expect.stringMatching(/^#/ ) })
     }
@@ -62,6 +62,26 @@ describe('board themes', () => {
       expect(remix.environment.mode).toBeTruthy()
       expect(remix.decorations).toHaveLength(5)
     }
+  })
+
+  it('gives every theme related but clearly different draw and discard shades', () => {
+    const themes = [
+      ...Object.values(BOARD_THEME_SETS),
+      ...['starlit-rooftop', 'autumn-embers', 'cherry-blossom', 'aurora-veil'].map(getBoardThemeById),
+    ]
+    const brightness = hex => {
+      const channels = [1, 3, 5].map(index => Number.parseInt(hex.slice(index, index + 2), 16) / 255)
+      const linear = channels.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+      return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+    }
+    for (const theme of themes) {
+      const palette = getBoardCardPilePalette(theme)
+      expect(palette.draw).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(palette.discard).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(palette.discard).not.toBe(palette.draw)
+      expect(brightness(palette.discard) - brightness(palette.draw)).toBeGreaterThan(0.08)
+    }
+    expect(new Set(themes.map(theme => getBoardCardPilePalette(theme).draw)).size).toBe(themes.length)
   })
 })
 

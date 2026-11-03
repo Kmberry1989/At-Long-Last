@@ -585,3 +585,25 @@
 .trade-pill-wrap > * {
   pointer-events: auto;
 }
+
+.truce-trade-overlay { align-items: center; padding: 18px; }
+.truce-trade-sheet.truce-trade-compact {
+  width: min(420px, 100%);
+  max-height: min(82dvh, 620px);
+  border: 1px solid rgba(255, 215, 160, .34);
+  border-radius: 26px;
+  animation: truceSlideUp 220ms cubic-bezier(.2,.75,.25,1) forwards;
+}
+.truce-trade-compact-header { min-height: 68px; padding: 13px 64px 12px; }
+.truce-trade-compact-header .truce-sheet-handle { margin-bottom: 10px; }
+.truce-trade-compact-header .truce-trade-title { margin: 0; font-size: 1.2rem; }
+.truce-trade-compact-header .truce-close-btn { top: 18px; }
+.truce-trade-compact-header .truce-close-btn .brand-icon { width: 16px; height: 16px; }
+.truce-trade-compact-body { min-height: 116px; justify-content: center; align-items: center; gap: 10px; padding: 16px; }
+.truce-trade-own-rack { width: 100%; justify-content: center; }
+.truce-trade-own-rack .truce-tray-card-item { flex-basis: 122px; min-height: 82px; justify-content: center; border-radius: 14px; }
+.truce-trade-own-rack .truce-tray-card-title { font-size: .8rem; }
+.truce-trade-state { color: rgba(255, 246, 238, .68); font-size: .84rem; text-align: center; }
+.truce-trade-offered-card { display: grid; place-items: center; }
+.truce-trade-compact-footer { padding: 12px 16px max(14px, env(safe-area-inset-bottom)); }
+.truce-trade-compact-footer .truce-action-btn { min-height: 48px; }

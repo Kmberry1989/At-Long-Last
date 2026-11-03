@@ -99,6 +99,7 @@ export function DuelArena({
               <DuelComponent
                 disabled={disabled}
                 prompts={wavelengthPrompts}
+                drawingStorageKey={`${session?.id || 'night'}:${duel?.id || 'duel'}:${session?.round || 0}:${myPlayer?.uid || playerIndex}`}
                 onComplete={onComplete}
                 onSkip={onSkip}
                 playerIndex={playerIndex}

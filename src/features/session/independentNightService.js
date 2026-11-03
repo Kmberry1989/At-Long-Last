@@ -54,6 +54,9 @@ export async function runNightCommand(db, sessionId, userId, command) {
         } else throw new Error('Unknown night action.')
         for (const step of changed) {
           const { id, ...data } = step
+          if (data.state?.race?.crossingPending && !data.state.race.crossedAt) {
+            data.state = { ...data.state, race: { ...data.state.race, crossedAt: serverTimestamp(), crossingPending: false } }
+          }
           transaction.set(doc(db, 'sessions', sessionId, 'steps', id), { ...data, updatedAt: serverTimestamp() })
         }
         const { id: _id, ...payload } = nextSession

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { activityRegistry } from './activityRegistry.jsx'
 import { buildInitialSession } from './sessionLogic.js'
-import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, needsRevealInteraction } from './independentNight.js'
+import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, needsRevealInteraction, resolveNightPrize } from './independentNight.js'
 import { commitChoice } from './choiceCommitment.js'
 
 const players = [{ uid: 'a', displayName: 'A' }, { uid: 'b', displayName: 'B' }]
@@ -29,6 +29,34 @@ describe('independent night pacing', () => {
     expect(steps[0].state.entries).toHaveLength(1)
     expect(getNightProgress(s, steps, 1).ownRolls).toBe(0)
     expect(getNightProgress(s, steps, 0).readyToReveal).toBe(false)
+  })
+
+  it('draws a private named moment every roll, applies its die-scaled setback, and leaves shared hearts alone', async () => {
+    const s = session()
+    const result = makeRollSteps(s, [], 0, [1, 2], [], () => 0)
+    const rollStep = result.created.find(step => step.id === 'roll-1-0')
+    expect(rollStep.state.momentCard).toMatchObject({ category: 'trash', title: 'Cold Coffee Again' })
+    expect(rollStep.state.momentCard.movement).toBe(-1)
+    expect(canAnswerStep(rollStep, 0)).toBe(true)
+    expect(getNightProgress(s, result.created, 1).canRoll).toBe(true)
+    const resolution = await advanceNightStep(result.session, result.created, rollStep.id, 0, { resolveMoment: true })
+    expect(resolution.session.hearts).toBe(result.session.hearts)
+    expect(resolution.session.positions[0]).toBe((result.session.positions[0] + 19) % 20)
+    expect(resolution.step.state.momentResolution).toMatchObject({ movement: -1, lowerDie: 1 })
+  })
+
+  it('keeps a resolved moment from a plain board landing in the end-of-night recap', () => {
+    const s = session()
+    const steps = []
+    for (let round = 1; round <= s.totalRounds; round++) for (const ownerIndex of [0, 1]) {
+      const id = `roll-${round}-${ownerIndex}`
+      const state = round === 1 && ownerIndex === 0 ? { momentCard: { category: 'trash', id: 'wrong-turn', title: 'The Wrong Turn', scene: 'A wrong turn.', effect: 'Re-route', movement: -1 }, momentResolution: { movement: -1 }, race: { progress: -1, laps: 0 } } : {}
+      steps.push({ id, kind: 'board', type: 'connection', round, ownerIndex, ready: true, completed: true, skipped: false, state })
+    }
+    steps.push(...duels(s))
+    const result = finishIndependentNight(s, steps)
+    expect(result.entries.filter(entry => entry.type === 'moment-trash').map(entry => entry.title)).toEqual(['The Wrong Turn'])
+    expect(result.entries.find(entry => entry.type === 'trophy').payload.winnerIndex).toBe(0)
   })
 
   it('keeps submitted answers immutable and accepts the partner first on private cards', async () => {
@@ -92,10 +120,23 @@ describe('independent night pacing', () => {
     const { session: final, entries } = finishIndependentNight(s, steps)
     expect(final.phase).toBe('finale')
     expect(entries.filter(item => item.type === 'finale')).toHaveLength(1)
-    expect(entries.filter(item => item.type !== 'finale')).toHaveLength(12)
+    expect(entries.filter(item => item.type !== 'finale')).toHaveLength(13)
+    expect(entries.filter(item => item.type === 'trophy')).toHaveLength(1)
     expect(entries.every(item => item.sessionId === s.id)).toBe(true)
     expect(final.hearts).toBeGreaterThan(6)
     expect(entries[0].payload.entries).toHaveLength(2)
+  })
+})
+
+describe('individual night prize', () => {
+  it('awards the first full-circuit finisher and falls back to net progress', () => {
+    const s = session()
+    const steps = [
+      { id: 'roll-2-0', ownerIndex: 0, round: 2, state: { race: { progress: 22, laps: 1, crossedAt: new Date(2000), crossingRound: 2 } } },
+      { id: 'roll-2-1', ownerIndex: 1, round: 2, state: { race: { progress: 21, laps: 1, crossedAt: new Date(1000), crossingRound: 2 } } },
+    ]
+    expect(resolveNightPrize(s, steps)).toMatchObject({ winnerIndex: 1, winnerUid: 'b', loserUid: 'a', prize: 'First Lap Laurel', method: 'lap' })
+    expect(resolveNightPrize(s, steps.map(step => ({ ...step, state: { race: { progress: step.ownerIndex === 0 ? 9 : 7, laps: 0 } } })))).toMatchObject({ winnerIndex: 0, prize: 'Wayfinder Ribbon', method: 'progress' })
   })
 })
 
