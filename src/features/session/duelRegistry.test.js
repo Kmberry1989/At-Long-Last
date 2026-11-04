@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { createElement } from 'react'
+import { describe, expect, it, vi } from 'vitest'
 import { duelIds, duelRegistry, resolveTieByTime } from './duelRegistry.jsx'
 import { duelDefinitions, selectableDuelDefinitions } from './contentPackData.js'
 
@@ -42,6 +44,19 @@ describe('duelRegistry', () => {
       { won: true, time: 1 },
       { won: true, time: 1 },
     )).toEqual({ noContest: true })
+  })
+
+  it('renders and completes the selectable grounding pause', () => {
+    const onComplete = vi.fn()
+    const CalmPause = duelRegistry['sync-breath'].start
+    render(createElement(CalmPause, { disabled: false, onComplete }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Ground/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Complete pause', exact: true }))
+
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ practice: 'ground', won: true }))
   })
 
   it('picks the faster winner when both clear the duel', () => {

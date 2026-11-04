@@ -1,6 +1,7 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE_PATH || `${process.env.HOME}/.codex/skills/develop-web-game/scripts/node_modules/playwright/index.mjs`)
 import { mkdir, writeFile } from 'node:fs/promises'
 const base = process.env.QA_BASE_URL || 'http://127.0.0.1:5173'
+const authEmulator = process.env.QA_AUTH_EMULATOR_URL || 'http://127.0.0.1:9099'
 if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Error('Run this verification only against a local dev server.')
 const out = '.playwright-mcp/independent-night'
 await mkdir(out, { recursive: true })
@@ -8,6 +9,21 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 browser.on('disconnected', () => console.log('browser closed'))
 const contexts = await Promise.all([390, 393].map(width => browser.newContext({ viewport: { width, height: 844 }, reducedMotion: 'reduce' })))
 const pages = await Promise.all(contexts.map(context => context.newPage()))
+for (const context of contexts) await context.addInitScript(() => {
+  class SyntheticMediaRecorder {
+    static isTypeSupported = type => type.startsWith('audio/webm')
+    state = 'inactive'
+    mimeType = 'audio/webm;codecs=opus'
+    start() { this.state = 'recording' }
+    stop() {
+      this.state = 'inactive'
+      this.ondataavailable?.({ data: new Blob([new Uint8Array(1024)], { type: this.mimeType }) })
+      this.onstop?.()
+    }
+  }
+  Object.defineProperty(window, 'MediaRecorder', { configurable: true, value: SyntheticMediaRecorder })
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } })
+})
 const errors = []
 for (const page of pages) page.setDefaultTimeout(15000)
 for (const page of pages) page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message) })
@@ -22,11 +38,11 @@ await pages[0].getByRole('button', {name: 'Sign in', exact: true}).waitFor()
 const stamp = Date.now()
 const people = ['Avery', 'Rowan'].map((name, index) => ({ name, email: `pacing-${stamp}-${index}@example.test`, password: 'Local-Pacing-Only-123' }))
 for (const person of people) {
-  const response = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: person.email, password: person.password, returnSecureToken: true }) })
+  const response = await fetch(`${authEmulator}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: person.email, password: person.password, returnSecureToken: true }) })
   const user = await response.json()
   if (!user.localId) throw new Error(JSON.stringify(user))
   person.uid = user.localId
-  const updated = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-key', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer owner' }, body: JSON.stringify({ localId: user.localId, displayName: person.name, emailVerified: true, photoUrl: `https://lh3.googleusercontent.com/a/qa-${person.name}` }) })
+  const updated = await fetch(`${authEmulator}/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-key`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer owner' }, body: JSON.stringify({ localId: user.localId, displayName: person.name, emailVerified: true, photoUrl: `https://lh3.googleusercontent.com/a/qa-${person.name}` }) })
   if (!updated.ok) throw new Error(await updated.text())
 }
 for (let index = 0; index < pages.length; index++) {
@@ -51,13 +67,53 @@ for (const page of pages) {
   const ceremony = page.getByRole('dialog').filter({has: page.locator('#moment-title')})
   await ceremony.waitFor()
   await ceremony.getByRole('button').last().click()
-  await page.getByRole('button', { name: 'Begin our night', exact: true }).waitFor()
 }
+for (const page of pages) {
+  await page.getByRole('button', { name: 'Commit', exact: true }).click()
+  await page.getByRole('checkbox', { name: /understand this is permanent/i }).check()
+  await page.getByRole('button', { name: 'Commit forever', exact: true }).click()
+}
+for (const page of pages) {
+  const ceremony = page.getByRole('dialog').filter({ has: page.locator('#moment-title') })
+  await ceremony.waitFor()
+  await ceremony.getByRole('button').last().click()
+}
+await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).waitFor()
 console.log('paired', people.map(person => person.uid))
 await writeFile(`${out}/people.json`, JSON.stringify(people))
 await pages[0].screenshot({ path: `${out}/home.png`, fullPage: true })
 await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).click()
-await pages[1].getByRole('button', { name: 'Continue our night', exact: true }).click()
+try {
+  await pages[1].getByRole('button', { name: 'Continue our night', exact: true }).waitFor({ timeout: 5000 })
+  await pages[1].getByRole('button', { name: 'Continue our night', exact: true }).click()
+} catch {
+  // The second phone can still show Begin during the active-session snapshot
+  // handoff. beginPairingNight reuses the already-active couple session.
+  await pages[1].getByRole('button', { name: 'Begin our night', exact: true }).click()
+}
+for (const page of pages) {
+  try { await page.getByRole('button', { name: 'Record a note', exact: true }).waitFor() } catch (error) {
+    console.error('OPENING VOICE NOTE FLOW FAILED', pages.indexOf(page), await page.locator('body').innerText(), errors)
+    await page.screenshot({ path: `${out}/voice-note-failure-${pages.indexOf(page)}.png`, fullPage: true })
+    throw error
+  }
+  await page.getByRole('button', { name: 'Record a note', exact: true }).click()
+  try { await page.getByRole('button', { name: 'Stop', exact: true }).waitFor() } catch (error) {
+    console.error('RECORDING DID NOT START', pages.indexOf(page), await page.locator('body').innerText(), errors)
+    await page.screenshot({ path: `${out}/voice-note-start-failure-${pages.indexOf(page)}.png`, fullPage: true })
+    throw error
+  }
+  await page.waitForTimeout(1500)
+  try { await page.getByRole('button', { name: 'Stop', exact: true }).click() } catch (error) {
+    console.error('RECORDING STOP CONTROL MISSING', pages.indexOf(page), await page.locator('body').innerText(), errors)
+    await page.screenshot({ path: `${out}/voice-note-stop-failure-${pages.indexOf(page)}.png`, fullPage: true })
+    throw error
+  }
+  await page.getByRole('button', { name: 'Send kiss', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Send kiss', exact: true }).click()
+  await page.getByRole('heading', { name: 'Your kiss is on its way' }).waitFor()
+  await page.getByRole('button', { name: 'Begin our night', exact: true }).click()
+}
 for (const page of pages) {
   await page.waitForFunction(() => window.__atLongLastGameState?.pacing === 'independent')
   await page.waitForFunction(() => typeof window.render_game_to_text === 'function')
@@ -87,7 +143,12 @@ async function gameState(page) {
   const state = await page.waitForFunction(() => window.__atLongLastGameState || false)
   return state.jsonValue()
 }
-async function rollDice(page, dice = [1, 1], swipe = false) {
+async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
+  for (let settle = 0; settle < 8; settle++) {
+    await clearOpenPrompt(page, pages.indexOf(page))
+    await page.waitForTimeout(160)
+    if ((await gameState(page)).phase === 'turn' && !(await page.locator('.duel-arena-overlay').count())) break
+  }
   const before = (await gameState(page)).ownRolls
   const boardBefore = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
   const mover = boardBefore.activePlayerIndex
@@ -99,13 +160,34 @@ async function rollDice(page, dice = [1, 1], swipe = false) {
   await board.waitFor()
   const bounds = await board.boundingBox()
   const center = await page.evaluate(() => JSON.parse(window.render_game_to_text()).dice.screenCenters[0])
-  const start = { x: bounds.x + center.x, y: bounds.y + center.y }
+  let start = { x: bounds.x + center.x, y: bounds.y + center.y }
+  const hits = await page.evaluate(({ start, bounds }) => {
+    const candidates = [start]
+    for (const y of [.2, .3, .4, .5, .6, .7, .8]) for (const x of [.2, .3, .4, .5, .6, .7, .8]) candidates.push({ x: bounds.x + bounds.width * x, y: bounds.y + bounds.height * y })
+    return candidates.map(point => ({ ...point, hit: window.__atLongLastHitDice?.(point.x, point.y) || false }))
+  }, { start, bounds })
+  if (!hits.some(point => point.hit)) throw new Error(`No tested point hit either die: ${JSON.stringify({ start, bounds, hits, board: JSON.parse(await page.evaluate(() => window.render_game_to_text())).dice })}`)
+  if (!hits[0].hit) start = hits.find(point => point.hit)
+  const inputTarget = await page.evaluate(point => {
+    const element = document.elementFromPoint(point.x, point.y)
+    return { tag: element?.tagName, className: String(element?.className || ''), isBoardCanvas: element?.matches('.board-canvas canvas') || false }
+  }, start)
+  if (!inputTarget.isBoardCanvas) throw new Error(`Touching the dice would hit another UI surface: ${JSON.stringify({ inputTarget, start })}`)
   await page.mouse.move(start.x, start.y)
   await page.mouse.down()
   if (swipe) await page.mouse.move(start.x + 22, start.y - 24, { steps: 4 })
   await page.mouse.up()
-  console.log('clicked roll', await page.evaluate(() => window.__atLongLastRollTrace))
-  try { await page.waitForFunction(previous => window.__atLongLastGameState?.ownRolls === previous + 1, before, { timeout: 30000 }) } catch (error) { console.log('ROLL FAILED', await page.locator('body').innerText(), errors, await page.evaluate(() => ({ trace: window.__atLongLastRollTrace, read: window.__atLongLastNightRead, fixture: window.__atLongLastTestRoll }))); throw error }
+  console.log('roll gesture sent', await page.evaluate(() => ({ canRoll: window.__atLongLastGameState?.canRoll, ownRolls: window.__atLongLastGameState?.ownRolls })))
+  try { await page.waitForFunction(previous => window.__atLongLastGameState?.ownRolls === previous + 1, before, { timeout: 30000 }) } catch (error) {
+    const blocked = await gameState(page)
+    if (blocked.phase === 'duel' && retry < 12) {
+      console.log('closing open comparison before retrying the roll', pages.indexOf(page), blocked.round)
+      await clearOpenPrompt(page, pages.indexOf(page))
+      return rollDice(page, dice, swipe, retry + 1)
+    }
+    console.log('ROLL FAILED', blocked, await page.locator('body').innerText(), errors, await page.evaluate(() => ({ board: window.render_game_to_text?.(), read: window.__atLongLastNightRead, steps: window.__atLongLastNightSteps, fixture: window.__atLongLastTestRoll })))
+    throw error
+  }
   try {
     await page.waitForFunction(({ mover, targetPosition }) => {
       const state = JSON.parse(window.render_game_to_text())
@@ -129,7 +211,7 @@ async function sealReflection(page, text, guess) {
   const type = (await gameState(page)).activity.id
   const answer = page.getByLabel('Your Answer', { exact: true })
   console.log('fill answer'); await answer.fill(text); console.log('answer filled')
-  await page.getByRole('button', { name: /Guess for/ }).click(); console.log('flipped')
+  await page.getByRole('button', { name: 'NEXT', exact: true }).click(); console.log('flipped')
   await page.locator('#activity-guess-input').fill(guess); console.log('guess filled')
   await page.getByRole('button', { name: /Seal My Turn|Seal & Reveal/ }).click(); console.log('sealed')
   await page.waitForFunction(type => { const state = window.__atLongLastGameState; return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type) }, type)
@@ -146,21 +228,110 @@ async function finishLanding(page, index) {
       await page.locator('.night-action-list button').filter({ hasText: 'Collect mystery card' }).click()
       state = await gameState(page)
     } else if (landing?.kind === 'activity') {
-      const label = await page.evaluate(async type => (await import('/src/features/session/activityRegistry.jsx')).activityRegistry[type].label, landing.type)
-      await page.locator('.night-action-list button').filter({ hasText: label }).click()
+      await page.locator(`[data-night-step="${landing.id}"]`).click()
       state = await gameState(page)
     }
   }
   if (state.phase === 'activity') await sealReflection(page, `${people[index].name} private answer ${state.ownRolls}`, `${people[index].name} prediction`)
   else if (state.phase === 'keepsake') {
     await page.getByRole('button', { name: 'Tap Card to Collect', exact: true }).click()
-    console.log('collecting keepsake')
-    try { await page.locator('.board-canvas canvas[role="button"]').waitFor() } catch (error) {
-      console.log('KEEPSAKE DID NOT CLOSE', await page.locator('body').innerText(), await gameState(page))
-      throw error
-    }
-    console.log('ready after keepsake', await gameState(page))
+    await page.locator('.mystery-card-stage').waitFor({ state: 'detached' })
   }
+}
+async function finishDuel(page, type) {
+  if (await page.getByRole('button', { name: 'Reveal', exact: true }).count()) {
+    await page.getByRole('button', { name: 'Reveal', exact: true }).click()
+  } else if (type === 'kiss-courier') {
+    await page.getByRole('button', { name: 'Blow Kiss', exact: true }).click()
+    await page.getByRole('button', { name: 'Catch It', exact: true }).click()
+  } else if (type === 'doodle-duel-memory' || type === 'portrait-panic-directed') {
+    const guide = page.locator('[aria-label="Choose three drawing cues"]')
+    if (await guide.count()) {
+      const cues = guide.locator('button')
+      for (let index = 0; index < 3; index++) await cues.nth(index).click()
+      await page.getByRole('button', { name: 'Send cues', exact: true }).click()
+      return
+    }
+    const canvas = page.getByLabel('Drawing canvas', { exact: true })
+    const bounds = await canvas.boundingBox()
+    if (!bounds) throw new Error(`Drawing canvas missing for ${type}`)
+    await page.mouse.move(bounds.x + bounds.width * .35, bounds.y + bounds.height * .5)
+    await page.mouse.down()
+    await page.mouse.move(bounds.x + bounds.width * .65, bounds.y + bounds.height * .35, { steps: 5 })
+    await page.mouse.move(bounds.x + bounds.width * .55, bounds.y + bounds.height * .7, { steps: 4 })
+    await page.mouse.up()
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+  } else if (type === 'letterpress-one-word') {
+    await page.locator('#letterpress-words').fill('love grows each day')
+    await page.getByRole('button', { name: 'Lock words', exact: true }).click()
+  } else if (type === 'constellation-home') {
+    const values = page.locator('[aria-label="Sentimental values"] button')
+    for (let index = 0; index < 5; index++) await values.nth(index).click()
+    await page.getByRole('button', { name: 'Reveal tonight', exact: true }).click()
+  } else if (type === 'gratitude-duel') {
+    await page.locator('#gratitude-response').fill('I appreciate your kindness every day.')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+  } else if (type === 'sync-breath') {
+    await page.locator('.calm-practice-option').filter({ hasText: 'Ground' }).click()
+    await page.getByText('Name 3 things you see', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await page.getByText('Notice 2 things you feel', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await page.getByText('Listen for 1 sound', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Complete pause', exact: true }).click()
+  } else if (type === 'wavelength-duel') {
+    for (let index = 0; index < 10; index++) {
+      const choices = page.locator('.connection-choice-grid [role="radio"]')
+      if (await choices.count()) await choices.first().click()
+      else await page.locator('.wavelength-scale-stage input').click()
+      const lock = page.getByRole('button', { name: /Lock My Answer|Lock My Guess|Seal My Guesses/ })
+      await lock.click()
+    }
+  } else if (type === 'reaction-heart') {
+    await page.getByRole('button', { name: 'Ready', exact: true }).click()
+    await page.getByRole('button', { name: 'Heart', exact: true }).waitFor()
+    await page.waitForTimeout(1300)
+    await page.getByRole('button', { name: 'Heart', exact: true }).click()
+  } else {
+    throw new Error(`No full-night playtest driver for duel ${type}`)
+  }
+}
+async function clearOpenPrompt(page, index) {
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const duelModal = page.locator('.duel-arena-overlay')
+    if (await duelModal.count()) {
+      const label = await duelModal.locator('.duel-card h3').first().innerText()
+      const type = await page.evaluate(async name => Object.entries((await import('/src/features/session/duelRegistry.jsx')).duelRegistry).find(([, duel]) => duel.label === name)?.[0], label)
+      if (!type) throw new Error(`Could not map open comparison title: ${label}`)
+      console.log('resolving open comparison', index, type)
+      await finishDuel(page, type)
+      await page.waitForFunction(() => !document.querySelector('.duel-arena-overlay'))
+      continue
+    }
+    const state = await gameState(page)
+    if (state.phase === 'activity') {
+      await sealReflection(page, `${people[index].name} private answer`, `${people[index].name} prediction`)
+    } else if (state.phase === 'keepsake') {
+      await page.getByRole('button', { name: 'Tap Card to Collect', exact: true }).click()
+      await page.locator('.mystery-card-stage').waitFor({ state: 'detached' })
+    } else if (state.phase === 'duel') {
+      const label = await page.locator('.duel-card h3').first().innerText()
+      const type = await page.evaluate(async name => Object.entries((await import('/src/features/session/duelRegistry.jsx')).duelRegistry).find(([, duel]) => duel.label === name)?.[0], label)
+      if (!type) throw new Error(`Could not map open comparison title: ${label}`)
+      console.log('resolving selected comparison', index, type, 'visible=', await page.locator('.duel-arena-overlay').isVisible())
+      await finishDuel(page, type)
+      await page.waitForFunction(() => window.__atLongLastGameState?.phase === 'turn')
+      await page.locator('.duel-arena-overlay').waitFor({ state: 'detached' })
+      console.log('selected comparison closed', index, type)
+    } else if (state.phase === 'turn' && await page.locator('.duel-arena-overlay').count()) {
+      // Firestore state and the locally selected overlay can settle on
+      // adjacent frames. Wait for the selection to clear before touching the
+      // board so a late render cannot sit above the dice gesture.
+      await page.waitForTimeout(180)
+      continue
+    } else return
+  }
+  if ((await gameState(page)).phase !== 'turn') throw new Error(`Could not close open prompt: ${JSON.stringify(await gameState(page))}`)
 }
 await rollDice(pages[0], [3,1], true)
 console.log('first landing', await gameState(pages[0]))
@@ -194,31 +365,60 @@ await finishLanding(pages[0], 0)
 if ((await gameState(pages[0])).ownRolls !== 2 || (await gameState(pages[1])).ownRolls !== 0) throw new Error('One phone could not advance independently')
 await pages[0].screenshot({ path: `${out}/ahead.png`, fullPage: true })
 await pages[0].reload()
-await pages[0].getByRole('button', { name: 'Continue our night', exact: true }).click()
 await pages[0].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 2)
+await pages[0].getByRole('heading', { name: 'Your kiss is on its way' }).waitFor()
+await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).click()
 if ((await pages[1].locator('body').innerText()).includes('Avery private answer')) throw new Error('A private answer leaked before the finale')
 await pages[1].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 0)
 await rollDice(pages[1])
 await finishLanding(pages[1], 1)
 if ((await gameState(pages[0])).ownRolls !== 2 || (await gameState(pages[1])).ownRolls !== 1) throw new Error('Both phones could not advance independently')
-for (const [index, count] of [[0,2], [1,3]]) {
+for (const [index, count] of [[0,6], [1,7]]) {
   for (let turn=0; turn<count; turn++) {
     await rollDice(pages[index])
     await finishLanding(pages[index], index)
   }
 }
-// Answer the other phone's remaining asynchronous cards.
-for (const [index,page] of pages.entries()) {
-  for (;;) {
-    const task=(await gameState(page)).available.find(item=>item.kind==='activity')
-    if (!task) break
-    await page.locator('.night-action-list button').filter({hasText: (await page.evaluate(async type => (await import('/src/features/session/activityRegistry.jsx')).activityRegistry[type].label, task.type))}).click()
-    await sealReflection(page, `${people[index].name} private catch-up`, `${people[index].name} prediction`)
+// Finish every player's activity and comparison, in their own browser context.
+for (;;) {
+  let acted = false
+  for (const [index, page] of pages.entries()) {
+    await clearOpenPrompt(page, index)
+    const task = (await gameState(page)).available.find(item => item.kind === 'activity' || item.kind === 'duel')
+    if (!task) continue
+    acted = true
+    if (task.kind === 'activity') {
+      await page.locator(`[data-night-step="${task.id}"]`).click()
+      await sealReflection(page, `${people[index].name} private catch-up`, `${people[index].name} prediction`)
+    } else {
+      await page.locator(`[data-night-step="${task.id}"]`).click()
+      await finishDuel(page, task.type)
+      await page.waitForFunction(() => window.__atLongLastGameState?.phase === 'turn')
+    }
   }
+  if (!acted) break
 }
 const finalStates = await Promise.all(pages.map(gameState))
-if (finalStates.some(state => state.ownRolls !== 4 || state.comparisons !== 8)) throw new Error(`Expected four independent rolls and eight collected comparisons per player: ${JSON.stringify(finalStates)}`)
+if (finalStates.some(state => state.ownRolls !== 8 || state.comparisons < 8 || state.comparisons !== finalStates[0].comparisons || !state.readyToReveal)) {
+  const nightSteps = await Promise.all(pages.map(page => page.evaluate(() => window.__atLongLastNightSteps || [])))
+  throw new Error(`Expected eight rolls each and a ready reveal with matching comparisons: ${JSON.stringify({ finalStates, nightSteps })}`)
+}
+if (finalStates.some(state => !state.readyToFinish)) throw new Error(`All reveal interactions should be complete before the coda: ${JSON.stringify(finalStates)}`)
 console.log('independent progress saved', finalStates)
+for (const page of pages) {
+  await page.getByRole('button', { name: 'Catch their kiss', exact: true }).click()
+  await page.getByRole('button', { name: 'Catch', exact: true }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+}
+await pages[0].getByRole('button', { name: 'Open tonight’s reveals', exact: true }).click()
+for (const [index, page] of pages.entries()) {
+  try { await page.locator('.finale-headline').waitFor({ timeout: 20000 }) } catch (error) {
+    console.error('FINALE DID NOT OPEN', index, await gameState(page), await page.locator('body').innerText(), errors)
+    await page.screenshot({ path: `${out}/finale-failure-${index}.png`, fullPage: true })
+    throw error
+  }
+}
 await pages[0].screenshot({ path: `${out}/boards-finished.png`, fullPage: true })
 await writeFile(`${out}/people.json`, JSON.stringify(people))
 await writeFile(`${out}/home.txt`, await pages[0].locator('body').innerText())

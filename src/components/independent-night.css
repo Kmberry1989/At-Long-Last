@@ -1,6 +1,7 @@
-.independent-tray { max-height: 58dvh; overflow-y: auto; }
+.independent-tray { max-height: 58dvh; overflow-y: auto; pointer-events: none; }
 .night-action-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.night-action-list button { min-height: 44px; }
+.night-action-list button { min-height: 44px; pointer-events: auto; }
+.independent-tray > button { pointer-events: auto; }
 .independent-overlay { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-top: 80px; }
 .night-back, .night-seal-note { flex-shrink: 0; position: relative; z-index: 2; }
 .night-seal-note { text-align: center; font-size: .8rem; color: #f4dfb5; margin: 0; }

@@ -2,9 +2,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, expect, it, vi } from 'vitest'
 import { KISS_COURIER_VOICE_PROMPT, KissBookend } from './KissBookend.jsx'
 
+const audioMocks = vi.hoisted(() => ({ setMusicPaused: vi.fn() }))
+vi.mock('../audio/AudioProvider.jsx', () => ({ useAudio: () => audioMocks }))
+
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.clearAllMocks()
   vi.unstubAllGlobals()
 })
 
@@ -41,7 +45,21 @@ it('records a short note from the device microphone and sends the captured audio
     durationMs: 600,
     mimeType: 'audio/webm;codecs=opus',
   })))
+  expect(audioMocks.setMusicPaused).toHaveBeenNthCalledWith(1, true)
+  expect(audioMocks.setMusicPaused).toHaveBeenCalledWith(false)
   expect(stopTrack).toHaveBeenCalledOnce()
+})
+
+it('restores music when microphone permission is denied', async () => {
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockRejectedValue(Object.assign(new Error('Denied'), { name: 'NotAllowedError' })) } })
+  vi.stubGlobal('MediaRecorder', class { static isTypeSupported = () => true })
+  render(<KissBookend onSend={vi.fn()} />)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Record a note' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('Allow microphone access')
+  expect(audioMocks.setMusicPaused).toHaveBeenNthCalledWith(1, true)
+  expect(audioMocks.setMusicPaused).toHaveBeenLastCalledWith(false)
 })
 
 it('shows the same integrated voice prompt when catching the partner’s kiss', () => {

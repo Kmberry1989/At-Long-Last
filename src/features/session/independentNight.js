@@ -81,7 +81,9 @@ export function getNightProgress(session, steps, playerIndex) {
     ownRolls: rolls.length,
     readyToReveal,
     readyToFinish: readyToReveal && steps.every(step => !needsRevealInteraction(step)),
-    available: steps.filter(step => canAnswerStep(step, playerIndex, readyToReveal)),
+    // Keep comparisons out of the board tray while either player still has
+    // turns to take. They are collected and answered together at night's end.
+    available: steps.filter(step => (step.kind !== 'duel' || allRolled) && canAnswerStep(step, playerIndex, readyToReveal)),
     comparisons: steps.filter(step => step.kind === 'activity' || step.kind === 'duel').length,
   }
 }

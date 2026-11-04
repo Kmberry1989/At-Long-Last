@@ -1044,6 +1044,9 @@ export function BoardScene({
       projectPointer(event)
       return raycaster.intersectObject(dice, true).length > 0
     }
+    if (import.meta.env.DEV) {
+      window.__atLongLastHitDice = (x, y) => hitsDice({ clientX: x, clientY: y })
+    }
     const consumePointer = (event) => {
       event.preventDefault()
       event.stopPropagation()
@@ -1053,7 +1056,8 @@ export function BoardScene({
       try { navigator.vibrate?.(duration) } catch { /* Haptics are optional. */ }
     }
     const handleDicePointerDown = (event) => {
-      if (!event.isPrimary || event.button !== 0 || activeDicePointer || !canRollRef.current || !hitsDice(event)) return
+      const hit = hitsDice(event)
+      if (!event.isPrimary || event.button !== 0 || activeDicePointer || !canRollRef.current || !hit) return
       consumePointer(event)
       activeDicePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() }
       dice.userData.touch = { startedAt: activeDicePointer.time, x: 0, y: 0 }
@@ -1804,6 +1808,7 @@ export function BoardScene({
       if (window.advanceTime === advanceTime) {
         delete window.advanceTime
       }
+      if (import.meta.env.DEV) delete window.__atLongLastHitDice
       dracoLoader.dispose()
       if (dieRef.current === dice) {
         dieRef.current = null

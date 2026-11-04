@@ -1,4 +1,4 @@
-import { BrandText } from '../../components/BrandIcon.jsx'
+import { BrandIcon, BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DoodleDuel } from '../../components/DoodleDuel.jsx'
 import { PortraitPanicDuel } from '../../components/PortraitPanicDuel.jsx'

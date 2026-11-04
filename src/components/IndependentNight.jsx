@@ -109,15 +109,24 @@ export function IndependentNight() {
       phase: session.phase === 'finale' ? 'finale' : selected ? selected.kind : 'turn',
       pacing: 'independent', playerIndex, round: Math.min(progress.nextRound, session.totalRounds),
       canAct: !working && (Boolean(selected) || progress.canRoll || progress.available.length > 0),
-      ownRolls: progress.ownRolls, readyToReveal: progress.readyToReveal,
+      canRoll: !working && !rolling && boardReady && loaded && progress.canRoll && (!usesKissBookend || Boolean(ownKiss)),
+      ownRolls: progress.ownRolls, readyToReveal: progress.readyToReveal, readyToFinish: progress.readyToFinish,
       comparisons: progress.comparisons,
       available: progress.available.map(step => ({ id: step.id, type: step.type, kind: step.kind })),
       activity: selected?.kind === 'activity' ? { id: selected.type, stage: selected.state.phase || 'input' } : null,
     }
     window.__atLongLastGameState = exposed
-  }, [session.phase, selected, playerIndex, progress.nextRound, progress.ownRolls, progress.readyToReveal, progress.comparisons, progress.canRoll, progress.available, working])
+    if (import.meta.env.DEV) window.__atLongLastNightSteps = steps.map(step => ({
+      id: step.id, kind: step.kind, type: step.type, ready: step.ready,
+      completed: step.completed, skipped: step.skipped,
+      momentResolved: !step.state.momentCard || Boolean(step.state.momentResolution),
+      resultCount: Object.keys(step.state.results || {}).length,
+      entryCount: (step.state.entries || []).length,
+      submittedBy: Object.keys(step.state.results || step.state.entries || {}),
+    }))
+  }, [session.phase, selected, playerIndex, progress.nextRound, progress.ownRolls, progress.readyToReveal, progress.comparisons, progress.canRoll, progress.available, steps, working, rolling, boardReady, loaded, usesKissBookend, ownKiss])
 
-  useEffect(() => () => { delete window.__atLongLastGameState }, [])
+  useEffect(() => () => { delete window.__atLongLastGameState; delete window.__atLongLastNightSteps }, [])
 
   async function run(command) {
     if (lock.current || playerIndex < 0 || !loaded) return
@@ -238,7 +247,7 @@ export function IndependentNight() {
         </div>
         {!selected && session.phase !== 'finale' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
           <div className="night-action-list" aria-label={progress.readyToReveal ? 'End of night reveals' : 'Your next moments'}>
-            {progress.available.map(step => <button className="primary-btn alt" key={step.id} type="button" disabled={working || rolling || !loaded}
+            {progress.available.map(step => <button className="primary-btn alt" data-night-step={step.id} key={step.id} type="button" disabled={working || rolling || !loaded}
               onClick={() => { audio?.playAction?.(); setSelectedId(step.id) }}>
               {progress.readyToReveal ? 'Reveal: ' : ''}{step.state.momentCard && !step.state.momentResolution ? `${step.state.momentCard.category} moment` : step.kind === 'activity' ? activityRegistry[step.type].label : step.kind === 'duel' ? duelRegistry[step.type].label : 'Collect mystery card'} <small>· round {step.round}</small>
             </button>)}

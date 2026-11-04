@@ -609,6 +609,7 @@ export function AudioProvider({ children }) {
   const keepsakeEngineRef = useRef(null)
   const scrapbookOpenRef = useRef(false)
   const mutedRef = useRef(false)
+  const musicPausedRef = useRef(false)
   const firstEngineRef = useRef(null)
   const archiveStageRef = useRef({})
   const [musicTheme, setMusicThemeState] = useState(() => savedMusicChoice('at-long-last:music-theme', ['continuous', 'original', 'first'], 'continuous'))
@@ -624,7 +625,7 @@ export function AudioProvider({ children }) {
     const main = engineRef.current
     if (!main?.unlocked) return
     const activeTheme = scrapbookOpenRef.current ? 'original' : themeRef.current
-    const mainMuted = celebratingRef.current || mutedRef.current || activeTheme !== 'continuous'
+    const mainMuted = musicPausedRef.current || celebratingRef.current || mutedRef.current || activeTheme !== 'continuous'
     if (main.muted !== mainMuted) main.setMuted(mainMuted)
     if (activeTheme === 'original' && !mutedRef.current && !keepsakeEngineRef.current) {
       keepsakeEngineRef.current = createKeepsakeAudioEngine()
@@ -643,7 +644,7 @@ export function AudioProvider({ children }) {
         engine.setStage(nextStage)
         archiveStageRef.current[name] = nextStage
       }
-      const shouldMute = celebratingRef.current || mutedRef.current || activeTheme !== name
+      const shouldMute = musicPausedRef.current || celebratingRef.current || mutedRef.current || activeTheme !== name
       if (engine.muted !== shouldMute) engine.setMuted(shouldMute)
     }
     if (import.meta.env.DEV) window.__atLongLastSoundtrack = activeTheme
@@ -654,6 +655,10 @@ export function AudioProvider({ children }) {
     themeRef.current = theme
     try { localStorage.setItem('at-long-last:music-theme', theme) } catch { /* Preferences are optional in private browsing. */ }
     setMusicThemeState(theme)
+    syncTracks()
+  }, [syncTracks])
+  const setMusicPaused = useCallback((paused) => {
+    musicPausedRef.current = Boolean(paused)
     syncTracks()
   }, [syncTracks])
   const setBassStyle = useCallback((style) => {
@@ -723,6 +728,7 @@ export function AudioProvider({ children }) {
       musicTheme,
       bassStyle,
       setMusicTheme,
+      setMusicPaused,
       setBassStyle,
       playAction: () => getExistingEngine()?.playAction(),
       playDiceRattle: (options) => getExistingEngine()?.playDiceRattle(options),
@@ -764,7 +770,7 @@ export function AudioProvider({ children }) {
       },
       unlocked,
     }),
-    [bassStyle, musicTheme, muted, setBassStyle, setMusicTheme, setScrapbookOpen, syncTracks, unlocked],
+    [bassStyle, musicTheme, muted, setBassStyle, setMusicPaused, setMusicTheme, setScrapbookOpen, syncTracks, unlocked],
   )
 
   return (

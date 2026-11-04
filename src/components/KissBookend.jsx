@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useAudio } from '../audio/AudioProvider.jsx'
 import { BrandIcon } from './BrandIcon.jsx'
 import { MAX_NIGHT_KISS_DATA_URI_CHARS, MAX_NIGHT_KISS_DURATION_MS } from '../features/session/nightKissService.js'
 
@@ -23,6 +24,7 @@ function readAudioData(blob) {
 }
 
 export function KissBookend({ mode = 'send', recording, onSend, onCatch, onContinue, voicePrompt = KISS_COURIER_VOICE_PROMPT, working = false }) {
+  const { setMusicPaused } = useAudio() || {}
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -37,11 +39,13 @@ export function KissBookend({ mode = 'send', recording, onSend, onCatch, onConti
     window.clearTimeout(stopTimerRef.current)
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop()
     streamRef.current?.getTracks().forEach(track => track.stop())
-  }, [])
+    setMusicPaused?.(false)
+  }, [setMusicPaused])
 
   async function startRecording() {
     setError('')
     setRecorded(null)
+    setMusicPaused?.(true)
     try {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
         throw new Error('Microphone recording is not available in this browser.')
@@ -62,6 +66,7 @@ export function KissBookend({ mode = 'send', recording, onSend, onCatch, onConti
         stream.getTracks().forEach(track => track.stop())
         streamRef.current = null
         recorderRef.current = null
+        setMusicPaused?.(false)
         setRecordingActive(false)
         if (durationMs < 400) {
           setError('Record a little longer.')
@@ -84,6 +89,7 @@ export function KissBookend({ mode = 'send', recording, onSend, onCatch, onConti
     } catch (nextError) {
       streamRef.current?.getTracks().forEach(track => track.stop())
       streamRef.current = null
+      setMusicPaused?.(false)
       setError(nextError.name === 'NotAllowedError' ? 'Allow microphone access to record your note.' : nextError.message || 'Could not start the microphone.')
     }
   }

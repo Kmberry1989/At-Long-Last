@@ -58,8 +58,10 @@ function getFirebaseServices(config) {
   // Explicit development-only switch keeps two-browser QA off production data.
   if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
     const emulatorHost = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || '127.0.0.1'
-    connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true })
-    connectFirestoreEmulator(db, emulatorHost, 8080)
+    const authPort = Number(import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT) || 9099
+    const firestorePort = Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT) || 8080
+    connectAuthEmulator(auth, `http://${emulatorHost}:${authPort}`, { disableWarnings: true })
+    connectFirestoreEmulator(db, emulatorHost, firestorePort)
   }
 
   firebaseSingleton = { app, auth, db }

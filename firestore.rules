@@ -1257,6 +1257,51 @@ service cloud.firestore {
         && data.createdAt == request.time;
     }
 
+    // Finalizing a long night writes many already-bounded scrapbook records
+    // alongside the one authorized active-to-completed session transition.
+    // Keep this path compact enough for Firestore's per-request expression
+    // budget while preserving the entry envelope and content-size limits.
+    function isValidCompletedNightJournalEntry(data) {
+      let sessionPath = /databases/$(database)/documents/sessions/$(data.sessionId);
+      let before = get(sessionPath).data;
+      let after = getAfter(sessionPath).data;
+      return data is map
+        && data.keys().hasAll([
+          'coupleId', 'sessionId', 'payload', 'summary',
+          'text', 'title', 'type', 'vibe', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'coupleId', 'sessionId', 'payload', 'summary',
+          'text', 'title', 'type', 'vibe', 'openAt', 'createdAt'
+        ])
+        && isBoundedString(data.coupleId, 1, 128)
+        && isBoundedString(data.sessionId, 1, 128)
+        && before.status == 'active'
+        && before.pacingVersion == 1
+        && before.coupleId == data.coupleId
+        && after.status == 'completed'
+        && after.phase == 'finale'
+        && after.coupleId == data.coupleId
+        && data.payload is map
+        && data.payload.keys().size() <= 40
+        && (!('imageDataUrl' in data.payload) || data.payload.imageDataUrl == null || isValidImageDataUrl(data.payload.imageDataUrl, 750000))
+        && (!('entries' in data.payload) || data.payload.entries is list && data.payload.entries.size() <= 2)
+        && (!('answers' in data.payload) || data.payload.answers is list && data.payload.answers.size() <= 12)
+        && (!('moments' in data.payload) || data.payload.moments is list && data.payload.moments.size() <= 16)
+        && isBoundedString(data.summary, 1, 1200)
+        && isBoundedString(data.text, 1, 4000)
+        && isBoundedString(data.title, 1, 160)
+        && data.type in [
+          'activity-pass', 'bluff', 'canvas', 'duel', 'finale', 'harmonic',
+          'journal', 'keepsake', 'match', 'maze', 'photo', 'prediction',
+          'prompt', 'ritual', 'tempo', 'vault', 'vibe-setup', 'vibe-sync',
+          'word', 'milestone', 'trophy', 'moment-trash', 'moment-treasure'
+        ]
+        && isVibe(data.vibe)
+        && isOptionalBoundedString(data, 'openAt', 40)
+        && data.createdAt == request.time;
+    }
+
     // ===============================================================
     // Collection rules (default deny outside these matches)
     // ===============================================================
@@ -1871,14 +1916,15 @@ service cloud.firestore {
 
     match /journalEntries/{entryId} {
       allow create: if isAuthenticated()
-        && isValidJournalEntry(request.resource.data)
-        && isActiveParticipant(request.resource.data.coupleId)
-        && exists(
-          /databases/$(database)/documents/sessions/$(request.resource.data.sessionId)
-        )
-        && get(
-          /databases/$(database)/documents/sessions/$(request.resource.data.sessionId)
-        ).data.coupleId == request.resource.data.coupleId;
+        && (isValidCompletedNightJournalEntry(request.resource.data)
+          || (isValidJournalEntry(request.resource.data)
+            && isActiveParticipant(request.resource.data.coupleId)
+            && exists(
+              /databases/$(database)/documents/sessions/$(request.resource.data.sessionId)
+            )
+            && get(
+              /databases/$(database)/documents/sessions/$(request.resource.data.sessionId)
+            ).data.coupleId == request.resource.data.coupleId));
 
       allow read: if isParticipant(resource.data.coupleId);
       allow update, delete: if false;

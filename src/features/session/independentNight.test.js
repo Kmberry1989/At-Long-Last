@@ -26,6 +26,22 @@ describe('independent night pacing', () => {
     expect(canAnswerStep(submitted.step, 1)).toBe(true)
   })
 
+  it('holds comparisons until both players finish their turns so the board stays clear for rolling', () => {
+    const s = session()
+    const steps = []
+    for (let round = 1; round <= s.totalRounds; round++) {
+      steps.push({ id: `roll-${round}-0`, kind: 'board', round, ownerIndex: 0, ready: true, completed: true, skipped: false, state: {} })
+      if (round < s.totalRounds) steps.push({ id: `roll-${round}-1`, kind: 'board', round, ownerIndex: 1, ready: true, completed: true, skipped: false, state: {} })
+      steps.push({ id: `duel-${round}`, kind: 'duel', type: 'gratitude-duel', round, ownerIndex: -1, ready: false, completed: false, skipped: false, state: { results: {} } })
+    }
+
+    expect(getNightProgress(s, steps, 0).available.some(step => step.kind === 'duel')).toBe(false)
+    expect(getNightProgress(s, steps, 0).canRoll).toBe(false)
+    steps.push({ id: `roll-${s.totalRounds}-1`, kind: 'board', round: s.totalRounds, ownerIndex: 1, ready: true, completed: true, skipped: false, state: {} })
+    expect(getNightProgress(s, steps, 0).available.filter(step => step.kind === 'duel')).toHaveLength(s.totalRounds)
+    expect(getNightProgress(s, steps, 0).readyToReveal).toBe(false)
+  })
+
   it('lets Portrait Panic players send cues independently, continue the night, and draw once partner cues arrive', async () => {
     const s = session()
     const duel = { id: 'duel-1', kind: 'duel', type: 'portrait-panic-directed', round: 1, ownerIndex: -1, ready: false, completed: false, skipped: false, state: { results: {} } }
