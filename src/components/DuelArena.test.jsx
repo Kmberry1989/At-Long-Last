@@ -20,7 +20,7 @@ describe('DuelArena & DuelRevealOverlay', () => {
 
   const mockDuel = {
     id: 'doodle-duel-memory',
-    label: 'Doodle Duel',
+    label: 'Keepsake Sketch',
     prompt: 'Draw each other in 30 seconds.',
     skippable: true,
     vibe: 'playful',
@@ -43,18 +43,17 @@ describe('DuelArena & DuelRevealOverlay', () => {
     players: mockPlayers,
   }
 
-  function DummyMinigame({ onComplete }) {
+  function DummyMinigame({ disabled, onComplete }) {
     return (
       <div data-testid="dummy-minigame">
-        <button type="button" onClick={() => onComplete({ drawing: 'data:image/png' })}>
+        <button disabled={disabled} type="button" onClick={() => onComplete({ drawing: 'data:image/png' })}>
           Submit Doodle
         </button>
       </div>
     )
   }
 
-  it('renders DuelArena split-screen with partner top frame, golden dividing beam, and your interactive bottom zone', () => {
-    const onSkip = vi.fn()
+  it('keeps the mini-game centered without duplicate portraits, statuses, or skip controls', () => {
     const onComplete = vi.fn()
 
     render(
@@ -64,23 +63,13 @@ describe('DuelArena & DuelRevealOverlay', () => {
         playerIndex={0}
         players={mockPlayers}
         onComplete={onComplete}
-        onSkip={onSkip}
         DuelComponent={DummyMinigame}
       />,
     )
 
-    expect(screen.getByText(/Playful Duel/i)).toBeDefined()
-    expect(screen.getByText(/Doodle Duel/i)).toBeDefined()
-    expect(screen.getByText('Elaine')).toBeDefined()
-    expect(screen.getByText(/Thinking…/i)).toBeDefined()
-    expect(screen.getByText(/Head-to-Head Arena/i)).toBeDefined()
-    expect(screen.getByText('Kyle')).toBeDefined()
+    expect(screen.queryByText(/Playful Duel|Thinking|Partner|Your Challenge|Head-to-Head Arena/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip/i })).toBeNull()
     expect(screen.getByTestId('dummy-minigame')).toBeDefined()
-
-    // Test skip
-    const skipBtn = screen.getByRole('button', { name: /Skip Duel/i })
-    fireEvent.click(skipBtn)
-    expect(onSkip).toHaveBeenCalled()
 
     // Test submit
     const submitBtn = screen.getByRole('button', { name: /Submit Doodle/i })
@@ -88,7 +77,7 @@ describe('DuelArena & DuelRevealOverlay', () => {
     expect(onComplete).toHaveBeenCalledWith({ drawing: 'data:image/png' })
   })
 
-  it('displays sealed waiting state in bottom zone once you have locked in', () => {
+  it('keeps the challenge surface without showing a partner waiting screen', () => {
     render(
       <DuelArena
         duel={mockDuel}
@@ -100,12 +89,12 @@ describe('DuelArena & DuelRevealOverlay', () => {
       />,
     )
 
-    expect(screen.getByText(/Your Answer is Sealed/i)).toBeDefined()
-    expect(screen.getByText(/Waiting for Elaine to lock in/i)).toBeDefined()
-    expect(screen.queryByTestId('dummy-minigame')).toBeNull()
+    expect(screen.queryByText(/Your Answer is Sealed|Waiting for Elaine/i)).toBeNull()
+    expect(screen.getByTestId('dummy-minigame')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit Doodle' })).toBeDisabled()
   })
 
-  it('shows Locked In badge when partner has submitted their move', () => {
+  it('does not display a repeated partner status strip', () => {
     const sessionPartnerSubmitted = {
       ...mockSession,
       duelResults: {
@@ -123,7 +112,7 @@ describe('DuelArena & DuelRevealOverlay', () => {
       />,
     )
 
-    expect(screen.getByText(/Locked In/i)).toBeDefined()
+    expect(screen.queryByText(/Locked In/i)).toBeNull()
   })
 
   it('renders DuelRevealOverlay with countdown pulses and Co-Op Harmony outcome (Zero Losers)', () => {

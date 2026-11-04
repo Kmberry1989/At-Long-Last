@@ -46,7 +46,7 @@ describe('ActivityCardModal', () => {
     },
   }
 
-  it('renders initial front face with title, prompt, inspiration chips, and disabled flip button', () => {
+  it('renders only the prompt and a compact next action', () => {
     render(
       <ActivityCardModal
         activity={mockActivity}
@@ -58,28 +58,17 @@ describe('ActivityCardModal', () => {
 
     expect(screen.getByText('Comfort Menu')).toBeDefined()
     expect(screen.getByText('What helps you unwind after a long day?')).toBeDefined()
-    expect(screen.getByText('tender reflection')).toBeDefined()
+    expect(screen.queryByText('tender reflection')).toBeNull()
+    expect(screen.queryByText(/Need a spark/i)).toBeNull()
 
-    const flipBtn = screen.getByRole('button', { name: /Next: Guess for Morgan/i })
+    const flipBtn = screen.getByRole('button', { name: 'NEXT' })
     expect(flipBtn.hasAttribute('disabled')).toBe(true)
   })
 
-  it('appends starter phrase on inspiration chip click and triggers audio', () => {
-    render(
-      <ActivityCardModal
-        activity={mockActivity}
-        definition={mockDefinition}
-        playerIndex={0}
-        players={mockPlayers}
-      />,
-    )
-
-    const chip = screen.getByRole('button', { name: /A quiet moment I cherish/i })
-    fireEvent.click(chip)
-
-    expect(audioMocks.playChoiceTap).toHaveBeenCalledTimes(1)
-    const textarea = screen.getByLabelText(/Your Answer/i)
-    expect(textarea.value).toContain('A quiet moment I cherish:')
+  it('does not show suggested answer examples', () => {
+    render(<ActivityCardModal activity={mockActivity} definition={mockDefinition} playerIndex={0} players={mockPlayers} />)
+    expect(screen.queryByRole('button', { name: /quiet moment|hot tea|spontaneous/i })).toBeNull()
+    expect(screen.getByLabelText(/Your Answer/i)).not.toHaveAttribute('placeholder')
   })
 
   it('flips 3D card to Face 2 when flip button is clicked', () => {
@@ -95,7 +84,7 @@ describe('ActivityCardModal', () => {
     const textarea = screen.getByLabelText(/Your Answer/i)
     fireEvent.change(textarea, { target: { value: 'Drinking hot tea by the window.' } })
 
-    const flipBtn = screen.getByRole('button', { name: /Next: Guess for Morgan/i })
+    const flipBtn = screen.getByRole('button', { name: 'NEXT' })
     expect(flipBtn.hasAttribute('disabled')).toBe(false)
 
     fireEvent.click(flipBtn)
@@ -127,7 +116,7 @@ describe('ActivityCardModal', () => {
     fireEvent.change(textarea, { target: { value: 'Hot tea and quiet.' } })
 
     // Flip
-    fireEvent.click(screen.getByRole('button', { name: /Next: Guess for Morgan/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'NEXT' }))
 
     // Enter guess
     const guessTextarea = screen.getByLabelText(/Your guess for Morgan/i)
@@ -246,21 +235,11 @@ describe('ActivityCardModal', () => {
     expect(onToggleMinimize).toHaveBeenCalledTimes(2)
   })
 
-  it('calls onSkip when skip button is clicked', () => {
-    const onSkip = vi.fn()
-    render(
-      <ActivityCardModal
-        activity={mockActivity}
-        definition={mockDefinition}
-        onSkip={onSkip}
-        playerIndex={0}
-        players={mockPlayers}
-      />,
-    )
-
-    const skipBtn = screen.getByRole('button', { name: /Skip This/i })
-    fireEvent.click(skipBtn)
-    expect(audioMocks.playAction).toHaveBeenCalledTimes(1)
-    expect(onSkip).toHaveBeenCalledTimes(1)
+  it('omits skip controls, duplicate portraits, and example answer copy', () => {
+    const { container } = render(<ActivityCardModal activity={mockActivity} definition={mockDefinition} playerIndex={0} players={mockPlayers} />)
+    expect(screen.queryByRole('button', { name: /skip/i })).toBeNull()
+    expect(container.querySelector('.activity-paired-portraits')).toBeNull()
+    expect(screen.queryByText(/Need a spark/i)).toBeNull()
+    expect(container.querySelector('textarea')).not.toHaveAttribute('placeholder')
   })
 })

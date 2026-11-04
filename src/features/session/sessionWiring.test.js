@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { activityDefinitions, duelDefinitions } from './contentPackData.js'
+import { activityDefinitions, MINI_GAME_FAMILIES, selectableDuelDefinitions } from './contentPackData.js'
 import {
   averageVibeVotes,
   buildBoardRewardPatch,
@@ -89,10 +89,22 @@ describe('sessionWiring', () => {
         activityDefinitions.find((entry) => entry.id === activityId)?.vibe,
       ).toBe(vibe)
       expect(
-        duelDefinitions.find((entry) => entry.id === duelId)?.vibe,
+        selectableDuelDefinitions.find((entry) => entry.id === duelId)?.vibe,
       ).toBe(vibe)
     },
   )
+
+  it('draws new nights from a compact pool spanning the reviewed play styles', () => {
+    expect(selectableDuelDefinitions).toHaveLength(8)
+    expect(new Set(selectableDuelDefinitions.map((entry) => MINI_GAME_FAMILIES[entry.id]))).toEqual(
+      new Set(['guess-reveal', 'playful-duel', 'creative-calm']),
+    )
+    expect(selectableDuelDefinitions.some((entry) => entry.id === 'heartbeat-hold-tender')).toBe(false)
+    expect(selectableDuelDefinitions.some((entry) => entry.id === 'wavelength-slider')).toBe(false)
+    expect(selectableDuelDefinitions.some((entry) => entry.id === 'reaction-heart')).toBe(false)
+    expect(selectableDuelDefinitions.some((entry) => entry.id === 'gratitude-duel')).toBe(true)
+    expect(selectableDuelDefinitions.some((entry) => entry.id === 'portrait-panic-directed')).toBe(true)
+  })
 
   it('updates board rewards by vibe', () => {
     const initial = createDefaultBoardState()

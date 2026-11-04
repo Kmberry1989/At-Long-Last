@@ -8,6 +8,10 @@ import {
   wavelengthVerdict,
 } from './wavelengthDuelData.js'
 import { TROPHIES } from '../couple/progressService.js'
+import { compareStarMapRankings, decodeStarMapRanking } from './starMapData.js'
+import { getLetterpressPrompt, getLetterpressWords, weaveLetterpressWords } from './letterpressData.js'
+import { getGratitudePrompt } from './gratitudeData.js'
+import { PORTRAIT_GUIDE_CUES } from './portraitPanic.js'
 
 export function getScrapbookMomentCount(entries = []) {
   return entries.filter((entry) => entry?.type !== 'finale').length
@@ -155,13 +159,37 @@ export function buildDuelJournalEntry({
         wavelengthPrompts,
       )
     : null
+  const isStarMap = duel.id === 'constellation-home'
+  const starMapRankings = isStarMap
+    ? players.map((player) => decodeStarMapRanking(duelResults?.[player.uid]?.excerpt))
+    : []
+  const starMapMatches = isStarMap
+    ? compareStarMapRankings(starMapRankings[0] || [], starMapRankings[1] || [])
+    : null
+  const isLetterpress = duel.id === 'letterpress-one-word'
+  const letterpressSentence = isLetterpress
+    ? weaveLetterpressWords(
+        getLetterpressWords(duelResults?.[players[0]?.uid]?.excerpt),
+        getLetterpressWords(duelResults?.[players[1]?.uid]?.excerpt),
+      )
+    : ''
+  const isGratitude = duel.id === 'gratitude-duel'
+  const gratitudePrompt = isGratitude
+    ? getGratitudePrompt(duel.prompts, session?.id || '', session?.round || 1)
+    : ''
 
   let summary
   let awardedHeartBonus = heartBonus
   if (outcome.status === 'shared') {
     summary = wavelength
-      ? `Wavelength Duel: ${wavelength.matches}/${wavelength.total} on the same wavelength — ${wavelengthVerdict(wavelength.matches).toLowerCase()} You banked ${heartBonus} shared hearts.`
-      : `You both landed ${duel.label} and banked ${heartBonus} shared hearts.`
+      ? `Wavelength: ${wavelength.matches}/${wavelength.total} on the same wavelength — ${wavelengthVerdict(wavelength.matches).toLowerCase()} You banked ${heartBonus} shared hearts.`
+      : isStarMap
+        ? `You ranked ${starMapMatches}/5 values in the same order and banked ${heartBonus} shared hearts.`
+        : isLetterpress
+          ? `You wove a sentence together and banked ${heartBonus} shared hearts.`
+          : isGratitude
+            ? `You shared an appreciation and banked ${heartBonus} shared hearts.`
+        : `You both landed ${duel.label} and banked ${heartBonus} shared hearts.`
   } else if (outcome.status === 'noContest') {
     summary = `You both passed ${duel.label}. No hearts were added, but the choice was saved.`
     awardedHeartBonus = 0
@@ -189,6 +217,34 @@ export function buildDuelJournalEntry({
         }),
       ].join('\n')
     : null
+  const starMapText = isStarMap && starMapRankings.length === 2 && starMapRankings.every((ranking) => ranking.length === 5)
+    ? [
+        `${players[0]?.displayName ?? 'Player 1'} and ${players[1]?.displayName ?? 'Player 2'} ranked these values:`,
+        ...Array.from({ length: 5 }, (_, index) => {
+          const first = starMapRankings[0][index].label
+          const second = starMapRankings[1][index].label
+          return `${index + 1}. ${first}${first === second ? ' · same' : ` · ${second}`}`
+        }),
+      ].join('\n')
+    : null
+  const letterpressText = isLetterpress && letterpressSentence
+    ? `${getLetterpressPrompt(session?.id || '', session?.round || 1)}\n\n${letterpressSentence}`
+    : null
+  const gratitudeText = isGratitude
+    ? [
+        gratitudePrompt,
+        ...players.map((player) => `${player.displayName ?? 'Player'}: ${duelResults?.[player.uid]?.excerpt || ''}`),
+      ].join('\n\n')
+    : null
+  const isPortraitPanic = duel.id === 'portrait-panic-directed'
+  const portraitPanicText = isPortraitPanic
+    ? players.map((player) => {
+        const labels = (duelResults?.[player.uid]?.guidedBy || [])
+          .map((id) => PORTRAIT_GUIDE_CUES.find((cue) => cue.id === id)?.label)
+          .filter(Boolean)
+        return `${player.displayName ?? 'Player'} drew from: ${labels.join(', ') || 'partner cues'}`
+      }).join('\n')
+    : null
 
   return {
     coupleId,
@@ -207,10 +263,13 @@ export function buildDuelJournalEntry({
           }
         : {}),
       ...(wavelength ? { wavelength: { matches: wavelength.matches, total: wavelength.total } } : {}),
+      ...(starMapMatches !== null ? { starMap: { sameRankCount: starMapMatches, total: 5 } } : {}),
+      ...(isLetterpress && letterpressSentence ? { letterpress: { sentence: letterpressSentence } } : {}),
+      ...(isGratitude ? { gratitude: { prompt: gratitudePrompt } } : {}),
     },
     sessionId,
     summary,
-    text: wavelengthText || highlights || summary,
+    text: wavelengthText || starMapText || letterpressText || gratitudeText || portraitPanicText || highlights || summary,
     title: duel.label,
     type: 'duel',
     vibe: duel.vibe,

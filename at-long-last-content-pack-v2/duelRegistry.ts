@@ -17,6 +17,7 @@ export interface Duel {
   players: 2;
   mechanics: string;
   howToPlay: string[];
+  prompts?: string[];
   firebaseEvents: string[]; // what to sync
   boardReward: string;
   assetsNeeded: string[];
@@ -29,20 +30,19 @@ export const DUELS: Duel[] = [
     id: 'constellation-home',
     vibe: 'tender',
     intensity: 1,
-    name: 'Constellation',
-    tagline: 'Where is home?',
-    durationSec: 60,
+    name: 'Star Map',
+    tagline: 'Rank what matters most',
+    durationSec: 45,
     players: 2,
-    mechanics: 'Both place 5 dots where home feels. Overlap creates a star.',
+    mechanics: 'Each player privately ranks five sentimental values, then both rankings compare in the night reveal.',
     howToPlay: [
-      'Blank sky appears',
-      'Each taps 5 places that feel like home',
-      'Reveal together, overlapping dots become bright stars',
-      'Star stays on your board as permanent tile'
+      'Choose five meaningful values in importance order',
+      'Submit privately while your partner plays independently',
+      'Compare both rankings in tonight’s reveal'
     ],
-    firebaseEvents: ['duel:dotPlaced', 'duel:reveal'],
-    boardReward: 'New permanent star tile on board',
-    assetsNeeded: ['canvas', 'particle:star'],
+    firebaseEvents: ['duel:rankingSubmitted', 'duel:reveal'],
+    boardReward: 'Shared hearts for completing the comparison',
+    assetsNeeded: ['ranked value cards'],
     skippable: true
   },
   {
@@ -70,19 +70,18 @@ export const DUELS: Duel[] = [
     vibe: 'tender',
     intensity: 2,
     name: 'Letterpress',
-    tagline: 'One word at a time',
-    durationSec: 90,
+    tagline: 'Weave a sentence together',
+    durationSec: 45,
     players: 2,
-    mechanics: 'Co-type one sentence alternating words. Cant see next word coming.',
+    mechanics: 'Each player privately adds four words to the same starter; the reveal weaves their words together in alternating order.',
     howToPlay: [
-      'Prompt: "What I love about us is..."',
-      'Player A types word 1, Player B word 2, etc',
-      'No deleting',
-      'Read final sentence aloud'
+      'Read a shared sentence starter',
+      'Add four words on your own',
+      'Read your woven sentence in tonight’s reveal'
     ],
-    firebaseEvents: ['duel:wordAdded', 'duel:sentenceComplete'],
-    boardReward: 'Saves to journalEntries',
-    assetsNeeded: ['text input', 'typewriter effect'],
+    firebaseEvents: ['duel:wordsSubmitted', 'duel:sentenceReveal'],
+    boardReward: 'Shared hearts and a sentence in the scrapbook',
+    assetsNeeded: ['four-word input', 'woven sentence reveal'],
     skippable: true
   },
   {
@@ -110,19 +109,44 @@ export const DUELS: Duel[] = [
     vibe: 'tender',
     intensity: 1,
     name: 'Gratitude Duel',
-    tagline: 'Thank you war',
-    durationSec: 60,
+    tagline: 'A small thing I appreciate',
+    durationSec: 45,
     players: 2,
-    mechanics: 'Rapid fire thank yous, cannot repeat.',
+    mechanics: 'Both privately answer one shared appreciation prompt; both responses open in the night reveal.',
     howToPlay: [
-      '30 seconds each, alternating',
-      'Thank your partner for something specific',
-      'No repeats, no "thanks for being you" generic',
-      'Most specific list wins but both save to journal'
+      'Read one shared appreciation prompt',
+      'Write a small, specific response',
+      'Read both responses in tonight’s reveal'
+    ],
+    prompts: [
+      'A little thing you did that made today easier',
+      'A way you make home feel warmer',
+      'A time you made me laugh when I needed it',
+      'Something thoughtful you do without being asked',
+      'A quality I admire in you',
+      'A way you show up when life gets busy',
+      'A small ritual I look forward to with you',
+      'A memory of us that still makes me smile',
+      'A way you make ordinary plans feel special',
+      'Something you helped me learn about myself',
+      'A moment you made me feel understood',
+      'A way you care for the people around you',
+      'A little comfort you bring to a hard day',
+      'Something about your humor I love',
+      'A brave thing I have watched you do',
+      'A detail you remember that means a lot to me',
+      'A way we make a good team',
+      'Something I appreciate about how you listen',
+      'A kindness you showed me recently',
+      'Something about our life together I feel lucky to have',
+      'A way you make me feel welcome',
+      'A strength you bring to our relationship',
+      'A small adventure I loved sharing with you',
+      'Something you do that feels unmistakably like you',
     ],
     firebaseEvents: ['duel:thanksAdded'],
-    boardReward: 'Both get 1 gratitude leaf on home tile',
-    assetsNeeded: ['timer', 'list UI'],
+    boardReward: 'Shared hearts and both notes in the scrapbook',
+    assetsNeeded: ['shared prompt card', 'private response field'],
     skippable: true
   },
 
@@ -131,7 +155,7 @@ export const DUELS: Duel[] = [
     id: 'doodle-duel-memory',
     vibe: 'playful',
     intensity: 1,
-    name: 'Doodle Duel',
+    name: 'Keepsake Sketch',
     tagline: 'Draw it bad',
     durationSec: 60,
     players: 2,
@@ -155,23 +179,22 @@ export const DUELS: Duel[] = [
     tagline: 'You draw, I direct',
     durationSec: 60,
     players: 2,
-    mechanics: 'One draws partner but brush is controlled by partner voice directions.',
+    mechanics: 'Each player privately sends three simple direction cues, then draws their partner using the cues received.',
     howToPlay: [
-      'Player A draws Player B',
-      'Player B can only say "left, right, bigger, smaller"',
-      '30 sec then swap',
-      'Compare masterpieces'
+      'Choose three drawing cues for your partner',
+      'Draw from the three cues your partner sends',
+      'Compare both portraits in tonight’s reveal'
     ],
-    firebaseEvents: ['duel:stroke', 'duel:voiceState'],
+    firebaseEvents: ['duel:guidanceSubmitted', 'duel:drawingComplete'],
     boardReward: 'Both portraits become board decorations',
-    assetsNeeded: ['shared canvas', 'voice'],
+    assetsNeeded: ['direction cue cards', 'drawing canvas'],
     skippable: true
   },
   {
     id: 'wavelength-slider',
     vibe: 'playful',
     intensity: 1,
-    name: 'Wavelength',
+    name: 'Wavelength Slider (Archived)',
     tagline: 'How well do you know my brain?',
     durationSec: 60,
     players: 2,
@@ -211,16 +234,13 @@ export const DUELS: Duel[] = [
     id: 'reaction-heart',
     vibe: 'playful',
     intensity: 1,
-    name: 'Reaction Heart',
-    tagline: 'Fastest love wins',
+    name: 'Heartflash',
+    tagline: 'One flash. One quick tap.',
     durationSec: 30,
     players: 2,
-    mechanics: 'Heart appears random, tap first.',
+    mechanics: 'A heart or spark flashes after a short wait. Tap the matching symbol as quickly as you can.',
     howToPlay: [
-      'Wait for it...',
-      'Heart pops random time 2-8 sec',
-      'First tap wins round, best of 3',
-      'Loser sends voice compliment'
+      'Wait for the flash, then tap the matching symbol.',
     ],
     firebaseEvents: ['duel:heartSpawn', 'duel:tap'],
     boardReward: 'Winner moves 2',
@@ -277,16 +297,14 @@ export const DUELS: Duel[] = [
     tagline: 'Say it like you mean it',
     durationSec: 45,
     players: 2,
-    mechanics: 'Loser of last duel sends 7 sec voice note with prompt.',
+    mechanics: 'Legacy voice-note idea folded into the Kiss Courier recording prompt.',
     howToPlay: [
-      'Prompt: "Say one thing you love about me like movie trailer"',
-      'Record 7 sec',
-      'Other has to guess if you smiled while recording',
-      'Both save'
+      'This standalone game is archived',
+      'Its movie-trailer voice prompt now accompanies the Kiss Courier note'
     ],
-    firebaseEvents: ['duel:audioRecorded', 'duel:guess'],
-    boardReward: 'Audio saved to tile',
-    assetsNeeded: ['audio recorder', 'playback'],
+    firebaseEvents: ['kiss:voicePrompt'],
+    boardReward: 'Voice note stays with the sent kiss',
+    assetsNeeded: ['device microphone recording'],
     skippable: true
   },
   {
@@ -297,7 +315,7 @@ export const DUELS: Duel[] = [
     tagline: 'How close do you feel?',
     durationSec: 30,
     players: 2,
-    mechanics: 'Both privately rate closeness 1-10, closeness bonus.',
+    mechanics: 'Legacy standalone check-in; its closeness prompt is now part of Wavelength.',
     howToPlay: [
       'How close do you feel to me right now 1-10?',
       'Both answer privately',
@@ -317,12 +335,10 @@ export const DUELS: Duel[] = [
     tagline: 'Draw me like you see me',
     durationSec: 75,
     players: 2,
-    mechanics: '60 sec to draw partner from memory focusing on favorite detail.',
+    mechanics: 'Legacy portrait prompt mode merged into Keepsake Sketch.',
     howToPlay: [
-      'Prompt: "Draw the detail you love most"',
-      '60 sec slow draw, thin brush',
-      'Reveal and explain why that detail',
-      'Both drawings become paired art on board'
+      'This standalone game is archived',
+      'Partner portrait prompts now appear in Keepsake Sketch'
     ],
     firebaseEvents: ['duel:slowStroke', 'duel:complete'],
     boardReward: 'Art becomes permanent frame on home tile',

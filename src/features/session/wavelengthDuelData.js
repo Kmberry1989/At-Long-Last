@@ -1,5 +1,5 @@
 /**
- * Wavelength Duel — the Happy-Couple-format simultaneous prediction duel
+ * Wavelength — the Happy-Couple-format simultaneous prediction game
  * (research clone #2). Both partners answer for themselves AND guess their
  * partner's answer on the same prompt set. Matches earn shared hearts; the
  * per-prompt scorecard becomes the scrapbook artifact.
@@ -9,6 +9,7 @@
  */
 
 import { NIGHT_CHOICE_QUESTIONS } from './nightQuestionBank.js'
+import { WAVELENGTH_EXTRA_PROMPTS, WAVELENGTH_SCALE_PROMPTS } from './wavelengthExtraPrompts.js'
 
 export const WAVELENGTH_DUEL_ID = 'wavelength-duel'
 export const WAVELENGTH_PROMPT_COUNT = 5
@@ -170,23 +171,25 @@ export const WAVELENGTH_PROMPTS = [
     text: 'The right way to celebrate a small win…',
   },
   ...NIGHT_CHOICE_QUESTIONS,
+  ...WAVELENGTH_EXTRA_PROMPTS,
+  ...WAVELENGTH_SCALE_PROMPTS,
 ]
 
 export const WAVELENGTH_DUEL_DEFINITION = {
   durationSec: 180,
   howToPlay: [
-    'Five quick prompts. Answer honestly for yourself, then guess what your partner will answer. Every match earns a shared heart — up to 10.',
+    'Five prompts mix choices and 1–10 scales. Answer for yourself, then guess your partner. Close scale guesses count.',
   ],
   id: WAVELENGTH_DUEL_ID,
   intensity: 1,
-  name: 'Wavelength Duel',
+  name: 'Wavelength',
   skippable: true,
   tagline: 'Answer for you, guess for them. How in sync are you, really?',
   vibe: 'playful',
 }
 
 function isOptionId(value) {
-  return value === 'a' || value === 'b' || value === 'c' || value === 'd'
+  return typeof value === 'string' && /^[a-j]$/.test(value)
 }
 
 export function encodeWavelengthSubmission(answers = [], guesses = []) {
@@ -200,7 +203,7 @@ export function decodeWavelengthSubmission(excerpt) {
     return null
   }
 
-  const match = /^a=([a-d]{5});g=([a-d]{5})$/.exec(excerpt)
+  const match = /^a=([a-j]{5});g=([a-j]{5})$/.exec(excerpt)
   if (!match) {
     return null
   }
@@ -249,13 +252,25 @@ function mulberry32(seed) {
 
 export function pickWavelengthPrompts(seed, count = WAVELENGTH_PROMPT_COUNT) {
   const random = mulberry32(hashSeedString(String(seed ?? 'wavelength')))
-  const pool = [...WAVELENGTH_PROMPTS]
+  const scalePool = WAVELENGTH_PROMPTS.filter((prompt) => prompt.scale)
+  const pool = WAVELENGTH_PROMPTS.filter((prompt) => !prompt.scale)
   const picked = []
   const target = Math.min(count, pool.length)
+
+  if (target > 0 && scalePool.length) {
+    picked.push(scalePool.splice(Math.floor(random() * scalePool.length), 1)[0])
+  }
 
   while (picked.length < target && pool.length > 0) {
     const index = Math.floor(random() * pool.length)
     picked.push(pool.splice(index, 1)[0])
+  }
+
+  for (let index = picked.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1))
+    const current = picked[index]
+    picked[index] = picked[swapIndex]
+    picked[swapIndex] = current
   }
 
   return picked
@@ -282,8 +297,11 @@ export function scoreWavelengthDuel(resultOne, resultTwo, prompts) {
     const oneGuess = one?.guesses[index] ?? null
     const twoAnswer = two?.answers[index] ?? null
     const twoGuess = two?.guesses[index] ?? null
-    const oneHit = oneGuess != null && twoAnswer != null && oneGuess === twoAnswer
-    const twoHit = twoGuess != null && oneAnswer != null && twoGuess === oneAnswer
+    const matches = (guess, answer) => prompt.scale
+      ? guess != null && answer != null && Math.abs(guess.charCodeAt(0) - answer.charCodeAt(0)) <= 1
+      : guess != null && answer != null && guess === answer
+    const oneHit = matches(oneGuess, twoAnswer)
+    const twoHit = matches(twoGuess, oneAnswer)
 
     return {
       oneAnswer,

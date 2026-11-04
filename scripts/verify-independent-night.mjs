@@ -136,7 +136,7 @@ async function sealReflection(page, text, guess) {
 }
 async function finishLanding(page, index) {
   if (await page.locator('.moment-card').count()) {
-    await page.getByRole('button', { name: 'Resolve moment' }).click()
+    await page.getByRole('button', { name: 'Move piece' }).click()
     await page.locator('.moment-card').waitFor({ state: 'detached' })
   }
   let state = await gameState(page)
@@ -167,15 +167,19 @@ console.log('first landing', await gameState(pages[0]))
 await pages[0].screenshot({ path: `${out}/first-card.png`, fullPage: true })
 if (process.env.QA_MOVEMENT_SMOKE === '1') {
   await rollDice(pages[1], [2,2], true)
-  await Promise.all(pages.map((page, index) => finishLanding(page, index)))
+  // Both players already rolled while the other player's landing was open.
+  // Resolve the follow-up cards sequentially so the smoke measures the
+  // independent turn flow without making two transactions compete to update
+  // the shared session summary at the same instant.
+  for (const [index, page] of pages.entries()) await finishLanding(page, index)
   const movementStates = await Promise.all(pages.map(gameState))
   const landedPositions = await Promise.all(pages.map(async page => {
     const state = await gameState(page)
     const board = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
     return board.players[state.playerIndex].positionIndex
   }))
-  if (movementStates.some(state => state.ownRolls !== 1) || landedPositions.some(position => position !== 3)) {
-    throw new Error(`Both players should complete every tile landing independently: ${JSON.stringify({ movementStates, landedPositions })}`)
+  if (movementStates.some(state => state.ownRolls !== 1) || landedPositions[0] !== 3 || landedPositions[1] !== 2) {
+    throw new Error(`Both players should complete their dice-scaled moment moves independently: ${JSON.stringify({ movementStates, landedPositions })}`)
   }
   await Promise.all(pages.map((page, index) => page.screenshot({ path: `${out}/movement-player-${index + 1}.png`, fullPage: true })))
   await pages[0].screenshot({ path: `${out}/board-scaled-spaces-and-piles.png`, fullPage: true })

@@ -16,6 +16,8 @@ import {
   summarizeScrapbookRecord,
 } from './journalHelpers.js'
 import { encodeWavelengthSubmission, getWavelengthPromptsForSession } from './wavelengthDuelData.js'
+import { duelRegistry } from './duelRegistry.jsx'
+import { getGratitudePrompt } from './gratitudeData.js'
 
 describe('journalHelpers', () => {
   it('does not count the hidden finale metadata page as a scrapbook moment', () => {
@@ -88,7 +90,7 @@ describe('journalHelpers', () => {
       coupleId: 'couple-1',
       duel: {
         id: 'doodle-duel-memory',
-        label: 'Doodle Duel',
+        label: 'Keepsake Sketch',
         vibe: 'playful',
       },
       duelResults: {
@@ -134,7 +136,7 @@ describe('journalHelpers', () => {
       coupleId: 'couple-1',
       duel: {
         id: 'wavelength-duel',
-        label: 'Wavelength Duel',
+        label: 'Wavelength',
         vibe: 'playful',
       },
       duelResults: {
@@ -164,6 +166,77 @@ describe('journalHelpers', () => {
     expect(entry?.text).toContain(expectedPrompts[0].options[0].label)
     expect(entry?.payload.wavelength).toEqual({ matches: 10, total: 10 })
     expect(entry?.type).toBe('duel')
+  })
+
+  it('compares the two private Star Map rankings in the night reveal', () => {
+    const entry = buildDuelJournalEntry({
+      coupleId: 'couple-1',
+      duel: { id: 'constellation-home', label: 'Star Map', vibe: 'tender' },
+      duelResults: {
+        u1: { excerpt: 'thlbp', highlight: 'ranked five meaningful values' },
+        u2: { excerpt: 'tahlp', highlight: 'ranked five meaningful values' },
+      },
+      heartBonus: 3,
+      outcome: { status: 'shared' },
+      players: [
+        { uid: 'u1', displayName: 'Kyle' },
+        { uid: 'u2', displayName: 'Elaine' },
+      ],
+      sessionId: 'session-1',
+    })
+
+    expect(entry?.summary).toContain('2/5')
+    expect(entry?.text).toContain('1. Trust · same')
+    expect(entry?.text).toContain('2. Home · Adventure')
+    expect(entry?.payload.starMap).toEqual({ sameRankCount: 2, total: 5 })
+  })
+
+  it('weaves both Letterpress submissions into a sentence in the night reveal', () => {
+    const entry = buildDuelJournalEntry({
+      coupleId: 'couple-1',
+      duel: { id: 'letterpress-one-word', label: 'Letterpress', vibe: 'tender' },
+      duelResults: {
+        u1: { excerpt: 'we make tiny magic', highlight: 'added four words to the shared sentence' },
+        u2: { excerpt: 'laugh often together tonight', highlight: 'added four words to the shared sentence' },
+      },
+      heartBonus: 3,
+      outcome: { status: 'shared' },
+      players: [
+        { uid: 'u1', displayName: 'Kyle' },
+        { uid: 'u2', displayName: 'Elaine' },
+      ],
+      session: { id: 'night-one', round: 1 },
+      sessionId: 'night-one',
+    })
+
+    expect(entry?.text).toContain('we laugh make often tiny together magic tonight')
+    expect(entry?.payload.letterpress.sentence).toBe('we laugh make often tiny together magic tonight')
+    expect(entry?.payload.results.u2.excerpt).toBe('laugh often together tonight')
+  })
+
+  it('reveals both private Gratitude Duel responses beside the shared prompt', () => {
+    const duel = duelRegistry['gratitude-duel']
+    const session = { id: 'night-one', round: 1 }
+    const entry = buildDuelJournalEntry({
+      coupleId: 'couple-1',
+      duel,
+      duelResults: {
+        u1: { excerpt: 'You noticed I was tired.', highlight: 'saved an appreciation' },
+        u2: { excerpt: 'You made me laugh.', highlight: 'saved an appreciation' },
+      },
+      heartBonus: 3,
+      outcome: { status: 'shared' },
+      players: [
+        { uid: 'u1', displayName: 'Kyle' },
+        { uid: 'u2', displayName: 'Elaine' },
+      ],
+      session,
+      sessionId: 'night-one',
+    })
+
+    expect(entry?.text).toContain('Kyle: You noticed I was tired.')
+    expect(entry?.text).toContain('Elaine: You made me laugh.')
+    expect(entry?.payload.gratitude.prompt).toBe(getGratitudePrompt(duel.prompts, 'night-one', 1))
   })
 
   it('records an ordinary passed activity', () => {
@@ -385,6 +458,30 @@ describe('progression journal entries', () => {
       ).toBe(true)
     }
     expect(used.text).toContain('no guilt')
+  })
+})
+
+describe('Portrait Panic journal reveal', () => {
+  it('preserves each partner drawing and the cues that guided it', () => {
+    const players = [{ uid: 'a', displayName: 'A' }, { uid: 'b', displayName: 'B' }]
+    const entry = buildDuelJournalEntry({
+      coupleId: 'c1',
+      sessionId: 's1',
+      duel: { id: 'portrait-panic-directed', label: 'Portrait Panic', vibe: 'playful' },
+      duelResults: {
+        a: { dataUrl: 'data:image/png;base64,AAAA', highlight: 'portrait', guidedBy: ['right', 'simple', 'closer'] },
+        b: { dataUrl: 'data:image/png;base64,BBBB', highlight: 'portrait', guidedBy: ['left', 'larger', 'smile'] },
+      },
+      heartBonus: 2,
+      outcome: { status: 'shared' },
+      players,
+      session: {},
+    })
+
+    expect(entry.payload.results.a.guidedBy).toEqual(['right', 'simple', 'closer'])
+    expect(entry.text).toContain('A drew from: Face right, Keep it simple, Move closer')
+    expect(entry.text).toContain('B drew from: Face left, Draw larger, Add a smile')
+    expect(entry.payload.results.b.dataUrl).toBe('data:image/png;base64,BBBB')
   })
 })
 

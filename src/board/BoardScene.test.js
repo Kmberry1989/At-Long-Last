@@ -5,14 +5,18 @@ import {
   BOARD_IDLE_ORBIT_SPEED,
   BOARD_PATH_RADIUS,
   BOARD_CARD_PILE_RADIUS,
+  BOARD_CARD_PILE_DOT_COUNT,
+  BOARD_CARD_PILE_DOT_SIZE,
   BOARD_CARD_PILE_POSITIONS,
   BOARD_CARD_PILE_LABEL_Y,
   BOARD_SKIN_SURFACE_Y,
+  createPrimitiveDie,
   DICE_HOME_BASE_HEIGHT,
   DICE_HOME_BASE_FLOOR_THICKNESS,
   DICE_HOME_BASE_INNER_RADIUS,
   DICE_HOME_BASE_RADIUS,
   DICE_HOME_BASE_FLOAT_HEIGHT,
+  DICE_ROLL_DURATION_SECONDS,
   calculateStepPath,
   createPieceMovePlan,
   getBoardSpaceMotion,
@@ -41,6 +45,10 @@ describe('board inset proportions', () => {
 })
 
 describe('board card pile markers', () => {
+  it('uses a bold, minimal pile label and a strong dotted outline', () => {
+    expect(BOARD_CARD_PILE_DOT_COUNT).toBeGreaterThanOrEqual(64)
+    expect(BOARD_CARD_PILE_DOT_SIZE).toBeGreaterThanOrEqual(0.18)
+  })
   it('keeps dotted draw and discard zones within the circular inset and clear of the dice base', () => {
     const centers = Object.values(BOARD_CARD_PILE_POSITIONS)
     expect(centers).toHaveLength(2)
@@ -60,6 +68,9 @@ describe('board card pile markers', () => {
 })
 
 describe('dice home base proportions', () => {
+  it('shows an extended tumble before resting on the final face', () => {
+    expect(DICE_ROLL_DURATION_SECONDS).toBeGreaterThanOrEqual(2)
+  })
   it('keeps an open circular box with room inside for both dice', () => {
     expect(DICE_HOME_BASE_RADIUS).toBeGreaterThan(DICE_HOME_BASE_INNER_RADIUS)
     expect(DICE_HOME_BASE_HEIGHT).toBeGreaterThan(0)
@@ -76,6 +87,20 @@ describe('dice home base proportions', () => {
     expect(motion.shadowOpacity).toBeGreaterThan(0)
     expect(motion.shadowScale).toBeGreaterThan(0)
     expect(still.lift).toBe(DICE_HOME_BASE_FLOAT_HEIGHT)
+  })
+})
+
+describe('readable dice faces', () => {
+  it('marks every side and settles the rolled face upward', () => {
+    const sideNormals = { 1: [0, 1, 0], 2: [1, 0, 0], 3: [0, 0, 1], 4: [0, 0, -1], 5: [-1, 0, 0], 6: [0, -1, 0] }
+    for (let value = 1; value <= 6; value += 1) {
+      const pair = createPrimitiveDie([value, 1])
+      const die = pair.userData.die1
+      expect(Object.values(die.userData.pipGroups).every(group => group.visible)).toBe(true)
+      expect(Object.values(die.userData.pipGroups).reduce((total, group) => total + group.children.length, 0)).toBe(21)
+      const top = new THREE.Vector3(...sideNormals[value]).applyQuaternion(die.quaternion)
+      expect(top.y).toBeCloseTo(1)
+    }
   })
 })
 

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { inkWidth } from './drawingInk.js'
+import { getDoodlePrompt, DOODLE_PROMPTS, SLOW_DRAW_PROMPTS, inkWidth } from './drawingInk.js'
 
 describe('touch ink', () => {
+  it('offers a broad prompt bank that stays in sync by session, game, and round', () => {
+    expect(DOODLE_PROMPTS.length).toBeGreaterThanOrEqual(50)
+    expect(SLOW_DRAW_PROMPTS.length).toBeGreaterThanOrEqual(15)
+    expect(new Set(DOODLE_PROMPTS).size).toBe(DOODLE_PROMPTS.length)
+    expect(getDoodlePrompt('doodle-duel-memory', 2, 'night-1')).toBe(getDoodlePrompt('doodle-duel-memory', 2, 'night-1'))
+    expect(getDoodlePrompt('doodle-duel-memory', 2, 'night-1')).not.toBe(getDoodlePrompt('doodle-duel-memory', 2, 'night-2'))
+    expect(getDoodlePrompt('doodle-duel-memory', 2, 'night-1')).not.toBe(getDoodlePrompt('doodle-duel-memory', 3, 'night-1'))
+  })
   it('uses real stylus pressure for thicker ink', () => {
     expect(inkWidth({ pointerType: 'pen', pressure: .9 })).toBeGreaterThan(inkWidth({ pointerType: 'pen', pressure: .1 }))
   })

@@ -1,3 +1,7 @@
+.moment-card-draw { position: relative; width: min(100%, 520px); min-height: min(62dvh, 520px); margin: auto; perspective: 1100px; animation: momentCardDraw 620ms cubic-bezier(.2,.75,.25,1) both; }
+.moment-card-back-art { position: absolute; inset: 0; border: 1px solid rgba(244,216,170,.6); border-radius: 28px; background: url('/assets/game-ui/moment-card-back.png') center / cover; box-shadow: 0 24px 80px rgba(0,0,0,.44); animation: momentCardTurn 680ms cubic-bezier(.2,.75,.25,1) both; }
+.moment-card-draw > .moment-card { width: 100%; min-height: 100%; animation: momentCardTurn 520ms cubic-bezier(.2,.75,.25,1) both; }
+.moment-card-draw:not(.is-revealed) > .moment-card { visibility: hidden; }
 .moment-card {
   position: relative;
   width: min(100%, 520px);
@@ -30,5 +34,11 @@
 .moment-card-overlay > .night-seal-note { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 .moment-card-overlay > .night-back { top: max(8px, calc(env(safe-area-inset-top) + 8px)); }
 .moment-card-overlay > .night-seal-note { top: max(48px, calc(env(safe-area-inset-top) + 48px)); }
-.moment-card-overlay > .moment-card { width: min(100%, 520px); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 36px); margin: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.moment-card-overlay > .moment-card-draw { width: min(100%, 520px); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 36px); min-height: min(62dvh, 520px); margin: 0; overflow: hidden; }
+.moment-card-draw > .moment-card { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+@keyframes momentCardDraw { from { opacity: 0; transform: translateY(24px) scale(.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes momentCardTurn { from { transform: rotateY(0) scale(.96); } to { transform: rotateY(90deg) scale(1); } }
+.moment-card-draw.is-revealed > .moment-card { animation: momentCardReveal 540ms cubic-bezier(.2,.75,.25,1) both; }
+@keyframes momentCardReveal { from { opacity: 0; transform: rotateY(-90deg) scale(.96); } to { opacity: 1; transform: rotateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .moment-card-draw, .moment-card-back-art, .moment-card-draw.is-revealed > .moment-card { animation: none; } }
 @media (max-height: 720px) { .moment-card { padding: 18px 22px; } .moment-card-mark { width: 42px; height: 42px; margin-bottom: 6px; } .moment-card-mark .brand-icon { width: 24px; height: 24px; } .moment-card-effect { gap: 6px; margin: 10px 0; padding: 10px; } }

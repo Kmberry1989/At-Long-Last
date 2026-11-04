@@ -456,3 +456,50 @@
   height: 1px;
   background: rgba(255, 216, 153, 0.3);
 }
+
+/* Compact, centered play surface; player identities stay in the board corners. */
+.duel-arena-overlay {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px 14px;
+  overflow: auto;
+  background: transparent;
+  animation: none;
+}
+.duel-arena-content { width: min(100%, 580px); margin: auto; }
+.duel-arena-content > .duel-card { width: 100%; margin: 0; }
+.doodle-duel-card { display: grid; gap: 10px; text-align: center; }
+.doodle-duel-card h3 { margin: 0; }
+.portrait-panic-guide { display: grid; gap: 12px; text-align: center; }
+.portrait-panic-guide h3 { margin: 0; }
+.portrait-panic-cues { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.portrait-panic-cues button { min-height: 42px; padding: 8px; border: 1px solid rgba(230,197,139,.4); border-radius: 12px; color: inherit; background: rgba(255,255,255,.06); }
+.portrait-panic-cues button.is-selected { border-color: #f0d39f; background: rgba(240,211,159,.2); }
+.portrait-panic-cues button:disabled:not(.is-selected) { opacity: .45; }
+.doodle-prompt { margin: 0; font-family: var(--font-display, Georgia, serif); font-size: clamp(1.2rem, 4vw, 1.7rem); line-height: 1.15; }
+.doodle-stage { position: relative; min-height: clamp(220px, 35dvh, 340px); }
+.doodle-duel-card .doodle-canvas { width: 100%; height: 100%; min-height: inherit; }
+.doodle-duel-card .button-row { justify-content: center; }
+.constellation-duel-card { display: grid; gap: 10px; text-align: center; }
+.constellation-duel-card > .support-copy { margin: 0; }
+.letterpress-duel-card { display: grid; gap: 10px; text-align: center; }
+.letterpress-duel-card h3, .letterpress-prompt { margin: 0; }
+.letterpress-prompt { min-height: 2.4em; display: grid; place-items: center; font-family: var(--font-display, Georgia, serif); font-size: clamp(1.15rem, 4vw, 1.5rem); }
+.letterpress-count { color: var(--muted-text, #7e6c64); font-variant-numeric: tabular-nums; }
+.star-map-ranking { display: grid; gap: 5px; min-height: 0; margin: 0; padding: 0; list-style: none; }
+.star-map-ranking li { display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 3px 7px; border: 1px solid rgba(230,197,139,.34); border-radius: 10px; text-align: left; }
+.star-map-ranking li > span { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 50%; color: #21172b; background: #f0d39f; font-weight: 800; }
+.star-map-ranking li > button { width: 30px; height: 30px; margin-left: auto; border: 0; border-radius: 8px; color: inherit; background: rgba(255,255,255,.08); }
+.star-map-ranking li > button + button { margin-left: 0; }
+.star-map-ranking li > button:disabled { opacity: .35; }
+.star-map-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.star-map-values button { display: flex; min-height: 40px; align-items: center; justify-content: center; gap: 5px; padding: 5px; border: 1px solid rgba(230,197,139,.38); border-radius: 11px; color: inherit; background: rgba(255,255,255,.06); }
+.star-map-values button.is-ranked { border-color: #f0d39f; background: rgba(240,211,159,.17); }
+.star-map-values button:disabled:not(.is-ranked) { opacity: .42; }
+.star-map-values button span { display: grid; width: 19px; height: 19px; place-items: center; border-radius: 50%; color: #21172b; background: #f0d39f; font-size: .75em; font-weight: 800; }

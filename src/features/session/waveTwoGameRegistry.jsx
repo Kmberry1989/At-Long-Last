@@ -27,22 +27,10 @@ function useActivityUiState(state) {
   }, [state])
 }
 
-function ActivityHeader({ definition, disabled, eyebrow, onSkip }) {
+function ActivityHeader({ definition, eyebrow }) {
   return (
     <>
-      <div className="overlay-head">
-        <p className="eyebrow">{eyebrow}</p>
-        {definition.skippable && (
-          <button
-            className="secondary-link"
-            disabled={disabled}
-            onClick={onSkip}
-            type="button"
-          >
-            Skip This
-          </button>
-        )}
-      </div>
+      <div className="overlay-head"><p className="eyebrow">{eyebrow}</p></div>
       <h3>{definition.label}</h3>
       <p className="support-copy">{definition.description}</p>
     </>
@@ -63,7 +51,6 @@ function VibeCheckCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -91,7 +78,7 @@ function VibeCheckCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Slider Sync"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>Place your marker</span>
@@ -189,7 +176,6 @@ function TempoTapCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -240,7 +226,7 @@ function TempoTapCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Heartbeat Rush"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>{state.roundLabel}</span>
@@ -318,7 +304,6 @@ function WordWeaverCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -394,7 +379,7 @@ function WordWeaverCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Letterpress Duel"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>Shared letter tray</span>
@@ -437,7 +422,6 @@ function WordWeaverCard({
               disabled={remaining <= 0}
               maxLength={state.letters.length}
               onChange={(event) => setDraft(event.target.value.replace(/[^a-z]/gi, ''))}
-              placeholder="Type a word"
               value={draft}
             />
             <button disabled={!draft.trim() || remaining <= 0} type="submit">Add</button>

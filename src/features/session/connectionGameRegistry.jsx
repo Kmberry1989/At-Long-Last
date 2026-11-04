@@ -20,7 +20,6 @@ function ChoiceGameCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -87,7 +86,6 @@ function ChoiceGameCard({
         <button className="primary-btn" disabled={disabled || sealing} onClick={openAnswer} type="button">Reveal my choice</button>
         {disabled && <p className="sealed-note">{activeName} opens first.</p>}
         {(localError || error) && <p className="error-copy">{localError || error}</p>}
-        <button className="secondary-link" disabled={disabled || sealing} onClick={onSkip} type="button">Pass this card</button>
       </div>
     )
   }
@@ -127,21 +125,7 @@ function ChoiceGameCard({
 
   return (
     <div className={`overlay-card activity-card connection-game-card vibe-${definition.vibe}`}>
-      <div className="overlay-head">
-        <p className="eyebrow">{isPrediction ? 'Prediction Game' : 'Sync Game'}</p>
-        {definition.skippable && (
-          <button
-            className="secondary-link"
-            disabled={disabled}
-            onClick={onSkip}
-            type="button"
-          >
-            Skip This
-          </button>
-        )}
-      </div>
       <h3>{definition.label}</h3>
-      <p className="support-copy">{definition.description}</p>
 
       <div className="connection-game-prompt">
         <span>{isPrediction ? 'Inside the box' : 'Match this'}</span>
@@ -206,7 +190,6 @@ function VaultCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -222,19 +205,7 @@ function VaultCard({
 
   return (
     <div className="overlay-card activity-card vault-card vibe-tender">
-      <div className="overlay-head">
-        <p className="eyebrow">Finale Time Capsule</p>
-        <button
-          className="secondary-link"
-          disabled={disabled}
-          onClick={onSkip}
-          type="button"
-        >
-          Skip This
-        </button>
-      </div>
       <h3>{definition.label}</h3>
-      <p className="support-copy">{definition.description}</p>
 
       <div className="vault-envelope" aria-hidden="true">
         <span>At Long Last</span>
@@ -268,7 +239,6 @@ function VaultCard({
             className="text-entry vault-entry"
             maxLength={400}
             onChange={(event) => setText(event.target.value)}
-            placeholder="A compliment, wish, or memory worth opening later…"
             rows={5}
             value={text}
           />

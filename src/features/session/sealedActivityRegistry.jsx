@@ -43,23 +43,10 @@ function hasBothRevealAcks(state) {
   return acks.includes(0) && acks.includes(1)
 }
 
-function SealedHead({ definition, onSkip, sealedCount }) {
+function SealedHead({ definition }) {
   return (
     <>
-      <div className="overlay-head">
-        <p className="eyebrow">sealed {definition.type}</p>
-        {definition.skippable && (
-          <button className="secondary-link" onClick={onSkip} type="button">
-            Skip This
-          </button>
-        )}
-      </div>
       <h3>{definition.label}</h3>
-      <p className="support-copy">{definition.description}</p>
-      <div className="turn-badge">
-        <span aria-hidden="true"><BrandText text={"✉️"} /></span>
-        <span><strong>{sealedCount}/2 sealed</strong></span>
-      </div>
     </>
   )
 }
@@ -141,7 +128,6 @@ function MindMeldCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -177,7 +163,7 @@ function MindMeldCard({
 
   return (
     <div className="overlay-card activity-card vibe-playful">
-      <SealedHead definition={definition} onSkip={onSkip} sealedCount={answerCount} />
+      <SealedHead definition={definition}  sealedCount={answerCount} />
       <div className="activity-prompt">
         <p>{prompt}</p>
       </div>
@@ -192,7 +178,6 @@ function MindMeldCard({
             className="text-entry"
             disabled={disabled}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Your answer, sealed shut."
             rows={3}
             value={draft}
           />
@@ -312,7 +297,6 @@ function isValidOutcome(value) {
 function MutualYesCard({
   activity,
   definition,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -414,7 +398,7 @@ function MutualYesCard({
 
   return (
     <div className="overlay-card activity-card vibe-spicy">
-      <SealedHead definition={definition} onSkip={onSkip} sealedCount={sealedCount} />
+      <SealedHead definition={definition}  sealedCount={sealedCount} />
       <div className="activity-prompt">
         <p>{prompt}</p>
       </div>

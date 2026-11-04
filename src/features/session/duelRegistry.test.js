@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { duelIds, duelRegistry, resolveTieByTime } from './duelRegistry.jsx'
+import { duelDefinitions, selectableDuelDefinitions } from './contentPackData.js'
 
 describe('duelRegistry', () => {
   it('exposes the prediction-based heart reward to the reveal and session resolver', () => {
@@ -13,10 +14,18 @@ describe('duelRegistry', () => {
     expect(duelIds).toContain('wavelength-duel')
   })
 
-  it('keeps all spicy duels skippable', () => {
-    const spicyDuels = Object.values(duelRegistry).filter((entry) => entry.vibe === 'spicy')
-    expect(spicyDuels).toHaveLength(5)
-    expect(spicyDuels.every((entry) => entry.skippable)).toBe(true)
+  it('keeps legacy duel implementations available without adding them to new nights', () => {
+    expect(duelIds).toHaveLength(16)
+    expect(selectableDuelDefinitions).toHaveLength(8)
+    expect(duelRegistry['heartbeat-hold-tender']).toBeDefined()
+    expect(duelRegistry['reaction-heart']).toBeDefined()
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('heartbeat-hold-tender')
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('reaction-heart')
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('voice-note-trailer')
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('letterpress-one-word')
+    expect(duelDefinitions.find((entry) => entry.id === 'gratitude-duel').prompts).toHaveLength(24)
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('gratitude-duel')
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('portrait-panic-directed')
   })
 
   it('retries when both players are too close', () => {
@@ -26,6 +35,13 @@ describe('duelRegistry', () => {
     )
 
     expect(outcome).toEqual({ retry: true })
+  })
+
+  it('awards no points when Heartflash has an exact tie', () => {
+    expect(duelRegistry['reaction-heart'].resolveTie(
+      { won: true, time: 1 },
+      { won: true, time: 1 },
+    )).toEqual({ noContest: true })
   })
 
   it('picks the faster winner when both clear the duel', () => {

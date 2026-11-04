@@ -28,22 +28,10 @@ function useActivityUiState(state) {
   }, [state])
 }
 
-function ActivityHeader({ definition, disabled, eyebrow, onSkip }) {
+function ActivityHeader({ definition, eyebrow }) {
   return (
     <>
-      <div className="overlay-head">
-        <p className="eyebrow">{eyebrow}</p>
-        {definition.skippable && (
-          <button
-            className="secondary-link"
-            disabled={disabled}
-            onClick={onSkip}
-            type="button"
-          >
-            Skip This
-          </button>
-        )}
-      </div>
+      <div className="overlay-head"><p className="eyebrow">{eyebrow}</p></div>
       <h3>{definition.label}</h3>
       <p className="support-copy">{definition.description}</p>
     </>
@@ -66,7 +54,6 @@ function MazeCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -100,7 +87,7 @@ function MazeCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Cooperative Route"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>{state.mazeLabel}</span>
@@ -190,7 +177,6 @@ function CanvasCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -282,7 +268,7 @@ function CanvasCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Half And Half"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>Draw one picture</span>
@@ -349,7 +335,6 @@ function HarmonicLockCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -385,7 +370,7 @@ function HarmonicLockCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Resonance Puzzle"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>{state.roundLabel}</span>

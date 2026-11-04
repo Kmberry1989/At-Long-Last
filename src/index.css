@@ -2133,6 +2133,19 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   margin: 0;
 }
 
+.wavelength-scale-stage {
+  display: grid;
+  grid-template-columns: minmax(48px, auto) minmax(100px, 1fr) auto minmax(48px, auto);
+  align-items: center;
+  gap: 9px;
+  text-align: center;
+  color: var(--app-ink-soft);
+  font-size: 11px;
+}
+
+.wavelength-scale-stage .range-input { width: 100%; min-width: 0; }
+.wavelength-scale-stage strong { min-width: 24px; color: var(--app-ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+
 .sealed-note {
   text-align: center;
   font-size: 12px;
@@ -5691,9 +5704,18 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   box-shadow: 0 6px 18px rgba(15, 9, 20, .38), inset 0 1px 0 rgba(255, 248, 229, .28), 0 0 22px color-mix(in srgb, var(--night-glow, #e8bd85) 24%, transparent);
 }
 .game-screen.independent-night .hud.top > .trade-hud-btn .control-badge-mark {
-  opacity: .9;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .4));
+  opacity: 0;
 }
+.game-screen.independent-night .hud.top > .trade-hud-btn::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 2px;
+  background: url('/assets/game-ui/trade-emblem.png') center / contain no-repeat;
+  opacity: .9;
+  pointer-events: none;
+}
+.game-screen.independent-night .hud.top > .trade-hud-btn > span:not(.control-badge-mark) { position: relative; z-index: 1; }
 .game-screen.independent-night .hud.top > .trade-hud-btn::after {
   border-color: rgba(237, 207, 158, .48);
   background: rgba(28, 22, 35, .92);

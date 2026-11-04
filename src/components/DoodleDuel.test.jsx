@@ -28,9 +28,11 @@ describe('DoodleDuel', () => {
     const onComplete = vi.fn()
 
     const { container } = render(<DoodleDuel onComplete={onComplete} />)
-    const save = screen.getByRole('button', { name: 'Save Drawing' })
+    const save = screen.getByRole('button', { name: 'Done' })
     expect(save).toBeDisabled()
     expect(screen.queryByText(/seconds? left/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Ink color spectrum')).toHaveAttribute('type', 'color')
 
     const canvas = container.querySelector('canvas')
     fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10, pointerId: 1, isPrimary: true })

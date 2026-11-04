@@ -47,6 +47,7 @@ describe('wavelength duel encoding', () => {
     expect(isValidWavelengthSubmission(['a', 'b', 'c', 'd', 'a'], ['a', 'b', 'c', 'd', 'a'])).toBe(true)
     expect(isValidWavelengthSubmission(['a', 'b'], ['a', 'b', 'c', 'd', 'a'])).toBe(false)
     expect(isValidWavelengthSubmission(['a', 'b', 'c', 'd', 'z'], ['a', 'b', 'c', 'd', 'a'])).toBe(false)
+    expect(isValidWavelengthSubmission(['a', 'b', 'c', 'd', 'j'], ['a', 'b', 'c', 'd', 'j'])).toBe(true)
   })
 })
 
@@ -70,6 +71,24 @@ describe('wavelength duel scoring', () => {
     const { matches } = scoreWavelengthDuel(one, two)
 
     expect(matches).toBe(5)
+  })
+
+  it('counts scale guesses within one point as close matches', () => {
+    const scalePrompt = {
+      id: 'scale-test',
+      scale: true,
+      text: 'How much?',
+      options: Array.from({ length: 10 }, (_, index) => ({ id: 'abcdefghij'[index], label: `${index + 1}` })),
+    }
+    const choices = WAVELENGTH_PROMPTS.filter((prompt) => !prompt.scale).slice(0, 4)
+    const prompts = [scalePrompt, ...choices]
+    const one = { excerpt: encodeWavelengthSubmission(['a', 'a', 'a', 'a', 'a'], ['b', 'a', 'a', 'a', 'a']) }
+    const two = { excerpt: encodeWavelengthSubmission(['c', 'a', 'a', 'a', 'a'], ['d', 'a', 'a', 'a', 'a']) }
+
+    const { matches, rows } = scoreWavelengthDuel(one, two, prompts)
+    expect(rows[0].oneHit).toBe(true)
+    expect(rows[0].twoHit).toBe(false)
+    expect(matches).toBe(9)
   })
 
   it('scores zero when nobody matches', () => {
@@ -115,6 +134,12 @@ describe('wavelength hearts and verdicts', () => {
 })
 
 describe('wavelength prompt picking', () => {
+  it('includes the former Temperature Check prompt in its scale deck', () => {
+    const scalePrompts = WAVELENGTH_PROMPTS.filter((prompt) => prompt.scale)
+    expect(scalePrompts).toHaveLength(11)
+    expect(scalePrompts.map((prompt) => prompt.text)).toContain('How close do you feel to your partner today?')
+  })
+
   it('picks 5 unique prompts deterministically per seed', () => {
     const first = pickWavelengthPrompts('session-1:2:1:wavelength-duel')
     const second = pickWavelengthPrompts('session-1:2:1:wavelength-duel')
@@ -124,9 +149,8 @@ describe('wavelength prompt picking', () => {
     expect(new Set(first.map((prompt) => prompt.id)).size).toBe(WAVELENGTH_PROMPT_COUNT)
     expect(first.map((prompt) => prompt.id)).toEqual(second.map((prompt) => prompt.id))
     expect(other.map((prompt) => prompt.id)).not.toEqual(first.map((prompt) => prompt.id))
-    first.forEach((prompt) => {
-      expect(prompt.options).toHaveLength(4)
-    })
+    expect(first.filter((prompt) => prompt.scale)).toHaveLength(1)
+    first.forEach((prompt) => expect(prompt.options).toHaveLength(prompt.scale ? 10 : 4))
   })
 
   it('derives the same prompts for both phones from the shared session', () => {
@@ -159,7 +183,7 @@ describe('wavelength prompt picking', () => {
   })
 
   it('draws from a large pool with unique stable IDs', () => {
-    expect(WAVELENGTH_PROMPTS.length).toBeGreaterThanOrEqual(65)
+    expect(WAVELENGTH_PROMPTS.length).toBeGreaterThanOrEqual(100)
     expect(new Set(WAVELENGTH_PROMPTS.map((prompt) => prompt.id)).size).toBe(WAVELENGTH_PROMPTS.length)
   })
 })

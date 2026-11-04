@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 export function KissCourier({
   disabled = false,
   onComplete,
-  onSkip,
   prompt = 'Send it across the board, then catch the glow.',
 }) {
   const canvasRef = useRef(null)
@@ -111,14 +110,6 @@ export function KissCourier({
 
   return (
     <div className="overlay-card duel-card">
-      <div className="overlay-head">
-        <p className="eyebrow">Spicy Duel</p>
-        {onSkip && (
-          <button className="secondary-link" disabled={disabled} onClick={onSkip} type="button">
-            Skip Duel
-          </button>
-        )}
-      </div>
       <h3>Kiss Courier</h3>
       <p className="support-copy">{prompt}</p>
       <div className="kiss-stage">

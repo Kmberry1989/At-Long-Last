@@ -25,22 +25,10 @@ function useActivityUiState(state) {
   }, [state])
 }
 
-function ActivityHeader({ definition, disabled, eyebrow, onSkip }) {
+function ActivityHeader({ definition, eyebrow }) {
   return (
     <>
-      <div className="overlay-head">
-        <p className="eyebrow">{eyebrow}</p>
-        {definition.skippable && (
-          <button
-            className="secondary-link"
-            disabled={disabled}
-            onClick={onSkip}
-            type="button"
-          >
-            Skip This
-          </button>
-        )}
-      </div>
+      <div className="overlay-head"><p className="eyebrow">{eyebrow}</p></div>
       <h3>{definition.label}</h3>
       <p className="support-copy">{definition.description}</p>
     </>
@@ -60,7 +48,6 @@ function BluffBiddingCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   players,
 }) {
@@ -88,7 +75,7 @@ function BluffBiddingCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Call The Bluff"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>Tonight’s category</span>
@@ -141,7 +128,6 @@ function BluffBiddingCard({
             className="text-entry bluff-proof"
             maxLength={500}
             onChange={(event) => setProofText(event.target.value)}
-            placeholder="One answer per line or separated by commas…"
             rows={5}
             value={proofText}
           />
@@ -205,7 +191,6 @@ function PhotoFlashbackCard({
   activity,
   definition,
   disabled,
-  onSkip,
   onSubmit,
   playerIndex,
   players,
@@ -264,7 +249,7 @@ function PhotoFlashbackCard({
         definition={definition}
         disabled={disabled}
         eyebrow="Shared Memory"
-        onSkip={onSkip}
+
       />
       <div className="connection-game-prompt">
         <span>Photo prompt</span>
@@ -313,7 +298,6 @@ function PhotoFlashbackCard({
             className="text-entry photo-caption-entry"
             maxLength={240}
             onChange={(event) => setCaption(event.target.value)}
-            placeholder="Write what this photo means from your side…"
             rows={4}
             value={caption}
           />

@@ -111,8 +111,6 @@ function LegacyGameScreen() {
     sendTradeOffer,
     session,
     sessionStatusMessage,
-    skipActivity,
-    skipDuel,
     spinDuelWheel,
     startFreshSession,
     submitActivityTurn,
@@ -569,10 +567,6 @@ function LegacyGameScreen() {
             }
             isMinimized={activityMinimized}
             onToggleMinimize={() => setActivityMinimized((current) => !current)}
-            onSkip={() => {
-              playAction?.()
-              skipActivity()
-            }}
             onSubmit={submitActivityTurn}
             playerIndex={playerIndex}
             players={session.players}
@@ -641,10 +635,6 @@ function LegacyGameScreen() {
               wavelengthPrompts={wavelengthPrompts}
               DuelComponent={DuelComponent}
               onComplete={submitDuelResult}
-              onSkip={() => {
-                playAction?.()
-                skipDuel()
-              }}
             />
           )}
         </div>

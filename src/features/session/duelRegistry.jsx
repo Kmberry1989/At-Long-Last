@@ -1,8 +1,13 @@
 import { BrandText } from '../../components/BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DoodleDuel } from '../../components/DoodleDuel.jsx'
+import { PortraitPanicDuel } from '../../components/PortraitPanicDuel.jsx'
 import { KissCourier } from '../../components/KissCourier.jsx'
 import { duelDefinitions } from './contentPackData.js'
+import { STAR_MAP_VALUES, encodeStarMapRanking } from './starMapData.js'
+import { getLetterpressPrompt, getLetterpressWords } from './letterpressData.js'
+import { getGratitudePrompt } from './gratitudeData.js'
+import { hasThreeLetters } from './responseValidation.js'
 import {
   WAVELENGTH_DUEL_ID,
   WAVELENGTH_PROMPT_COUNT,
@@ -13,17 +18,9 @@ import {
   wavelengthHearts,
 } from './wavelengthDuelData.js'
 
-function DuelShell({ children, duel, onSkip }) {
+function DuelShell({ children, duel }) {
   return (
     <div className={`overlay-card duel-card vibe-${duel.vibe}`}>
-      <div className="overlay-head">
-        <p className="eyebrow">{duel.vibe} duel</p>
-        {duel.skippable && (
-          <button className="secondary-link" onClick={onSkip} type="button">
-            Skip Duel
-          </button>
-        )}
-      </div>
       <h3>{duel.label}</h3>
       <p className="support-copy">{duel.prompt}</p>
       {children}
@@ -31,7 +28,7 @@ function DuelShell({ children, duel, onSkip }) {
   )
 }
 
-function QuickFlipDuel({ disabled, duel, onComplete, onSkip }) {
+function QuickFlipDuel({ disabled, duel, onComplete }) {
   const [phase, setPhase] = useState('ready')
   const [target, setTarget] = useState('HEART')
   const startAt = useRef(0)
@@ -82,7 +79,7 @@ function QuickFlipDuel({ disabled, duel, onComplete, onSkip }) {
   }
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
+    <DuelShell duel={duel} >
       <div className="duel-stage">
         <div className={`flip-signal phase-${phase}`}>{phase === 'live' ? target : 'WAIT'}</div>
       </div>
@@ -106,7 +103,7 @@ function QuickFlipDuel({ disabled, duel, onComplete, onSkip }) {
   )
 }
 
-function TargetTapDuel({ disabled, duel, onComplete, onSkip }) {
+function TargetTapDuel({ disabled, duel, onComplete }) {
   const [running, setRunning] = useState(false)
   const [targetX, setTargetX] = useState(52)
   const [targetY, setTargetY] = useState(50)
@@ -166,7 +163,7 @@ function TargetTapDuel({ disabled, duel, onComplete, onSkip }) {
   )
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
+    <DuelShell duel={duel} >
       <div className="target-stage">
         {running && (
           <button className="moving-target" onClick={hitTarget} style={style} type="button"><BrandText text={"♥ "} /></button>
@@ -184,7 +181,7 @@ function TargetTapDuel({ disabled, duel, onComplete, onSkip }) {
   )
 }
 
-function HoldSyncDuel({ disabled, duel, onComplete, onSkip }) {
+function HoldSyncDuel({ disabled, duel, onComplete }) {
   const [running, setRunning] = useState(false)
   const [fill, setFill] = useState(0)
   const startAt = useRef(0)
@@ -244,7 +241,7 @@ function HoldSyncDuel({ disabled, duel, onComplete, onSkip }) {
   }
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
+    <DuelShell duel={duel} >
       <div className="hold-track">
         <div className="hold-window" />
         <div className="hold-fill" style={{ width: `${fill}%` }} />
@@ -275,7 +272,7 @@ const calmPractices = [
 const groundingSteps = ['Name 3 things you see', 'Notice 2 things you feel', 'Listen for 1 sound']
 const releaseSteps = ['Soften your jaw', 'Let your shoulders drop', 'Unclench your hands']
 
-function CalmPauseDuel({ disabled, duel, onComplete, onSkip }) {
+function CalmPauseDuel({ disabled, duel, onComplete }) {
   const [practice, setPractice] = useState(null)
   const [elapsed, setElapsed] = useState(0)
   const [step, setStep] = useState(0)
@@ -325,7 +322,7 @@ function CalmPauseDuel({ disabled, duel, onComplete, onSkip }) {
   const steps = grounding ? groundingSteps : releaseSteps
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
+    <DuelShell duel={duel} >
       {!practice ? (
         <div className="calm-practice-options" aria-label="Choose a calming pause">
           {calmPractices.map(option => (
@@ -359,7 +356,7 @@ function CalmPauseDuel({ disabled, duel, onComplete, onSkip }) {
   )
 }
 
-function TextSprintDuel({ disabled, duel, onComplete, onSkip }) {
+function TextSprintDuel({ disabled, duel, onComplete }) {
   const [text, setText] = useState('')
   const startedAtRef = useRef(performance.now())
 
@@ -380,12 +377,11 @@ function TextSprintDuel({ disabled, duel, onComplete, onSkip }) {
   }
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
+    <DuelShell duel={duel} >
       <textarea
         className="text-entry"
         disabled={disabled}
         onChange={(event) => setText(event.target.value)}
-        placeholder="Type your answer fast."
         rows={4}
         value={text}
       />
@@ -396,11 +392,70 @@ function TextSprintDuel({ disabled, duel, onComplete, onSkip }) {
   )
 }
 
-function SliderMatchDuel({ disabled, duel, onComplete, onSkip }) {
+function GratitudeDuel({ disabled, duel, onComplete, promptSeed = '', round = 1 }) {
+  const [text, setText] = useState('')
+  const prompt = getGratitudePrompt(duel.prompts, promptSeed, round)
+
+  function finish() {
+    const response = text.trim()
+    if (disabled || !hasThreeLetters(response)) return
+    onComplete({
+      excerpt: response.slice(0, 100),
+      highlight: 'saved an appreciation',
+      score: 0,
+      time: 0,
+      won: true,
+    })
+  }
+
+  return (
+    <div className="overlay-card duel-card vibe-tender letterpress-duel-card">
+      <h3>{duel.label}</h3>
+      <p className="letterpress-prompt">{prompt}</p>
+      <label className="sr-only" htmlFor="gratitude-response">Your appreciation</label>
+      <textarea className="text-entry" id="gratitude-response" maxLength={300} onChange={(event) => setText(event.target.value)} rows={3} value={text} />
+      <button className="primary-btn" disabled={disabled || !hasThreeLetters(text)} onClick={finish} type="button">Save</button>
+    </div>
+  )
+}
+
+function LetterpressDuel({ disabled, promptSeed = '', round = 1, onComplete }) {
+  const [text, setText] = useState('')
+  const words = getLetterpressWords(text)
+  const prompt = getLetterpressPrompt(promptSeed, round)
+
+  function updateText(value) {
+    if (value.trim().split(/\s+/).filter(Boolean).length <= 4) setText(value)
+  }
+
+  function finish() {
+    if (disabled || words.length !== 4) return
+    onComplete({
+      excerpt: words.join(' '),
+      highlight: 'added four words to the shared sentence',
+      score: 0,
+      time: 0,
+      won: true,
+    })
+  }
+
+  return (
+    <div className="overlay-card duel-card vibe-tender letterpress-duel-card">
+      <h3>Letterpress</h3>
+      <p className="letterpress-prompt">{prompt}</p>
+      <label className="sr-only" htmlFor="letterpress-words">Four words</label>
+      <input className="text-entry" id="letterpress-words" maxLength={80} onChange={(event) => updateText(event.target.value)} value={text} />
+      <span aria-live="polite" className="letterpress-count">{words.length}/4</span>
+      <button className="primary-btn" disabled={disabled || words.length !== 4} onClick={finish} type="button">Lock words</button>
+    </div>
+  )
+}
+
+function SliderMatchDuel({ disabled, duel, onComplete }) {
   const [value, setValue] = useState(5)
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
+    <DuelShell duel={duel} >
       <div className="slider-stage">
         <input
           className="range-input"
@@ -432,92 +487,66 @@ function SliderMatchDuel({ disabled, duel, onComplete, onSkip }) {
   )
 }
 
-function ConstellationDuel({ disabled, duel, onComplete, onSkip }) {
-  const canvasRef = useRef(null)
-  const dotsRef = useRef([])
-  const [dotCount, setDotCount] = useState(0)
+function ConstellationDuel({ disabled, duel, onComplete }) {
+  const [ranking, setRanking] = useState([])
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext('2d')
-    if (!canvas || !context) {
-      return undefined
-    }
+  function toggleValue(id) {
+    if (disabled) return
+    setRanking((current) => current.includes(id)
+      ? current.filter((value) => value !== id)
+      : current.length < 5 ? [...current, id] : current)
+  }
 
-    const devicePixelRatio = window.devicePixelRatio || 1
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * devicePixelRatio
-    canvas.height = rect.height * devicePixelRatio
-    context.scale(devicePixelRatio, devicePixelRatio)
-
-    function redraw() {
-      context.clearRect(0, 0, rect.width, rect.height)
-      dotsRef.current.forEach((dot) => {
-        context.fillStyle = '#f0d39f'
-        context.beginPath()
-        context.arc(dot.x, dot.y, 4, 0, Math.PI * 2)
-        context.fill()
-      })
-    }
-
-    redraw()
-    return undefined
-  }, [dotCount])
-
-  function placeDot(event) {
-    if (disabled || dotCount >= 5) {
-      return
-    }
-
-    const rect = canvasRef.current.getBoundingClientRect()
-    const x = event.clientX - rect.left
-    const y = event.clientY - rect.top
-    dotsRef.current = [...dotsRef.current, { x, y }]
-    setDotCount(dotsRef.current.length)
+  function moveValue(index, direction) {
+    if (disabled) return
+    setRanking((current) => {
+      const target = index + direction
+      if (target < 0 || target >= current.length) return current
+      const next = [...current]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
   }
 
   function finish() {
-    if (dotCount < 5) {
-      return
-    }
-
-    const average = dotsRef.current.reduce(
-      (current, dot) => ({
-        x: current.x + dot.x,
-        y: current.y + dot.y,
-      }),
-      { x: 0, y: 0 },
-    )
-    const center = {
-      x: average.x / dotsRef.current.length,
-      y: average.y / dotsRef.current.length,
-    }
-    const spread =
-      dotsRef.current.reduce(
-        (total, dot) => total + Math.hypot(dot.x - center.x, dot.y - center.y),
-        0,
-      ) / dotsRef.current.length
-
+    const excerpt = encodeStarMapRanking(ranking)
+    if (!excerpt) return
     onComplete({
-      center,
-      highlight: 'plotted a little sky map',
-      score: Math.max(0, 100 - spread),
-      spread,
-      time: spread,
+      excerpt,
+      highlight: 'ranked five meaningful values',
+      score: 0,
+      time: 0,
       won: true,
     })
   }
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
-      <div className="constellation-stage">
-        <canvas className="constellation-canvas" onClick={placeDot} ref={canvasRef} />
-        <p className="constellation-hint">{dotCount}/5 stars placed</p>
+    <div className="overlay-card duel-card constellation-duel-card">
+      <h3>{duel.label}</h3>
+      <p className="support-copy">Choose five in importance order</p>
+      <ol aria-label="Your ranked values" className="star-map-ranking">
+        {ranking.map((id, index) => {
+          const value = STAR_MAP_VALUES.find((entry) => entry.id === id)
+          return <li key={id}>
+            <span>{index + 1}</span>{value.label}
+            <button aria-label={`Move ${value.label} up`} disabled={disabled || index === 0} onClick={() => moveValue(index, -1)} type="button">↑</button>
+            <button aria-label={`Move ${value.label} down`} disabled={disabled || index === ranking.length - 1} onClick={() => moveValue(index, 1)} type="button">↓</button>
+            <button aria-label={`Remove ${value.label}`} disabled={disabled} onClick={() => toggleValue(id)} type="button">×</button>
+          </li>
+        })}
+      </ol>
+      <div aria-label="Sentimental values" className="star-map-values">
+        {STAR_MAP_VALUES.map((value) => {
+          const rank = ranking.indexOf(value.id)
+          return <button aria-pressed={rank >= 0} className={rank >= 0 ? 'is-ranked' : ''} disabled={disabled || (rank < 0 && ranking.length === 5)} key={value.id} onClick={() => toggleValue(value.id)} type="button">
+            {rank >= 0 && <span>{rank + 1}</span>}{value.label}
+          </button>
+        })}
       </div>
-      <button className="primary-btn" disabled={disabled || dotCount < 5} onClick={finish} type="button">
-        Reveal My Sky
+      <button className="primary-btn" disabled={disabled || ranking.length !== 5} onClick={finish} type="button">
+        Reveal tonight
       </button>
-    </DuelShell>
+    </div>
   )
 }
 
@@ -538,6 +567,14 @@ function resolveTieByTime(resultA, resultB) {
   return { retry: true }
 }
 
+function resolveReactionHeart(resultA, resultB) {
+  if (!resultA.won && !resultB.won) return { noContest: true }
+  if (resultA.won && !resultB.won) return { winnerIndex: 0 }
+  if (resultB.won && !resultA.won) return { winnerIndex: 1 }
+  if (resultA.time === resultB.time) return { noContest: true }
+  return { winnerIndex: resultA.time < resultB.time ? 0 : 1 }
+}
+
 function resolveSharedByDelta(resultA, resultB, threshold = 0.2) {
   const delta = Math.abs((resultA.delta ?? 99) - (resultB.delta ?? 99))
   if (resultA.delta <= threshold && resultB.delta <= threshold && delta <= threshold) {
@@ -556,12 +593,12 @@ function resolveWavelengthHearts(resultOne, resultTwo) {
 }
 
 /**
- * Wavelength Duel — simultaneous prediction duel (research: Happy Couple's
+ * Wavelength — simultaneous prediction game (research: Happy Couple's
  * double-answer format). Each player answers for themselves and guesses their
  * partner's answer on the same 5 prompts. Everything stays sealed until both
  * phones submit; scoring happens cross-player at reveal time.
  */
-function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, players = [], prompts = null }) {
+function WavelengthDuel({ disabled, duel, onComplete, playerIndex = 0, players = [], prompts = null }) {
   const [promptIndex, setPromptIndex] = useState(0)
   const [stage, setStage] = useState('answer')
   const [picked, setPicked] = useState('')
@@ -619,7 +656,7 @@ function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, p
   }
 
   return (
-    <DuelShell duel={duel} onSkip={onSkip}>
+    <DuelShell duel={duel} >
       <div className="wavelength-progress" aria-label={`Prompt ${promptIndex + 1} of ${WAVELENGTH_PROMPT_COUNT}`}>
         {activePrompts.map((entry, index) => (
           <span
@@ -636,25 +673,44 @@ function WavelengthDuel({ disabled, duel, onComplete, onSkip, playerIndex = 0, p
       </div>
 
       <div className="wavelength-prompt">
-        <span>{stage === 'answer' ? 'Your honest answer' : `What will ${partnerName} pick?`}</span>
+        <span>{stage === 'answer' ? 'Your honest answer' : `What will ${partnerName} ${prompt.scale ? 'rate' : 'pick'}?`}</span>
         <p>{prompt.text}</p>
       </div>
 
-      <div className="connection-choice-grid" role="radiogroup" aria-label={prompt.text}>
-        {prompt.options.map((option) => (
-          <button
-            aria-checked={picked === option.id}
-            className={`connection-choice${picked === option.id ? ' active' : ''}`}
+      {prompt.scale ? (
+        <div className="wavelength-scale-stage">
+          <span>{prompt.scaleLabels[0]}</span>
+          <input
+            aria-label={prompt.text}
+            className="range-input"
             disabled={disabled}
-            key={option.id}
-            onClick={() => setPicked(option.id)}
-            role="radio"
-            type="button"
-          >
-            <span>{option.label}</span>
-          </button>
-        ))}
-      </div>
+            max="10"
+            min="1"
+            onChange={(event) => setPicked('abcdefghij'[Number(event.target.value) - 1])}
+            onPointerDown={(event) => setPicked('abcdefghij'[Number(event.currentTarget.value) - 1])}
+            type="range"
+            value={picked ? picked.charCodeAt(0) - 96 : 5}
+          />
+          <strong>{prompt.options.find((option) => option.id === picked)?.label || '5'}</strong>
+          <span>{prompt.scaleLabels[1]}</span>
+        </div>
+      ) : (
+        <div className="connection-choice-grid" role="radiogroup" aria-label={prompt.text}>
+          {prompt.options.map((option) => (
+            <button
+              aria-checked={picked === option.id}
+              className={`connection-choice${picked === option.id ? ' active' : ''}`}
+              disabled={disabled}
+              key={option.id}
+              onClick={() => setPicked(option.id)}
+              role="radio"
+              type="button"
+            >
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <p className="sealed-note"><BrandText text={"🔒 Sealed — "} />{partnerName} can&apos;t see this until you both finish.
       </p>
@@ -689,7 +745,7 @@ const duelComponentMap = {
     resolveTie: resolveSharedCompletion,
   },
   'gratitude-duel': {
-    component: TextSprintDuel,
+    component: GratitudeDuel,
     resolveTie: resolveSharedCompletion,
   },
   'heartbeat-hold-tender': {
@@ -701,16 +757,16 @@ const duelComponentMap = {
     resolveTie: () => ({ shared: true }),
   },
   'letterpress-one-word': {
-    component: TextSprintDuel,
+    component: LetterpressDuel,
     resolveTie: resolveSharedCompletion,
   },
   'portrait-panic-directed': {
-    component: DoodleDuel,
+    component: PortraitPanicDuel,
     resolveTie: resolveSharedCompletion,
   },
   'reaction-heart': {
     component: QuickFlipDuel,
-    resolveTie: resolveTieByTime,
+    resolveTie: resolveReactionHeart,
   },
   'slow-draw-portrait-romantic': {
     component: DoodleDuel,

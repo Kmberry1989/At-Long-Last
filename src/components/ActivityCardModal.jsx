@@ -1,16 +1,8 @@
-import { PlayerPortrait } from './PlayerPortrait.jsx'
 import { BrandIcon, BrandText } from './BrandIcon.jsx'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { PLAYER_THEMES } from '../features/couple/playerAvatar.js'
-
-const VIBE_INSPIRATIONS = {
-  tender: ['A quiet moment I cherish', 'How safe you make me feel', 'The look in your eyes when…', 'A gratitude I rarely say'],
-  playful: ['A silly memory of us', 'Next time we get spontaneous', 'If we could teleport right now', 'A confession that makes me smile'],
-  curious: ['Something I wonder about you', 'A question I have never asked', 'How we have grown lately', 'A hidden dream for us'],
-  spicy: ['A memory that still gives me chills', 'Something that draws me to you', 'A secret desire for tonight', 'When you look at me like that'],
-  reflective: ['Looking back at how far we came', 'What I want to remember this year', 'A gentle shift in our bond', 'Where my heart feels at home'],
-}
+import { hasThreeLetters } from '../features/session/responseValidation.js'
 
 export function ActivityCardModal({
   activity,
@@ -19,14 +11,13 @@ export function ActivityCardModal({
   disabled = false,
   error = null,
   isMinimized = false,
-  onSkip,
   onSubmit,
   onToggleMinimize,
   playerIndex = 0,
   players = [],
 }) {
   const audio = useAudio() || {}
-  const { playAction, playCardFlip, playCardSeal, playChoiceTap, playSuccess } = audio
+  const { playCardFlip, playCardSeal, playSuccess } = audio
 
   const [flipped, setFlipped] = useState(false)
   const [answerText, setAnswerText] = useState('')
@@ -51,25 +42,12 @@ export function ActivityCardModal({
   const isRevealed = !deferReveal && (isBothSubmitted || revealedLocally)
 
   const vibe = definition?.vibe || activity?.vibe || 'tender'
-  const activityType = definition?.type || activity?.type || 'reflection'
   const prompt = activity?.state?.prompt || definition?.description || 'Share a memory together.'
 
-  const inspirations = useMemo(() => {
-    return VIBE_INSPIRATIONS[vibe] || VIBE_INSPIRATIONS.tender
-  }, [vibe])
 
-  const responsePlaceholder = useMemo(() => {
-    if (activityType === 'ritual') {
-      return 'Describe what you choose, leave, or imagine together…'
-    }
-    if (activityType === 'journal') {
-      return 'Write a couple of lines worth remembering…'
-    }
-    return 'Share what honestly comes to mind…'
-  }, [activityType])
 
   const handleFlipToGuess = () => {
-    if (!answerText.trim() && !myEntry) return
+    if (!hasThreeLetters(answerText) && !myEntry) return
     playCardFlip?.()
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate([15, 25, 15])
@@ -85,17 +63,10 @@ export function ActivityCardModal({
     setFlipped(false)
   }
 
-  const handleInspirationTap = (starter) => {
-    playChoiceTap?.()
-    setAnswerText((prev) => {
-      const trimmed = prev.trim()
-      if (!trimmed) return `${starter}: `
-      return `${trimmed}\n${starter}: `
-    })
-  }
+
 
   const handleSealAndSubmit = () => {
-    if (!answerText.trim() && !myEntry) return
+    if (!hasThreeLetters(answerText) && !myEntry) return
     playCardSeal?.()
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate([25, 45, 30])
@@ -156,9 +127,6 @@ export function ActivityCardModal({
       {/* Top Controls Bar */}
       <div className="activity-modal-top-bar">
         <div className="activity-top-left">
-          <span className={`activity-vibe-tag vibe-${vibe}`}>
-            {vibe} {activityType}
-          </span>
           {onToggleMinimize && (
             <button
               className="activity-peek-btn"
@@ -171,70 +139,7 @@ export function ActivityCardModal({
           )}
         </div>
 
-        {definition?.skippable && !isRevealed && (
-          <button
-            className="secondary-link activity-skip-btn"
-            disabled={disabled}
-            onClick={() => {
-              playAction?.()
-              onSkip?.()
-            }}
-            type="button"
-          >
-            Skip This
-          </button>
-        )}
-      </div>
 
-      {/* Paired Player Portraits Spotlight */}
-      <div className="activity-paired-portraits" role="region" aria-label="Participant status">
-        <div
-          className={`activity-portrait-badge ${!flipped && !isMyAnswerSubmitted ? 'is-active-spotlight' : ''} ${isMyAnswerSubmitted ? 'is-sealed' : ''}`}
-          style={{ '--player-color': currentTheme.color }}
-        >
-          <div className="portrait-avatar-wrapper">
-            <PlayerPortrait player={currentPlayer} />
-            {isMyAnswerSubmitted && (
-              <span className="sealed-check-mark" aria-label="Response sealed"><BrandText text={"✓"} /></span>
-            )}
-          </div>
-          <span className="portrait-name">{currentPlayer.displayName}</span>
-          <span className="portrait-role">
-            <BrandText text={isRevealed
-              ? 'Shared'
-              : isMyAnswerSubmitted
-                ? '✉️ Sealed'
-                : !flipped
-                  ? 'Your Turn'
-                  : 'Ready'} />
-          </span>
-        </div>
-
-        <div className="portraits-connection-line">
-          <span className="connection-heart-icon" aria-hidden="true"><BrandText text={"💛"} /></span>
-        </div>
-
-        <div
-          className={`activity-portrait-badge ${flipped ? 'is-active-spotlight' : ''} ${isPartnerAnswerSubmitted ? 'is-sealed' : ''}`}
-          style={{ '--player-color': partnerTheme.color }}
-        >
-          <div className="portrait-avatar-wrapper">
-            <PlayerPortrait player={partnerPlayer} />
-            {isPartnerAnswerSubmitted && (
-              <span className="sealed-check-mark" aria-label="Partner response sealed"><BrandText text={"✓"} /></span>
-            )}
-          </div>
-          <span className="portrait-name">{partnerPlayer.displayName}</span>
-          <span className="portrait-role">
-            <BrandText text={isRevealed
-              ? 'Shared'
-              : isPartnerAnswerSubmitted
-                ? '✉️ Sealed'
-                : flipped
-                  ? 'Guessing'
-                  : 'Waiting'} />
-          </span>
-        </div>
       </div>
 
       {/* Synchronized Reveal State */}
@@ -346,23 +251,6 @@ export function ActivityCardModal({
                 <p className="activity-prompt-text">{prompt}</p>
               </div>
 
-              {/* Inspiration Chips */}
-              <div className="activity-inspiration-row" aria-label="Inspiration starters">
-                <span className="inspiration-label">Need a spark?</span>
-                <div className="inspiration-chips">
-                  {inspirations.map((starter) => (
-                    <button
-                      key={starter}
-                      className="inspiration-chip"
-                      onClick={() => handleInspirationTap(starter)}
-                      type="button"
-                    >
-                      {starter}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="activity-input-area">
                 <label htmlFor="activity-answer-input" className="visually-hidden">
                   Your Answer
@@ -372,7 +260,6 @@ export function ActivityCardModal({
                   className="text-entry activity-textarea"
                   disabled={disabled}
                   onChange={(e) => setAnswerText(e.target.value)}
-                  placeholder={responsePlaceholder}
                   rows={4}
                   value={answerText}
                 />
@@ -381,13 +268,12 @@ export function ActivityCardModal({
               <div className="face-actions">
                 <button
                   className="primary-btn activity-flip-btn"
-                  disabled={disabled || !answerText.trim()}
+                  disabled={disabled || !hasThreeLetters(answerText)}
                   onClick={handleFlipToGuess}
                   type="button"
                 >
-                  Next: Guess for {partnerPlayer.displayName} <BrandIcon name="arrow" />
+                  NEXT
                 </button>
-                <span className="private-hint-copy"><BrandText text={"🔒 Kept private for tonight’s comparison. "} /></span>
               </div>
             </div>
 
@@ -397,10 +283,6 @@ export function ActivityCardModal({
                 <h3 className="activity-modal-title">
                   Guess for {partnerPlayer.displayName}
                 </h3>
-                <p className="activity-guess-subtitle">
-                  Step into {partnerPlayer.displayName}'s mind — how do you think they will respond to this prompt?
-                </p>
-                <blockquote className="activity-prompt-mini">"{prompt}"</blockquote>
               </div>
 
               <div className="activity-input-area">
@@ -412,7 +294,6 @@ export function ActivityCardModal({
                   className="text-entry activity-textarea"
                   disabled={disabled}
                   onChange={(e) => setGuessText(e.target.value)}
-                  placeholder={`What would ${partnerPlayer.displayName} say or feel?`}
                   rows={3}
                   value={guessText}
                 />
@@ -429,7 +310,7 @@ export function ActivityCardModal({
                 </button>
                 <button
                   className="primary-btn seal-btn"
-                  disabled={disabled || !answerText.trim()}
+                  disabled={disabled || !hasThreeLetters(answerText)}
                   onClick={handleSealAndSubmit}
                   type="button"
                 >

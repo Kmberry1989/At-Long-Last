@@ -151,24 +151,24 @@ These entries accept open-ended responses. The count is the original authored pr
 
 | Duel | Implemented possibilities |
 | --- | --- |
-| Constellation | 1 five-star drawing scenario; drawings vary |
-| Heartbeat Hold | 1 hold scenario; timing varies |
-| Letterpress | 1 writing prompt; text varies |
-| Sync Breath | 1 breathing/hold scenario; timing varies |
-| Gratitude Duel | 1 writing prompt; text varies |
-| Doodle Duel | 1 drawing prompt; drawings vary |
-| Portrait Panic | 1 drawing prompt; drawings vary |
-| Wavelength | 1 scale; 10 values per player, 100 ordered answer pairs |
+| Star Map | Rank 5 of 12 sentimental values; compare at night reveal |
+| Heartbeat Hold | Legacy hold scenario; replaced by Quiet Moment |
+| Letterpress | 24 sentence starters; each player contributes 4 words |
+| Quiet Moment | 3 calming choices: breath, grounding, muscle release |
+| Gratitude Duel | 24 appreciation prompts; one private response each |
+| Keepsake Sketch | One matched prompt per night; 60 scene prompts plus 18 gentle portrait prompts |
+| Portrait Panic | Each player sends 3 cues, then draws from the cues received |
+| Wavelength Slider (Archived) | Scale prompts merged into Wavelength; legacy sessions preserved |
 | Emoji Court | 1 writing prompt; text/emoji vary |
 | Reaction Heart | 1 reaction scenario, 2 possible target symbols (heart/spark); delay and reaction timing vary |
 | Kiss Courier | 1 hold scenario; timing varies |
 | Fever Dream Date | 1 writing prompt; text varies |
-| Trailer Voice | 1 writing prompt; currently submitted as text, not recorded audio |
-| Temperature Check | 1 scale; 10 values per player, 100 ordered answer pairs |
-| Slow Draw | 1 drawing prompt; drawings vary |
-| Wavelength Duel | 65 questions, 4 choices each; 5 distinct questions selected per match |
+| Trailer Voice | Archived; its voice prompt is folded into Kiss Courier |
+| Temperature Check | Archived; its closeness scale prompt is merged into Wavelength |
+| Slow Draw | Archived as a separate game; its portrait prompts are in Keepsake Sketch |
+| Wavelength | 65 multiple-choice prompts and 11 scale prompts; each match mixes 4 choice prompts and 1 scale prompt |
 
-For Wavelength Duel, choosing 5 questions from 65 gives a mathematical upper space of **8,259,888 unordered packs**, or **991,186,560 ordered packs**. The implementation uses a seeded shuffle; these figures are combinatorial bounds, not a verification that every pack is reachable through its seed generator. Each question has four choices. Both players answer and predict the other across five questions, giving **4²⁰ = 1,099,511,627,776** possible answer/prediction configurations for a fixed pack before scoring. There are only **65 authored questions**, not millions of authored questions.
+The active new-night pool contains Wavelength, Kiss Courier, Keepsake Sketch, Letterpress, Gratitude Duel, Star Map, Quiet Moment, and Portrait Panic. Portrait Panic exchanges three drawing cues independently before each player draws from the cues received. Heartflash, standalone Wavelength Slider, and standalone Temperature Check are hidden; their scale prompts now appear inside Wavelength. Wavelength always mixes four multiple-choice questions and one 1–10 scale question. Scale guesses within one point count as close matches.
 
 Counts are derived from the registered entries in `src/features/session/activityRegistry.jsx` and `duelRegistry.jsx`, the definitions in `contentPackData.js`, and the active banks in `expandedPromptData.js`, `activityPromptExpansion.js`, `connectionGameData.js`, `sealedActivityData.js`, `waveTwoGameData.js`, `waveThreeGameData.js`, `waveFourGameData.js`, and `wavelengthDuelData.js`. Definition descriptions, unused fallback components, collection items, and proposed activities are not counted as extra games.
 

@@ -1492,7 +1492,7 @@ Source: `src/features/session/contentPackData.js`.
     "id": "doodle-duel-memory",
     "vibe": "playful",
     "intensity": 1,
-    "name": "Doodle Duel",
+    "name": "Keepsake Sketch",
     "tagline": "Draw it bad",
     "durationSec": 60,
     "players": 2,
@@ -1514,7 +1514,7 @@ Source: `src/features/session/contentPackData.js`.
       "brush"
     ],
     "skippable": true,
-    "label": "Doodle Duel",
+    "label": "Keepsake Sketch",
     "prompt": "Prompt appears: \"draw our couch from memory\""
   },
   {
@@ -1525,22 +1525,20 @@ Source: `src/features/session/contentPackData.js`.
     "tagline": "You draw, I direct",
     "durationSec": 60,
     "players": 2,
-    "mechanics": "One draws partner but brush is controlled by partner voice directions.",
+    "mechanics": "Each player independently sends three visual cues, then draws their partner from the cues received. Either player can continue the night while waiting for the other cue set.",
     "howToPlay": [
-      "Player A draws Player B",
-      "Player B can only say \"left, right, bigger, smaller\"",
-      "30 sec then swap",
-      "Compare masterpieces"
+      "Each player chooses three distinct cues: face left or right, draw larger or smaller, move closer, add one detail, keep it simple, or add a smile.",
+      "Send cues; your partner can continue their own night while they wait.",
+      "Draw your partner from the three cues they sent.",
+      "Compare both portraits and the cues that guided them in the scrapbook."
     ],
     "firebaseEvents": [
       "duel:stroke",
-      "duel:voiceState"
+      "duel:guideCues",
+      "duel:drawingComplete"
     ],
     "boardReward": "Both portraits become board decorations",
-    "assetsNeeded": [
-      "shared canvas",
-      "voice"
-    ],
+    "assetsNeeded": ["drawing canvas"],
     "skippable": true,
     "label": "Portrait Panic",
     "prompt": "Player A draws Player B"
@@ -1603,16 +1601,13 @@ Source: `src/features/session/contentPackData.js`.
     "id": "reaction-heart",
     "vibe": "playful",
     "intensity": 1,
-    "name": "Reaction Heart",
-    "tagline": "Fastest love wins",
+    "name": "Heartflash",
+    "tagline": "One flash. One quick tap.",
     "durationSec": 30,
     "players": 2,
-    "mechanics": "Heart appears random, tap first.",
+    "mechanics": "A heart or spark flashes after a short wait. Tap the matching symbol as quickly as you can.",
     "howToPlay": [
-      "Wait for it...",
-      "Heart pops random time 2-8 sec",
-      "First tap wins round, best of 3",
-      "Loser sends voice compliment"
+      "Wait for the flash, then tap the matching symbol."
     ],
     "firebaseEvents": [
       "duel:heartSpawn",
@@ -1624,8 +1619,8 @@ Source: `src/features/session/contentPackData.js`.
       "haptics"
     ],
     "skippable": true,
-    "label": "Reaction Heart",
-    "prompt": "Wait for it..."
+    "label": "Heartflash",
+    "prompt": "Wait for the flash, then tap the matching symbol."
   },
   {
     "id": "kiss-courier",
@@ -1773,11 +1768,11 @@ Source: `src/features/session/contentPackData.js`.
     ],
     "id": "wavelength-duel",
     "intensity": 1,
-    "name": "Wavelength Duel",
+    "name": "Wavelength",
     "skippable": true,
     "tagline": "Answer for you, guess for them. How in sync are you, really?",
     "vibe": "playful",
-    "label": "Wavelength Duel",
+    "label": "Wavelength",
     "prompt": "Five quick prompts. Answer honestly for yourself, then guess what your partner will answer. Every match earns a shared heart — up to 10."
   }
 ]
@@ -10120,7 +10115,7 @@ Source: `src/features/session/wavelengthDuelData.js`.
   ],
   "id": "wavelength-duel",
   "intensity": 1,
-  "name": "Wavelength Duel",
+  "name": "Wavelength",
   "skippable": true,
   "tagline": "Answer for you, guess for them. How in sync are you, really?",
   "vibe": "playful"

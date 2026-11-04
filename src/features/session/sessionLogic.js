@@ -294,6 +294,7 @@ export function buildInitialSession(couple) {
     duelResults: {},
     goals: getPresetGoals(preset.id),
     hearts: 6,
+    kissBookendVersion: 1,
     hostId: couple.players[0]?.uid || null,
     keepsakePerks: [],
     keepsakes: [],
@@ -353,6 +354,7 @@ export function skipOpeningSetup(session) {
   })
 
   delete defaults.pacingVersion
+  delete defaults.kissBookendVersion
   return finalizeVibeSetup({
     ...defaults,
     ...session,

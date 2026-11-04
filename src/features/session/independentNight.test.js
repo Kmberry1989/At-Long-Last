@@ -17,6 +17,43 @@ async function answer(s, steps, id, playerIndex, input) {
 }
 
 describe('independent night pacing', () => {
+  it('lets a player continue rolling after submitting their duel while the partner has not drawn yet', async () => {
+    const s = session()
+    const duel = { id: 'duel-1', kind: 'duel', type: 'gratitude-duel', round: 1, ownerIndex: -1, ready: false, completed: false, skipped: false, state: { results: {} } }
+    const submitted = await advanceNightStep(s, [duel], duel.id, 0, { excerpt: 'Three kind words', highlight: 'Finished', time: 80, won: true })
+    expect(submitted.step.ready).toBe(false)
+    expect(getNightProgress(s, [submitted.step], 0).canRoll).toBe(true)
+    expect(canAnswerStep(submitted.step, 1)).toBe(true)
+  })
+
+  it('lets Portrait Panic players send cues independently, continue the night, and draw once partner cues arrive', async () => {
+    const s = session()
+    const duel = { id: 'duel-1', kind: 'duel', type: 'portrait-panic-directed', round: 1, ownerIndex: -1, ready: false, completed: false, skipped: false, state: { results: {} } }
+    const guidedByA = await advanceNightStep(s, [duel], duel.id, 0, { guideCues: ['left', 'larger', 'smile'] })
+
+    expect(guidedByA.step.state.guides['0']).toEqual(['left', 'larger', 'smile'])
+    expect(canAnswerStep(guidedByA.step, 0)).toBe(false)
+    expect(canAnswerStep(guidedByA.step, 1)).toBe(true)
+    expect(getNightProgress(s, [guidedByA.step], 0).canRoll).toBe(true)
+    expect(await advanceNightStep(s, [guidedByA.step], duel.id, 0, { dataUrl: 'data:image/png', highlight: 'drawn', time: 0, won: true }))
+      .toBeNull()
+
+    const guidedByBoth = await advanceNightStep(s, [guidedByA.step], duel.id, 1, { guideCues: ['right', 'simple', 'closer'] })
+    expect(canAnswerStep(guidedByBoth.step, 0)).toBe(true)
+    expect(canAnswerStep(guidedByBoth.step, 1)).toBe(true)
+    const drawing = await advanceNightStep(s, [guidedByBoth.step], duel.id, 0, { dataUrl: 'data:image/png;base64,AAAA', highlight: 'drew from cues', time: 0, won: true })
+    expect(drawing.step.state.results['0'].highlight).toBe('drew from cues')
+    expect(drawing.step.ready).toBe(false)
+    expect(canAnswerStep(drawing.step, 0)).toBe(false)
+    expect(canAnswerStep(drawing.step, 1)).toBe(true)
+  })
+
+  it('rejects sealed text shorter than three letters on the server path', async () => {
+    const s = session()
+    const duel = { id: 'duel-1', kind: 'duel', type: 'gratitude-duel', round: 1, ownerIndex: -1, ready: false, completed: false, skipped: false, state: { results: {} } }
+    await expect(advanceNightStep(s, [duel], duel.id, 0, { excerpt: 'ok' })).rejects.toThrow('three letters')
+  })
+
   it('lets either phone roll first and advance after its own answer while its partner stays behind', async () => {
     const s = session()
     expect(getNightProgress(s, [], 1).canRoll).toBe(true)
@@ -111,8 +148,8 @@ describe('independent night pacing', () => {
     const steps = []
     for (let round = 1; round <= s.totalRounds; round++) for (const ownerIndex of [0, 1]) {
       let task = activity('comfort-menu', round, ownerIndex)
-      task = (await advanceNightStep(s, [task], task.id, 0, { text: `A ${round}` })).step
-      task = (await advanceNightStep(s, [task], task.id, 1, { text: `B ${round}` })).step
+      task = (await advanceNightStep(s, [task], task.id, 0, { text: `Answer A ${round}` })).step
+      task = (await advanceNightStep(s, [task], task.id, 1, { text: `Answer B ${round}` })).step
       steps.push(task)
     }
     steps.push(...duels(s))
@@ -132,10 +169,12 @@ describe('individual night prize', () => {
   it('awards the first full-circuit finisher and falls back to net progress', () => {
     const s = session()
     const steps = [
-      { id: 'roll-2-0', ownerIndex: 0, round: 2, state: { race: { progress: 22, laps: 1, crossedAt: new Date(2000), crossingRound: 2 } } },
+      { id: 'roll-1-0', ownerIndex: 0, round: 1, state: { race: { progress: 21, laps: 1, crossedAt: new Date(9000), crossingRound: 1 } } },
+      { id: 'roll-2-0', ownerIndex: 0, round: 2, state: { race: { progress: 22, laps: 1 } } },
+      { id: 'roll-1-1', ownerIndex: 1, round: 1, state: { race: { progress: 8, laps: 0 } } },
       { id: 'roll-2-1', ownerIndex: 1, round: 2, state: { race: { progress: 21, laps: 1, crossedAt: new Date(1000), crossingRound: 2 } } },
     ]
-    expect(resolveNightPrize(s, steps)).toMatchObject({ winnerIndex: 1, winnerUid: 'b', loserUid: 'a', prize: 'First Lap Laurel', method: 'lap' })
+    expect(resolveNightPrize(s, steps)).toMatchObject({ winnerIndex: 0, winnerUid: 'a', loserUid: 'b', prize: 'First Lap Laurel', method: 'lap', turnsToFinish: 1 })
     expect(resolveNightPrize(s, steps.map(step => ({ ...step, state: { race: { progress: step.ownerIndex === 0 ? 9 : 7, laps: 0 } } })))).toMatchObject({ winnerIndex: 0, prize: 'Wayfinder Ribbon', method: 'progress' })
   })
 })
@@ -160,17 +199,17 @@ describe('end-of-night acknowledgements', () => {
     steps=await answer(s,steps,task.id,0,{revealAck:true})
     expect(getNightProgress(s,steps,0).readyToFinish).toBe(true)
   })
-  it('moves a tied race replay to the end, preserving an independent retry for both players', async () => {
+  it('closes an exact Heartflash tie without a replay or points', async () => {
     const s=session()
     let task={ id:'duel-1', kind:'duel', type:'reaction-heart', round:1, ownerIndex:-1, ready:false, completed:false, skipped:false, state:{results:{}} }
     task=(await advanceNightStep(s,[task],task.id,0,{highlight:'Tapped',time:1,won:true})).step
     task=(await advanceNightStep(s,[task],task.id,1,{highlight:'Tapped',time:1,won:true})).step
-    expect(task.state.retry).toBe(true)
+    expect(task.state.retry).toBe(false)
     let steps=finishedBoard(s,task)
-    expect(getNightProgress(s,steps,0).readyToFinish).toBe(false)
-    steps=await answer(s,steps,task.id,0,{highlight:'Retried',time:1.1,won:true})
-    expect(canAnswerStep(steps.find(item=>item.id===task.id),0,true)).toBe(false)
-    steps=await answer(s,steps,task.id,1,{highlight:'Retried',time:2,won:true})
     expect(getNightProgress(s,steps,0).readyToFinish).toBe(true)
+    const finished = finishIndependentNight(s, steps)
+    const heartflash = finished.entries.find(entry => entry.type === 'duel' && entry.payload.duelId === 'reaction-heart')
+    expect(heartflash.payload.outcomeStatus).toBe('noContest')
+    expect(heartflash.payload.heartBonus).toBe(0)
   })
 })

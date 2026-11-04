@@ -1,4 +1,3 @@
-import { PlayerPortrait } from './PlayerPortrait.jsx'
 import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
@@ -239,7 +238,6 @@ export function DuelRevealOverlay({
           <div className="duel-comparative-arena">
             <div className="duel-comparative-card">
               <div className="duel-comparative-player">
-                <PlayerPortrait player={partner} />
                 <span className="duel-comparative-name">{partner?.displayName || 'Partner'}</span>
               </div>
               <span className="duel-comparative-answer"><BrandText text={formatResultExcerpt(partnerResult)} /></span>
@@ -251,7 +249,6 @@ export function DuelRevealOverlay({
 
             <div className="duel-comparative-card">
               <div className="duel-comparative-player">
-                <PlayerPortrait player={myPlayer} />
                 <span className="duel-comparative-name">{myPlayer?.displayName || 'You'}</span>
               </div>
               <span className="duel-comparative-answer"><BrandText text={formatResultExcerpt(myResult)} /></span>

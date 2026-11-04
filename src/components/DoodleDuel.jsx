@@ -1,20 +1,22 @@
 import { InkToolbar } from './InkToolbar.jsx'
-import { drawInkSegment, inkPoint } from './drawingInk.js'
+import { drawInkSegment, getDoodlePrompt, inkPoint } from './drawingInk.js'
 import { useEffect, useRef, useState } from 'react'
 
 export function DoodleDuel({
   disabled = false,
   drawingStorageKey = '',
   onComplete,
-  onSkip,
-  prompt = 'Draw it from memory.',
+  duel,
+  round = 0,
+  promptSeed = '',
+  prompt,
+  title = '',
 }) {
   const canvasRef = useRef(null)
   const strokeRef = useRef(null)
-  const [brush, setBrush] = useState('calligraphy')
+  const [brush, setBrush] = useState('pencil')
   const [color, setColor] = useState('#201718')
   const [size, setSize] = useState(1)
-  const [isDrawing, setIsDrawing] = useState(false)
   const [isDone, setIsDone] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
   const savedDrawingKey = drawingStorageKey ? `at-long-last:doodle:${drawingStorageKey}` : ''
@@ -104,7 +106,6 @@ export function DoodleDuel({
     const style = { brush, color, size }
     const width = drawInkSegment(context, point, point, event, style)
     strokeRef.current = { point, pointerId: event.pointerId, style, width }
-    setIsDrawing(true)
     setHasDrawn(true)
   }
 
@@ -125,7 +126,6 @@ export function DoodleDuel({
     const stroke = strokeRef.current
     if (!stroke || (event && event.pointerId !== stroke.pointerId)) return
     strokeRef.current = null
-    setIsDrawing(false)
     if (canvasRef.current?.hasPointerCapture?.(stroke.pointerId)) canvasRef.current.releasePointerCapture(stroke.pointerId)
     saveDrawing()
   }
@@ -138,7 +138,6 @@ export function DoodleDuel({
     }
 
     strokeRef.current = null
-    setIsDrawing(false)
     context.fillStyle = '#fffaf4'
     context.fillRect(0, 0, canvas.width, canvas.height)
     setHasDrawn(false)
@@ -162,18 +161,11 @@ export function DoodleDuel({
     })
   }
 
+  const scenePrompt = prompt || getDoodlePrompt(duel?.id || '', round, promptSeed)
   return (
-    <div className="overlay-card duel-card">
-      <div className="overlay-head">
-        <p className="eyebrow">Playful Duel</p>
-        {onSkip && (
-          <button className="secondary-link" disabled={disabled} onClick={() => { removeSavedDrawing(); onSkip() }} type="button">
-            Skip Duel
-          </button>
-        )}
-      </div>
-      <h3>Doodle Duel</h3>
-      <p className="support-copy">{prompt}</p>
+    <div className="overlay-card duel-card doodle-duel-card">
+      {title && <h3>{title}</h3>}
+      <p className="doodle-prompt">{scenePrompt}</p>
       <InkToolbar brush={brush} color={color} size={size} onBrushChange={setBrush} onColorChange={setColor} onSizeChange={setSize} disabled={disabled || isDone} />
       <div className="doodle-stage">
         <canvas
@@ -186,16 +178,13 @@ export function DoodleDuel({
           onLostPointerCapture={stopDrawing}
           ref={canvasRef}
         />
-        {!isDrawing && !hasDrawn && (
-          <p className="doodle-hint">Draw here. Messy is better.</p>
-        )}
       </div>
       <div className="button-row">
         <button className="primary-btn alt" disabled={disabled || isDone} onClick={clearCanvas} type="button">
           Clear
         </button>
         <button className="primary-btn" disabled={disabled || isDone || !hasDrawn} onClick={handleDone} type="button">
-          Save Drawing
+          Done
         </button>
       </div>
     </div>

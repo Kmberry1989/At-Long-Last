@@ -5,6 +5,26 @@
 .night-back, .night-seal-note { flex-shrink: 0; position: relative; z-index: 2; }
 .night-seal-note { text-align: center; font-size: .8rem; color: #f4dfb5; margin: 0; }
 .night-error { position: fixed; bottom: 16px; left: 16px; right: 16px; z-index: 200; background: #351e24; padding: 12px; border-radius: 12px; }
+.kiss-bookend-overlay { z-index: 90; align-items: center; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 50% 42%, rgba(162, 100, 98, .38), rgba(14, 18, 29, .94) 72%); backdrop-filter: blur(18px); }
+.kiss-bookend { width: min(100%, 440px); min-height: min(520px, 74dvh); padding: 34px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; border: 1px solid rgba(237, 207, 157, .44); border-radius: 32px; color: #f9ebda; text-align: center; background: linear-gradient(150deg, rgba(73, 42, 54, .92), rgba(23, 24, 37, .96)); box-shadow: 0 28px 90px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 255, 255, .12); }
+.kiss-bookend h2 { margin: 0; font: 600 clamp(1.7rem, 5vw, 2.35rem)/1.12 'Cormorant Garamond', Georgia, serif; color: #ffe7bf; }
+.kiss-bookend-prompt { max-width: 30ch; margin: -10px 0 0; color: rgba(249, 235, 218, .82); font-size: .96rem; line-height: 1.4; }
+.kiss-bookend-art { width: 126px; height: 126px; display: grid; place-items: center; border: 1px solid rgba(242, 202, 144, .56); border-radius: 50%; color: #ffe2ac; background: radial-gradient(circle, rgba(249, 215, 166, .22), rgba(233, 166, 153, .1) 58%, transparent 70%); box-shadow: 0 0 38px rgba(245, 191, 139, .15); animation: kiss-bookend-float 3.8s ease-in-out infinite; }
+.kiss-bookend-art svg { width: 58px; height: 58px; filter: drop-shadow(0 0 12px rgba(255, 205, 169, .62)); }
+.kiss-bookend-art.is-sent { animation: kiss-bookend-send 1.2s cubic-bezier(.2,.75,.25,1) both; }
+.kiss-bookend-art.is-caught { animation: kiss-bookend-catch .72s cubic-bezier(.2,.8,.25,1) both; }
+.kiss-bookend-action, .kiss-bookend-actions { width: min(100%, 320px); }
+.kiss-bookend-actions { display: flex; gap: 10px; }
+.kiss-bookend-actions > button { flex: 1; min-width: 0; }
+.kiss-bookend-action.is-recording { background: linear-gradient(135deg, #a83c56, #dc687b); animation: kiss-recording-pulse 1.2s ease-in-out infinite; }
+.kiss-bookend-audio { width: min(100%, 340px); }
+.kiss-bookend .error-copy { max-width: 320px; margin: 0; color: #ffd0d4; }
+.kiss-bookend-wait, .kiss-bookend-loading { text-align: center; color: #f4dfb5; }
+@keyframes kiss-bookend-float { 50% { transform: translateY(-9px) rotate(-4deg); } }
+@keyframes kiss-bookend-send { to { transform: translate(48vw, -34vh) scale(.32); opacity: .2; } }
+@keyframes kiss-bookend-catch { 55% { transform: scale(1.28); box-shadow: 0 0 72px rgba(255, 214, 159, .8); } to { transform: scale(1); } }
+@keyframes kiss-recording-pulse { 50% { box-shadow: 0 0 28px rgba(255, 118, 135, .55); } }
+@media (prefers-reduced-motion: reduce) { .kiss-bookend-art, .kiss-bookend-art.is-sent, .kiss-bookend-art.is-caught, .kiss-bookend-action.is-recording { animation: none; } }
 .independent-night .hud.top { flex-wrap: wrap; }
 
 /* Keep the independent-night counters in one compact row above both portraits. */

@@ -1,5 +1,6 @@
 import { beginPairingNight } from '../src/features/couple/pairingService.js'
 import { runNightCommand } from '../src/features/session/independentNightService.js'
+import { catchNightKiss, nightKissesCaughtByBothPlayers, sendNightKiss } from '../src/features/session/nightKissService.js'
 import { readFile } from 'node:fs/promises'
 import {
   assertFails,
@@ -107,6 +108,16 @@ async function resolvePlayerRoll(db, sessionId, uid, round, ownerIndex) {
   }
   if (step.kind === 'activity') await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { skip: true } })
   if (step.kind === 'keepsake') await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { collect: true } })
+}
+
+const testKissRecording = { audioData: `data:audio/webm;base64,${'A'.repeat(64)}`, mimeType: 'audio/webm;codecs=opus', durationMs: 1200 }
+async function sendNightKisses(hostDb, guestDb, sessionId) {
+  await sendNightKiss(hostDb, sessionId, HOST_UID, testKissRecording)
+  await sendNightKiss(guestDb, sessionId, GUEST_UID, testKissRecording)
+}
+async function catchNightKisses(hostDb, guestDb, sessionId) {
+  await catchNightKiss(hostDb, sessionId, HOST_UID, GUEST_UID)
+  await catchNightKiss(guestDb, sessionId, GUEST_UID, HOST_UID)
 }
 
 async function seedLegacyActiveSession() {
@@ -999,6 +1010,55 @@ describe('session lifecycle boundaries', () => {
 
 
 describe('independent night two-account transactions', () => {
+  it('keeps Portrait Panic cue sets private to each writer while allowing independent drawing', async () => {
+    const { couple, hostDb, guestDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    const stepRef = doc(hostDb, 'sessions', sessionId, 'steps', 'duel-1')
+    await setDoc(stepRef, {
+      kind: 'duel', type: 'portrait-panic-directed', round: 1, ownerIndex: -1,
+      state: { guides: {}, results: {} }, ready: false, completed: false, skipped: false,
+      updatedAt: serverTimestamp(),
+    })
+
+    await assertFails(updateDoc(stepRef, {
+      state: { guides: { '0': ['left', 'left', 'smile'] }, results: {} },
+      updatedAt: serverTimestamp(),
+    }))
+    await runNightCommand(hostDb, sessionId, HOST_UID, {
+      kind: 'submit', stepId: stepRef.id, input: { guideCues: ['left', 'larger', 'smile'] },
+    })
+    expect((await getDoc(doc(guestDb, 'sessions', sessionId, 'steps', 'duel-1'))).data().state.guides['0'])
+      .toEqual(['left', 'larger', 'smile'])
+    await assertFails(updateDoc(stepRef, {
+      state: { guides: { '0': ['left', 'larger', 'smile'], '1': ['right', 'simple', 'closer'] }, results: {} },
+      updatedAt: serverTimestamp(),
+    }))
+
+    await runNightCommand(guestDb, sessionId, GUEST_UID, {
+      kind: 'submit', stepId: stepRef.id, input: { guideCues: ['right', 'simple', 'closer'] },
+    })
+    await runNightCommand(hostDb, sessionId, HOST_UID, {
+      kind: 'submit', stepId: stepRef.id,
+      input: { dataUrl: 'data:image/png;base64,AAAA', highlight: 'portrait', time: 0, won: true },
+    })
+    expect((await getDoc(stepRef)).data()).toMatchObject({ ready: false })
+    expect((await getDoc(stepRef)).data().state.results['0'].highlight).toBe('portrait')
+  })
+
+  it('keeps opening kiss audio couple-private and finish waits for both partner catches', async () => {
+    const { couple, guestDb, hostDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    await sendNightKisses(hostDb, guestDb, sessionId)
+    const hostKiss = doc(hostDb, 'sessions', sessionId, 'nightKisses', HOST_UID)
+    expect((await getDoc(doc(guestDb, 'sessions', sessionId, 'nightKisses', HOST_UID))).data().audioData).toBe(testKissRecording.audioData)
+    await assertFails(getDoc(doc(authedDb(OUTSIDER_UID), 'sessions', sessionId, 'nightKisses', HOST_UID)))
+    await assertFails(updateDoc(hostKiss, { audioData: 'data:audio/webm;base64,BBBB', updatedAt: serverTimestamp() }))
+    await assertFails(setDoc(doc(guestDb, 'sessions', sessionId, 'nightKisses', OUTSIDER_UID), { ...testKissRecording, caughtBy: {}, sentAt: serverTimestamp(), updatedAt: serverTimestamp() }))
+    await catchNightKisses(hostDb, guestDb, sessionId)
+    const caught = Object.fromEntries((await getDocs(collection(hostDb, 'sessions', sessionId, 'nightKisses'))).docs.map(record => [record.id, record.data()]))
+    expect(nightKissesCaughtByBothPlayers(caught, couple.players)).toBe(true)
+  })
+
   it('lets only the owning player resolve a moment on an already completed board landing', async () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
@@ -1050,11 +1110,14 @@ describe('independent night two-account transactions', () => {
         await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: uid === HOST_UID ? 1 : 3, won: true } })
       }
       if (uid === GUEST_UID) {
+        await sendNightKisses(hostDb, guestDb, sessionId)
         await expect(runNightCommand(db, sessionId, uid, { kind: 'finish' })).rejects.toThrow('still moments')
         expect((await getDoc(doc(db, 'sessions', sessionId))).data().positions).toEqual([0, 5])
         expect((await getDocs(query(collection(db, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
       }
     }
+    await expect(runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'finish' })).rejects.toThrow('Catch your partner')
+    await catchNightKisses(hostDb, guestDb, sessionId)
     await Promise.all([
       runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'finish' }),
       runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'finish' }),
@@ -1083,9 +1146,20 @@ describe('long independent nights', () => {
       for (let round = 1; round <= rounds; round++) {
         await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: dice[round - 1] })
         await resolvePlayerRoll(db, sessionId, uid, round, uid === HOST_UID ? 0 : 1)
-        await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: uid === HOST_UID ? 1 : 3, won: true } })
       }
     }
+    for (let round = 1; round <= rounds; round++) {
+      const stepId = `duel-${round}`
+      const duel = (await getDoc(doc(hostDb, 'sessions', sessionId, 'steps', stepId))).data()
+      if (duel.type === 'portrait-panic-directed') {
+        await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId, input: { guideCues: ['left', 'larger', 'smile'] } })
+        await runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'submit', stepId, input: { guideCues: ['right', 'simple', 'closer'] } })
+      }
+      await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId, input: { highlight: 'Played with care', time: 1, won: true } })
+      await runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'submit', stepId, input: { highlight: 'Played with care', time: 3, won: true } })
+    }
+    await sendNightKisses(hostDb, guestDb, sessionId)
+    await catchNightKisses(hostDb, guestDb, sessionId)
     await runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'finish' })
     expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data().status).toBe('completed')
     const entries = (await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).docs.map(record => record.data())

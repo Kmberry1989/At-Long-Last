@@ -51,7 +51,7 @@ import { buildSessionQueue } from './sessionWiring';
 const weights = { tender: 0.5, playful: 0.3, spicy: 0.2 }; // from VibeDial
 const queue = buildSessionQueue(weights, 7);
 // Result: [prompt, duel, prompt, duel, prompt, duel, journal]
-// Example: Small Mercies -> Doodle Duel -> Map Pin -> Reaction Heart -> Whisper Line -> Kiss Courier -> Postcard From Next Year
+// Example: Small Mercies -> Doodle Duel -> Map Pin -> Heartflash -> Whisper Line -> Kiss Courier -> Postcard From Next Year
 ```
 
 Flow logic in `sessionWiring.ts` already does: warmup playful, middle mix, close tender.

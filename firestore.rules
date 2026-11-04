@@ -829,7 +829,7 @@ service cloud.firestore {
       return data is map
         && (
           (type in ['prompt', 'journal', 'ritual', 'milestone', 'moment-trash', 'moment-treasure'] && data.keys().size() <= 6)
-          || (type == 'trophy' && data.keys().size() <= 7)
+          || (type == 'trophy' && data.keys().size() <= 8)
           || (type in ['match', 'vault', 'harmonic'] && data.keys().size() <= 7)
           || (type in ['prediction', 'vibe-sync', 'tempo', 'word', 'maze', 'canvas', 'bluff', 'photo'] && data.keys().size() <= 8)
           || (type in ['activity-pass', 'duel', 'finale', 'keepsake', 'vibe-setup'] && data.keys().size() <= 40)
@@ -912,6 +912,7 @@ service cloud.firestore {
           'totalRounds', 'turnsTakenThisRound', 'usedActivityIds',
           'usedDuelIds', 'usedKeepsakePerks', 'vibeVotes', 'vibeWeights',
           'pacingVersion', 'moodVotes', 'progressRecorded', 'sealedMatches',
+          'kissBookendVersion',
           'mutualYesMatches', 'sharedDuelWins',
           'createdAt', 'startedAt', 'endedAt', 'lastActionAt', 'updatedAt'
         ]);
@@ -941,6 +942,7 @@ service cloud.firestore {
         && data.mutualYesMatches == 0
         && data.sharedDuelWins is int
         && data.sharedDuelWins == 0
+        && (!('kissBookendVersion' in data) || data.kissBookendVersion == 1)
         && data.momentum is map
         && data.spotlight is map
         && data.hearts is int
@@ -990,6 +992,7 @@ service cloud.firestore {
 
     function isValidSessionIdentity() {
       return request.resource.data.get('pacingVersion', 0) == resource.data.get('pacingVersion', 0)
+        && request.resource.data.get('kissBookendVersion', 0) == resource.data.get('kissBookendVersion', 0)
         && request.resource.data.coupleId == resource.data.coupleId
         && request.resource.data.players == resource.data.players
         && request.resource.data.preset == resource.data.preset
@@ -1134,6 +1137,7 @@ service cloud.firestore {
         && after.coupleId == resource.data.coupleId
         && after.players == resource.data.players
         && after.get('pacingVersion', 0) == resource.data.get('pacingVersion', 0)
+        && after.get('kissBookendVersion', 0) == resource.data.get('kissBookendVersion', 0)
         && after.preset == resource.data.preset
         && after.totalRounds == resource.data.totalRounds
         && after.goals == resource.data.goals
@@ -1727,6 +1731,21 @@ service cloud.firestore {
       function night() {
         return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
       }
+      function validPortraitCue(cue) {
+        return cue in ['left', 'right', 'larger', 'smaller', 'closer', 'one-detail', 'simple', 'smile'];
+      }
+      function validPortraitGuide(cues) {
+        return cues is list && cues.size() == 3
+          && validPortraitCue(cues[0]) && validPortraitCue(cues[1]) && validPortraitCue(cues[2])
+          && cues[0] != cues[1] && cues[0] != cues[2] && cues[1] != cues[2];
+      }
+      function validPortraitGuides(data) {
+        let guides = data.state.get('guides', {});
+        return data.type != 'portrait-panic-directed'
+          || (guides is map && guides.keys().hasOnly(['0', '1'])
+            && (!guides.keys().hasAny(['0']) || validPortraitGuide(guides['0']))
+            && (!guides.keys().hasAny(['1']) || validPortraitGuide(guides['1'])));
+      }
       function validStep(data) {
         return data.keys().hasAll(['kind', 'type', 'round', 'ownerIndex', 'state', 'ready', 'completed', 'skipped', 'updatedAt'])
           && data.keys().hasOnly(['kind', 'type', 'round', 'ownerIndex', 'state', 'ready', 'completed', 'skipped', 'updatedAt'])
@@ -1735,6 +1754,7 @@ service cloud.firestore {
           && data.round is int && data.round >= 1 && data.round <= night().totalRounds
           && data.ownerIndex in [-1, 0, 1]
           && data.state is map && data.state.keys().size() <= 25
+          && validPortraitGuides(data)
           && data.ready is bool && data.completed is bool && data.skipped is bool
           && data.updatedAt == request.time;
       }
@@ -1751,7 +1771,11 @@ service cloud.firestore {
         let index = night().players[0].uid == request.auth.uid ? 0 : 1;
         let mine = string(index);
         let keys = resource.data.state.keys();
-        return resource.data.kind == 'duel' ? ownMapOnly('results', mine)
+        return resource.data.kind == 'duel' ? (resource.data.type == 'portrait-panic-directed'
+          ? (ownMapOnly('guides', mine) && ownMapOnly('results', mine)
+            && (!resource.data.state.get('guides', {}).keys().hasAny([mine])
+              || request.resource.data.state.get('guides', {})[mine] == resource.data.state.get('guides', {})[mine]))
+          : ownMapOnly('results', mine))
           : keys.hasAny(['entries']) ? ownListOnly('entries', index)
           : keys.hasAny(['halves']) ? ownListOnly('halves', index)
           : keys.hasAny(['commitments']) ? (ownMapOnly('commitments', mine) && ownMapOnly('answers', mine))
@@ -1781,6 +1805,55 @@ service cloud.firestore {
           && !resource.data.state.keys().hasAny(['momentResolution'])))
         && !resource.data.skipped
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'ready', 'completed', 'skipped', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // Each participant sends one short microphone note at the start of a
+    // night. Only that sender can create the recording; the other participant
+    // can mark that specific recording caught, without changing its audio.
+    match /sessions/{sessionId}/nightKisses/{senderId} {
+      function night() {
+        return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
+      }
+      function isNightParticipant() {
+        return isAuthenticated()
+          && request.auth.uid in [night().players[0].uid, night().players[1].uid];
+      }
+      function validNightKiss(data) {
+        return data is map
+          && data.keys().hasAll(['audioData', 'mimeType', 'durationMs', 'caughtBy', 'sentAt', 'updatedAt'])
+          && data.keys().hasOnly(['audioData', 'mimeType', 'durationMs', 'caughtBy', 'sentAt', 'updatedAt'])
+          && data.audioData is string
+          && data.audioData.size() >= 1 && data.audioData.size() <= 45000
+          && data.audioData.matches('^data:audio/(webm|mp4|ogg)(;[^,]*)?;base64,[A-Za-z0-9+/=]+$')
+          && data.mimeType is string && data.mimeType.size() <= 80
+          && data.mimeType.matches('^audio/(webm|mp4|ogg)(;.*)?$')
+          && data.durationMs is int && data.durationMs >= 400 && data.durationMs <= 8000
+          && data.caughtBy is map && data.caughtBy.size() <= 1
+          && data.sentAt is timestamp && data.updatedAt is timestamp;
+      }
+      allow read: if isNightParticipant();
+      allow create: if isActiveParticipant(night().coupleId)
+        && night().status == 'active' && night().get('kissBookendVersion', 0) == 1
+        && request.auth.uid == senderId
+        && validNightKiss(request.resource.data)
+        && request.resource.data.caughtBy.size() == 0
+        && request.resource.data.sentAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isActiveParticipant(night().coupleId)
+        && night().status == 'active' && night().get('kissBookendVersion', 0) == 1
+        && isNightParticipant() && senderId in [night().players[0].uid, night().players[1].uid]
+        && request.auth.uid != senderId
+        && validNightKiss(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caughtBy', 'updatedAt'])
+        && request.resource.data.audioData == resource.data.audioData
+        && request.resource.data.mimeType == resource.data.mimeType
+        && request.resource.data.durationMs == resource.data.durationMs
+        && request.resource.data.sentAt == resource.data.sentAt
+        && resource.data.caughtBy.size() == 0
+        && request.resource.data.caughtBy.keys().hasOnly([request.auth.uid])
+        && request.resource.data.caughtBy[request.auth.uid] == true
+        && request.resource.data.updatedAt == request.time;
       allow delete: if false;
     }
 

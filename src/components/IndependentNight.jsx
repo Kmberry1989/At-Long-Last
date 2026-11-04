@@ -13,8 +13,10 @@ import { runNightCommand, subscribeToNightSteps } from '../features/session/inde
 import { buildFinalSummary } from '../features/session/sessionLogic.js'
 import { getWavelengthPromptsForSession, isWavelengthCommit, WAVELENGTH_DUEL_ID } from '../features/session/wavelengthDuelData.js'
 import { commitChoice } from '../features/session/choiceCommitment.js'
+import { catchNightKiss, nightKissesCaughtByBothPlayers, sendNightKiss, subscribeToNightKisses } from '../features/session/nightKissService.js'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { MysteryKeepsakeCard } from './MysteryKeepsakeCard.jsx'
+import { KISS_COURIER_VOICE_PROMPT, KissBookend } from './KissBookend.jsx'
 import { DuelArena } from './DuelArena.jsx'
 import { FinaleScreen } from './FinaleScreen.jsx'
 import { NightTransitionBanner } from './NightTransitionBanner.jsx'
@@ -34,11 +36,16 @@ export function IndependentNight() {
   })
   const audio = useAudio()
   const [steps, setSteps] = useState([])
+  const [nightKisses, setNightKisses] = useState({})
+  const [nightKissesLoaded, setNightKissesLoaded] = useState(!enabled)
+  const [sendIntroDismissed, setSendIntroDismissed] = useState(false)
+  const [catchKissOpen, setCatchKissOpen] = useState(false)
   const [loaded, setLoaded] = useState(!enabled)
   const [previewPlayer, setPreviewPlayer] = useState(0)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [rolling, setRolling] = useState(false)
+  const [rollingDice, setRollingDice] = useState(null)
   const [boardReady, setBoardReady] = useState(false)
   const [rollGesture, setRollGesture] = useState(null)
   const [tradeOpen, setTradeOpen] = useState(false)
@@ -47,6 +54,13 @@ export function IndependentNight() {
   const timer = useRef(null)
   const arrivalCueKeyRef = useRef('')
   const playerIndex = enabled ? session.players.findIndex(player => player.uid === userId) : previewPlayer
+  const playerUid = session.players[playerIndex]?.uid
+  const partnerUid = session.players[1 - playerIndex]?.uid
+  const ownKiss = playerUid ? nightKisses[playerUid] : null
+  const partnerKiss = partnerUid ? nightKisses[partnerUid] : null
+  const partnerKissCaught = Boolean(partnerKiss?.caughtBy?.[playerUid])
+  const bothKissesCaught = nightKissesCaughtByBothPlayers(nightKisses, session.players)
+  const usesKissBookend = session.kissBookendVersion === 1
   const progress = getNightProgress(session, steps, playerIndex)
   const selected = steps.find(step => step.id === selectedId && canAnswerStep(step, playerIndex, progress.readyToReveal))
   const entry = selected?.kind === 'activity' ? activityRegistry[selected.type] : null
@@ -80,6 +94,14 @@ export function IndependentNight() {
     if (!enabled || !db) return undefined
     return subscribeToNightSteps(db, session.id, next => { setSteps(next); setLoaded(true) }, nextError => setError(nextError.message))
   }, [db, enabled, session.id])
+  useEffect(() => {
+    setNightKisses({})
+    setNightKissesLoaded(!enabled)
+    setSendIntroDismissed(false)
+    setCatchKissOpen(false)
+    if (!enabled || !db || session.kissBookendVersion !== 1) return undefined
+    return subscribeToNightKisses(db, session.id, next => { setNightKisses(next); setNightKissesLoaded(true) }, nextError => { setError(nextError.message); setNightKissesLoaded(true) })
+  }, [db, enabled, session.id, session.kissBookendVersion])
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
   useEffect(() => {
@@ -116,6 +138,7 @@ export function IndependentNight() {
           applyPreviewNight(result.session)
         }
       } else if (command.kind === 'finish') {
+        if (usesKissBookend && !bothKissesCaught) throw new Error('Catch your partner’s kiss before opening the coda.')
         const result = finishIndependentNight(session, steps)
         applyPreviewNight(result.session, result.entries.map((item, index) => ({ ...item, id: `${session.id}-reveal-${index}` })))
       }
@@ -124,16 +147,35 @@ export function IndependentNight() {
     finally { lock.current = false; setWorking(false) }
   }
 
+  async function sendOpeningKiss(recording) {
+    if (!playerUid) throw new Error('Player details are still loading.')
+    const note = { ...recording, caughtBy: {} }
+    if (enabled) await sendNightKiss(db, session.id, playerUid, recording)
+    setNightKisses(current => ({ ...current, [playerUid]: note }))
+  }
+
+  async function catchOpeningKiss() {
+    if (!playerUid || !partnerUid || !partnerKiss) throw new Error('Your partner’s kiss has not arrived yet.')
+    if (enabled) await catchNightKiss(db, session.id, playerUid, partnerUid)
+    setNightKisses(current => ({
+      ...current,
+      [partnerUid]: { ...current[partnerUid], caughtBy: { ...current[partnerUid]?.caughtBy, [playerUid]: true } },
+    }))
+  }
+
   async function roll(gesture) {
-    if (!progress.canRoll || working || rolling || !boardReady || !loaded) return
+    if (!progress.canRoll || (usesKissBookend && !ownKiss) || working || rolling || !boardReady || !loaded) return
     audio?.playAction?.()
     setRollGesture(gesture || null)
     setRolling(true)
+    setRollingDice(null)
+    await new Promise(resolve => { timer.current = window.setTimeout(resolve, 620) })
     // One-shot development fixture keeps browser QA deterministic without
     // replacing global randomness used by Firebase and the renderer.
     const fixture = import.meta.env.DEV ? window.__atLongLastTestRoll : null
     if (import.meta.env.DEV) delete window.__atLongLastTestRoll
     const dice = fixture?.dice || [1, 2].map(() => Math.floor(Math.random() * 6) + 1)
+    setRollingDice(dice)
     const round = progress.nextRound
     const ok = await run({ kind: 'roll', round, dice, history: journalEntries, ...(fixture ? { selectionSeed: fixture.selectionSeed } : {}) })
     if (ok) {
@@ -141,6 +183,7 @@ export function IndependentNight() {
       timer.current = window.setTimeout(() => { setRolling(false); setRollGesture(null) }, 12000)
     } else {
       setRolling(false)
+      setRollingDice(null)
       setRollGesture(null)
     }
   }
@@ -151,7 +194,7 @@ export function IndependentNight() {
       const key = `at-long-last:night-duel:${session.id}:${selected.id}:${session.players[playerIndex].uid}`
       if (progress.readyToReveal && isWavelengthCommit(selected.state.results?.[String(playerIndex)])) {
         const saved = JSON.parse(sessionStorage.getItem(key) || 'null')
-        if (!saved) { setError('Return to the tab where you sealed this challenge, or pass this card.'); return }
+        if (!saved) { setError('Return to the tab where you sealed this challenge to reveal it.'); return }
         input = { ...saved.result, nonce: saved.nonce }
       } else {
         const sealed = await commitChoice(input.excerpt)
@@ -173,7 +216,7 @@ export function IndependentNight() {
     <section className={`screen active game-screen independent-night${selected && !rolling ? ' has-gameplay-overlay' : ''}`} data-board-theme={coupleProgress?.selectedTheme || 'cozy'}>
       <div className="board-wrap">
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
-          <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={session.lastMove?.dice} lastMove={session.lastMove} lastRoll={session.lastRoll}
+          <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={rolling ? rollingDice : session.lastMove?.dice} lastMove={session.lastMove} lastRoll={session.lastRoll}
             onReady={() => setBoardReady(true)} onPieceStep={() => audio?.playPieceStep?.()} onPieceMoveComplete={({ playerIndex: mover }) => {
               if (mover !== playerIndex) return
               if (timer.current) window.clearTimeout(timer.current)
@@ -181,9 +224,9 @@ export function IndependentNight() {
               setRolling(false)
               setRollGesture(null)
             }} pacingMode="freeFlow" phase={phase} players={session.players}
-            canRoll={progress.canRoll && loaded && boardReady && !working && !rolling} onDiceCast={audio?.playDiceCast} onDiceImpact={audio?.playDiceImpact}
+            canRoll={progress.canRoll && (!usesKissBookend || Boolean(ownKiss)) && loaded && boardReady && !working && !rolling} onDiceCast={audio?.playDiceCast} onDiceImpact={audio?.playDiceImpact}
             onDiceRattle={audio?.playDiceRattle} onRoll={roll} rollGesture={rollGesture}
-            positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling && selectedId?.startsWith('roll-') && boardReady} themeId={coupleProgress?.selectedTheme || 'cozy'} />
+            positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling && boardReady} themeId={coupleProgress?.selectedTheme || 'cozy'} />
         </Suspense>
         <div className="hud top">
           <button className="trade-hud-btn control-badge" type="button" aria-label={session.lastMove?.tradeOffer?.status === 'pending' && session.lastMove.tradeOffer.fromPlayerIndex !== playerIndex ? 'Review trade offer' : 'Trade'} onClick={() => setTradeOpen(true)}><BrandIcon className="control-badge-mark" name="trade" /><span className="trade-hud-label">{session.lastMove?.tradeOffer?.status === 'pending' && session.lastMove.tradeOffer.fromPlayerIndex !== playerIndex ? 'Review offer' : 'Trade'}</span></button>
@@ -200,7 +243,9 @@ export function IndependentNight() {
               {progress.readyToReveal ? 'Reveal: ' : ''}{step.state.momentCard && !step.state.momentResolution ? `${step.state.momentCard.category} moment` : step.kind === 'activity' ? activityRegistry[step.type].label : step.kind === 'duel' ? duelRegistry[step.type].label : 'Collect mystery card'} <small>· round {step.round}</small>
             </button>)}
           </div>
-          {progress.readyToFinish && <button className="primary-btn" type="button" disabled={working} onClick={() => run({ kind: 'finish' })}>Open tonight’s reveals</button>}
+          {progress.readyToFinish && usesKissBookend && !partnerKissCaught && <button className="primary-btn" type="button" disabled={working || !nightKissesLoaded || !partnerKiss} onClick={() => setCatchKissOpen(true)}>Catch their kiss</button>}
+          {progress.readyToFinish && usesKissBookend && partnerKissCaught && !bothKissesCaught && <p className="kiss-bookend-wait">Waiting for their catch</p>}
+          {progress.readyToFinish && (!usesKissBookend || bothKissesCaught) && <button className="primary-btn" type="button" disabled={working || (usesKissBookend && !nightKissesLoaded)} onClick={() => run({ kind: 'finish' })}>Open tonight’s reveals</button>}
           {!progress.canRoll && !progress.available.length && !progress.readyToFinish && loaded && <p className="support-copy">Your part is saved. {session.players[1 - playerIndex]?.displayName} still has moments to finish. You can return later.</p>}
           {!enabled && <button className="secondary-link" type="button" onClick={() => setPreviewPlayer(index => 1 - index)}>Preview as {session.players[1 - playerIndex]?.displayName}</button>}
         </div>}
@@ -208,17 +253,21 @@ export function IndependentNight() {
       <NightTransitionBanner phase={selected?.kind === 'duel' ? 'duel' : phase}
         transitionKey={`${session.id}:${selected?.id || session.phase}:${selected?.state?.phase || progress.nextRound}:${phase}`} playPhase={audio?.playPhase} />
       {selected && !rolling && <div className={`overlay-screen independent-overlay${selected.state.momentCard && !selected.state.momentResolution ? ' moment-card-overlay' : ''}`}>
-        <button className="secondary-link night-back" type="button" disabled={working} onClick={() => setSelectedId(null)}>Back to board</button>
-        <p className="night-seal-note">{progress.readyToReveal ? 'End of night · reveal together' : 'Your input · comparison saved for the end of the night'}</p>
         {selected.state.momentCard && !selected.state.momentResolution && <MomentCard key={`${selected.id}-moment`} card={selected.state.momentCard} disabled={working} onResolve={() => submit({ resolveMoment: true })} />}
         {(!selected.state.momentCard || selected.state.momentResolution) && selected.kind === 'activity' && Activity && <Activity key={`${selected.id}-${playerIndex}`} activity={{ ...selected, id: `${session.id}-${selected.id}`, state: isIndependentActivity(selected.type) ? { ...selected.state, turnIndex: playerIndex } : selected.state }}
-          deferReveal={!progress.readyToReveal} disabled={working} error={error} onSkip={() => submit({ skip: true })} onSubmit={submit} playerIndex={playerIndex} players={session.players} />}
+          deferReveal={!progress.readyToReveal} disabled={working} error={error} onSubmit={submit} playerIndex={playerIndex} players={session.players} />}
         {(!selected.state.momentCard || selected.state.momentResolution) && selected.kind === 'keepsake' && <MysteryKeepsakeCard key={selected.id} item={selected.state.keepsake} onReveal={() => audio?.playAction?.()} onCollect={() => submit({ collect: true })} player={session.players[playerIndex]} />}
-        {selected.kind === 'duel' && progress.readyToReveal && isWavelengthCommit(selected.state.results?.[String(playerIndex)]) ? <div className="overlay-card"><h3>Open your sealed challenge</h3><button className="primary-btn" disabled={working} type="button" onClick={() => submit({})}>Reveal my challenge</button><button className="secondary-link" disabled={working} type="button" onClick={() => submit({ skip: true })}>Pass this card</button></div> : selected.kind === 'duel' && <DuelArena key={`${selected.id}-${playerIndex}`} duel={duel} session={duelSession} playerIndex={playerIndex} players={session.players}
-          disabled={working} DuelComponent={duel.start} onComplete={submit} onSkip={() => submit({ highlight: 'Passed this time', time: 0, won: false, skipped: true })}
+        {selected.kind === 'duel' && progress.readyToReveal && isWavelengthCommit(selected.state.results?.[String(playerIndex)]) ? <div className="overlay-card"><button className="primary-btn" disabled={working} type="button" onClick={() => submit({})}>Reveal</button></div> : selected.kind === 'duel' && <DuelArena key={`${selected.id}-${playerIndex}`} duel={duel} session={duelSession} playerIndex={playerIndex} players={session.players}
+          disabled={working} DuelComponent={duel.start} onComplete={submit} duelState={selected.state}
           wavelengthPrompts={selected.type === WAVELENGTH_DUEL_ID ? getWavelengthPromptsForSession(duelSession) : null} />}
       </div>}
       {(error || providerError) && <p className="error-copy night-error" role="alert">{error || providerError}</p>}
+      {usesKissBookend && gameOpen && (!ownKiss || !sendIntroDismissed) && <div className="overlay-screen independent-overlay kiss-bookend-overlay">
+        {!nightKissesLoaded ? <p className="kiss-bookend-loading" role="status">Opening the night</p> : <KissBookend mode="send" recording={Boolean(ownKiss)} voicePrompt={KISS_COURIER_VOICE_PROMPT} working={working} onSend={sendOpeningKiss} onContinue={() => setSendIntroDismissed(true)} />}
+      </div>}
+      {usesKissBookend && catchKissOpen && partnerKiss && <div className="overlay-screen independent-overlay kiss-bookend-overlay">
+        <KissBookend mode="catch" recording={partnerKiss} voicePrompt={KISS_COURIER_VOICE_PROMPT} working={working} onCatch={catchOpeningKiss} onContinue={() => setCatchKissOpen(false)} />
+      </div>}
       {session.phase === 'finale' && <FinaleScreen session={session} finalSummary={buildFinalSummary(session, tonight)} journalEntries={journalEntries}
         themeId={coupleProgress?.selectedTheme || 'cozy'} players={session.players} canPlayAgain={canRecoverSession} working={working}
         onOpenScrapbook={() => setJournalOpen(true)} onPlayAgain={startFreshSession} />}

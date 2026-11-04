@@ -7,6 +7,8 @@ import { isWavelengthCommit } from './wavelengthDuelData.js'
 import { verifyChoice } from './choiceCommitment.js'
 import { buildActivityJournalEntry, buildDuelJournalEntry, buildFinaleJournalEntry } from './journalHelpers.js'
 import { drawMomentCard } from './momentCards.js'
+import { hasThreeLetters } from './responseValidation.js'
+import { getPortraitPanicStage, isValidPortraitGuide } from './portraitPanic.js'
 
 const INDEPENDENT_ACTIVITIES = new Set([
   'mind-meld', 'prediction-box', 'same-wavelength', 'the-vault', 'vibe-check',
@@ -55,7 +57,11 @@ export function canAnswerStep(step, playerIndex, revealing = false) {
     return true // Each player acknowledges the end-of-night reveal at their pace.
   }
   if (step.ready || hasSubmitted(step, playerIndex)) return false
-  if (step.kind === 'duel') return true
+  if (step.kind === 'duel') {
+    if (step.type !== 'portrait-panic-directed') return true
+    const stage = getPortraitPanicStage(step.state, playerIndex)
+    return stage === 'guide' || stage === 'draw'
+  }
   if (step.kind === 'keepsake') return step.ownerIndex === playerIndex
   if (step.type === 'mutual-yes' && step.state.salts?.[String(playerIndex)] && !step.state.salts?.[String(1 - playerIndex)]) return false
   return isIndependentActivity(step.type) || step.state.turnIndex === playerIndex
@@ -144,6 +150,13 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     // A pass closes only this card, never the partner's other work.
     return { session, step: { ...step, ready: true, completed: true, skipped: true } }
   }
+  for (const key of ['text', 'answer', 'guess', 'caption', 'response', 'excerpt']) {
+    const value = input[key]
+    const optionalBlank = key === 'guess' && typeof value === 'string' && !value.trim()
+    if (typeof value === 'string' && !optionalBlank && !(key === 'excerpt' && value.startsWith('h=')) && !hasThreeLetters(value)) {
+      throw new Error('Add at least three letters before saving.')
+    }
+  }
   if (step.state.momentCard && !step.state.momentResolution) {
     if (!input.resolveMoment) throw new Error('Resolve the moment card first.')
     const card = step.state.momentCard
@@ -154,7 +167,7 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     const raceLaps = Math.max(previousLaps, Math.floor(Math.max(0, raceProgress) / 20))
     const crossedThisEffect = !step.state.race?.crossedAt && raceLaps > previousLaps
     const race = {
-      ...(step.state.race || {}),
+      ...step.state.race,
       progress: raceProgress,
       laps: raceLaps,
       crossingRound: step.state.race?.crossingRound || (crossedThisEffect ? step.round : null),
@@ -183,6 +196,17 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     }
   }
   if (step.kind === 'duel') {
+    if (step.type === 'portrait-panic-directed') {
+      const own = String(playerIndex)
+      const partner = String(1 - playerIndex)
+      if (Array.isArray(input.guideCues)) {
+        if (step.state.guides?.[own]) return null
+        if (!isValidPortraitGuide(input.guideCues)) throw new Error('Choose three drawing cues.')
+        const guides = { ...step.state.guides, [own]: input.guideCues }
+        return { session, step: { ...step, state: { ...step.state, guides }, ready: Object.keys(step.state.results || {}).length === 2 } }
+      }
+      if (!step.state.guides?.[own] || !step.state.guides?.[partner]) throw new Error('Send your cues and wait for your partner’s cues before drawing.')
+    }
     if (!input.highlight || !Number.isFinite(input.time)) throw new Error('Finish your challenge first.')
     const previous = step.state.results?.[String(playerIndex)]
     if (previous && isWavelengthCommit(previous) && !await verifyChoice({ answerId: input.excerpt, nonce: input.nonce }, previous.excerpt.slice(2))) throw new Error('That sealed challenge could not be verified.')
@@ -232,7 +256,11 @@ export function finishIndependentNight(session, steps) {
       entries.push(buildActivityJournalEntry({ coupleId: session.coupleId, sessionId: session.id, result }))
     } else if (step.kind === 'duel') {
       const duel = duelRegistry[step.type]
-      const duelResults = Object.fromEntries(session.players.map((player, index) => [player.uid, step.state.results[String(index)]]))
+      const duelResults = Object.fromEntries(session.players.map((player, index) => {
+        const result = step.state.results[String(index)]
+        if (step.type !== 'portrait-panic-directed' || !result) return [player.uid, result]
+        return [player.uid, { ...result, guidedBy: step.state.guides?.[String(1 - index)] || [] }]
+      }))
       const duelSession = { ...session, round: step.round, currentDuel: { id: step.type, attempt: 1 }, duelResults }
       const outcome = Object.values(duelResults).some(result => result.skipped) ? { status: 'noContest' } : evaluateDuelRound(duelSession, duelRegistry)
       const bonus = steps.filter(task => task.round === step.round && task.kind === 'board' && task.type === 'duel').length
@@ -244,16 +272,10 @@ export function finishIndependentNight(session, steps) {
     }
   }
   const prize = resolveNightPrize(session, steps)
-  entries.push({ coupleId: session.coupleId, sessionId: session.id, type: 'trophy', title: "Tonight's Prize", vibe: 'tender', summary: `${session.players[prize.winnerIndex]?.displayName || 'Player'} earns the ${prize.prize}.`, text: prize.method === 'lap' ? 'First to cross the board finish line.' : 'Furthest along the board when the night closed.', payload: prize })
+  entries.push({ coupleId: session.coupleId, sessionId: session.id, type: 'trophy', title: "Tonight's Prize", vibe: 'tender', summary: `${session.players[prize.winnerIndex]?.displayName || 'Player'} earns the ${prize.prize}.`, text: prize.method === 'lap' ? `Reached the finish in ${prize.turnsToFinish} turns.` : 'Furthest along the board when the night closed.', payload: prize })
   next = { ...next, phase: 'finale', status: 'completed', round: session.totalRounds, currentDuel: null, actionText: 'Your night is ready to unfold.' }
   entries.push(buildFinaleJournalEntry({ coupleId: session.coupleId, sessionId: session.id, session: next, journalEntries: entries }))
   return { session: next, entries }
-}
-
-function timestampMillis(value) {
-  if (typeof value?.toMillis === 'function') return value.toMillis()
-  if (value instanceof Date) return value.getTime()
-  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY
 }
 
 export function resolveNightPrize(session, steps) {
@@ -261,8 +283,7 @@ export function resolveNightPrize(session, steps) {
     const ownSteps = steps.filter(step => step.id.startsWith('roll-') && step.ownerIndex === playerIndex)
     const latest = ownSteps.reduce((current, step) => !current || step.round > current.round ? step : current, null)
     const crossings = ownSteps.filter(step => step.state.race?.crossedAt || step.state.race?.crossingPending)
-      .sort((a, b) => timestampMillis(a.state.race.crossedAt) - timestampMillis(b.state.race.crossedAt)
-        || (a.state.race.crossingRound || a.round) - (b.state.race.crossingRound || b.round))
+      .sort((a, b) => (a.state.race.crossingRound || a.round) - (b.state.race.crossingRound || b.round))
     return {
       playerIndex,
       uid: player.uid,
@@ -273,8 +294,7 @@ export function resolveNightPrize(session, steps) {
     }
   })
   const finishers = racers.filter(racer => racer.laps > 0).sort((a, b) =>
-    timestampMillis(a.crossedAt) - timestampMillis(b.crossedAt)
-    || a.crossingRound - b.crossingRound
+    a.crossingRound - b.crossingRound
     || ((a.playerIndex - session.startingPlayerIndex + racers.length) % racers.length)
       - ((b.playerIndex - session.startingPlayerIndex + racers.length) % racers.length),
   )
@@ -283,7 +303,7 @@ export function resolveNightPrize(session, steps) {
     || ((a.playerIndex - session.startingPlayerIndex + racers.length) % racers.length)
       - ((b.playerIndex - session.startingPlayerIndex + racers.length) % racers.length),
   )[0]
-  return { winnerIndex: winner.playerIndex, winnerUid: winner.uid, loserUid: session.players[1 - winner.playerIndex]?.uid || null, prize: finishers.length ? 'First Lap Laurel' : 'Wayfinder Ribbon', method: finishers.length ? 'lap' : 'progress', progress: winner.progress, laps: winner.laps }
+  return { winnerIndex: winner.playerIndex, winnerUid: winner.uid, loserUid: session.players[1 - winner.playerIndex]?.uid || null, prize: finishers.length ? 'First Lap Laurel' : 'Wayfinder Ribbon', method: finishers.length ? 'lap' : 'progress', progress: winner.progress, laps: winner.laps, turnsToFinish: finishers.length ? winner.crossingRound : null }
 }
 
 

@@ -90,7 +90,7 @@ export const EXAMPLE_ENTRIES: JournalEntry[] = [
   },
   {
     id: '2',
-    title: 'Doodle Duel - Our Couch',
+    title: 'Keepsake Sketch - Our Couch',
     text: 'Yours was more accurate but mine had the cat. We both lost.',
     vibe: 'playful',
     createdAt: new Date(Date.now() - 1000*60*60*5).toISOString()

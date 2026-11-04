@@ -22,6 +22,23 @@ export const activityDefinitions = [
 
 export const duelDefinitions = [...RAW_DUELS, WAVELENGTH_DUEL_DEFINITION].map((duel) => ({
   ...duel,
-  label: duel.name,
+  label: duel.id === 'constellation-home' ? 'Star Map' : duel.name,
   prompt: duel.howToPlay?.[0] || duel.tagline,
 }))
+
+// Keep the full registry available for in-progress and historical nights while
+// drawing new nights from a small set of distinct interaction families.
+export const MINI_GAME_FAMILIES = {
+  'wavelength-duel': 'guess-reveal',
+  'kiss-courier': 'playful-duel',
+  'doodle-duel-memory': 'creative-calm',
+  'portrait-panic-directed': 'creative-calm',
+  'letterpress-one-word': 'creative-calm',
+  'gratitude-duel': 'creative-calm',
+  'constellation-home': 'creative-calm',
+  'sync-breath': 'creative-calm',
+}
+
+export const selectableDuelDefinitions = duelDefinitions
+  .filter((duel) => Object.hasOwn(MINI_GAME_FAMILIES, duel.id))
+  .map((duel) => ({ ...duel, family: MINI_GAME_FAMILIES[duel.id] }))

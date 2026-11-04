@@ -21,9 +21,12 @@ export const DICE_HOME_BASE_INNER_RADIUS = 1.82
 export const DICE_HOME_BASE_HEIGHT = 0.58
 export const DICE_HOME_BASE_FLOOR_THICKNESS = 0.16
 export const DICE_HOME_BASE_FLOAT_HEIGHT = 0.72
+export const DICE_ROLL_DURATION_SECONDS = 2.05
 export const BOARD_SKIN_SURFACE_Y = 0.126
 export const BOARD_CARD_PILE_LABEL_Y = BOARD_SKIN_SURFACE_Y + 0.018
 export const BOARD_CARD_PILE_RADIUS = 2.5
+export const BOARD_CARD_PILE_DOT_COUNT = 64
+export const BOARD_CARD_PILE_DOT_SIZE = 0.18
 export const BOARD_CARD_PILE_POSITIONS = {
   draw: [1.05, -3.45],
   discard: [1.05, 3.45],
@@ -209,86 +212,15 @@ function makePileLabelTexture(kind, theme) {
   context.textBaseline = 'middle'
   context.shadowColor = 'rgba(255, 244, 220, 0.62)'
   context.shadowBlur = 7
-  context.font = "800 68px 'Avenir Next', sans-serif"
-  context.fillText(kind === 'draw' ? 'DRAW' : 'DISCARD', 256, 44)
-  context.shadowBlur = 3
-  context.globalAlpha = 0.86
-  context.font = "700 28px 'Avenir Next', sans-serif"
-  context.fillText(kind === 'draw' ? 'TRASH  ·  TREASURES' : 'RESOLVED CARDS', 256, 98)
+  context.font = "900 82px 'Avenir Next', sans-serif"
+  context.fillText(kind === 'draw' ? 'DRAW' : 'DISCARD', 256, 64)
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   return texture
 }
 
-function makeCardBackTexture(theme) {
-  const canvas = document.createElement('canvas')
-  canvas.width = 384
-  canvas.height = 448
-  const context = canvas.getContext('2d')
-  context.fillStyle = theme.cardSkin.bottom
-  context.beginPath()
-  context.roundRect(8, 8, 368, 432, 28)
-  context.fill()
-  context.strokeStyle = theme.cardSkin.border
-  context.lineWidth = 9
-  context.stroke()
-  context.beginPath()
-  context.roundRect(24, 24, 336, 400, 22)
-  context.strokeStyle = `${theme.cardSkin.accent}bb`
-  context.lineWidth = 3
-  context.stroke()
-
-  context.fillStyle = theme.cardSkin.ink
-  context.strokeStyle = theme.cardSkin.border
-  context.lineWidth = 4
-  context.beginPath()
-  context.arc(192, 128, 72, 0, Math.PI * 2)
-  context.fillStyle = theme.cardSkin.accent
-  context.fill()
-  context.stroke()
-  context.beginPath()
-  context.arc(192, 320, 72, 0, Math.PI * 2)
-  context.fill()
-  context.stroke()
-
-  context.strokeStyle = theme.cardSkin.top
-  drawBrandIcon(context, 'trash', 192, 128, 116)
-  drawBrandIcon(context, 'treasure', 192, 320, 116)
-  context.setLineDash([7, 10])
-  context.lineWidth = 3
-  context.strokeStyle = theme.cardSkin.accent
-  context.beginPath()
-  context.moveTo(192, 201)
-  context.lineTo(192, 247)
-  context.stroke()
-  context.setLineDash([])
-
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 8
-  return texture
-}
-
-function makeDiscardCardFaceTexture(theme) {
-  const canvas = document.createElement('canvas')
-  canvas.width = 384
-  canvas.height = 448
-  const context = canvas.getContext('2d')
-  context.fillStyle = theme.cardSkin.top
-  context.beginPath()
-  context.roundRect(8, 8, 368, 432, 28)
-  context.fill()
-  context.strokeStyle = theme.cardSkin.border
-  context.lineWidth = 9
-  context.stroke()
-  context.strokeStyle = theme.cardSkin.accent
-  context.lineWidth = 4
-  context.beginPath()
-  context.arc(192, 224, 94, 0, Math.PI * 2)
-  context.stroke()
-  context.strokeStyle = theme.cardSkin.ink
-  drawBrandIcon(context, 'sparkle', 192, 224, 112)
-  const texture = new THREE.CanvasTexture(canvas)
+function makeCardBackTexture() {
+  const texture = new THREE.TextureLoader().load('/assets/game-ui/moment-card-back.png')
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 8
   return texture
@@ -303,7 +235,7 @@ function createBoardCardPileMarker(theme, kind, color) {
   group.userData.cardKind = isDrawPile ? 'Trash or Treasure' : 'resolved cards'
 
   const dotPositions = []
-  const dotCount = 48
+  const dotCount = BOARD_CARD_PILE_DOT_COUNT
   for (let index = 0; index < dotCount; index += 1) {
     const angle = (index / dotCount) * Math.PI * 2
     dotPositions.push(
@@ -314,14 +246,14 @@ function createBoardCardPileMarker(theme, kind, color) {
   }
   const dottedLine = new THREE.Points(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3)),
-    new THREE.PointsMaterial({ color, size: 0.115, sizeAttenuation: true, transparent: true, opacity: 0.92, depthWrite: false }),
+    new THREE.PointsMaterial({ color, size: BOARD_CARD_PILE_DOT_SIZE, sizeAttenuation: true, transparent: true, opacity: 1, depthWrite: false }),
   )
   dottedLine.name = `${kind}-pile-dotted-outline`
   dottedLine.renderOrder = 4
   group.add(dottedLine)
 
   const cardCount = isDrawPile ? 3 : 1
-  const cardTexture = isDrawPile ? makeCardBackTexture(theme) : makeDiscardCardFaceTexture(theme)
+  const cardTexture = makeCardBackTexture()
   for (let index = 0; index < cardCount; index += 1) {
     const card = new THREE.Group()
     card.name = `${kind}-pile-card-${index + 1}`
@@ -330,7 +262,7 @@ function createBoardCardPileMarker(theme, kind, color) {
     const body = new THREE.Mesh(
       new RoundedBoxGeometry(2, 0.16, 2.24, 0.08, 4),
       new THREE.MeshStandardMaterial({
-        color: isDrawPile ? (index === cardCount - 1 ? color : theme.cardSkin.bottom) : theme.cardSkin.bottom,
+        color: theme.cardSkin.bottom,
         emissive: isDrawPile ? color : theme.cardSkin.accent,
         emissiveIntensity: isDrawPile ? 0.035 : 0.06,
         metalness: 0.12,
@@ -471,12 +403,21 @@ function createSingleDie(value, skin, isDie2 = false) {
   const pipMaterial = new THREE.MeshStandardMaterial({ color: skin.pip, emissive: skin.pip, emissiveIntensity: 0.22, metalness: 0.42, roughness: 0.28 })
   const pipGeometry = new THREE.SphereGeometry(0.07, 14, 10)
 
+  // A die is marked on every face. Opposites sum to seven, and the resting
+  // rotation below turns the rolled value toward the camera-facing top.
+  const faces = [
+    { value: 1, axis: 'y', sign: 1 }, { value: 6, axis: 'y', sign: -1 },
+    { value: 2, axis: 'x', sign: 1 }, { value: 5, axis: 'x', sign: -1 },
+    { value: 3, axis: 'z', sign: 1 }, { value: 4, axis: 'z', sign: -1 },
+  ]
   const pipGroups = {}
-  Object.entries(pipLayouts).forEach(([faceValue, layout]) => {
+  faces.forEach(({ value: faceValue, axis, sign }) => {
     const group = new THREE.Group()
-    layout.forEach(([x, z]) => {
+    pipLayouts[faceValue].forEach(([a, b]) => {
       const pip = new THREE.Mesh(pipGeometry, pipMaterial)
-      pip.position.set(x, 0.485, z)
+      if (axis === 'y') pip.position.set(a, sign * 0.485, b)
+      else if (axis === 'x') pip.position.set(sign * 0.485, a, b)
+      else pip.position.set(a, b, sign * 0.485)
       pip.castShadow = true
       group.add(pip)
     })
@@ -494,9 +435,17 @@ function setPrimitiveDieValue(die, value) {
   }
 
   const resolvedValue = Math.min(6, Math.max(1, Number(value) || 1))
-  Object.entries(die.userData.pipGroups || {}).forEach(([faceValue, group]) => {
-    group.visible = Number(faceValue) === resolvedValue
-  })
+  // +Y starts as one. Rotate the corresponding physical face upward so the
+  // result remains readable while the dice rest inside the raised bowl.
+  const topOrientations = {
+    1: [0, 0, 0], 2: [0, 0, Math.PI / 2], 3: [-Math.PI / 2, 0, 0],
+    4: [Math.PI / 2, 0, 0], 5: [0, 0, -Math.PI / 2], 6: [Math.PI, 0, 0],
+  }
+  Object.values(die.userData.pipGroups || {}).forEach(group => { group.visible = true })
+  const [x, y, z] = topOrientations[resolvedValue]
+  const topFace = new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z))
+  const displayYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), die.userData.displayYaw || 0)
+  die.quaternion.copy(displayYaw).multiply(topFace)
   die.userData.value = resolvedValue
 }
 
@@ -506,10 +455,14 @@ function createPrimitiveDicePair(initialValues = [1, 1], diceSkin = getBoardThem
   const die2 = createSingleDie(initialValues[1], diceSkin, true)
 
   die1.position.set(-2.0, 0.62, 0.45)
-  die1.rotation.set(-0.04, 0.32, -0.06)
+  die1.userData.displayYaw = 0.32
+  die1.rotation.set(0, 0, 0)
+  setPrimitiveDieValue(die1, initialValues[0])
 
   die2.position.set(-3.25, 0.62, 0.82)
-  die2.rotation.set(0.08, -0.26, 0.12)
+  die2.userData.displayYaw = -0.26
+  die2.rotation.set(0, 0, 0)
+  setPrimitiveDieValue(die2, initialValues[1])
 
   dicePair.add(die1)
   dicePair.add(die2)
@@ -535,16 +488,18 @@ function settlePrimitiveDice(dicePair, values) {
   setPrimitiveDiceValues(dicePair, values)
   const { die1, die2 } = dicePair.userData
   die1.position.set(-2.0, 0.62, 0.45)
-  die1.rotation.set(-0.04, 0.32, -0.06)
+  die1.userData.displayYaw = 0.32
+  setPrimitiveDieValue(die1, values[0])
   die1.scale.setScalar(1)
 
   die2.position.set(-3.25, 0.62, 0.82)
-  die2.rotation.set(0.08, -0.26, 0.12)
+  die2.userData.displayYaw = -0.26
+  setPrimitiveDieValue(die2, values[1])
   die2.scale.setScalar(1)
 }
 
 export function createPrimitiveDie(value, diceSkin) {
-  return createPrimitiveDicePair(resolveDiceValues(value), diceSkin)
+  return createPrimitiveDicePair(resolveDiceValues(value, Array.isArray(value) ? value : undefined), diceSkin)
 }
 
 export function settlePrimitiveDie(die, value) {
@@ -784,10 +739,10 @@ export function BoardScene({
 
     if (rolling) {
       die.userData.startRoll?.(lastRoll || 2, dicePropRef.current)
-    } else if (!lastMove) {
+    } else {
       die.userData.finishRoll?.(lastRoll || 2, dicePropRef.current)
     }
-  }, [lastMove, lastRoll, rolling])
+  }, [dice, lastMove, lastRoll, rolling])
 
   useEffect(() => {
     const mount = mountRef.current
@@ -1053,11 +1008,13 @@ export function BoardScene({
     const dice = createPrimitiveDicePair(resolveDiceValues(lastRollRef.current || 2, dicePropRef.current), boardTheme.diceSkin)
     let dieRoll = null
     dice.userData.startRoll = (value, explicitDice) => {
-      if (dieRoll) return
-      const resolved = resolveDiceValues(value, explicitDice)
+      const finalValues = Array.isArray(explicitDice) ? resolveDiceValues(value, explicitDice) : null
+      if (dieRoll) {
+        if (finalValues) dieRoll.finalValues = finalValues
+        return
+      }
       dieRoll = {
-        finalValues: resolved,
-        finalValue: resolved[0] + resolved[1],
+        finalValues,
         startedAt: latestSceneTime,
         gesture: rollGestureRef.current,
         lastImpactStep: -1,
@@ -1555,47 +1512,50 @@ export function BoardScene({
       }
 
       if (dieRoll) {
-        const duration = 1.35
-        const progress = Math.min(1, (latestSceneTime - dieRoll.startedAt) / 1000 / duration)
+        const duration = DICE_ROLL_DURATION_SECONDS
+        const elapsed = (latestSceneTime - dieRoll.startedAt) / 1000
+        const progress = dieRoll.finalValues
+          ? Math.min(1, elapsed / duration)
+          : Math.min(0.94, elapsed / duration)
         const eased = 1 - (1 - progress) ** 3
         const lift1 = Math.sin(progress * Math.PI)
-        const tumbleFace1 = 1 + ((Math.floor(progress * 18) + dieRoll.finalValues[0]) % 6)
+        const tumbleFace1 = 1 + (Math.floor(elapsed * 14) % 6)
 
         const die1 = dice.userData.die1
         const die2 = dice.userData.die2
 
-        setPrimitiveDieValue(die1, progress >= 1 ? dieRoll.finalValues[0] : tumbleFace1)
+        setPrimitiveDieValue(die1, dieRoll.finalValues && progress >= 1 ? dieRoll.finalValues[0] : tumbleFace1)
         const gesture = dieRoll.gesture || {}
         const direction = gesture.direction || { x: 0.55, y: -0.3 }
         const throwPower = 0.78 + Math.max(0, Math.min(1, gesture.power || 0)) * 0.72
-        die1.position.x = -2.0 + lift1 * (1.2 + direction.x * 2.1) + Math.sin(progress * Math.PI * 2) * 0.25
-        die1.position.y = 0.62 + diceHomeMotion.lift + lift1 * 2.05 * throwPower
-        die1.position.z = 0.45 + lift1 * (0.35 + direction.y * 1.4)
-        die1.rotation.x = -0.04 + eased * (Math.PI * (3.5 + throwPower) + dieRoll.finalValues[0] * 0.18)
-        die1.rotation.y = 0.32 + eased * (Math.PI * (4.2 + throwPower) + dieRoll.finalValues[0] * 0.22 + direction.x)
+        die1.position.x = -2.0 + lift1 * (0.35 + direction.x * 0.42) + Math.sin(progress * Math.PI * 2.5) * 0.16
+        die1.position.y = 0.62 + diceHomeMotion.lift + lift1 * 1.08 * throwPower
+        die1.position.z = 0.45 + lift1 * (0.18 + direction.y * 0.38) + Math.cos(progress * Math.PI * 2) * 0.12 * lift1
+        die1.rotation.x = -0.04 + eased * (Math.PI * (3.5 + throwPower) + (dieRoll.finalValues?.[0] || 0) * 0.18)
+        die1.rotation.y = 0.32 + eased * (Math.PI * (4.2 + throwPower) + (dieRoll.finalValues?.[0] || 0) * 0.22 + direction.x)
         die1.rotation.z = -0.06 + eased * Math.PI * 3
         die1.scale.setScalar(1 + lift1 * 1.05)
 
         const prog2 = Math.min(1, Math.max(0, (progress - 0.04) / 0.96))
         const eased2 = 1 - (1 - prog2) ** 3
         const lift2 = Math.sin(prog2 * Math.PI)
-        const tumbleFace2 = 1 + ((Math.floor(prog2 * 20) + dieRoll.finalValues[1]) % 6)
-        setPrimitiveDieValue(die2, prog2 >= 1 ? dieRoll.finalValues[1] : tumbleFace2)
-        die2.position.x = -3.25 + lift2 * (1.6 + direction.x * 1.8) - Math.sin(prog2 * Math.PI * 2) * 0.28
-        die2.position.y = 0.62 + diceHomeMotion.lift + lift2 * 2.2 * throwPower
-        die2.position.z = 0.82 + lift2 * (0.2 - direction.y * 1.3)
-        die2.rotation.x = 0.08 + eased2 * (Math.PI * (4.4 + throwPower) + dieRoll.finalValues[1] * 0.16)
-        die2.rotation.y = -0.26 + eased2 * (Math.PI * (3.6 + throwPower) + dieRoll.finalValues[1] * 0.24 - direction.x)
+        const tumbleFace2 = 1 + (Math.floor(elapsed * 17 + 2) % 6)
+        setPrimitiveDieValue(die2, dieRoll.finalValues && prog2 >= 1 ? dieRoll.finalValues[1] : tumbleFace2)
+        die2.position.x = -3.25 + lift2 * (0.42 - direction.x * 0.4) - Math.sin(prog2 * Math.PI * 2.4) * 0.15
+        die2.position.y = 0.62 + diceHomeMotion.lift + lift2 * 1.16 * throwPower
+        die2.position.z = 0.82 + lift2 * (0.14 - direction.y * 0.38) - Math.cos(prog2 * Math.PI * 2) * 0.1 * lift2
+        die2.rotation.x = 0.08 + eased2 * (Math.PI * (4.4 + throwPower) + (dieRoll.finalValues?.[1] || 0) * 0.16)
+        die2.rotation.y = -0.26 + eased2 * (Math.PI * (3.6 + throwPower) + (dieRoll.finalValues?.[1] || 0) * 0.24 - direction.x)
         die2.rotation.z = 0.12 - eased2 * Math.PI * 3.2
         die2.scale.setScalar(1 + lift2 * 1.05)
 
-        const impactStep = Math.min(8, Math.floor(progress * 9))
+        const impactStep = Math.min(8, Math.floor(Math.min(1, elapsed / duration) * 9))
         if (impactStep > dieRoll.lastImpactStep) {
           dieRoll.lastImpactStep = impactStep
           onDiceImpactRef.current?.({ step: impactStep, energy: Math.max(0.24, 0.86 - impactStep * 0.07), side: impactStep % 2 })
         }
 
-        if (progress >= 1) {
+        if (progress >= 1 && dieRoll.finalValues) {
           const finalValues = dieRoll.finalValues
           dieRoll = null
           settlePrimitiveDice(dice, finalValues)
