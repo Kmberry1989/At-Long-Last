@@ -23,7 +23,9 @@ it('records a short note from the device microphone and sends the captured audio
     start() { this.state = 'recording' }
     stop() {
       this.state = 'inactive'
-      this.ondataavailable({ data: new Blob(['voice note'], { type: this.mimeType }) })
+      // Mobile Safari can emit a perfectly short note whose encoded size is
+      // larger than the old 45 KB guard.
+      this.ondataavailable({ data: new Blob(['x'.repeat(50_000), 'voice note'], { type: this.mimeType }) })
       this.onstop()
     }
   }

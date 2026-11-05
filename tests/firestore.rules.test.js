@@ -1048,9 +1048,11 @@ describe('independent night two-account transactions', () => {
   it('keeps opening kiss audio couple-private and finish waits for both partner catches', async () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
-    await sendNightKisses(hostDb, guestDb, sessionId)
+    const mobileSafariRecording = { ...testKissRecording, audioData: `data:audio/webm;base64,${'A'.repeat(60_000)}` }
+    await sendNightKiss(hostDb, sessionId, HOST_UID, mobileSafariRecording)
+    await sendNightKiss(guestDb, sessionId, GUEST_UID, mobileSafariRecording)
     const hostKiss = doc(hostDb, 'sessions', sessionId, 'nightKisses', HOST_UID)
-    expect((await getDoc(doc(guestDb, 'sessions', sessionId, 'nightKisses', HOST_UID))).data().audioData).toBe(testKissRecording.audioData)
+    expect((await getDoc(doc(guestDb, 'sessions', sessionId, 'nightKisses', HOST_UID))).data().audioData).toBe(mobileSafariRecording.audioData)
     await assertFails(getDoc(doc(authedDb(OUTSIDER_UID), 'sessions', sessionId, 'nightKisses', HOST_UID)))
     await assertFails(updateDoc(hostKiss, { audioData: 'data:audio/webm;base64,BBBB', updatedAt: serverTimestamp() }))
     await assertFails(setDoc(doc(guestDb, 'sessions', sessionId, 'nightKisses', OUTSIDER_UID), { ...testKissRecording, caughtBy: {}, sentAt: serverTimestamp(), updatedAt: serverTimestamp() }))

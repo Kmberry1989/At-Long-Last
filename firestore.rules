@@ -1869,7 +1869,7 @@ service cloud.firestore {
           && data.keys().hasAll(['audioData', 'mimeType', 'durationMs', 'caughtBy', 'sentAt', 'updatedAt'])
           && data.keys().hasOnly(['audioData', 'mimeType', 'durationMs', 'caughtBy', 'sentAt', 'updatedAt'])
           && data.audioData is string
-          && data.audioData.size() >= 1 && data.audioData.size() <= 45000
+          && data.audioData.size() >= 1 && data.audioData.size() <= 300000
           && data.audioData.matches('^data:audio/(webm|mp4|ogg)(;[^,]*)?;base64,[A-Za-z0-9+/=]+$')
           && data.mimeType is string && data.mimeType.size() <= 80
           && data.mimeType.matches('^audio/(webm|mp4|ogg)(;.*)?$')

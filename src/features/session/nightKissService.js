@@ -1,6 +1,9 @@
 import { collection, doc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore'
 
-export const MAX_NIGHT_KISS_DATA_URI_CHARS = 45_000
+// Mobile browsers can ignore MediaRecorder's bitrate hint and produce notes
+// larger than 45 KB even within the eight-second limit. Keep enough headroom
+// for normal AAC/Opus output while staying well below Firestore's 1 MiB limit.
+export const MAX_NIGHT_KISS_DATA_URI_CHARS = 300_000
 export const MAX_NIGHT_KISS_DURATION_MS = 8_000
 
 export function subscribeToNightKisses(db, sessionId, onNext, onError) {
