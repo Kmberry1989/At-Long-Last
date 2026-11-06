@@ -532,3 +532,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Updated `docs/ACTIVITY_AND_PROMPT_AUTHORING_GUIDE.md` to match the actual order: finish movement, acknowledge the landing, flip the coin, draw from the resulting deck, then resolve the card.
 - Focused session/card/component regressions passed (27 tests), including category concealment before flipping, selecting and drawing only after the flip, and the coin's 50/50 boundary. The focused Firestore authorization regression passed (1 test). Lint, production build, and `git diff --check` passed.
 - The entire Firestore rules file was also run: 25/31 passed; six unrelated lifecycle/long-night cases still assume the old opening phase or old roll helper flow. The local browser remained signed out, so a real two-account WebGL visual walkthrough has not been performed for this change.
+
+## 2026-11-06 — Broaden couples-journal theme adaptations
+
+- Extended the linked couples-journal themes beyond Wavelength: added sixteen four-choice prompts for gentle communication, shared values and goals, affectionate boundaries, rituals, kindness, and growth; expanded Gratitude Duel from 24 to 36 appreciation cues; and added 18 Letterpress starters about low-pressure shared plans, rituals, pauses, and future memories.
+- Updated the activity authoring guide with a five-theme source map, adaptation rules, and sensitive topics to keep optional and consent-led. Added Letterpress starters to the generated `GAME_CONTENT_CATALOG.md` so the prompt inventory stays complete.
+- Focused prompt and reveal tests passed (56 tests); lint, production build, and `git diff --check` passed.

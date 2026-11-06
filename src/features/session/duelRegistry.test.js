@@ -25,7 +25,10 @@ describe('duelRegistry', () => {
     expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('reaction-heart')
     expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('voice-note-trailer')
     expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('letterpress-one-word')
-    expect(duelDefinitions.find((entry) => entry.id === 'gratitude-duel').prompts).toHaveLength(24)
+    const gratitudePrompts = duelDefinitions.find((entry) => entry.id === 'gratitude-duel').prompts
+    expect(gratitudePrompts).toHaveLength(36)
+    expect(new Set(gratitudePrompts).size).toBe(36)
+    expect(gratitudePrompts).toContain('A kind boundary you respect that helps me feel safe')
     expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('gratitude-duel')
     expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('portrait-panic-directed')
   })

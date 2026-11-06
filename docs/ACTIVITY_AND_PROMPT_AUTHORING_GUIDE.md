@@ -65,6 +65,19 @@ For a Mind Meld style activity, both players choose privately from the same list
 
 Open-text prompts can remain for personal reflections, letters, captions, and creative play. Make them optional, bounded, or scaffolded. A player can answer in a phrase, choose a starter, or pass. Do not ask a partner to predict an exact open-text response.
 
+## Adapting the couples journal prompt library
+
+The [AI Journal App couples prompt library](https://www.aijournalapp.ai/prompt-library/relationships/couples-journal-prompts/) has five useful theme areas: appreciation and check-ins, communication and repair, shared values and life design, intimacy and trust, and play and growth. Use those as a source of themes across the game, not as 100 prompts to paste into one activity. Its journaling tasks often ask for plans, deadlines, or detailed reflection; At Long Last should turn the fitting themes into one small, low-pressure moment.
+
+Current adaptations are spread across the mini-games:
+
+- **Wavelength:** concrete choices about receiving support, feeling heard, shared rituals and goals, everyday affection, asking for a pause, and small adventures. Each player answers for themselves and guesses their partner from the same four plausible choices; differences are saved for the reveal without a penalty.
+- **Gratitude Duel:** more specific appreciation cues about listening, teamwork, boundaries, encouragement, and ordinary effort. Each player writes their own short appreciation, so nobody has to predict exact wording.
+- **Letterpress:** sentence starters about rituals, small celebrations, learning together, reconnecting after a busy day, kindness, and future memories. The creative task remains open-ended because players build their own shared sentence.
+- **Star Map:** keep the existing private ranking of sentimental values as the values-alignment format. Avoid adding a long planning worksheet or requiring couples to agree on a ranking.
+
+Do not import conflict debriefs, sexual disclosures, finances, caregiving, or precise schedules as required prompts. If a future activity explores sensitive topics, make it optional, consent-led, and answerable privately without a partner guessing or judging. All wording in the game should be original and adapted to its interaction; preserve the source themes, not its exact phrasing.
+
 ## A prompt and choice library to build from
 
 These are examples of the intended breadth and answer quality. They are not mandatory exact wording. Keep each prompt tied to one clear moment, and make answer choices meaningfully different.

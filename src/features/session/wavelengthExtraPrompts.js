@@ -63,9 +63,27 @@ const questions = [
   ['future-tradition', 'A tradition I would be excited to look back on is…', 'A yearly photo in the same place', 'A special meal we make', 'A little trip we repeat', 'A day we keep unscheduled'],
   ['shared-learning', 'If we learned something together, I would pick…', 'A recipe or cooking skill', 'A dance or song', 'A hands-on craft', 'A topic we can explore at our own pace'],
   ['phone-free-hour', 'For an hour with no phones, I would rather…', 'Go for a walk', 'Make a snack together', 'Play or make something', 'Settle somewhere cozy and talk'],
-  ['kindness-receive', 'A practical kindness that would brighten my week is…', 'A task handled without fuss', 'A favorite drink brought to me', 'A little time protected for me', 'An offer to do something together'],
+  ['kindness-receive-week', 'A practical kindness that would brighten my week is…', 'A task handled without fuss', 'A favorite drink brought to me', 'A little time protected for me', 'An offer to do something together'],
   ['shared-celebration', 'When we celebrate something together, I lean toward…', 'A cozy meal at home', 'Going somewhere lively', 'A tiny private tradition', 'A spontaneous treat or outing'],
   ['future-daydream', 'A future day together sounds best when it includes…', 'Somewhere new to explore', 'A slow morning and no rush', 'Friends, food, and a full table', 'A quiet place with time to ourselves'],
+  // More lightly adapted themes from the linked journal library: appreciation,
+  // gentle communication, values, closeness, and small shared experiments.
+  ['heard-in-a-talk', 'I feel most heard in a conversation when you…', 'Let me finish my thought', 'Ask one curious question', 'Reflect back what you heard', 'Sit close and listen quietly'],
+  ['misunderstanding-reset', 'After a small misunderstanding, a kind first step is…', 'Take a breath together', 'Ask what I meant', 'Say what each of us needs next', 'Get a little water and return calmly'],
+  ['conversation-pause', 'If I need a pause in a hard conversation, I prefer…', 'A clear time to come back', 'A short walk first', 'A reassuring touch, if welcome', 'A little quiet before we decide'],
+  ['daily-value', 'The value I most want us to show in ordinary moments is…', 'Patience', 'Curiosity', 'Kindness', 'Keeping our word'],
+  ['shared-decision', 'When we make a small decision together, I like to…', 'Talk through a few options', 'Choose quickly and adjust later', 'Hear what matters most to each of us', 'Take turns choosing'],
+  ['goal-momentum', 'A shared goal feels easiest to keep when we…', 'Make one tiny first step', 'Check in once a week', 'Celebrate small progress', 'Leave room to change the plan'],
+  ['weekly-check-in', 'A low-pressure weekly check-in would fit best…', 'Over breakfast', 'On a walk', 'At the end of the week', 'Whenever a calm moment appears'],
+  ['new-tradition', 'A tradition built from ordinary days could be…', 'A favorite meal each month', 'A yearly photo in one place', 'A small outing we repeat', 'A quiet ritual before bed'],
+  ['affection-signal', 'Everyday affection feels easiest to welcome as…', 'A hand offered to hold', 'A hello or goodbye hug', 'Leaning close on the couch', 'A quick check-in before a kiss'],
+  ['pause-signal', 'If I want to slow an affectionate moment, I want us to…', 'Pause and check in', 'Share a gentle signal first', 'Keep it playful and easy to say', 'Let either of us change the moment'],
+  ['kindness-together', 'A small kindness we could offer someone together is…', 'Bring a meal or treat', 'Help with one practical task', 'Send an encouraging note', 'Make time to listen'],
+  ['new-skill-together', 'A skill I would enjoy learning together is…', 'A recipe we both like', 'A dance or song', 'A hands-on craft', 'Something useful for a shared project'],
+  ['screen-free-connection', 'A screen-free hour together sounds best with…', 'A walk and a warm drink', 'Making something simple', 'A card or board game', 'A slow conversation at home'],
+  ['repair-appreciation', 'When we find our way back after a tense moment, I value…', 'A sincere apology', 'A little humor when we are ready', 'A calm check-in later', 'A small action that shows care'],
+  ['encouraging-growth', 'When I am trying to grow at something, I appreciate…', 'A cheer from you', 'Room to try it my way', 'A practical hand when I ask', 'A check-in after I have had time'],
+  ['future-memory', 'A future memory I would love us to make is…', 'A tiny local adventure', 'A celebration with our favorite people', 'A peaceful day with no rush', 'A new tradition we make our own'],
 ]
 
 export const WAVELENGTH_EXTRA_PROMPTS = questions.map(([id, text, ...labels]) => ({

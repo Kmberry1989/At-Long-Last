@@ -3,7 +3,9 @@ import { getLetterpressPrompt, getLetterpressWords, LETTERPRESS_PROMPTS, weaveLe
 
 describe('Letterpress prompts and reveal', () => {
   it('provides a varied prompt library and a shared deterministic prompt per night and round', () => {
-    expect(LETTERPRESS_PROMPTS.length).toBeGreaterThanOrEqual(20)
+    expect(LETTERPRESS_PROMPTS.length).toBeGreaterThanOrEqual(40)
+    expect(new Set(LETTERPRESS_PROMPTS).size).toBe(LETTERPRESS_PROMPTS.length)
+    expect(LETTERPRESS_PROMPTS).toContain('A good way to pause and return to a talk…')
     expect(getLetterpressPrompt('night-a', 1)).toBe(getLetterpressPrompt('night-a', 1))
     expect(getLetterpressPrompt('night-a', 1)).not.toBe(getLetterpressPrompt('night-a', 2))
   })

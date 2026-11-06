@@ -140,6 +140,14 @@ describe('wavelength prompt picking', () => {
     expect(scalePrompts.map((prompt) => prompt.text)).toContain('How close do you feel to your partner today?')
   })
 
+  it('adapts the linked journal themes into concrete, four-choice comparisons', () => {
+    const promptById = new Map(WAVELENGTH_PROMPTS.map((prompt) => [prompt.id, prompt]))
+    for (const id of ['wavelength-heard-in-a-talk', 'wavelength-daily-value', 'wavelength-pause-signal', 'wavelength-new-skill-together']) {
+      expect(promptById.get(id)?.options).toHaveLength(4)
+    }
+    expect(promptById.get('wavelength-pause-signal').text).not.toMatch(/guess|partner should/i)
+  })
+
   it('picks 5 unique prompts deterministically per seed', () => {
     const first = pickWavelengthPrompts('session-1:2:1:wavelength-duel')
     const second = pickWavelengthPrompts('session-1:2:1:wavelength-duel')

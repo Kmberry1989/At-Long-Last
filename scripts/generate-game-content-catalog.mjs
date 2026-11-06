@@ -71,6 +71,12 @@ const sections = [
     exports: ['WAVELENGTH_PROMPT_COUNT', 'WAVELENGTH_MATCHES_TOTAL', 'WAVELENGTH_PROMPTS', 'WAVELENGTH_DUEL_DEFINITION'],
   },
   {
+    title: 'Letterpress shared sentence starters',
+    source: 'src/features/session/letterpressData.js',
+    values: await import('../src/features/session/letterpressData.js'),
+    exports: ['LETTERPRESS_PROMPTS'],
+  },
+  {
     title: 'Board spaces and keepsakes',
     source: 'src/features/session/boardConfig.js',
     values: await import('../src/features/session/boardConfig.js'),

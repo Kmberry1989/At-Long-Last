@@ -1,6 +1,6 @@
 # At Long Last — Game Content Catalog
 
-Generated from the current game data on 2026-11-01.
+Generated from the current game data on 2026-11-06.
 
 This is the complete catalog of authored, data-driven game content and player-facing choice pools: prompts, drawing ideas, Pinky Swear promises, activities, duels, board themes, keepsakes, progression rewards, and visual selections. It includes the stable IDs and the stored copy/options so each entry can be traced back to its source.
 
@@ -20,13 +20,14 @@ Regenerate after changing these data tables with `node scripts/generate-game-con
 9. [Authored activity prompt variations](#authored-activity-prompt-variations)
 10. [Original and expanded activity prompts](#original-and-expanded-activity-prompts)
 11. [Wavelength duel](#wavelength-duel)
-12. [Board spaces and keepsakes](#board-spaces-and-keepsakes)
-13. [Night setup and vibe choices](#night-setup-and-vibe-choices)
-14. [Board themes and scene decorations](#board-themes-and-scene-decorations)
-15. [Player pieces and visual styles](#player-pieces-and-visual-styles)
-16. [Portrait frames](#portrait-frames)
-17. [Pinky Swear promise draw deck and progression](#pinky-swear-promise-draw-deck-and-progression)
-18. [Our Bloom flower collection](#our-bloom-flower-collection)
+12. [Letterpress shared sentence starters](#letterpress-shared-sentence-starters)
+13. [Board spaces and keepsakes](#board-spaces-and-keepsakes)
+14. [Night setup and vibe choices](#night-setup-and-vibe-choices)
+15. [Board themes and scene decorations](#board-themes-and-scene-decorations)
+16. [Player pieces and visual styles](#player-pieces-and-visual-styles)
+17. [Portrait frames](#portrait-frames)
+18. [Pinky Swear promise draw deck and progression](#pinky-swear-promise-draw-deck-and-progression)
+19. [Our Bloom flower collection](#our-bloom-flower-collection)
 
 ## Activities and duels
 
@@ -1354,29 +1355,27 @@ Source: `src/features/session/contentPackData.js`.
     "id": "constellation-home",
     "vibe": "tender",
     "intensity": 1,
-    "name": "Constellation",
-    "tagline": "Where is home?",
-    "durationSec": 60,
+    "name": "Star Map",
+    "tagline": "Rank what matters most",
+    "durationSec": 45,
     "players": 2,
-    "mechanics": "Both place 5 dots where home feels. Overlap creates a star.",
+    "mechanics": "Each player privately ranks five sentimental values, then both rankings compare in the night reveal.",
     "howToPlay": [
-      "Blank sky appears",
-      "Each taps 5 places that feel like home",
-      "Reveal together, overlapping dots become bright stars",
-      "Star stays on your board as permanent tile"
+      "Choose five meaningful values in importance order",
+      "Submit privately while your partner plays independently",
+      "Compare both rankings in tonight’s reveal"
     ],
     "firebaseEvents": [
-      "duel:dotPlaced",
+      "duel:rankingSubmitted",
       "duel:reveal"
     ],
-    "boardReward": "New permanent star tile on board",
+    "boardReward": "Shared hearts for completing the comparison",
     "assetsNeeded": [
-      "canvas",
-      "particle:star"
+      "ranked value cards"
     ],
     "skippable": true,
-    "label": "Constellation",
-    "prompt": "Blank sky appears"
+    "label": "Star Map",
+    "prompt": "Choose five meaningful values in importance order"
   },
   {
     "id": "heartbeat-hold-tender",
@@ -1412,81 +1411,117 @@ Source: `src/features/session/contentPackData.js`.
     "vibe": "tender",
     "intensity": 2,
     "name": "Letterpress",
-    "tagline": "One word at a time",
-    "durationSec": 90,
+    "tagline": "Weave a sentence together",
+    "durationSec": 45,
     "players": 2,
-    "mechanics": "Co-type one sentence alternating words. Cant see next word coming.",
+    "mechanics": "Each player privately adds four words to the same starter; the reveal weaves their words together in alternating order.",
     "howToPlay": [
-      "Prompt: \"What I love about us is...\"",
-      "Player A types word 1, Player B word 2, etc",
-      "No deleting",
-      "Read final sentence aloud"
+      "Read a shared sentence starter",
+      "Add four words on your own",
+      "Read your woven sentence in tonight’s reveal"
     ],
     "firebaseEvents": [
-      "duel:wordAdded",
-      "duel:sentenceComplete"
+      "duel:wordsSubmitted",
+      "duel:sentenceReveal"
     ],
-    "boardReward": "Saves to journalEntries",
+    "boardReward": "Shared hearts and a sentence in the scrapbook",
     "assetsNeeded": [
-      "text input",
-      "typewriter effect"
+      "four-word input",
+      "woven sentence reveal"
     ],
     "skippable": true,
     "label": "Letterpress",
-    "prompt": "Prompt: \"What I love about us is...\""
+    "prompt": "Read a shared sentence starter"
   },
   {
     "id": "sync-breath",
     "vibe": "tender",
     "intensity": 1,
-    "name": "Sync Breath",
-    "tagline": "Breathe with me",
-    "durationSec": 60,
+    "name": "Quiet Moment",
+    "tagline": "Choose a quiet reset",
+    "durationSec": 30,
     "players": 2,
-    "mechanics": "Circle expands/contracts. Tap to inhale/exhale together.",
+    "mechanics": "Choose a short breathing, grounding, or muscle-release pause.",
     "howToPlay": [
-      "Circle grows = inhale",
-      "Circle shrinks = exhale",
-      "Try to stay in sync 4 breaths",
-      "Board glows if synced"
+      "Choose a quiet reset",
+      "Follow three easy breaths",
+      "Or notice what is around you",
+      "Or soften your jaw, shoulders, and hands"
     ],
     "firebaseEvents": [
       "duel:breathPhase"
     ],
     "boardReward": "Calm board effect for rest of session",
     "assetsNeeded": [
-      "breathing circle animation"
+      "breathing orb animation"
     ],
     "skippable": true,
-    "label": "Sync Breath",
-    "prompt": "Circle grows = inhale"
+    "label": "Quiet Moment",
+    "prompt": "Choose a quiet reset"
   },
   {
     "id": "gratitude-duel",
     "vibe": "tender",
     "intensity": 1,
     "name": "Gratitude Duel",
-    "tagline": "Thank you war",
-    "durationSec": 60,
+    "tagline": "A small thing I appreciate",
+    "durationSec": 45,
     "players": 2,
-    "mechanics": "Rapid fire thank yous, cannot repeat.",
+    "mechanics": "Both privately answer one shared appreciation prompt; both responses open in the night reveal.",
     "howToPlay": [
-      "30 seconds each, alternating",
-      "Thank your partner for something specific",
-      "No repeats, no \"thanks for being you\" generic",
-      "Most specific list wins but both save to journal"
+      "Read one shared appreciation prompt",
+      "Write a small, specific response",
+      "Read both responses in tonight’s reveal"
+    ],
+    "prompts": [
+      "A little thing you did that made today easier",
+      "A way you make home feel warmer",
+      "A time you made me laugh when I needed it",
+      "Something thoughtful you do without being asked",
+      "A quality I admire in you",
+      "A way you show up when life gets busy",
+      "A small ritual I look forward to with you",
+      "A memory of us that still makes me smile",
+      "A way you make ordinary plans feel special",
+      "Something you helped me learn about myself",
+      "A moment you made me feel understood",
+      "A way you care for the people around you",
+      "A little comfort you bring to a hard day",
+      "Something about your humor I love",
+      "A brave thing I have watched you do",
+      "A detail you remember that means a lot to me",
+      "A way we make a good team",
+      "Something I appreciate about how you listen",
+      "A kindness you showed me recently",
+      "Something about our life together I feel lucky to have",
+      "A way you make me feel welcome",
+      "A strength you bring to our relationship",
+      "A small adventure I loved sharing with you",
+      "Something you do that feels unmistakably like you",
+      "A time you listened without rushing to fix things",
+      "A small routine you make easier for both of us",
+      "A way you encourage me when I try something new",
+      "A moment you gave me room to rest or focus",
+      "A time we handled a change of plans as a team",
+      "A quality you bring to the people you care about",
+      "A kind boundary you respect that helps me feel safe",
+      "A small way we make space for each other’s interests",
+      "A quiet effort of yours I noticed this week",
+      "A time you helped me feel welcome somewhere new",
+      "A little tradition I hope we keep growing",
+      "A way you make it easier to be myself with you"
     ],
     "firebaseEvents": [
       "duel:thanksAdded"
     ],
-    "boardReward": "Both get 1 gratitude leaf on home tile",
+    "boardReward": "Shared hearts and both notes in the scrapbook",
     "assetsNeeded": [
-      "timer",
-      "list UI"
+      "shared prompt card",
+      "private response field"
     ],
     "skippable": true,
     "label": "Gratitude Duel",
-    "prompt": "30 seconds each, alternating"
+    "prompt": "Read one shared appreciation prompt"
   },
   {
     "id": "doodle-duel-memory",
@@ -1525,29 +1560,30 @@ Source: `src/features/session/contentPackData.js`.
     "tagline": "You draw, I direct",
     "durationSec": 60,
     "players": 2,
-    "mechanics": "Each player independently sends three visual cues, then draws their partner from the cues received. Either player can continue the night while waiting for the other cue set.",
+    "mechanics": "Each player privately sends three simple direction cues, then draws their partner using the cues received.",
     "howToPlay": [
-      "Each player chooses three distinct cues: face left or right, draw larger or smaller, move closer, add one detail, keep it simple, or add a smile.",
-      "Send cues; your partner can continue their own night while they wait.",
-      "Draw your partner from the three cues they sent.",
-      "Compare both portraits and the cues that guided them in the scrapbook."
+      "Choose three drawing cues for your partner",
+      "Draw from the three cues your partner sends",
+      "Compare both portraits in tonight’s reveal"
     ],
     "firebaseEvents": [
-      "duel:stroke",
-      "duel:guideCues",
+      "duel:guidanceSubmitted",
       "duel:drawingComplete"
     ],
     "boardReward": "Both portraits become board decorations",
-    "assetsNeeded": ["drawing canvas"],
+    "assetsNeeded": [
+      "direction cue cards",
+      "drawing canvas"
+    ],
     "skippable": true,
     "label": "Portrait Panic",
-    "prompt": "Player A draws Player B"
+    "prompt": "Choose three drawing cues for your partner"
   },
   {
     "id": "wavelength-slider",
     "vibe": "playful",
     "intensity": 1,
-    "name": "Wavelength",
+    "name": "Wavelength Slider (Archived)",
     "tagline": "How well do you know my brain?",
     "durationSec": 60,
     "players": 2,
@@ -1567,7 +1603,7 @@ Source: `src/features/session/contentPackData.js`.
       "slider UI"
     ],
     "skippable": true,
-    "label": "Wavelength",
+    "label": "Wavelength Slider (Archived)",
     "prompt": "Prompt: \"How chaotic was your day?\" or \"How much do you want pizza right now?\""
   },
   {
@@ -1686,25 +1722,21 @@ Source: `src/features/session/contentPackData.js`.
     "tagline": "Say it like you mean it",
     "durationSec": 45,
     "players": 2,
-    "mechanics": "Loser of last duel sends 7 sec voice note with prompt.",
+    "mechanics": "Legacy voice-note idea folded into the Kiss Courier recording prompt.",
     "howToPlay": [
-      "Prompt: \"Say one thing you love about me like movie trailer\"",
-      "Record 7 sec",
-      "Other has to guess if you smiled while recording",
-      "Both save"
+      "This standalone game is archived",
+      "Its movie-trailer voice prompt now accompanies the Kiss Courier note"
     ],
     "firebaseEvents": [
-      "duel:audioRecorded",
-      "duel:guess"
+      "kiss:voicePrompt"
     ],
-    "boardReward": "Audio saved to tile",
+    "boardReward": "Voice note stays with the sent kiss",
     "assetsNeeded": [
-      "audio recorder",
-      "playback"
+      "device microphone recording"
     ],
     "skippable": true,
     "label": "Trailer Voice",
-    "prompt": "Prompt: \"Say one thing you love about me like movie trailer\""
+    "prompt": "This standalone game is archived"
   },
   {
     "id": "temperature-check",
@@ -1714,7 +1746,7 @@ Source: `src/features/session/contentPackData.js`.
     "tagline": "How close do you feel?",
     "durationSec": 30,
     "players": 2,
-    "mechanics": "Both privately rate closeness 1-10, closeness bonus.",
+    "mechanics": "Legacy standalone check-in; its closeness prompt is now part of Wavelength.",
     "howToPlay": [
       "How close do you feel to me right now 1-10?",
       "Both answer privately",
@@ -1741,12 +1773,10 @@ Source: `src/features/session/contentPackData.js`.
     "tagline": "Draw me like you see me",
     "durationSec": 75,
     "players": 2,
-    "mechanics": "60 sec to draw partner from memory focusing on favorite detail.",
+    "mechanics": "Legacy portrait prompt mode merged into Keepsake Sketch.",
     "howToPlay": [
-      "Prompt: \"Draw the detail you love most\"",
-      "60 sec slow draw, thin brush",
-      "Reveal and explain why that detail",
-      "Both drawings become paired art on board"
+      "This standalone game is archived",
+      "Partner portrait prompts now appear in Keepsake Sketch"
     ],
     "firebaseEvents": [
       "duel:slowStroke",
@@ -1759,12 +1789,12 @@ Source: `src/features/session/contentPackData.js`.
     ],
     "skippable": true,
     "label": "Slow Draw",
-    "prompt": "Prompt: \"Draw the detail you love most\""
+    "prompt": "This standalone game is archived"
   },
   {
     "durationSec": 180,
     "howToPlay": [
-      "Five quick prompts. Answer honestly for yourself, then guess what your partner will answer. Every match earns a shared heart — up to 10."
+      "Five prompts mix choices and 1–10 scales. Answer for yourself, then guess your partner. Close scale guesses count."
     ],
     "id": "wavelength-duel",
     "intensity": 1,
@@ -1773,7 +1803,7 @@ Source: `src/features/session/contentPackData.js`.
     "tagline": "Answer for you, guess for them. How in sync are you, really?",
     "vibe": "playful",
     "label": "Wavelength",
-    "prompt": "Five quick prompts. Answer honestly for yourself, then guess what your partner will answer. Every match earns a shared heart — up to 10."
+    "prompt": "Five prompts mix choices and 1–10 scales. Answer for yourself, then guess your partner. Close scale guesses count."
   }
 ]
 ```
@@ -8668,7 +8698,7 @@ Source: `src/features/session/wavelengthDuelData.js`.
 10
 ```
 
-### `WAVELENGTH_PROMPTS` (65 entries)
+### `WAVELENGTH_PROMPTS` (157 entries)
 
 ```json
 [
@@ -10101,6 +10131,2349 @@ Source: `src/features/session/wavelengthDuelData.js`.
         "label": "Make something by hand"
       }
     ]
+  },
+  {
+    "id": "wavelength-after-work",
+    "text": "After work, the nicest welcome is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A few minutes to decompress"
+      },
+      {
+        "id": "b",
+        "label": "A quick hello and a hug"
+      },
+      {
+        "id": "c",
+        "label": "A snack already waiting"
+      },
+      {
+        "id": "d",
+        "label": "A question about my day"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-errand-together",
+    "text": "An ordinary errand becomes a date when we…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Get a treat on the way"
+      },
+      {
+        "id": "b",
+        "label": "Take the scenic route"
+      },
+      {
+        "id": "c",
+        "label": "Make up a silly challenge"
+      },
+      {
+        "id": "d",
+        "label": "Leave time to browse"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-rain-plan",
+    "text": "A rainy day off is best spent…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Cooking something cozy"
+      },
+      {
+        "id": "b",
+        "label": "Reading in the same room"
+      },
+      {
+        "id": "c",
+        "label": "Watching a double feature"
+      },
+      {
+        "id": "d",
+        "label": "Putting on rain gear and going out"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-coffee-order",
+    "text": "A little morning pick-me-up would be…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Coffee made just right"
+      },
+      {
+        "id": "b",
+        "label": "Tea and a quiet start"
+      },
+      {
+        "id": "c",
+        "label": "A favorite breakfast"
+      },
+      {
+        "id": "d",
+        "label": "A cheerful message"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-late-start",
+    "text": "A slow morning together should begin with…",
+    "options": [
+      {
+        "id": "a",
+        "label": "No alarm and no plan"
+      },
+      {
+        "id": "b",
+        "label": "Breakfast in pajamas"
+      },
+      {
+        "id": "c",
+        "label": "A walk for fresh air"
+      },
+      {
+        "id": "d",
+        "label": "Music while we get ready"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-celebrate-news",
+    "text": "When good news arrives, I first want to…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Tell you every detail"
+      },
+      {
+        "id": "b",
+        "label": "Celebrate with a favorite meal"
+      },
+      {
+        "id": "c",
+        "label": "Share a happy hug"
+      },
+      {
+        "id": "d",
+        "label": "Make a plan for what comes next"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-rough-evening",
+    "text": "When the evening has been a lot, I would choose…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A quiet reset together"
+      },
+      {
+        "id": "b",
+        "label": "A little humor"
+      },
+      {
+        "id": "c",
+        "label": "An easy dinner"
+      },
+      {
+        "id": "d",
+        "label": "Early sleep and a fresh start"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-spontaneous-date",
+    "text": "A spontaneous date sounds most like…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Dessert somewhere nearby"
+      },
+      {
+        "id": "b",
+        "label": "A drive with music"
+      },
+      {
+        "id": "c",
+        "label": "A walk somewhere pretty"
+      },
+      {
+        "id": "d",
+        "label": "A game at home"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-homecoming",
+    "text": "Coming home feels especially good when…",
+    "options": [
+      {
+        "id": "a",
+        "label": "The lights are warm"
+      },
+      {
+        "id": "b",
+        "label": "There is something good to eat"
+      },
+      {
+        "id": "c",
+        "label": "The place is peaceful"
+      },
+      {
+        "id": "d",
+        "label": "We have a small ritual"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-playlist",
+    "text": "Our shared playlist needs more…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Songs we can sing loudly"
+      },
+      {
+        "id": "b",
+        "label": "Soft background music"
+      },
+      {
+        "id": "c",
+        "label": "Old favorites"
+      },
+      {
+        "id": "d",
+        "label": "New finds to trade"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-photo-memory",
+    "text": "The photo I would most want from a date is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A candid laugh"
+      },
+      {
+        "id": "b",
+        "label": "The place we went"
+      },
+      {
+        "id": "c",
+        "label": "A tiny detail we noticed"
+      },
+      {
+        "id": "d",
+        "label": "A posed picture together"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-food-adventure",
+    "text": "Trying a new place is more fun when…",
+    "options": [
+      {
+        "id": "a",
+        "label": "We split a few dishes"
+      },
+      {
+        "id": "b",
+        "label": "We each order a surprise"
+      },
+      {
+        "id": "c",
+        "label": "We pick somewhere cozy"
+      },
+      {
+        "id": "d",
+        "label": "We wander until something looks good"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-little-note",
+    "text": "A note left for me would be sweetest if it…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Made me laugh"
+      },
+      {
+        "id": "b",
+        "label": "Reminded me I am loved"
+      },
+      {
+        "id": "c",
+        "label": "Pointed to a small surprise"
+      },
+      {
+        "id": "d",
+        "label": "Said you noticed my effort"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-weeknight-date",
+    "text": "A good weeknight date can be as simple as…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Making dinner side by side"
+      },
+      {
+        "id": "b",
+        "label": "A walk after the day ends"
+      },
+      {
+        "id": "c",
+        "label": "A favorite show and a snack"
+      },
+      {
+        "id": "d",
+        "label": "Talking somewhere without screens"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-doing-nothing",
+    "text": "Doing nothing together looks like…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Separate books, same couch"
+      },
+      {
+        "id": "b",
+        "label": "A long nap"
+      },
+      {
+        "id": "c",
+        "label": "Sitting outside"
+      },
+      {
+        "id": "d",
+        "label": "A comfort show on low volume"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-tiny-surprise",
+    "text": "The best tiny surprise in an ordinary day is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A favorite snack"
+      },
+      {
+        "id": "b",
+        "label": "A kind text"
+      },
+      {
+        "id": "c",
+        "label": "A task already handled"
+      },
+      {
+        "id": "d",
+        "label": "A little detour together"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-hobby",
+    "text": "A hobby we could enjoy side by side is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Growing plants"
+      },
+      {
+        "id": "b",
+        "label": "Making something by hand"
+      },
+      {
+        "id": "c",
+        "label": "Learning a game"
+      },
+      {
+        "id": "d",
+        "label": "Exploring local places"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-morning-message",
+    "text": "A morning message I would enjoy most says…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Hope your day feels easy"
+      },
+      {
+        "id": "b",
+        "label": "I saved you some coffee"
+      },
+      {
+        "id": "c",
+        "label": "Looking forward to seeing you"
+      },
+      {
+        "id": "d",
+        "label": "Here is something that made me smile"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-goodbyes",
+    "text": "A goodbye before a busy day feels best with…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A lingering hug"
+      },
+      {
+        "id": "b",
+        "label": "A playful send-off"
+      },
+      {
+        "id": "c",
+        "label": "A quick check-in plan"
+      },
+      {
+        "id": "d",
+        "label": "A small note for later"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-wind-down",
+    "text": "The best way for us to wind down is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Talk through the day"
+      },
+      {
+        "id": "b",
+        "label": "Listen to something calming"
+      },
+      {
+        "id": "c",
+        "label": "Make a simple snack"
+      },
+      {
+        "id": "d",
+        "label": "Sit quietly together"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-weekend-outing",
+    "text": "For a weekend outing, I would pick…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A market or little shop"
+      },
+      {
+        "id": "b",
+        "label": "A trail or garden"
+      },
+      {
+        "id": "c",
+        "label": "A museum or gallery"
+      },
+      {
+        "id": "d",
+        "label": "A neighborhood we have not explored"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-meal",
+    "text": "A meal feels more special when…",
+    "options": [
+      {
+        "id": "a",
+        "label": "We cook it together"
+      },
+      {
+        "id": "b",
+        "label": "We eat somewhere with a view"
+      },
+      {
+        "id": "c",
+        "label": "We make a familiar favorite"
+      },
+      {
+        "id": "d",
+        "label": "We take our time at the table"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-small-compliment",
+    "text": "A compliment that would brighten my day is about…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Something I worked hard on"
+      },
+      {
+        "id": "b",
+        "label": "A small way I care for you"
+      },
+      {
+        "id": "c",
+        "label": "My sense of humor"
+      },
+      {
+        "id": "d",
+        "label": "Who I am when nobody is watching"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-comfort-object",
+    "text": "For a cozy evening, I reach for…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A soft blanket"
+      },
+      {
+        "id": "b",
+        "label": "A warm drink"
+      },
+      {
+        "id": "c",
+        "label": "Comfortable clothes"
+      },
+      {
+        "id": "d",
+        "label": "A familiar book or show"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-walk-pace",
+    "text": "The best kind of walk together is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A meandering one with lots of stops"
+      },
+      {
+        "id": "b",
+        "label": "A brisk walk with a destination"
+      },
+      {
+        "id": "c",
+        "label": "A quiet walk without a plan"
+      },
+      {
+        "id": "d",
+        "label": "A short loop before dinner"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-surprise-date-size",
+    "text": "A date surprise is best when it is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A tiny thoughtful detail"
+      },
+      {
+        "id": "b",
+        "label": "A whole afternoon planned"
+      },
+      {
+        "id": "c",
+        "label": "A simple invitation to choose together"
+      },
+      {
+        "id": "d",
+        "label": "A familiar favorite made special"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-space",
+    "text": "Our best shared space would have…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A big comfortable couch"
+      },
+      {
+        "id": "b",
+        "label": "A table for projects and snacks"
+      },
+      {
+        "id": "c",
+        "label": "A sunny spot by a window"
+      },
+      {
+        "id": "d",
+        "label": "A little outdoor corner"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-music-mood",
+    "text": "The right music for a calm evening is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Piano or strings"
+      },
+      {
+        "id": "b",
+        "label": "Soft acoustic songs"
+      },
+      {
+        "id": "c",
+        "label": "Rain or nature sounds"
+      },
+      {
+        "id": "d",
+        "label": "A familiar album from start to finish"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-dessert-choice",
+    "text": "For a shared dessert, I would choose…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Something warm from the oven"
+      },
+      {
+        "id": "b",
+        "label": "A few bites of everything"
+      },
+      {
+        "id": "c",
+        "label": "A favorite ice cream"
+      },
+      {
+        "id": "d",
+        "label": "A new flavor to try"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-date-keepsake",
+    "text": "The keepsake from a simple date I would save is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A photo booth strip"
+      },
+      {
+        "id": "b",
+        "label": "A ticket or receipt"
+      },
+      {
+        "id": "c",
+        "label": "A note about the best moment"
+      },
+      {
+        "id": "d",
+        "label": "A small thing we found"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-recharge-together",
+    "text": "Recharging together can mean…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A little conversation, then quiet"
+      },
+      {
+        "id": "b",
+        "label": "Doing our own things nearby"
+      },
+      {
+        "id": "c",
+        "label": "Getting outside for fresh air"
+      },
+      {
+        "id": "d",
+        "label": "Making something easy to eat"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-ritual",
+    "text": "A small ritual I would look forward to is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A goodnight check-in"
+      },
+      {
+        "id": "b",
+        "label": "A weekly treat stop"
+      },
+      {
+        "id": "c",
+        "label": "A song we play while cooking"
+      },
+      {
+        "id": "d",
+        "label": "A short walk after dinner"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-unexpected-free-day",
+    "text": "With an unexpected free day, I would rather…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Stay local and keep it easy"
+      },
+      {
+        "id": "b",
+        "label": "Take a short day trip"
+      },
+      {
+        "id": "c",
+        "label": "Finish one satisfying project"
+      },
+      {
+        "id": "d",
+        "label": "Leave the whole day open"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-kindness-receive",
+    "text": "A practical kindness that would help me today is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Taking one task off my list"
+      },
+      {
+        "id": "b",
+        "label": "Bringing me something to eat"
+      },
+      {
+        "id": "c",
+        "label": "Making a decision for us"
+      },
+      {
+        "id": "d",
+        "label": "Giving me uninterrupted rest"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-talk-setting",
+    "text": "For a good conversation, I prefer…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A walk side by side"
+      },
+      {
+        "id": "b",
+        "label": "A quiet table"
+      },
+      {
+        "id": "c",
+        "label": "A relaxed drive"
+      },
+      {
+        "id": "d",
+        "label": "A late-night check-in at home"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-laugh",
+    "text": "The kind of laugh I want more of is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A ridiculous inside joke"
+      },
+      {
+        "id": "b",
+        "label": "A story that gets funnier each time"
+      },
+      {
+        "id": "c",
+        "label": "A playful competition"
+      },
+      {
+        "id": "d",
+        "label": "Finding humor in a small mishap"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-celebration-style",
+    "text": "For a personal milestone, I would enjoy…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A quiet proud moment together"
+      },
+      {
+        "id": "b",
+        "label": "A favorite meal"
+      },
+      {
+        "id": "c",
+        "label": "A small gathering"
+      },
+      {
+        "id": "d",
+        "label": "A surprise note or keepsake"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-home-evening",
+    "text": "A comfortable evening at home includes…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Cooking with music on"
+      },
+      {
+        "id": "b",
+        "label": "A blanket and a movie"
+      },
+      {
+        "id": "c",
+        "label": "A shared project"
+      },
+      {
+        "id": "d",
+        "label": "Time to unwind in the same room"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-travel-memory",
+    "text": "On a trip, the moment I remember longest is often…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A meal we discovered"
+      },
+      {
+        "id": "b",
+        "label": "A view we did not expect"
+      },
+      {
+        "id": "c",
+        "label": "A funny wrong turn"
+      },
+      {
+        "id": "d",
+        "label": "A slow morning with nowhere to be"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-encouragement-style",
+    "text": "When I am trying something new, encouragement feels best as…",
+    "options": [
+      {
+        "id": "a",
+        "label": "You have got this"
+      },
+      {
+        "id": "b",
+        "label": "Want me beside you?"
+      },
+      {
+        "id": "c",
+        "label": "I can help with the first step"
+      },
+      {
+        "id": "d",
+        "label": "Tell me how it goes when you are ready"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-little-treat",
+    "text": "A small treat that can rescue an ordinary afternoon is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A cold drink"
+      },
+      {
+        "id": "b",
+        "label": "A bakery stop"
+      },
+      {
+        "id": "c",
+        "label": "Ten minutes outside"
+      },
+      {
+        "id": "d",
+        "label": "A message from you"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-evening-outside",
+    "text": "A little time outside together sounds best at…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Sunset"
+      },
+      {
+        "id": "b",
+        "label": "A cool clear night"
+      },
+      {
+        "id": "c",
+        "label": "A warm early morning"
+      },
+      {
+        "id": "d",
+        "label": "Anytime the air feels good"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-household-win",
+    "text": "The most satisfying shared household win is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A clear kitchen counter"
+      },
+      {
+        "id": "b",
+        "label": "Fresh sheets on the bed"
+      },
+      {
+        "id": "c",
+        "label": "A finished small repair"
+      },
+      {
+        "id": "d",
+        "label": "A tidy room before relaxing"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-date-conversation",
+    "text": "On a date, I most enjoy talking about…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A memory we both love"
+      },
+      {
+        "id": "b",
+        "label": "Something we are curious about"
+      },
+      {
+        "id": "c",
+        "label": "A future little plan"
+      },
+      {
+        "id": "d",
+        "label": "Whatever funny thing happened today"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-low-energy-connection",
+    "text": "When we are both low on energy, connection can be…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A hand held quietly"
+      },
+      {
+        "id": "b",
+        "label": "A familiar show together"
+      },
+      {
+        "id": "c",
+        "label": "A simple check-in"
+      },
+      {
+        "id": "d",
+        "label": "Sharing a snack without a plan"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-noticed-effort",
+    "text": "A small sign that you noticed my effort would be…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A thank-you out loud"
+      },
+      {
+        "id": "b",
+        "label": "Taking the next small task"
+      },
+      {
+        "id": "c",
+        "label": "A quick affectionate touch"
+      },
+      {
+        "id": "d",
+        "label": "A note or message later"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-small-win",
+    "text": "After a small personal win, I would most enjoy…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A proud little cheer"
+      },
+      {
+        "id": "b",
+        "label": "A favorite treat"
+      },
+      {
+        "id": "c",
+        "label": "A hug and a quiet moment"
+      },
+      {
+        "id": "d",
+        "label": "Making a plan for what comes next"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-tired-day-support",
+    "text": "When I am worn out, the kindest first move is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Listen while I talk"
+      },
+      {
+        "id": "b",
+        "label": "Help with one practical thing"
+      },
+      {
+        "id": "c",
+        "label": "Make me laugh"
+      },
+      {
+        "id": "d",
+        "label": "Give me a little quiet"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-milestone-style",
+    "text": "For a milestone that matters to me, I would choose…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A private moment together"
+      },
+      {
+        "id": "b",
+        "label": "A favorite meal"
+      },
+      {
+        "id": "c",
+        "label": "A small keepsake"
+      },
+      {
+        "id": "d",
+        "label": "A day out to remember"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-ritual-time",
+    "text": "A new little ritual would fit our week best…",
+    "options": [
+      {
+        "id": "a",
+        "label": "At breakfast"
+      },
+      {
+        "id": "b",
+        "label": "After work or school"
+      },
+      {
+        "id": "c",
+        "label": "During a weekend outing"
+      },
+      {
+        "id": "d",
+        "label": "Before bed"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-reunion-mood",
+    "text": "After a day apart, I most like to reconnect by…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Sharing the day’s stories"
+      },
+      {
+        "id": "b",
+        "label": "A long hug first"
+      },
+      {
+        "id": "c",
+        "label": "Doing something ordinary side by side"
+      },
+      {
+        "id": "d",
+        "label": "Taking a little time to settle in"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-goal-support",
+    "text": "When I am working toward something, support feels most like…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Cheering me on"
+      },
+      {
+        "id": "b",
+        "label": "Helping me make a plan"
+      },
+      {
+        "id": "c",
+        "label": "Checking in later"
+      },
+      {
+        "id": "d",
+        "label": "Making room for me to focus"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-date-planning-style",
+    "text": "Planning a date is most fun for me when…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Every detail is a surprise"
+      },
+      {
+        "id": "b",
+        "label": "We choose the main idea together"
+      },
+      {
+        "id": "c",
+        "label": "We pick a place and improvise"
+      },
+      {
+        "id": "d",
+        "label": "We keep it familiar and easy"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-values-moment",
+    "text": "A good day together feels most like we…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Made time for each other"
+      },
+      {
+        "id": "b",
+        "label": "Tried something new"
+      },
+      {
+        "id": "c",
+        "label": "Helped someone out"
+      },
+      {
+        "id": "d",
+        "label": "Found laughter in the ordinary"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-thoughtful-message",
+    "text": "A message from you in the middle of the day should…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Make me smile"
+      },
+      {
+        "id": "b",
+        "label": "Tell me you are thinking of me"
+      },
+      {
+        "id": "c",
+        "label": "Share a little story"
+      },
+      {
+        "id": "d",
+        "label": "Help me look forward to later"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-memory-keepsake",
+    "text": "From a lovely ordinary day, I would most want to keep…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A candid photo"
+      },
+      {
+        "id": "b",
+        "label": "A funny quote"
+      },
+      {
+        "id": "c",
+        "label": "A little object from the day"
+      },
+      {
+        "id": "d",
+        "label": "A few lines about how it felt"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-comforting-affection",
+    "text": "Everyday affection feels especially good when it is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A hand to hold"
+      },
+      {
+        "id": "b",
+        "label": "A hello or goodbye hug"
+      },
+      {
+        "id": "c",
+        "label": "Leaning close while we relax"
+      },
+      {
+        "id": "d",
+        "label": "A spontaneous kiss"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-together-at-home",
+    "text": "The best way to share a quiet evening at home is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Make something side by side"
+      },
+      {
+        "id": "b",
+        "label": "Read or do hobbies nearby"
+      },
+      {
+        "id": "c",
+        "label": "Watch a favorite together"
+      },
+      {
+        "id": "d",
+        "label": "Sit and talk without a plan"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-micro-adventure",
+    "text": "A small adventure I would happily say yes to is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A new café or bakery"
+      },
+      {
+        "id": "b",
+        "label": "A different walking route"
+      },
+      {
+        "id": "c",
+        "label": "A local event we have not tried"
+      },
+      {
+        "id": "d",
+        "label": "A short drive with a playlist"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-future-tradition",
+    "text": "A tradition I would be excited to look back on is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A yearly photo in the same place"
+      },
+      {
+        "id": "b",
+        "label": "A special meal we make"
+      },
+      {
+        "id": "c",
+        "label": "A little trip we repeat"
+      },
+      {
+        "id": "d",
+        "label": "A day we keep unscheduled"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-learning",
+    "text": "If we learned something together, I would pick…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A recipe or cooking skill"
+      },
+      {
+        "id": "b",
+        "label": "A dance or song"
+      },
+      {
+        "id": "c",
+        "label": "A hands-on craft"
+      },
+      {
+        "id": "d",
+        "label": "A topic we can explore at our own pace"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-phone-free-hour",
+    "text": "For an hour with no phones, I would rather…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Go for a walk"
+      },
+      {
+        "id": "b",
+        "label": "Make a snack together"
+      },
+      {
+        "id": "c",
+        "label": "Play or make something"
+      },
+      {
+        "id": "d",
+        "label": "Settle somewhere cozy and talk"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-kindness-receive-week",
+    "text": "A practical kindness that would brighten my week is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A task handled without fuss"
+      },
+      {
+        "id": "b",
+        "label": "A favorite drink brought to me"
+      },
+      {
+        "id": "c",
+        "label": "A little time protected for me"
+      },
+      {
+        "id": "d",
+        "label": "An offer to do something together"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-celebration",
+    "text": "When we celebrate something together, I lean toward…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A cozy meal at home"
+      },
+      {
+        "id": "b",
+        "label": "Going somewhere lively"
+      },
+      {
+        "id": "c",
+        "label": "A tiny private tradition"
+      },
+      {
+        "id": "d",
+        "label": "A spontaneous treat or outing"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-future-daydream",
+    "text": "A future day together sounds best when it includes…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Somewhere new to explore"
+      },
+      {
+        "id": "b",
+        "label": "A slow morning and no rush"
+      },
+      {
+        "id": "c",
+        "label": "Friends, food, and a full table"
+      },
+      {
+        "id": "d",
+        "label": "A quiet place with time to ourselves"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-heard-in-a-talk",
+    "text": "I feel most heard in a conversation when you…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Let me finish my thought"
+      },
+      {
+        "id": "b",
+        "label": "Ask one curious question"
+      },
+      {
+        "id": "c",
+        "label": "Reflect back what you heard"
+      },
+      {
+        "id": "d",
+        "label": "Sit close and listen quietly"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-misunderstanding-reset",
+    "text": "After a small misunderstanding, a kind first step is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Take a breath together"
+      },
+      {
+        "id": "b",
+        "label": "Ask what I meant"
+      },
+      {
+        "id": "c",
+        "label": "Say what each of us needs next"
+      },
+      {
+        "id": "d",
+        "label": "Get a little water and return calmly"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-conversation-pause",
+    "text": "If I need a pause in a hard conversation, I prefer…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A clear time to come back"
+      },
+      {
+        "id": "b",
+        "label": "A short walk first"
+      },
+      {
+        "id": "c",
+        "label": "A reassuring touch, if welcome"
+      },
+      {
+        "id": "d",
+        "label": "A little quiet before we decide"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-daily-value",
+    "text": "The value I most want us to show in ordinary moments is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Patience"
+      },
+      {
+        "id": "b",
+        "label": "Curiosity"
+      },
+      {
+        "id": "c",
+        "label": "Kindness"
+      },
+      {
+        "id": "d",
+        "label": "Keeping our word"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-shared-decision",
+    "text": "When we make a small decision together, I like to…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Talk through a few options"
+      },
+      {
+        "id": "b",
+        "label": "Choose quickly and adjust later"
+      },
+      {
+        "id": "c",
+        "label": "Hear what matters most to each of us"
+      },
+      {
+        "id": "d",
+        "label": "Take turns choosing"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-goal-momentum",
+    "text": "A shared goal feels easiest to keep when we…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Make one tiny first step"
+      },
+      {
+        "id": "b",
+        "label": "Check in once a week"
+      },
+      {
+        "id": "c",
+        "label": "Celebrate small progress"
+      },
+      {
+        "id": "d",
+        "label": "Leave room to change the plan"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-weekly-check-in",
+    "text": "A low-pressure weekly check-in would fit best…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Over breakfast"
+      },
+      {
+        "id": "b",
+        "label": "On a walk"
+      },
+      {
+        "id": "c",
+        "label": "At the end of the week"
+      },
+      {
+        "id": "d",
+        "label": "Whenever a calm moment appears"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-new-tradition",
+    "text": "A tradition built from ordinary days could be…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A favorite meal each month"
+      },
+      {
+        "id": "b",
+        "label": "A yearly photo in one place"
+      },
+      {
+        "id": "c",
+        "label": "A small outing we repeat"
+      },
+      {
+        "id": "d",
+        "label": "A quiet ritual before bed"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-affection-signal",
+    "text": "Everyday affection feels easiest to welcome as…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A hand offered to hold"
+      },
+      {
+        "id": "b",
+        "label": "A hello or goodbye hug"
+      },
+      {
+        "id": "c",
+        "label": "Leaning close on the couch"
+      },
+      {
+        "id": "d",
+        "label": "A quick check-in before a kiss"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-pause-signal",
+    "text": "If I want to slow an affectionate moment, I want us to…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Pause and check in"
+      },
+      {
+        "id": "b",
+        "label": "Share a gentle signal first"
+      },
+      {
+        "id": "c",
+        "label": "Keep it playful and easy to say"
+      },
+      {
+        "id": "d",
+        "label": "Let either of us change the moment"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-kindness-together",
+    "text": "A small kindness we could offer someone together is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "Bring a meal or treat"
+      },
+      {
+        "id": "b",
+        "label": "Help with one practical task"
+      },
+      {
+        "id": "c",
+        "label": "Send an encouraging note"
+      },
+      {
+        "id": "d",
+        "label": "Make time to listen"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-new-skill-together",
+    "text": "A skill I would enjoy learning together is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A recipe we both like"
+      },
+      {
+        "id": "b",
+        "label": "A dance or song"
+      },
+      {
+        "id": "c",
+        "label": "A hands-on craft"
+      },
+      {
+        "id": "d",
+        "label": "Something useful for a shared project"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-screen-free-connection",
+    "text": "A screen-free hour together sounds best with…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A walk and a warm drink"
+      },
+      {
+        "id": "b",
+        "label": "Making something simple"
+      },
+      {
+        "id": "c",
+        "label": "A card or board game"
+      },
+      {
+        "id": "d",
+        "label": "A slow conversation at home"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-repair-appreciation",
+    "text": "When we find our way back after a tense moment, I value…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A sincere apology"
+      },
+      {
+        "id": "b",
+        "label": "A little humor when we are ready"
+      },
+      {
+        "id": "c",
+        "label": "A calm check-in later"
+      },
+      {
+        "id": "d",
+        "label": "A small action that shows care"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-encouraging-growth",
+    "text": "When I am trying to grow at something, I appreciate…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A cheer from you"
+      },
+      {
+        "id": "b",
+        "label": "Room to try it my way"
+      },
+      {
+        "id": "c",
+        "label": "A practical hand when I ask"
+      },
+      {
+        "id": "d",
+        "label": "A check-in after I have had time"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-future-memory",
+    "text": "A future memory I would love us to make is…",
+    "options": [
+      {
+        "id": "a",
+        "label": "A tiny local adventure"
+      },
+      {
+        "id": "b",
+        "label": "A celebration with our favorite people"
+      },
+      {
+        "id": "c",
+        "label": "A peaceful day with no rush"
+      },
+      {
+        "id": "d",
+        "label": "A new tradition we make our own"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-connection-today",
+    "scale": true,
+    "scaleLabels": [
+      "A little distant",
+      "Very connected"
+    ],
+    "text": "How close do you feel to your partner today?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-spontaneous-outing",
+    "scale": true,
+    "scaleLabels": [
+      "Not at all",
+      "A lot"
+    ],
+    "text": "How much would a spontaneous day trip delight you?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-unplanned-evening",
+    "scale": true,
+    "scaleLabels": [
+      "Rather not",
+      "Love it"
+    ],
+    "text": "How much do you enjoy an unplanned evening together?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-shared-rituals",
+    "scale": true,
+    "scaleLabels": [
+      "We have enough",
+      "I would love that"
+    ],
+    "text": "How much would you like another small ritual together?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-try-something-new",
+    "scale": true,
+    "scaleLabels": [
+      "Not ready",
+      "Very ready"
+    ],
+    "text": "How ready are you to try a new activity together?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-quiet-time",
+    "scale": true,
+    "scaleLabels": [
+      "Not much",
+      "A great deal"
+    ],
+    "text": "How restorative is quiet time together?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-small-celebrations",
+    "scale": true,
+    "scaleLabels": [
+      "A little",
+      "So much"
+    ],
+    "text": "How much do small celebrations brighten your week?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-dance-break",
+    "scale": true,
+    "scaleLabels": [
+      "Not likely",
+      "Absolutely"
+    ],
+    "text": "How likely are you to join a surprise dance break?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-future-plans",
+    "scale": true,
+    "scaleLabels": [
+      "Prefer the present",
+      "I love planning"
+    ],
+    "text": "How much do you enjoy making little plans for the future?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-affection",
+    "scale": true,
+    "scaleLabels": [
+      "A little goes far",
+      "Bring on the cuddles"
+    ],
+    "text": "How much affection feels right on an ordinary day?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
+  },
+  {
+    "id": "wavelength-scale-adventure-level",
+    "scale": true,
+    "scaleLabels": [
+      "Stay familiar",
+      "Let’s explore"
+    ],
+    "text": "How adventurous would you feel about a new place tonight?",
+    "options": [
+      {
+        "id": "a",
+        "label": "1"
+      },
+      {
+        "id": "b",
+        "label": "2"
+      },
+      {
+        "id": "c",
+        "label": "3"
+      },
+      {
+        "id": "d",
+        "label": "4"
+      },
+      {
+        "id": "e",
+        "label": "5"
+      },
+      {
+        "id": "f",
+        "label": "6"
+      },
+      {
+        "id": "g",
+        "label": "7"
+      },
+      {
+        "id": "h",
+        "label": "8"
+      },
+      {
+        "id": "i",
+        "label": "9"
+      },
+      {
+        "id": "j",
+        "label": "10"
+      }
+    ]
   }
 ]
 ```
@@ -10111,7 +12484,7 @@ Source: `src/features/session/wavelengthDuelData.js`.
 {
   "durationSec": 180,
   "howToPlay": [
-    "Five quick prompts. Answer honestly for yourself, then guess what your partner will answer. Every match earns a shared heart — up to 10."
+    "Five prompts mix choices and 1–10 scales. Answer for yourself, then guess your partner. Close scale guesses count."
   ],
   "id": "wavelength-duel",
   "intensity": 1,
@@ -10120,6 +12493,61 @@ Source: `src/features/session/wavelengthDuelData.js`.
   "tagline": "Answer for you, guess for them. How in sync are you, really?",
   "vibe": "playful"
 }
+```
+
+
+## Letterpress shared sentence starters
+
+Source: `src/features/session/letterpressData.js`.
+
+### `LETTERPRESS_PROMPTS` (43 entries)
+
+```json
+[
+  "A small ritual we should keep is…",
+  "The coziest ordinary evening includes…",
+  "A place that feels like ours is…",
+  "One tiny adventure we should take…",
+  "A perfect slow morning begins with…",
+  "The sound that feels like home…",
+  "A tradition we could start this week…",
+  "The best kind of unexpected day…",
+  "A little thing that always makes me smile…",
+  "Our ideal hideaway would have…",
+  "One memory I want to make with you…",
+  "A shared home should always feel…",
+  "The loveliest way to spend an hour…",
+  "A meal tastes better when…",
+  "Our private celebration dance needs…",
+  "A note I would leave for you says…",
+  "A rainy afternoon is made for…",
+  "A tiny promise for an ordinary day…",
+  "The best view is better with…",
+  "One thing we should plant or grow…",
+  "A favorite chapter still ahead…",
+  "The gentlest way to say “I’m here”…",
+  "A keepsake from tonight might be…",
+  "When the world gets loud, we can…",
+  "Our easiest kind of date begins with…",
+  "A new skill we could learn side by side…",
+  "A tradition worth trying once a month…",
+  "One small way to make a busy week kinder…",
+  "A screen-free hour would be better with…",
+  "The best way to cheer a small win…",
+  "After a long day, the softest reunion…",
+  "A little goal we could make progress on…",
+  "A place nearby we could explore…",
+  "Something thoughtful we could do for someone…",
+  "A good way to pause and return to a talk…",
+  "A future memory made from an ordinary day…",
+  "A small celebration for this week…",
+  "A shared home feels most like ours when…",
+  "A gentle check-in sounds like…",
+  "The way we make room for each other…",
+  "Something we should make time to enjoy…",
+  "A kindness I hope becomes our habit…",
+  "The next chapter could include…"
+]
 ```
 
 
@@ -10409,7 +12837,8 @@ Source: `src/board/boardThemes.js`.
       "face": "#493042",
       "alternate": "#382335",
       "pip": "#f4d49b",
-      "edge": "#f2d6a0"
+      "edge": "#f2d6a0",
+      "fabric": "#557b78"
     },
     "spaceColors": {
       "connection": "#694a68",
@@ -10529,7 +12958,8 @@ Source: `src/board/boardThemes.js`.
       "face": "#315241",
       "alternate": "#243f3b",
       "pip": "#f7e9b8",
-      "edge": "#c5dca5"
+      "edge": "#c5dca5",
+      "fabric": "#b88c67"
     },
     "spaceColors": {
       "connection": "#456953",
@@ -10646,7 +13076,8 @@ Source: `src/board/boardThemes.js`.
       "face": "#26556b",
       "alternate": "#183f55",
       "pip": "#f9e5b8",
-      "edge": "#aad9df"
+      "edge": "#aad9df",
+      "fabric": "#bd7b72"
     },
     "spaceColors": {
       "connection": "#316b77",
@@ -10766,7 +13197,8 @@ Source: `src/board/boardThemes.js`.
       "face": "#3b315f",
       "alternate": "#25203f",
       "pip": "#ffe0ad",
-      "edge": "#d9b6ef"
+      "edge": "#d9b6ef",
+      "fabric": "#9079a3"
     },
     "spaceColors": {
       "connection": "#55466f",
@@ -10886,7 +13318,8 @@ Source: `src/board/boardThemes.js`.
       "face": "#294a56",
       "alternate": "#1b3543",
       "pip": "#f3d58f",
-      "edge": "#d6c28d"
+      "edge": "#d6c28d",
+      "fabric": "#a5727d"
     },
     "spaceColors": {
       "connection": "#365d64",
