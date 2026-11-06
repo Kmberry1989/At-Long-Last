@@ -163,6 +163,10 @@ describe('getBoardPathSegments', () => {
 })
 
 describe('createPieceMovePlan', () => {
+  it('uses a stable event id so independent move events do not collide', () => {
+    expect(createPieceMovePlan({ id: 'roll-2-1', playerIndex: 1, from: 0, to: 3, steps: 3 }, 20)?.key).toBe('roll-2-1')
+  })
+
   it('retains every intermediate landing across the board edge', () => {
     expect(createPieceMovePlan({ playerIndex: 1, from: 18, to: 2, steps: 4, dice: [2, 2] }, 20)).toEqual({
       key: '1:18:2:1:4',

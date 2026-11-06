@@ -290,7 +290,7 @@ export function SessionProvider({ children }) {
   }, [couple, enabled, hasPartner])
 
   useEffect(() => {
-    if (!session?.id || session.phase !== 'vibeSetup') {
+    if (!session?.id || session.phase !== 'vibeSetup' || session.pacingVersion === 1) {
       return undefined
     }
 

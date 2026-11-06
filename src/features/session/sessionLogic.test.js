@@ -57,8 +57,8 @@ describe('sessionLogic', () => {
   it('builds the initial session with spotlight, perks, and momentum state', () => {
     const session = buildInitialSession(buildCouple())
 
-    expect(session.phase).toBe('turn')
-    expect(session.vibeWeights).toEqual({ playful: 0.3, spicy: 0.2, tender: 0.5 })
+    expect(session.phase).toBe('vibeSetup')
+    expect(session.vibeWeights).toBeNull()
     expect(session.moodVotes).toEqual({})
     expect(session.spotlight.act).toBe('warmup')
     expect(session.momentum.playful).toBe(0)

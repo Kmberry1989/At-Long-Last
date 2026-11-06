@@ -76,7 +76,7 @@ export function getNightProgress(session, steps, playerIndex) {
   const allDuels = steps.filter(step => step.kind === 'duel').length === session.totalRounds
   const readyToReveal = allRolled && allDuels && steps.every(step => step.ready && (!step.state.momentCard || step.state.momentResolution))
   return {
-    canRoll: session.phase !== 'finale' && rolls.length < session.totalRounds && !pendingLanding,
+    canRoll: session.phase === 'turn' && rolls.length < session.totalRounds && !pendingLanding,
     nextRound: rolls.length + 1,
     ownRolls: rolls.length,
     readyToReveal,
@@ -114,6 +114,7 @@ export function makeRollSteps(session, steps, playerIndex, dice, history = [], r
     id: `roll-${round}-${playerIndex}`, kind, round, ownerIndex: playerIndex,
     type: kind === 'activity' ? activityType : space.type,
     state: {
+      move: landed.lastMove ? { ...landed.lastMove, id: `roll-${round}-${playerIndex}` } : null,
       ...(kind === 'activity'
         ? activityRegistry[activityType].createInitialState(session.players, { activePlayerIndex: playerIndex, history, random })
         : kind === 'keepsake' ? { keepsake: landed.pendingKeepsake } : {}),
@@ -178,7 +179,7 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     const from = session.positions[playerIndex]
     const to = ((from + movement) % 20 + 20) % 20
     const momentResolution = { movement, effect: card.effect, lowerDie: card.lowerDie }
-    const momentStep = { ...step, state: { ...step.state, race, momentResolution } }
+    const momentStep = { ...step, state: { ...step.state, race, momentResolution, momentMove: { id: `${step.id}:moment`, from, to, playerIndex, steps: movement, cardEffect: true, dice: null } } }
     return {
       session: {
         ...session,

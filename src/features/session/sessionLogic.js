@@ -308,7 +308,7 @@ export function buildInitialSession(couple) {
     pendingActivityOptions: null,
     pendingActivityType: null,
     pendingKeepsake: null,
-    phase: 'turn',
+    phase: 'vibeSetup',
     pacingVersion: 1,
     players: couple.players,
     positions: [0, 0],
@@ -325,7 +325,7 @@ export function buildInitialSession(couple) {
     usedDuelIds: [],
     usedKeepsakePerks: [],
     vibeVotes: {},
-    vibeWeights: DEFAULT_VIBE_WEIGHTS,
+    vibeWeights: null,
   })
 }
 

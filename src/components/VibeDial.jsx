@@ -143,10 +143,10 @@ export function VibeDial({
         })
       }
     }
+    updateSize()
+    if (typeof ResizeObserver === 'undefined') return undefined
     const observer = new ResizeObserver(updateSize)
     observer.observe(triangle)
-    updateSize()
-
     return () => observer.disconnect()
   }, [])
 
@@ -316,7 +316,7 @@ export function VibeDial({
       <div className="vibe-summary">
         <strong>{dominant} leads.</strong>
         <span>Both votes shape the next move.</span>
-        <small>50% Spicy unlocks a bolder choice.</small>
+        <small>The shared mix gently shapes tonight’s activities.</small>
       </div>
 
       <button

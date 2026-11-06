@@ -21,6 +21,7 @@ import { DuelArena } from './DuelArena.jsx'
 import { FinaleScreen } from './FinaleScreen.jsx'
 import { NightTransitionBanner } from './NightTransitionBanner.jsx'
 import { MomentCard } from './MomentCard.jsx'
+import { VibeDial } from './VibeDial.jsx'
 import './independent-night.css'
 
 const BoardScene = lazy(() => import('../board/BoardScene.jsx').then(module => ({ default: module.BoardScene })))
@@ -29,7 +30,7 @@ const JournalDrawer = lazy(() => import('./JournalDrawer.jsx').then(module => ({
 export function IndependentNight() {
   const { couple, hasPartner, progress: coupleProgress } = useCouple()
   const { db, enabled, userId } = useFirebaseApp()
-  const { session, gameOpen, boardState, journalEntries, applyPreviewNight, startFreshSession, canRecoverSession, error: providerError } = useSession()
+  const { session, gameOpen, boardState, journalEntries, applyPreviewNight, startFreshSession, canRecoverSession, myVibeVote, submitVibeVote, working: providerWorking, error: providerError } = useSession()
   const selectedIdStorageKey = `at-long-last:selected-night-step:${session?.id || 'none'}:${userId || 'preview'}`
   const [selectedId, setSelectedId] = useState(() => {
     try { return sessionStorage.getItem(selectedIdStorageKey) || null } catch { return null }
@@ -46,6 +47,9 @@ export function IndependentNight() {
   const [error, setError] = useState('')
   const [rolling, setRolling] = useState(false)
   const [rollingDice, setRollingDice] = useState(null)
+  const [rollPresentation, setRollPresentation] = useState(null)
+  const [cardDrawKey, setCardDrawKey] = useState(null)
+  const [cardDrawReady, setCardDrawReady] = useState(false)
   const [boardReady, setBoardReady] = useState(false)
   const [rollGesture, setRollGesture] = useState(null)
   const [tradeOpen, setTradeOpen] = useState(false)
@@ -62,7 +66,13 @@ export function IndependentNight() {
   const bothKissesCaught = nightKissesCaughtByBothPlayers(nightKisses, session.players)
   const usesKissBookend = session.kissBookendVersion === 1
   const progress = getNightProgress(session, steps, playerIndex)
+  const rollStep = rollPresentation ? steps.find(step => step.id === rollPresentation.stepId) : null
+  const resumePendingStep = !rollPresentation && loaded ? steps.find(step => step.ownerIndex === playerIndex && step.state?.momentCard && !step.state?.momentResolution) : null
+  const deferPieceMoveKey = rollPresentation
+    ? rollPresentation.stage !== 'moving' && rollPresentation.stage !== 'confirm-landing' ? rollStep?.state?.move?.id || rollPresentation.stepId : null
+    : resumePendingStep?.state?.move?.id || null
   const selected = steps.find(step => step.id === selectedId && canAnswerStep(step, playerIndex, progress.readyToReveal))
+  const selectedContentReady = Boolean(selected && (cardDrawReady || !selected.state.momentCard || selected.state.momentResolution))
   const entry = selected?.kind === 'activity' ? activityRegistry[selected.type] : null
   const Activity = entry?.render
   const duel = selected?.kind === 'duel' ? duelRegistry[selected.type] : null
@@ -95,6 +105,12 @@ export function IndependentNight() {
     return subscribeToNightSteps(db, session.id, next => { setSteps(next); setLoaded(true) }, nextError => setError(nextError.message))
   }, [db, enabled, session.id])
   useEffect(() => {
+    if (!loaded || rollPresentation || session.phase !== 'turn' || playerIndex < 0) return
+    const pending = steps.find(step => step.id === `roll-${progress.nextRound - 1}-${playerIndex}` && step.state?.momentCard && !step.state?.momentResolution)
+    if (pending && (selectedId === pending.id || cardDrawKey?.startsWith(`${pending.id}:`))) return
+    if (pending) setRollPresentation({ stepId: pending.id, stage: 'confirm-roll', diceSettled: true, saved: true, resumed: true })
+  }, [cardDrawKey, loaded, playerIndex, progress.nextRound, rollPresentation, selectedId, session.phase, steps])
+  useEffect(() => {
     setNightKisses({})
     setNightKissesLoaded(!enabled)
     setSendIntroDismissed(false)
@@ -109,7 +125,8 @@ export function IndependentNight() {
       phase: session.phase === 'finale' ? 'finale' : selected ? selected.kind : 'turn',
       pacing: 'independent', playerIndex, round: Math.min(progress.nextRound, session.totalRounds),
       canAct: !working && (Boolean(selected) || progress.canRoll || progress.available.length > 0),
-      canRoll: !working && !rolling && boardReady && loaded && progress.canRoll && (!usesKissBookend || Boolean(ownKiss)),
+      canRoll: !working && !rolling && !rollPresentation && boardReady && loaded && progress.canRoll && (!usesKissBookend || Boolean(ownKiss)),
+      rollStage: rollPresentation?.stage || null,
       ownRolls: progress.ownRolls, readyToReveal: progress.readyToReveal, readyToFinish: progress.readyToFinish,
       comparisons: progress.comparisons,
       available: progress.available.map(step => ({ id: step.id, type: step.type, kind: step.kind })),
@@ -124,7 +141,7 @@ export function IndependentNight() {
       entryCount: (step.state.entries || []).length,
       submittedBy: Object.keys(step.state.results || step.state.entries || {}),
     }))
-  }, [session.phase, selected, playerIndex, progress.nextRound, progress.ownRolls, progress.readyToReveal, progress.comparisons, progress.canRoll, progress.available, steps, working, rolling, boardReady, loaded, usesKissBookend, ownKiss])
+  }, [session.phase, selected, playerIndex, progress.nextRound, progress.ownRolls, progress.readyToReveal, progress.comparisons, progress.canRoll, progress.available, steps, working, rolling, rollPresentation, boardReady, loaded, usesKissBookend, ownKiss])
 
   useEffect(() => () => { delete window.__atLongLastGameState; delete window.__atLongLastNightSteps }, [])
 
@@ -173,11 +190,14 @@ export function IndependentNight() {
   }
 
   async function roll(gesture) {
-    if (!progress.canRoll || (usesKissBookend && !ownKiss) || working || rolling || !boardReady || !loaded) return
+    if (!progress.canRoll || (usesKissBookend && !ownKiss) || working || rolling || rollPresentation || !boardReady || !loaded) return
     audio?.playAction?.()
     setRollGesture(gesture || null)
     setRolling(true)
     setRollingDice(null)
+    const round = progress.nextRound
+    const stepId = `roll-${round}-${playerIndex}`
+    setRollPresentation({ stepId, stage: 'rolling', diceSettled: false, saved: false })
     await new Promise(resolve => { timer.current = window.setTimeout(resolve, 620) })
     // One-shot development fixture keeps browser QA deterministic without
     // replacing global randomness used by Firebase and the renderer.
@@ -185,20 +205,39 @@ export function IndependentNight() {
     if (import.meta.env.DEV) delete window.__atLongLastTestRoll
     const dice = fixture?.dice || [1, 2].map(() => Math.floor(Math.random() * 6) + 1)
     setRollingDice(dice)
-    const round = progress.nextRound
     const ok = await run({ kind: 'roll', round, dice, history: journalEntries, ...(fixture ? { selectionSeed: fixture.selectionSeed } : {}) })
     if (ok) {
-      setSelectedId(`roll-${round}-${playerIndex}`)
-      timer.current = window.setTimeout(() => { setRolling(false); setRollGesture(null) }, 12000)
+      setRollPresentation(current => current?.stepId === stepId ? { ...current, saved: true, stage: current.diceSettled ? 'confirm-roll' : current.stage } : current)
     } else {
       setRolling(false)
       setRollingDice(null)
       setRollGesture(null)
+      setRollPresentation(null)
     }
+  }
+
+  function acknowledgeDice() {
+    if (rollPresentation?.stage !== 'confirm-roll') return
+    audio?.playAction?.()
+    setRollPresentation(current => current ? { ...current, stage: 'moving' } : current)
+  }
+
+  function acknowledgeLanding() {
+    if (rollPresentation?.stage !== 'confirm-landing' || !rollStep?.state?.momentCard) return
+    audio?.playAction?.()
+    setCardDrawReady(false)
+    setCardDrawKey(`${rollPresentation.stepId}:card`)
+    setRollPresentation(current => current ? { ...current, stage: 'drawing-card' } : current)
+  }
+
+  async function submitVibe(weights) {
+    await submitVibeVote(weights)
   }
 
   async function submit(input) {
     if (!selected) return
+    const resolvingCard = Boolean(input.resolveMoment)
+    if (resolvingCard) setRolling(true)
     if (selected.kind === 'duel' && selected.type === WAVELENGTH_DUEL_ID && !input.skipped && !input.skip) {
       const key = `at-long-last:night-duel:${session.id}:${selected.id}:${session.players[playerIndex].uid}`
       if (progress.readyToReveal && isWavelengthCommit(selected.state.results?.[String(playerIndex)])) {
@@ -214,6 +253,8 @@ export function IndependentNight() {
     const ok = await run({ kind: 'submit', stepId: selected.id, revealing: progress.readyToReveal, input })
     if (ok) {
       setSelectedId(null)
+    } else if (resolvingCard) {
+      setRolling(false)
     }
   }
 
@@ -225,17 +266,19 @@ export function IndependentNight() {
     <section className={`screen active game-screen independent-night${selected && !rolling ? ' has-gameplay-overlay' : ''}`} data-board-theme={coupleProgress?.selectedTheme || 'cozy'}>
       <div className="board-wrap">
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
-          <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={rolling ? rollingDice : session.lastMove?.dice} lastMove={session.lastMove} lastRoll={session.lastRoll}
+          <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={rolling ? rollingDice : session.lastMove?.dice} lastMove={session.lastMove} moveEvents={steps.flatMap(step => [step.state?.move, step.state?.momentMove]).filter(Boolean)} lastRoll={session.lastRoll}
+            deferPieceMoveKey={deferPieceMoveKey} cardDrawKey={cardDrawKey} onCardDrawComplete={key => { if (key === cardDrawKey) { setCardDrawReady(true); setSelectedId(rollPresentation?.stepId || null); setRollPresentation(null); setRolling(false); setRollGesture(null) } }}
+            onDiceSettled={() => setRollPresentation(current => current ? { ...current, diceSettled: true, stage: current.saved ? 'confirm-roll' : current.stage } : current)}
             onReady={() => setBoardReady(true)} onPieceStep={() => audio?.playPieceStep?.()} onPieceMoveComplete={({ playerIndex: mover }) => {
               if (mover !== playerIndex) return
               if (timer.current) window.clearTimeout(timer.current)
               timer.current = null
-              setRolling(false)
-              setRollGesture(null)
+              if (rollPresentation) setRollPresentation(current => current ? { ...current, stage: 'confirm-landing' } : current)
+              else setRolling(false)
             }} pacingMode="freeFlow" phase={phase} players={session.players}
             canRoll={progress.canRoll && (!usesKissBookend || Boolean(ownKiss)) && loaded && boardReady && !working && !rolling} onDiceCast={audio?.playDiceCast} onDiceImpact={audio?.playDiceImpact}
             onDiceRattle={audio?.playDiceRattle} onRoll={roll} rollGesture={rollGesture}
-            positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling && boardReady} themeId={coupleProgress?.selectedTheme || 'cozy'} />
+            positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling && boardReady && rollPresentation?.stage === 'rolling'} themeId={coupleProgress?.selectedTheme || 'cozy'} />
         </Suspense>
         <div className="hud top">
           <button className="trade-hud-btn control-badge" type="button" aria-label={session.lastMove?.tradeOffer?.status === 'pending' && session.lastMove.tradeOffer.fromPlayerIndex !== playerIndex ? 'Review trade offer' : 'Trade'} onClick={() => setTradeOpen(true)}><BrandIcon className="control-badge-mark" name="trade" /><span className="trade-hud-label">{session.lastMove?.tradeOffer?.status === 'pending' && session.lastMove.tradeOffer.fromPlayerIndex !== playerIndex ? 'Review offer' : 'Trade'}</span></button>
@@ -245,10 +288,19 @@ export function IndependentNight() {
             <PlayerPortrait player={player} label={`${player.displayName}${index === playerIndex ? ', you' : ', your person'}`} />
           </div>)}
         </div>
-        {!selected && session.phase !== 'finale' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
+        {rollPresentation?.stage === 'confirm-roll' && <div className="roll-ack-tray"><span>{rollingDice?.join(' · ') || rollStep?.state?.move?.dice?.join(' · ')}</span><button className="primary-btn" type="button" onClick={acknowledgeDice}>Continue</button></div>}
+        {rollPresentation?.stage === 'confirm-landing' && <div className="roll-ack-tray"><button className="primary-btn" type="button" onClick={acknowledgeLanding}>Draw card</button></div>}
+        {session.phase === 'vibeSetup' && ownKiss && sendIntroDismissed && !myVibeVote && <div className="overlay-screen independent-overlay"><VibeDial disabled={providerWorking} playerName={session.players[playerIndex]?.displayName} onConfirm={submitVibe} /></div>}
+        {session.phase === 'vibeSetup' && myVibeVote && <div className="overlay-screen independent-overlay"><div className="overlay-card vibe-wait">Waiting</div></div>}
+        {!selected && !rollPresentation && session.phase !== 'finale' && session.phase !== 'vibeSetup' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
           <div className="night-action-list" aria-label={progress.readyToReveal ? 'End of night reveals' : 'Your next moments'}>
             {progress.available.map(step => <button className="primary-btn alt" data-night-step={step.id} key={step.id} type="button" disabled={working || rolling || !loaded}
-              onClick={() => { audio?.playAction?.(); setSelectedId(step.id) }}>
+              onClick={() => {
+                audio?.playAction?.()
+                if (step.state?.momentCard && !step.state?.momentResolution) {
+                  setRollPresentation({ stepId: step.id, stage: 'confirm-roll', diceSettled: true, saved: true, resumed: true })
+                } else setSelectedId(step.id)
+              }}>
               {progress.readyToReveal ? 'Reveal: ' : ''}{step.state.momentCard && !step.state.momentResolution ? 'Draw moment' : step.kind === 'activity' ? activityRegistry[step.type].label : step.kind === 'duel' ? duelRegistry[step.type].label : 'Collect mystery card'} <small>· round {step.round}</small>
             </button>)}
           </div>
@@ -261,7 +313,7 @@ export function IndependentNight() {
       </div>
       <NightTransitionBanner phase={selected?.kind === 'duel' ? 'duel' : phase}
         transitionKey={`${session.id}:${selected?.id || session.phase}:${selected?.state?.phase || progress.nextRound}:${phase}`} playPhase={audio?.playPhase} />
-      {selected && !rolling && <div className={`overlay-screen independent-overlay${selected.state.momentCard && !selected.state.momentResolution ? ' moment-card-overlay' : ''}`}>
+      {selectedContentReady && !rolling && <div className={`overlay-screen independent-overlay${selected.state.momentCard && !selected.state.momentResolution ? ' moment-card-overlay' : ''}`}>
         {selected.state.momentCard && !selected.state.momentResolution && <MomentCard key={`${selected.id}-moment`} card={selected.state.momentCard} disabled={working} onResolve={() => submit({ resolveMoment: true })} />}
         {(!selected.state.momentCard || selected.state.momentResolution) && selected.kind === 'activity' && Activity && <Activity key={`${selected.id}-${playerIndex}`} activity={{ ...selected, id: `${session.id}-${selected.id}`, state: isIndependentActivity(selected.type) ? { ...selected.state, turnIndex: playerIndex } : selected.state }}
           deferReveal={!progress.readyToReveal} disabled={working} error={error} onSubmit={submit} playerIndex={playerIndex} players={session.players} />}

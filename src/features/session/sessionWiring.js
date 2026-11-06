@@ -43,7 +43,8 @@ export function averageVibeVotes(votes = {}) {
 }
 
 export function getAllowedIntensities(weights = DEFAULT_VIBE_WEIGHTS) {
-  return normalizeVibeWeights(weights).spicy >= 0.5 ? [1, 2, 3] : [1, 2]
+  normalizeVibeWeights(weights)
+  return [1, 2]
 }
 
 function scoreEntry(entry, weights, usedIds, entries, presetId, random = Math.random) {

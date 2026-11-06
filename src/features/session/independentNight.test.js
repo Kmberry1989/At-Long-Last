@@ -5,7 +5,7 @@ import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgre
 import { commitChoice } from './choiceCommitment.js'
 
 const players = [{ uid: 'a', displayName: 'A' }, { uid: 'b', displayName: 'B' }]
-function session() { return { ...buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' }), id: 'night', status: 'active' } }
+function session() { return { ...buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' }), phase: 'turn', vibeWeights: { tender: 0.5, playful: 0.3, spicy: 0.2 }, id: 'night', status: 'active' } }
 function duels(s) { return Array.from({ length: s.totalRounds }, (_, i) => ({ id: `duel-${i + 1}`, kind: 'duel', type: 'gratitude-duel', round: i + 1, ownerIndex: -1, ready: true, completed: false, skipped: false, state: { results: { '0': { highlight: 'Played', won: true, time: 1 }, '1': { highlight: 'Played', won: true, time: 2 } } } })) }
 function activity(type = 'comfort-menu', round = 1, ownerIndex = 0) {
   return { id: `roll-${round}-${ownerIndex}`, round, ownerIndex, kind: 'activity', type, ready: false, completed: false, skipped: false,
@@ -17,6 +17,13 @@ async function answer(s, steps, id, playerIndex, input) {
 }
 
 describe('independent night pacing', () => {
+  it('keeps fresh nights in private tone setup until both players vote', () => {
+    const opening = buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' })
+    expect(opening.phase).toBe('vibeSetup')
+    expect(opening.vibeWeights).toBeNull()
+    expect(getNightProgress(opening, [], 0).canRoll).toBe(false)
+  })
+
   it('lets a player continue rolling after submitting their duel while the partner has not drawn yet', async () => {
     const s = session()
     const duel = { id: 'duel-1', kind: 'duel', type: 'gratitude-duel', round: 1, ownerIndex: -1, ready: false, completed: false, skipped: false, state: { results: {} } }
@@ -88,6 +95,7 @@ describe('independent night pacing', () => {
     const s = session()
     const result = makeRollSteps(s, [], 0, [1, 2], [], () => 0)
     const rollStep = result.created.find(step => step.id === 'roll-1-0')
+    expect(rollStep.state.move).toMatchObject({ id: 'roll-1-0', playerIndex: 0, from: 0 })
     expect(rollStep.state.momentCard).toMatchObject({ category: 'trash', title: 'Cold Coffee Again' })
     expect(rollStep.state.momentCard.movement).toBe(-1)
     expect(canAnswerStep(rollStep, 0)).toBe(true)
@@ -96,6 +104,7 @@ describe('independent night pacing', () => {
     expect(resolution.session.hearts).toBe(result.session.hearts)
     expect(resolution.session.positions[0]).toBe((result.session.positions[0] + 19) % 20)
     expect(resolution.step.state.momentResolution).toMatchObject({ movement: -1, lowerDie: 1 })
+    expect(resolution.step.state.momentMove).toMatchObject({ id: 'roll-1-0:moment', playerIndex: 0, steps: -1 })
   })
 
   it('keeps a resolved moment from a plain board landing in the end-of-night recap', () => {

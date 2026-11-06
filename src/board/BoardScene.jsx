@@ -343,7 +343,7 @@ export function createPieceMovePlan(lastMove, boardSize = 20) {
   const playerIndex = Number(lastMove?.playerIndex)
   if (!Number.isInteger(from) || !Number.isInteger(playerIndex) || steps < 1) return null
   return {
-    key: [playerIndex, from, lastMove?.to, direction, steps].join(':'),
+    key: lastMove?.id || [playerIndex, from, lastMove?.to, direction, steps].join(':'),
     playerIndex,
     steps,
     direction,
@@ -624,9 +624,14 @@ export function BoardScene({
   boardState,
   dice = null,
   lastMove = null,
+  moveEvents = null,
   lastRoll,
   onPieceStep = null,
   onPieceMoveComplete = null,
+  onDiceSettled = null,
+  deferPieceMoveKey = null,
+  cardDrawKey = null,
+  onCardDrawComplete = null,
   onDiceImpact = null,
   onDiceRattle = null,
   onDiceCast = null,
@@ -648,6 +653,10 @@ export function BoardScene({
   const dicePropRef = useRef(dice)
   const onPieceStepRef = useRef(onPieceStep)
   const onPieceMoveCompleteRef = useRef(onPieceMoveComplete)
+  const onDiceSettledRef = useRef(onDiceSettled)
+  const deferPieceMoveKeyRef = useRef(deferPieceMoveKey)
+  const cardDrawKeyRef = useRef(cardDrawKey)
+  const onCardDrawCompleteRef = useRef(onCardDrawComplete)
   const onDiceImpactRef = useRef(onDiceImpact)
   const onDiceRattleRef = useRef(onDiceRattle)
   const onDiceCastRef = useRef(onDiceCast)
@@ -657,6 +666,8 @@ export function BoardScene({
   const rollGestureRef = useRef(rollGesture)
   const phaseRef = useRef(phase)
   const pieceMoveQueueRef = useRef([])
+  const seenMoveKeysRef = useRef(new Set())
+  const moveEventsInitializedRef = useRef(false)
   const observedMoveKeyRef = useRef(createPieceMovePlan(lastMove, 20)?.key || null)
   const boardPath = useMemo(() => buildBoardPath(), [])
   const boardTheme = useMemo(
@@ -697,11 +708,25 @@ export function BoardScene({
   }, [dice])
 
   useEffect(() => {
-    const move = createPieceMovePlan(lastMove, boardPath.length)
-    if (!move || move.key === observedMoveKeyRef.current) return
-    observedMoveKeyRef.current = move.key
-    pieceMoveQueueRef.current.push(move)
-  }, [boardPath.length, lastMove])
+    const incoming = Array.isArray(moveEvents) ? moveEvents : [lastMove]
+    if (!moveEventsInitializedRef.current && incoming.some(Boolean)) {
+      moveEventsInitializedRef.current = true
+      incoming.forEach(event => {
+        const move = createPieceMovePlan(event, boardPath.length)
+        if (!move) return
+        seenMoveKeysRef.current.add(move.key)
+        if (move.key === deferPieceMoveKey) pieceMoveQueueRef.current.push(move)
+      })
+      return
+    }
+    incoming.forEach(event => {
+      const move = createPieceMovePlan(event, boardPath.length)
+      if (!move || seenMoveKeysRef.current.has(move.key)) return
+      seenMoveKeysRef.current.add(move.key)
+      observedMoveKeyRef.current = move.key
+      pieceMoveQueueRef.current.push(move)
+    })
+  }, [boardPath.length, deferPieceMoveKey, lastMove, moveEvents])
 
   useEffect(() => {
     onPieceStepRef.current = onPieceStep
@@ -710,6 +735,13 @@ export function BoardScene({
   useEffect(() => {
     onPieceMoveCompleteRef.current = onPieceMoveComplete
   }, [onPieceMoveComplete])
+
+  useEffect(() => {
+    onDiceSettledRef.current = onDiceSettled
+    deferPieceMoveKeyRef.current = deferPieceMoveKey
+    cardDrawKeyRef.current = cardDrawKey
+    onCardDrawCompleteRef.current = onCardDrawComplete
+  }, [cardDrawKey, deferPieceMoveKey, onCardDrawComplete, onDiceSettled])
 
   useEffect(() => {
     onDiceImpactRef.current = onDiceImpact
@@ -1383,6 +1415,8 @@ export function BoardScene({
       return group
     })
     let activePieceMove = null
+    let drawnCard = null
+    let activeCardDrawKey = null
     let completedPieceSteps = 0
 
     const dracoLoader = new DRACOLoader()
@@ -1511,8 +1545,8 @@ export function BoardScene({
       }
 
       if (!dieRoll && !activePieceMove && pieceMoveQueueRef.current.length) {
-        activePieceMove = { ...pieceMoveQueueRef.current.shift(), travelStartedAt: null, stepIndex: 0 }
-        dice.userData.startRoll?.(activePieceMove.steps, activePieceMove.dice)
+        const availableMoveIndex = pieceMoveQueueRef.current.findIndex(move => move.key !== deferPieceMoveKeyRef.current)
+        if (availableMoveIndex >= 0) activePieceMove = { ...pieceMoveQueueRef.current.splice(availableMoveIndex, 1)[0], travelStartedAt: null, stepIndex: 0 }
       }
 
       if (dieRoll) {
@@ -1561,8 +1595,13 @@ export function BoardScene({
 
         if (progress >= 1 && dieRoll.finalValues) {
           const finalValues = dieRoll.finalValues
+          const settledRoll = dieRoll
           dieRoll = null
           settlePrimitiveDice(dice, finalValues)
+          if (!settledRoll.notified) {
+            settledRoll.notified = true
+            onDiceSettledRef.current?.({ dice: finalValues })
+          }
         }
       } else if (dice.userData.touch) {
         const touch = dice.userData.touch
@@ -1576,6 +1615,46 @@ export function BoardScene({
         die2.position.set(-3.25 + touch.x * 0.004, 0.62 + diceHomeMotion.lift - breathe, 0.82 - touch.y * 0.004)
         die2.rotation.set(0.08 - touch.y * 0.004, -0.26, 0.12 + touch.x * 0.005)
         die2.scale.setScalar(1 + press * 0.09)
+      }
+
+      if (cardDrawKeyRef.current && cardDrawKeyRef.current !== activeCardDrawKey) {
+        activeCardDrawKey = cardDrawKeyRef.current
+        const pile = scene.getObjectByName('board-card-draw-pile-marker')
+        if (pile) {
+          const start = pile.getWorldPosition(new THREE.Vector3())
+          const facing = new THREE.Vector3()
+          camera.getWorldDirection(facing)
+          const group = new THREE.Group()
+          group.name = 'drawn-moment-card-flight'
+          const texture = makeCardBackTexture()
+          const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthWrite: false })
+          const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 2.5), material)
+          mesh.rotation.x = -Math.PI / 2
+          group.add(mesh)
+          group.position.copy(start)
+          group.scale.setScalar(0.16)
+          group.userData.flight = { startedAt: latestSceneTime, start, direction: facing, key: activeCardDrawKey }
+          scene.add(group)
+          drawnCard = group
+        }
+      }
+      if (drawnCard?.userData.flight) {
+        const flight = drawnCard.userData.flight
+        const p = Math.min(1, (latestSceneTime - flight.startedAt) / 930)
+        const eased = 1 - (1 - p) ** 3
+        drawnCard.position.copy(flight.start).addScaledVector(flight.direction, -2.6 * eased)
+        drawnCard.position.y += 2.5 * eased
+        drawnCard.scale.setScalar(0.16 + 0.58 * eased)
+        drawnCard.rotation.set(-Math.PI / 2 + eased * 0.12, eased * Math.PI * 2, 0)
+        if (p >= 1) {
+          scene.remove(drawnCard)
+          drawnCard.traverse(object => {
+            object.geometry?.dispose()
+            if (object.material) { object.material.map?.dispose(); object.material.dispose() }
+          })
+          drawnCard = null
+          onCardDrawCompleteRef.current?.(flight.key)
+        }
       }
 
       if (!dieRoll && !dice.userData.touch) {

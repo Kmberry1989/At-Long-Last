@@ -24,7 +24,7 @@ describe('sessionWiring', () => {
 
   it('only allows intensity 3 when spicy is unlocked', () => {
     expect(getAllowedIntensities({ tender: 0.5, playful: 0.3, spicy: 0.2 })).toEqual([1, 2])
-    expect(getAllowedIntensities({ tender: 0.2, playful: 0.2, spicy: 0.6 })).toEqual([1, 2, 3])
+    expect(getAllowedIntensities({ tender: 0.2, playful: 0.2, spicy: 0.6 })).toEqual([1, 2])
   })
 
   it('avoids duplicate activities until the pool is exhausted', () => {

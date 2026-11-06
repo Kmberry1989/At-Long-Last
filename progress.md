@@ -517,3 +517,10 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Found the premature reveal in the pending board action label (`Trash moment` / `Treasure moment`). Changed the label to `Draw moment`; the branded shared card back remains the first face shown after opening, before the category/title flips into view.
 - Added an IndependentNight regression proving the pending action doesn't expose category or title.
 - Focused `IndependentNight.test.jsx` and `MomentCard.test.jsx`: 9/9 passed. The web-game Playwright client loaded the local sign-in screen without a new console error; this isolated browser context could not enter the authenticated night, so the card draw was verified through the focused component regression rather than an authenticated browser walkthrough. Restored the tracked screenshot artifact after inspection.
+
+## 2026-11-05 — Acknowledged roll, movement, and card reveal beats
+
+- Restored the private opening Vibe Dial for pacing-version-1 nights. Both players vote independently; their average weights activity and mini-game picks. Vibe no longer unlocks intensity tiers. Older non-independent sessions still skip the retired opening phase.
+- Added a dice-result acknowledgement, smooth queued per-space movement, and a landing acknowledgement before drawing a moment. A branded card now lifts from the board draw pile, flips, then reveals the centered Trash/Treasure card. Move events are stored on each roll and card resolution so overlapping independent turns do not overwrite each other through the shared `lastMove` field. A pending landing resumes at the acknowledgement sequence after reconnect.
+- Focused regressions passed: 93 tests across independent-night session logic, board movement plans, the dice/landing/card acknowledgement sequence, and the Vibe Dial. Production build, lint, and `git diff --check` passed.
+- Restarted the local Vite app and captured a fresh 1280×720 screenshot; the app rendered its sign-in screen. This browser was signed out, so the authenticated two-phone/WebGL night loop was not visually playtested in-browser during this pass.
