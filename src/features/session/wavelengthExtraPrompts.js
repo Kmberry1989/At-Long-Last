@@ -44,6 +44,28 @@ const questions = [
   ['household-win', 'The most satisfying shared household win is…', 'A clear kitchen counter', 'Fresh sheets on the bed', 'A finished small repair', 'A tidy room before relaxing'],
   ['date-conversation', 'On a date, I most enjoy talking about…', 'A memory we both love', 'Something we are curious about', 'A future little plan', 'Whatever funny thing happened today'],
   ['low-energy-connection', 'When we are both low on energy, connection can be…', 'A hand held quietly', 'A familiar show together', 'A simple check-in', 'Sharing a snack without a plan'],
+  // Original multiple-choice adaptations inspired by the linked couples-journal
+  // prompt themes. Keep these light, concrete, and easy to guess for a partner.
+  ['noticed-effort', 'A small sign that you noticed my effort would be…', 'A thank-you out loud', 'Taking the next small task', 'A quick affectionate touch', 'A note or message later'],
+  ['small-win', 'After a small personal win, I would most enjoy…', 'A proud little cheer', 'A favorite treat', 'A hug and a quiet moment', 'Making a plan for what comes next'],
+  ['tired-day-support', 'When I am worn out, the kindest first move is…', 'Listen while I talk', 'Help with one practical thing', 'Make me laugh', 'Give me a little quiet'],
+  ['milestone-style', 'For a milestone that matters to me, I would choose…', 'A private moment together', 'A favorite meal', 'A small keepsake', 'A day out to remember'],
+  ['shared-ritual-time', 'A new little ritual would fit our week best…', 'At breakfast', 'After work or school', 'During a weekend outing', 'Before bed'],
+  ['reunion-mood', 'After a day apart, I most like to reconnect by…', 'Sharing the day’s stories', 'A long hug first', 'Doing something ordinary side by side', 'Taking a little time to settle in'],
+  ['goal-support', 'When I am working toward something, support feels most like…', 'Cheering me on', 'Helping me make a plan', 'Checking in later', 'Making room for me to focus'],
+  ['date-planning-style', 'Planning a date is most fun for me when…', 'Every detail is a surprise', 'We choose the main idea together', 'We pick a place and improvise', 'We keep it familiar and easy'],
+  ['shared-values-moment', 'A good day together feels most like we…', 'Made time for each other', 'Tried something new', 'Helped someone out', 'Found laughter in the ordinary'],
+  ['thoughtful-message', 'A message from you in the middle of the day should…', 'Make me smile', 'Tell me you are thinking of me', 'Share a little story', 'Help me look forward to later'],
+  ['memory-keepsake', 'From a lovely ordinary day, I would most want to keep…', 'A candid photo', 'A funny quote', 'A little object from the day', 'A few lines about how it felt'],
+  ['comforting-affection', 'Everyday affection feels especially good when it is…', 'A hand to hold', 'A hello or goodbye hug', 'Leaning close while we relax', 'A spontaneous kiss'],
+  ['together-at-home', 'The best way to share a quiet evening at home is…', 'Make something side by side', 'Read or do hobbies nearby', 'Watch a favorite together', 'Sit and talk without a plan'],
+  ['micro-adventure', 'A small adventure I would happily say yes to is…', 'A new café or bakery', 'A different walking route', 'A local event we have not tried', 'A short drive with a playlist'],
+  ['future-tradition', 'A tradition I would be excited to look back on is…', 'A yearly photo in the same place', 'A special meal we make', 'A little trip we repeat', 'A day we keep unscheduled'],
+  ['shared-learning', 'If we learned something together, I would pick…', 'A recipe or cooking skill', 'A dance or song', 'A hands-on craft', 'A topic we can explore at our own pace'],
+  ['phone-free-hour', 'For an hour with no phones, I would rather…', 'Go for a walk', 'Make a snack together', 'Play or make something', 'Settle somewhere cozy and talk'],
+  ['kindness-receive', 'A practical kindness that would brighten my week is…', 'A task handled without fuss', 'A favorite drink brought to me', 'A little time protected for me', 'An offer to do something together'],
+  ['shared-celebration', 'When we celebrate something together, I lean toward…', 'A cozy meal at home', 'Going somewhere lively', 'A tiny private tradition', 'A spontaneous treat or outing'],
+  ['future-daydream', 'A future day together sounds best when it includes…', 'Somewhere new to explore', 'A slow morning and no rush', 'Friends, food, and a full table', 'A quiet place with time to ourselves'],
 ]
 
 export const WAVELENGTH_EXTRA_PROMPTS = questions.map(([id, text, ...labels]) => ({
