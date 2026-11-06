@@ -249,7 +249,7 @@ export function IndependentNight() {
           <div className="night-action-list" aria-label={progress.readyToReveal ? 'End of night reveals' : 'Your next moments'}>
             {progress.available.map(step => <button className="primary-btn alt" data-night-step={step.id} key={step.id} type="button" disabled={working || rolling || !loaded}
               onClick={() => { audio?.playAction?.(); setSelectedId(step.id) }}>
-              {progress.readyToReveal ? 'Reveal: ' : ''}{step.state.momentCard && !step.state.momentResolution ? `${step.state.momentCard.category} moment` : step.kind === 'activity' ? activityRegistry[step.type].label : step.kind === 'duel' ? duelRegistry[step.type].label : 'Collect mystery card'} <small>· round {step.round}</small>
+              {progress.readyToReveal ? 'Reveal: ' : ''}{step.state.momentCard && !step.state.momentResolution ? 'Draw moment' : step.kind === 'activity' ? activityRegistry[step.type].label : step.kind === 'duel' ? duelRegistry[step.type].label : 'Collect mystery card'} <small>· round {step.round}</small>
             </button>)}
           </div>
           {progress.readyToFinish && usesKissBookend && !partnerKissCaught && <button className="primary-btn" type="button" disabled={working || !nightKissesLoaded || !partnerKiss} onClick={() => setCatchKissOpen(true)}>Catch their kiss</button>}

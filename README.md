@@ -2,6 +2,8 @@
 
 A remote two-player board game for couples: shared nights, prompts, cooperative activities, duels, and a scrapbook that grows with your relationship. Built with Vite, React, Three.js, Firebase Authentication, and Firestore.
 
+For the current player-facing sequence—including when to roll, what each die does, and how end-of-night comparisons work—see the [Player Game Flow Manual](docs/PLAYER_GAME_FLOW_MANUAL.md).
+
 ## Connect once, come home together
 
 Sign in with Google or email/password, verify your email if needed, then enter your person’s sign-in email. They see a private invitation inside the game when they sign in with that verified address. They can accept or decline; the sender can cancel a pending invitation. **No codes or invitation links are shown. No invitation email is sent by an external email-delivery service.** The waiting screen explains that your person needs to open the game and sign in.

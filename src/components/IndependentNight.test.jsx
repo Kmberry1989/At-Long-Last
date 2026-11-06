@@ -45,6 +45,18 @@ it('keeps only the trade action in the board HUD', async () => {
   expect(screen.queryByRole('button', { name: /center the board/i })).not.toBeInTheDocument()
   expect(screen.queryByLabelText(/shared hearts/i)).not.toBeInTheDocument()
 })
+it('keeps a moment category hidden until its card is drawn', async () => {
+  render(<IndependentNight />)
+  act(() => mocks.next([{
+    id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart',
+    state: { momentCard: { category: 'treasure', title: 'A Warm Mug Left Ready', movement: 2 } },
+    ready: false, completed: false, skipped: false,
+  }]))
+  const drawAction = await screen.findByRole('button', { name: /Draw moment/ })
+  expect(drawAction).toBeInTheDocument()
+  expect(drawAction).not.toHaveTextContent(/trash|treasure/i)
+  expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
+})
 it('tumbles before calculating and saving the roll result', async () => {
   vi.useFakeTimers()
   let saveRoll

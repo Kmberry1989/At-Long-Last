@@ -511,3 +511,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Kept each player's answers and turns independent until end-of-night comparison, removed timestamp-based lap scoring, and reject sealed free text with fewer than three letters. Updated the shared card back and its animated draw/reveal; the trade emblem now shows only the exchange arrows, with no inner symbol.
 - Dice now tumble before values are set and show pips on all six faces when resting; fixed the settled top-face orientation. Updated the local two-player verification script for the current “Move piece” action and card-scaled destinations.
 - Verification: all 60 test files / 378 tests passed; lint, production build, and `git diff --check` passed. Two disposable Firebase-emulator users paired locally; both players rolled while the other player's landing was still open, resolved their own landing, and moved to the expected spaces. Screenshots: `.playwright-mcp/independent-night/board-scaled-spaces-and-piles.png` and `first-card.png`. No production accounts or data were used; no commit, push, or deploy was made.
+
+## 2026-11-05 — Hide Trash/Treasure category until card draw
+
+- Found the premature reveal in the pending board action label (`Trash moment` / `Treasure moment`). Changed the label to `Draw moment`; the branded shared card back remains the first face shown after opening, before the category/title flips into view.
+- Added an IndependentNight regression proving the pending action doesn't expose category or title.
+- Focused `IndependentNight.test.jsx` and `MomentCard.test.jsx`: 9/9 passed. The web-game Playwright client loaded the local sign-in screen without a new console error; this isolated browser context could not enter the authenticated night, so the card draw was verified through the focused component regression rather than an authenticated browser walkthrough. Restored the tracked screenshot artifact after inspection.

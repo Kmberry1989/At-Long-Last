@@ -46,7 +46,7 @@ export function FlowerScene({ speciesId = 'daisy', stage = 0, wateredCount = 0, 
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.35
     renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.shadowMap.type = THREE.PCFShadowMap
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, compact ? 1.5 : 2))
     mount.appendChild(renderer.domElement)
 
