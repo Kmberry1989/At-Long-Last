@@ -102,6 +102,10 @@ async function createAndJoinRoom() {
 async function resolvePlayerRoll(db, sessionId, uid, round, ownerIndex) {
   const stepRef = doc(db, 'sessions', sessionId, 'steps', `roll-${round}-${ownerIndex}`)
   let step = (await getDoc(stepRef)).data()
+  if (step.state.momentPending) {
+    await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { flipMoment: true } })
+    step = (await getDoc(stepRef)).data()
+  }
   if (step.state.momentCard) {
     await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { resolveMoment: true } })
     step = (await getDoc(stepRef)).data()
@@ -1061,17 +1065,31 @@ describe('independent night two-account transactions', () => {
     expect(nightKissesCaughtByBothPlayers(caught, couple.players)).toBe(true)
   })
 
-  it('lets only the owning player resolve a moment on an already completed board landing', async () => {
+  it('lets only the owning player flip the coin and resolve a completed board landing', async () => {
     const { couple, guestDb, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
     const stepRef = doc(hostDb, 'sessions', sessionId, 'steps', 'roll-1-0')
-    const momentCard = { category: 'trash', id: 'cold-coffee', title: 'Cold Coffee Again', scene: 'The morning got away.', effect: 'Coffee detour', movement: -2, lowerDie: 4 }
-    await setDoc(stepRef, { kind: 'board', type: 'connection', round: 1, ownerIndex: 0, state: { momentCard, race: { progress: 3, laps: 0 } }, ready: true, completed: true, skipped: false, updatedAt: serverTimestamp() })
-    await assertFails(updateDoc(doc(guestDb, 'sessions', sessionId, 'steps', 'roll-1-0'), { state: { momentCard, race: { progress: 3, laps: 0 }, momentResolution: { movement: -2 } }, updatedAt: serverTimestamp() }))
+    const move = { id: 'roll-1-0', dice: [1, 2], from: 0, playerIndex: 0, steps: 3, to: 3 }
+    await setDoc(stepRef, { kind: 'board', type: 'connection', round: 1, ownerIndex: 0, state: { momentPending: true, move, race: { progress: 3, laps: 0 } }, ready: true, completed: true, skipped: false, updatedAt: serverTimestamp() })
+    // The command service intentionally treats another player's board step as
+    // a harmless no-op; verify the unauthorized client did not reveal it.
+    await runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'submit', stepId: stepRef.id, input: { flipMoment: true } })
+    expect((await getDoc(doc(guestDb, 'sessions', sessionId, 'steps', stepRef.id))).data().state.momentPending).toBe(true)
+    await assertFails(updateDoc(doc(guestDb, 'sessions', sessionId, 'steps', stepRef.id), {
+      state: { ...((await getDoc(stepRef)).data().state), momentPending: false, coinResult: 'treasure', momentCard: { category: 'treasure' } },
+      updatedAt: serverTimestamp(),
+    }))
+    await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: stepRef.id, input: { flipMoment: true } })
+    const flipped = (await getDoc(stepRef)).data()
+    expect(['trash', 'treasure']).toContain(flipped.state.coinResult)
+    expect(flipped.state.momentCard.category).toBe(flipped.state.coinResult)
+    expect(flipped.state.momentCard.movement).toBe(flipped.state.coinResult === 'trash' ? -1 : 1)
+    const momentCard = flipped.state.momentCard
+    await assertFails(updateDoc(doc(guestDb, 'sessions', sessionId, 'steps', 'roll-1-0'), { state: { ...flipped.state, momentResolution: { movement: momentCard.movement } }, updatedAt: serverTimestamp() }))
     await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: stepRef.id, input: { resolveMoment: true } })
     const saved = (await getDoc(stepRef)).data()
-    expect(saved.state.momentResolution).toMatchObject({ movement: -2, lowerDie: 4 })
-    expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data()).toMatchObject({ hearts: 6, positions: [18, 0] })
+    expect(saved.state.momentResolution).toMatchObject({ movement: momentCard.movement, lowerDie: 1 })
+    expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data()).toMatchObject({ hearts: 6, positions: [((momentCard.movement % 20) + 20) % 20, 0] })
   })
 
   it('preserves simultaneous rolls, frees either player after sealing, and survives duplicate saves', async () => {

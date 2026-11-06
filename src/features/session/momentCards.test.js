@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { drawMomentCard, MOMENT_DECKS } from './momentCards.js'
+import { drawMomentCard, flipMomentCoin, MOMENT_DECKS } from './momentCards.js'
 
 describe('Trash and Treasure moments', () => {
+  it('uses a fair half-and-half threshold for the coin sides', () => {
+    expect(flipMomentCoin(() => 0)).toBe('trash')
+    expect(flipMomentCoin(() => 0.499999)).toBe('trash')
+    expect(flipMomentCoin(() => 0.5)).toBe('treasure')
+    expect(flipMomentCoin(() => 0.999999)).toBe('treasure')
+  })
   it('offers a varied library of named everyday and milestone moments', () => {
     expect(MOMENT_DECKS.trash.length).toBeGreaterThanOrEqual(10)
     expect(MOMENT_DECKS.treasure.length).toBeGreaterThanOrEqual(10)

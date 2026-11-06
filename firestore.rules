@@ -1846,8 +1846,12 @@ service cloud.firestore {
         && preservesPartnerInput()
         && (resource.data.kind != 'keepsake' && resource.data.kind != 'board' || night().players[resource.data.ownerIndex].uid == request.auth.uid)
         && (!resource.data.completed || (resource.data.kind == 'board'
-          && resource.data.state.keys().hasAny(['momentCard'])
-          && !resource.data.state.keys().hasAny(['momentResolution'])))
+          && !resource.data.state.keys().hasAny(['momentResolution'])
+          && (resource.data.state.keys().hasAny(['momentCard'])
+            || (resource.data.state.get('momentPending', false) == true
+              && request.resource.data.state.get('momentPending', true) == false
+              && request.resource.data.state.keys().hasAll(['coinResult', 'momentCard'])
+              && request.resource.data.state.coinResult in ['trash', 'treasure']))))
         && !resource.data.skipped
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'ready', 'completed', 'skipped', 'updatedAt']);
       allow delete: if false;

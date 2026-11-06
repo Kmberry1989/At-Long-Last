@@ -6,7 +6,7 @@ import { pickWeightedActivityId, pickWeightedDuelId } from './sessionWiring.js'
 import { isWavelengthCommit } from './wavelengthDuelData.js'
 import { verifyChoice } from './choiceCommitment.js'
 import { buildActivityJournalEntry, buildDuelJournalEntry, buildFinaleJournalEntry } from './journalHelpers.js'
-import { drawMomentCard } from './momentCards.js'
+import { drawMomentCard, flipMomentCoin } from './momentCards.js'
 import { hasThreeLetters } from './responseValidation.js'
 import { getPortraitPanicStage, isValidPortraitGuide } from './portraitPanic.js'
 
@@ -47,8 +47,9 @@ export function needsRevealInteraction(step) {
 
 export function canAnswerStep(step, playerIndex, revealing = false) {
   if (step.skipped) return false
-  if (step.completed && !(step.ownerIndex === playerIndex && step.state.momentCard && !step.state.momentResolution)) return false
-  if (step.ownerIndex === playerIndex && step.state.momentCard && !step.state.momentResolution) return true
+  const pendingMoment = (step.state.momentPending || step.state.momentCard) && !step.state.momentResolution
+  if (step.completed && !(step.ownerIndex === playerIndex && pendingMoment)) return false
+  if (step.ownerIndex === playerIndex && pendingMoment) return true
   if (revealing && step.ready && needsRevealInteraction(step)) {
     const state = step.state
     if (step.kind === 'duel') return state.retry ? !state.replayed?.[String(playerIndex)] : isWavelengthCommit(state.results?.[String(playerIndex)])
@@ -74,7 +75,7 @@ export function getNightProgress(session, steps, playerIndex) {
   const allRolled = [0, 1].every(index =>
     steps.filter(step => step.id.startsWith('roll-') && step.ownerIndex === index).length === session.totalRounds)
   const allDuels = steps.filter(step => step.kind === 'duel').length === session.totalRounds
-  const readyToReveal = allRolled && allDuels && steps.every(step => step.ready && (!step.state.momentCard || step.state.momentResolution))
+  const readyToReveal = allRolled && allDuels && steps.every(step => step.ready && !step.state.momentPending && (!step.state.momentCard || step.state.momentResolution))
   return {
     canRoll: session.phase === 'turn' && rolls.length < session.totalRounds && !pendingLanding,
     nextRound: rolls.length + 1,
@@ -103,7 +104,6 @@ export function makeRollSteps(session, steps, playerIndex, dice, history = [], r
   })
   const space = getBoardSpace(landed.positions[playerIndex])
   const kind = space.type === 'keepsake' ? 'keepsake' : landed.phase === 'activity' ? 'activity' : 'board'
-  const momentCard = drawMomentCard(random, dice)
   const previousRace = steps
     .filter(step => step.id.startsWith('roll-') && step.ownerIndex === playerIndex)
     .sort((a, b) => b.round - a.round)[0]?.state?.race || { progress: 0, laps: 0, crossedAt: null }
@@ -118,7 +118,7 @@ export function makeRollSteps(session, steps, playerIndex, dice, history = [], r
       ...(kind === 'activity'
         ? activityRegistry[activityType].createInitialState(session.players, { activePlayerIndex: playerIndex, history, random })
         : kind === 'keepsake' ? { keepsake: landed.pendingKeepsake } : {}),
-      momentCard,
+      momentPending: true,
       race: {
         progress: raceProgress,
         laps: raceLaps,
@@ -158,6 +158,14 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     const optionalBlank = key === 'guess' && typeof value === 'string' && !value.trim()
     if (typeof value === 'string' && !optionalBlank && !(key === 'excerpt' && value.startsWith('h=')) && !hasThreeLetters(value)) {
       throw new Error('Add at least three letters before saving.')
+    }
+  }
+  if (step.state.momentPending && input.flipMoment) {
+    const coinResult = flipMomentCoin()
+    const momentCard = drawMomentCard(coinResult, Math.random, step.state.move?.dice || [1, 1])
+    return {
+      session,
+      step: { ...step, state: { ...step.state, momentPending: false, coinResult, momentCard } },
     }
   }
   if (step.state.momentCard && !step.state.momentResolution) {

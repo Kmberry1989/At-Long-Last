@@ -50,6 +50,9 @@ export function IndependentNight() {
   const [rollPresentation, setRollPresentation] = useState(null)
   const [cardDrawKey, setCardDrawKey] = useState(null)
   const [cardDrawReady, setCardDrawReady] = useState(false)
+  const [coinFlipKey, setCoinFlipKey] = useState(null)
+  const [coinOutcome, setCoinOutcome] = useState(null)
+  const [coinGesture, setCoinGesture] = useState(null)
   const [boardReady, setBoardReady] = useState(false)
   const [rollGesture, setRollGesture] = useState(null)
   const [tradeOpen, setTradeOpen] = useState(false)
@@ -106,9 +109,15 @@ export function IndependentNight() {
   }, [db, enabled, session.id])
   useEffect(() => {
     if (!loaded || rollPresentation || session.phase !== 'turn' || playerIndex < 0) return
-    const pending = steps.find(step => step.id === `roll-${progress.nextRound - 1}-${playerIndex}` && step.state?.momentCard && !step.state?.momentResolution)
-    if (pending && (selectedId === pending.id || cardDrawKey?.startsWith(`${pending.id}:`))) return
-    if (pending) setRollPresentation({ stepId: pending.id, stage: 'confirm-roll', diceSettled: true, saved: true, resumed: true })
+    const pending = steps.find(step => step.id === `roll-${progress.nextRound - 1}-${playerIndex}` && ((step.state?.momentPending) || (step.state?.momentCard && !step.state?.momentResolution)))
+    if (!pending || selectedId === pending.id || cardDrawKey?.startsWith(`${pending.id}:`)) return
+    if (pending.state.momentPending) {
+      setRollPresentation({ stepId: pending.id, stage: 'confirm-landing', diceSettled: true, saved: true, resumed: true })
+      return
+    }
+    setCoinOutcome(pending.state.coinResult || pending.state.momentCard.category)
+    setRollPresentation({ stepId: pending.id, stage: 'drawing-card', diceSettled: true, saved: true, resumed: true })
+    setCardDrawKey(`${pending.id}:card`)
   }, [cardDrawKey, loaded, playerIndex, progress.nextRound, rollPresentation, selectedId, session.phase, steps])
   useEffect(() => {
     setNightKisses({})
@@ -136,7 +145,7 @@ export function IndependentNight() {
     if (import.meta.env.DEV) window.__atLongLastNightSteps = steps.map(step => ({
       id: step.id, kind: step.kind, type: step.type, ready: step.ready,
       completed: step.completed, skipped: step.skipped,
-      momentResolved: !step.state.momentCard || Boolean(step.state.momentResolution),
+      momentResolved: !step.state.momentPending && (!step.state.momentCard || Boolean(step.state.momentResolution)),
       resultCount: Object.keys(step.state.results || {}).length,
       entryCount: (step.state.entries || []).length,
       submittedBy: Object.keys(step.state.results || step.state.entries || {}),
@@ -151,24 +160,26 @@ export function IndependentNight() {
     setWorking(true)
     setError('')
     try {
-      if (enabled) await runNightCommand(db, session.id, userId, command)
+      let commandResult = true
+      if (enabled) commandResult = await runNightCommand(db, session.id, userId, command) || true
       else if (command.kind.startsWith('trade')) applyPreviewNight(changeNightTrade(session, playerIndex, command))
       else if (command.kind === 'roll') {
-        const result = makeRollSteps(session, steps, playerIndex, command.dice, journalEntries)
-        setSteps(current => [...current, ...result.created])
-        applyPreviewNight(result.session)
+        const rollResult = makeRollSteps(session, steps, playerIndex, command.dice, journalEntries)
+        setSteps(current => [...current, ...rollResult.created])
+        applyPreviewNight(rollResult.session)
       } else if (command.kind === 'submit') {
-        const result = await advanceNightStep(session, steps, command.stepId, playerIndex, command.input)
-        if (result) {
-          setSteps(current => current.map(step => step.id === result.step.id ? result.step : step))
-          applyPreviewNight(result.session)
+        const submitResult = await advanceNightStep(session, steps, command.stepId, playerIndex, command.input)
+        if (submitResult) {
+          setSteps(current => current.map(step => step.id === submitResult.step.id ? submitResult.step : step))
+          applyPreviewNight(submitResult.session)
+          commandResult = submitResult.step
         }
       } else if (command.kind === 'finish') {
         if (usesKissBookend && !bothKissesCaught) throw new Error('Catch your partner’s kiss before opening the coda.')
-        const result = finishIndependentNight(session, steps)
-        applyPreviewNight(result.session, result.entries.map((item, index) => ({ ...item, id: `${session.id}-reveal-${index}` })))
+        const finishResult = finishIndependentNight(session, steps)
+        applyPreviewNight(finishResult.session, finishResult.entries.map((item, index) => ({ ...item, id: `${session.id}-reveal-${index}` })))
       }
-      return true
+      return commandResult
     } catch (nextError) { setError(nextError.message); return false }
     finally { lock.current = false; setWorking(false) }
   }
@@ -222,9 +233,26 @@ export function IndependentNight() {
     setRollPresentation(current => current ? { ...current, stage: 'moving' } : current)
   }
 
-  function acknowledgeLanding() {
-    if (rollPresentation?.stage !== 'confirm-landing' || !rollStep?.state?.momentCard) return
+  async function flipCoin(gesture) {
+    if (lock.current || rollPresentation?.stage !== 'confirm-landing' || !rollStep?.state?.momentPending) return
     audio?.playAction?.()
+    if (gesture?.source === 'button') audio?.playDiceCast?.()
+    setCardDrawReady(false)
+    setCoinGesture(gesture || { direction: { x: 0.1, y: -0.6 }, power: 0.55 })
+    setRolling(true)
+    setRollPresentation(current => current ? { ...current, stage: 'flipping-coin' } : current)
+    const result = await run({ kind: 'submit', stepId: rollPresentation.stepId, revealing: false, input: { flipMoment: true, gesture } })
+    if (!result?.state?.momentCard) {
+      setRolling(false)
+      setRollPresentation(current => current ? { ...current, stage: 'confirm-landing' } : current)
+      return
+    }
+    setCoinOutcome(result.state.coinResult)
+    setCoinFlipKey(`${rollPresentation.stepId}:coin`)
+  }
+
+  function beginCardDraw(key) {
+    if (key !== coinFlipKey || !rollPresentation) return
     setCardDrawReady(false)
     setCardDrawKey(`${rollPresentation.stepId}:card`)
     setRollPresentation(current => current ? { ...current, stage: 'drawing-card' } : current)
@@ -268,6 +296,7 @@ export function IndependentNight() {
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
           <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={rolling ? rollingDice : session.lastMove?.dice} lastMove={session.lastMove} moveEvents={steps.flatMap(step => [step.state?.move, step.state?.momentMove]).filter(Boolean)} lastRoll={session.lastRoll}
             deferPieceMoveKey={deferPieceMoveKey} cardDrawKey={cardDrawKey} onCardDrawComplete={key => { if (key === cardDrawKey) { setCardDrawReady(true); setSelectedId(rollPresentation?.stepId || null); setRollPresentation(null); setRolling(false); setRollGesture(null) } }}
+            canFlipCoin={rollPresentation?.stage === 'confirm-landing'} onCoinFlip={flipCoin} coinFlipKey={coinFlipKey} coinOutcome={coinOutcome} coinGesture={coinGesture} onCoinFlipComplete={beginCardDraw} momentCardCategory={coinOutcome}
             onDiceSettled={() => setRollPresentation(current => current ? { ...current, diceSettled: true, stage: current.saved ? 'confirm-roll' : current.stage } : current)}
             onReady={() => setBoardReady(true)} onPieceStep={() => audio?.playPieceStep?.()} onPieceMoveComplete={({ playerIndex: mover }) => {
               if (mover !== playerIndex) return
@@ -289,7 +318,7 @@ export function IndependentNight() {
           </div>)}
         </div>
         {rollPresentation?.stage === 'confirm-roll' && <div className="roll-ack-tray"><span>{rollingDice?.join(' · ') || rollStep?.state?.move?.dice?.join(' · ')}</span><button className="primary-btn" type="button" onClick={acknowledgeDice}>Continue</button></div>}
-        {rollPresentation?.stage === 'confirm-landing' && <div className="roll-ack-tray"><button className="primary-btn" type="button" onClick={acknowledgeLanding}>Draw card</button></div>}
+        {rollPresentation?.stage === 'confirm-landing' && <div className="roll-ack-tray"><button className="primary-btn" type="button" disabled={working || rolling} onClick={() => flipCoin({ source: 'button', direction: { x: 0.1, y: -0.6 }, power: 0.65 })}>Flip coin</button></div>}
         {session.phase === 'vibeSetup' && ownKiss && sendIntroDismissed && !myVibeVote && <div className="overlay-screen independent-overlay"><VibeDial disabled={providerWorking} playerName={session.players[playerIndex]?.displayName} onConfirm={submitVibe} /></div>}
         {session.phase === 'vibeSetup' && myVibeVote && <div className="overlay-screen independent-overlay"><div className="overlay-card vibe-wait">Waiting</div></div>}
         {!selected && !rollPresentation && session.phase !== 'finale' && session.phase !== 'vibeSetup' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
@@ -297,11 +326,14 @@ export function IndependentNight() {
             {progress.available.map(step => <button className="primary-btn alt" data-night-step={step.id} key={step.id} type="button" disabled={working || rolling || !loaded}
               onClick={() => {
                 audio?.playAction?.()
-                if (step.state?.momentCard && !step.state?.momentResolution) {
-                  setRollPresentation({ stepId: step.id, stage: 'confirm-roll', diceSettled: true, saved: true, resumed: true })
+                if (step.state?.momentPending) setRollPresentation({ stepId: step.id, stage: 'confirm-landing', diceSettled: true, saved: true, resumed: true })
+                else if (step.state?.momentCard && !step.state?.momentResolution) {
+                  setCoinOutcome(step.state.coinResult || step.state.momentCard.category)
+                  setRollPresentation({ stepId: step.id, stage: 'drawing-card', diceSettled: true, saved: true, resumed: true })
+                  setCardDrawKey(`${step.id}:card`)
                 } else setSelectedId(step.id)
               }}>
-              {progress.readyToReveal ? 'Reveal: ' : ''}{step.state.momentCard && !step.state.momentResolution ? 'Draw moment' : step.kind === 'activity' ? activityRegistry[step.type].label : step.kind === 'duel' ? duelRegistry[step.type].label : 'Collect mystery card'} <small>· round {step.round}</small>
+              {progress.readyToReveal ? 'Reveal: ' : ''}{step.state.momentPending ? 'Flip coin' : step.state.momentCard && !step.state.momentResolution ? 'Draw moment' : step.kind === 'activity' ? activityRegistry[step.type].label : step.kind === 'duel' ? duelRegistry[step.type].label : 'Collect mystery card'} <small>· round {step.round}</small>
             </button>)}
           </div>
           {progress.readyToFinish && usesKissBookend && !partnerKissCaught && <button className="primary-btn" type="button" disabled={working || !nightKissesLoaded || !partnerKiss} onClick={() => setCatchKissOpen(true)}>Catch their kiss</button>}

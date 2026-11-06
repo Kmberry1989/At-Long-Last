@@ -86,6 +86,7 @@ export async function runNightCommand(db, sessionId, userId, command) {
           ...(command.kind === 'finish' ? { endedAt: serverTimestamp() } : {}),
         })
         entries.forEach((entry, index) => transaction.set(doc(db, 'journalEntries', `${sessionId}-reveal-${index}`), { ...entry, createdAt: serverTimestamp() }))
+        return changed[0] || null
       })
     } catch (error) {
       if (error.code !== 'permission-denied' || attempt === 3) throw error

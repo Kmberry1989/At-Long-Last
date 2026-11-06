@@ -219,11 +219,74 @@ function makePileLabelTexture(kind, theme) {
   return texture
 }
 
-function makeCardBackTexture() {
-  const texture = new THREE.TextureLoader().load('/assets/game-ui/moment-card-back.png')
+function makeCardBackTexture(category = null) {
+  const source = category
+    ? `/assets/game-ui/${category}-moment-card-back.webp`
+    : '/assets/game-ui/moment-card-back.png'
+  const texture = new THREE.TextureLoader().load(source)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 8
   return texture
+}
+
+function makeMomentCoinFace(category) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 512
+  const context = canvas.getContext('2d')
+  const gradient = context.createRadialGradient(256, 210, 12, 256, 256, 280)
+  gradient.addColorStop(0, category === 'treasure' ? '#f8dfab' : '#d9b889')
+  gradient.addColorStop(0.68, category === 'treasure' ? '#c8994e' : '#8d6658')
+  gradient.addColorStop(1, '#4d3344')
+  context.fillStyle = gradient
+  context.fillRect(0, 0, 512, 512)
+  context.strokeStyle = 'rgba(255,244,216,.9)'
+  context.lineWidth = 9
+  context.beginPath()
+  context.arc(256, 256, 222, 0, Math.PI * 2)
+  context.stroke()
+  context.strokeStyle = 'rgba(78,48,56,.72)'
+  context.lineWidth = 3
+  context.beginPath()
+  context.arc(256, 256, 204, 0, Math.PI * 2)
+  context.stroke()
+  context.strokeStyle = '#fff3d2'
+  drawBrandIcon(context, category, 256, 226, 172)
+  context.fillStyle = '#4c3040'
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.font = "700 38px 'Avenir Next', sans-serif"
+  context.letterSpacing = '9px'
+  context.fillText(category.toUpperCase(), 256, 392)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+function createMomentCoin(theme, position) {
+  const root = new THREE.Group()
+  root.name = 'trash-treasure-coin'
+  root.position.set(position[0], 0.78, position[1])
+  const side = new THREE.MeshStandardMaterial({ color: theme.diceSkin.edge, metalness: 0.9, roughness: 0.22 })
+  const treasure = new THREE.MeshStandardMaterial({ map: makeMomentCoinFace('treasure'), metalness: 0.42, roughness: 0.32 })
+  const trash = new THREE.MeshStandardMaterial({ map: makeMomentCoinFace('trash'), metalness: 0.42, roughness: 0.32 })
+  const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.76, 0.15, 64, 1, false), [side, treasure, trash])
+  coin.name = 'trash-treasure-coin-face'
+  coin.rotation.x = Math.PI / 2
+  coin.rotation.y = Math.PI / 2
+  coin.castShadow = true
+  coin.receiveShadow = true
+  root.add(coin)
+  const hitTarget = new THREE.Mesh(
+    new THREE.SphereGeometry(0.94, 24, 24),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false }),
+  )
+  hitTarget.name = 'trash-treasure-coin-touch-area'
+  root.add(hitTarget)
+  root.userData.disc = coin
+  root.userData.baseHeight = 0.78
+  root.userData.facing = new THREE.Vector3(0, 0, 1)
+  return root
 }
 
 function createBoardCardPileMarker(theme, kind, color) {
@@ -252,12 +315,15 @@ function createBoardCardPileMarker(theme, kind, color) {
   dottedLine.renderOrder = 4
   group.add(dottedLine)
 
-  const cardCount = isDrawPile ? 3 : 1
-  const cardTexture = makeCardBackTexture()
-  for (let index = 0; index < cardCount; index += 1) {
+  const categories = isDrawPile ? ['trash', 'treasure'] : [null]
+  for (const category of categories) {
+    const cardTexture = makeCardBackTexture(category)
+    const cardCount = isDrawPile ? 3 : 1
+    for (let index = 0; index < cardCount; index += 1) {
     const card = new THREE.Group()
-    card.name = `${kind}-pile-card-${index + 1}`
-    card.position.set(isDrawPile ? (index - 1) * 0.045 : 0, 0.225 + index * 0.125, isDrawPile ? (1 - index) * 0.045 : 0)
+    card.name = `${kind}-pile-${category || 'resolved'}-card-${index + 1}`
+    const categoryOffset = isDrawPile ? (category === 'trash' ? -0.53 : 0.53) : 0
+    card.position.set(categoryOffset + (isDrawPile ? (index - 1) * 0.035 : 0), 0.225 + index * 0.125, isDrawPile ? (1 - index) * 0.045 : 0)
     card.rotation.y = isDrawPile ? -0.16 : 0.12
     const body = new THREE.Mesh(
       new RoundedBoxGeometry(2, 0.16, 2.24, 0.08, 4),
@@ -279,12 +345,13 @@ function createBoardCardPileMarker(theme, kind, color) {
       new THREE.MeshBasicMaterial({ map: cardTexture, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1 }),
     )
     graphic.name = isDrawPile
-      ? `${kind}-pile-card-${index + 1}-trash-treasure-crest`
+      ? `${kind}-pile-${category}-card-${index + 1}-crest`
       : `${kind}-pile-card-${index + 1}-resolved-face`
     graphic.rotation.x = -Math.PI / 2
     graphic.position.y = 0.068
     card.add(graphic)
     group.add(card)
+    }
   }
 
   const label = new THREE.Mesh(
@@ -632,6 +699,13 @@ export function BoardScene({
   deferPieceMoveKey = null,
   cardDrawKey = null,
   onCardDrawComplete = null,
+  momentCardCategory = null,
+  canFlipCoin = false,
+  coinFlipKey = null,
+  coinOutcome = null,
+  coinGesture = null,
+  onCoinFlip = null,
+  onCoinFlipComplete = null,
   onDiceImpact = null,
   onDiceRattle = null,
   onDiceCast = null,
@@ -657,6 +731,13 @@ export function BoardScene({
   const deferPieceMoveKeyRef = useRef(deferPieceMoveKey)
   const cardDrawKeyRef = useRef(cardDrawKey)
   const onCardDrawCompleteRef = useRef(onCardDrawComplete)
+  const momentCardCategoryRef = useRef(momentCardCategory)
+  const canFlipCoinRef = useRef(canFlipCoin)
+  const coinFlipKeyRef = useRef(coinFlipKey)
+  const coinOutcomeRef = useRef(coinOutcome)
+  const coinGestureRef = useRef(coinGesture)
+  const onCoinFlipRef = useRef(onCoinFlip)
+  const onCoinFlipCompleteRef = useRef(onCoinFlipComplete)
   const onDiceImpactRef = useRef(onDiceImpact)
   const onDiceRattleRef = useRef(onDiceRattle)
   const onDiceCastRef = useRef(onDiceCast)
@@ -741,7 +822,14 @@ export function BoardScene({
     deferPieceMoveKeyRef.current = deferPieceMoveKey
     cardDrawKeyRef.current = cardDrawKey
     onCardDrawCompleteRef.current = onCardDrawComplete
-  }, [cardDrawKey, deferPieceMoveKey, onCardDrawComplete, onDiceSettled])
+    momentCardCategoryRef.current = momentCardCategory
+    canFlipCoinRef.current = canFlipCoin
+    coinFlipKeyRef.current = coinFlipKey
+    coinOutcomeRef.current = coinOutcome
+    coinGestureRef.current = coinGesture
+    onCoinFlipRef.current = onCoinFlip
+    onCoinFlipCompleteRef.current = onCoinFlipComplete
+  }, [canFlipCoin, cardDrawKey, coinFlipKey, coinOutcome, coinGesture, deferPieceMoveKey, momentCardCategory, onCardDrawComplete, onCoinFlip, onCoinFlipComplete, onDiceSettled])
 
   useEffect(() => {
     onDiceImpactRef.current = onDiceImpact
@@ -756,11 +844,12 @@ export function BoardScene({
   useEffect(() => {
     const canvas = mountRef.current?.querySelector('canvas')
     if (!canvas) return
-    canvas.setAttribute('role', canRoll ? 'button' : 'img')
-    canvas.setAttribute('aria-label', canRoll ? 'Roll dice' : 'Game board dice')
-    canvas.tabIndex = canRoll ? 0 : -1
-    canvas.style.cursor = canRoll ? 'pointer' : 'grab'
-  }, [canRoll])
+    const interactive = canRoll || canFlipCoin
+    canvas.setAttribute('role', interactive ? 'button' : 'img')
+    canvas.setAttribute('aria-label', canFlipCoin ? 'Flip the Trash or Treasure coin' : canRoll ? 'Roll dice' : 'Game board dice')
+    canvas.tabIndex = interactive ? 0 : -1
+    canvas.style.cursor = interactive ? 'pointer' : 'grab'
+  }, [canFlipCoin, canRoll])
 
   useEffect(() => {
     lastRollRef.current = lastRoll
@@ -1063,6 +1152,7 @@ export function BoardScene({
     const raycaster = new THREE.Raycaster()
     const pointerNdc = new THREE.Vector2()
     let activeDicePointer = null
+    let activeCoinPointer = null
     let lastRattleAt = 0
     const projectPointer = (event) => {
       const bounds = canvas.getBoundingClientRect()
@@ -1076,6 +1166,10 @@ export function BoardScene({
       projectPointer(event)
       return raycaster.intersectObject(dice, true).length > 0
     }
+    const hitsCoin = (event) => {
+      projectPointer(event)
+      return raycaster.intersectObject(momentCoin, true).length > 0
+    }
     if (import.meta.env.DEV) {
       window.__atLongLastHitDice = (x, y) => hitsDice({ clientX: x, clientY: y })
     }
@@ -1088,8 +1182,21 @@ export function BoardScene({
       try { navigator.vibrate?.(duration) } catch { /* Haptics are optional. */ }
     }
     const handleDicePointerDown = (event) => {
+      const hitCoin = canFlipCoinRef.current && hitsCoin(event)
+      if (event.isPrimary && event.button === 0 && hitCoin && !activeCoinPointer && !activeDicePointer) {
+        consumePointer(event)
+        activeCoinPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() }
+        momentCoin.userData.touch = { startedAt: activeCoinPointer.time, x: 0, y: 0 }
+        controls.enabled = false
+        canvas.style.cursor = 'grabbing'
+        try { canvas.setPointerCapture(event.pointerId) } catch { /* Pointer capture is optional. */ }
+        onDiceRattleRef.current?.({ energy: 0.18 })
+        lastRattleAt = performance.now()
+        vibrate(12)
+        return
+      }
       const hit = hitsDice(event)
-      if (!event.isPrimary || event.button !== 0 || activeDicePointer || !canRollRef.current || !hit) return
+      if (!event.isPrimary || event.button !== 0 || activeDicePointer || activeCoinPointer || !canRollRef.current || !hit) return
       consumePointer(event)
       activeDicePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() }
       dice.userData.touch = { startedAt: activeDicePointer.time, x: 0, y: 0 }
@@ -1101,6 +1208,20 @@ export function BoardScene({
       vibrate(12)
     }
     const handleDicePointerMove = (event) => {
+      if (activeCoinPointer?.id === event.pointerId) {
+        consumePointer(event)
+        const x = event.clientX - activeCoinPointer.x
+        const y = event.clientY - activeCoinPointer.y
+        momentCoin.userData.touch = { ...momentCoin.userData.touch, x, y }
+        const now = performance.now()
+        const distance = Math.hypot(x, y)
+        if (distance > 6 && now - lastRattleAt > 75) {
+          onDiceRattleRef.current?.({ energy: Math.min(1, distance / 100) })
+          lastRattleAt = now
+          vibrate(9)
+        }
+        return
+      }
       if (activeDicePointer?.id === event.pointerId) {
         consumePointer(event)
         const x = event.clientX - activeDicePointer.x
@@ -1115,9 +1236,28 @@ export function BoardScene({
         }
         return
       }
-      if (canRollRef.current) canvas.style.cursor = hitsDice(event) ? 'pointer' : 'grab'
+      if (canFlipCoinRef.current && hitsCoin(event)) canvas.style.cursor = 'pointer'
+      else if (canRollRef.current && hitsDice(event)) canvas.style.cursor = 'pointer'
+      else canvas.style.cursor = 'grab'
     }
     const handleDicePointerUp = (event) => {
+      if (activeCoinPointer?.id === event.pointerId) {
+        consumePointer(event)
+        const start = activeCoinPointer
+        const deltaX = event.clientX - start.x
+        const deltaY = event.clientY - start.y
+        activeCoinPointer = null
+        momentCoin.userData.touch = null
+        controls.enabled = true
+        canvas.style.cursor = canFlipCoinRef.current || canRollRef.current ? 'pointer' : 'grab'
+        try { canvas.releasePointerCapture(event.pointerId) } catch { /* Already released by the browser. */ }
+        if (!canFlipCoinRef.current) return
+        const gesture = makeDiceRollGesture(deltaX, deltaY, performance.now() - start.time)
+        onDiceCastRef.current?.()
+        vibrate(28)
+        onCoinFlipRef.current?.(gesture)
+        return
+      }
       if (activeDicePointer?.id !== event.pointerId) return
       consumePointer(event)
       const start = activeDicePointer
@@ -1135,6 +1275,13 @@ export function BoardScene({
       onRollRef.current?.(gesture)
     }
     const handleDicePointerCancel = (event) => {
+      if (activeCoinPointer?.id === event.pointerId) {
+        consumePointer(event)
+        activeCoinPointer = null
+        momentCoin.userData.touch = null
+        controls.enabled = true
+        return
+      }
       if (activeDicePointer?.id !== event.pointerId) return
       consumePointer(event)
       activeDicePointer = null
@@ -1143,6 +1290,13 @@ export function BoardScene({
       settlePrimitiveDice(dice, dice.userData.values)
     }
     const handleDiceKeyDown = (event) => {
+      if (canFlipCoinRef.current && (event.key === ' ' || event.key === 'Enter')) {
+        event.preventDefault()
+        event.stopPropagation()
+        onDiceCastRef.current?.()
+        onCoinFlipRef.current?.({ direction: { x: 0.1, y: -0.6 }, power: 0.65, source: 'keyboard' })
+        return
+      }
       if (!canRollRef.current || (event.key !== ' ' && event.key !== 'Enter')) return
       event.preventDefault()
       event.stopPropagation()
@@ -1154,10 +1308,10 @@ export function BoardScene({
     canvas.addEventListener('pointerup', handleDicePointerUp, true)
     canvas.addEventListener('pointercancel', handleDicePointerCancel, true)
     canvas.addEventListener('keydown', handleDiceKeyDown)
-    canvas.setAttribute('role', canRollRef.current ? 'button' : 'img')
-    canvas.setAttribute('aria-label', canRollRef.current ? 'Roll dice' : 'Game board dice')
-    canvas.tabIndex = canRollRef.current ? 0 : -1
-    canvas.style.cursor = canRollRef.current ? 'pointer' : 'grab'
+    canvas.setAttribute('role', canRollRef.current || canFlipCoinRef.current ? 'button' : 'img')
+    canvas.setAttribute('aria-label', canFlipCoinRef.current ? 'Flip the Trash or Treasure coin' : canRollRef.current ? 'Roll dice' : 'Game board dice')
+    canvas.tabIndex = canRollRef.current || canFlipCoinRef.current ? 0 : -1
+    canvas.style.cursor = canRollRef.current || canFlipCoinRef.current ? 'pointer' : 'grab'
 
     const boardGroup = new THREE.Group()
     scene.add(boardGroup)
@@ -1417,6 +1571,8 @@ export function BoardScene({
     let activePieceMove = null
     let drawnCard = null
     let activeCardDrawKey = null
+    let coinFlip = null
+    let activeCoinFlipKey = null
     let completedPieceSteps = 0
 
     const dracoLoader = new DRACOLoader()
@@ -1441,6 +1597,8 @@ export function BoardScene({
     const drawPileMarker = createBoardCardPileMarker(boardTheme, 'draw', cardPilePalette.draw)
     const discardPileMarker = createBoardCardPileMarker(boardTheme, 'discard', cardPilePalette.discard)
     scene.add(drawPileMarker, discardPileMarker)
+    const momentCoin = createMomentCoin(boardTheme, BOARD_CARD_PILE_POSITIONS.draw)
+    scene.add(momentCoin)
 
     players.forEach((player, index) => {
       const avatar = resolvePlayerAvatar(player.avatar)
@@ -1622,11 +1780,12 @@ export function BoardScene({
         const pile = scene.getObjectByName('board-card-draw-pile-marker')
         if (pile) {
           const start = pile.getWorldPosition(new THREE.Vector3())
+          start.x += momentCardCategoryRef.current === 'treasure' ? 0.53 : -0.53
           const facing = new THREE.Vector3()
           camera.getWorldDirection(facing)
           const group = new THREE.Group()
           group.name = 'drawn-moment-card-flight'
-          const texture = makeCardBackTexture()
+          const texture = makeCardBackTexture(momentCardCategoryRef.current)
           const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthWrite: false })
           const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 2.5), material)
           mesh.rotation.x = -Math.PI / 2
@@ -1637,6 +1796,58 @@ export function BoardScene({
           scene.add(group)
           drawnCard = group
         }
+      }
+
+      const coinFacing = new THREE.Vector3(camera.position.x - momentCoin.position.x, 0, camera.position.z - momentCoin.position.z).normalize()
+      momentCoin.quaternion.setFromUnitVectors(momentCoin.userData.facing, coinFacing)
+      if (coinFlipKeyRef.current && coinOutcomeRef.current && coinFlipKeyRef.current !== activeCoinFlipKey) {
+        coinFlip = {
+          key: coinFlipKeyRef.current,
+          outcome: coinOutcomeRef.current,
+          gesture: coinGestureRef.current,
+          startedAt: latestSceneTime,
+          duration: 1.95,
+          lastImpact: -1,
+          start: momentCoin.position.clone(),
+        }
+        activeCoinFlipKey = coinFlip.key
+      }
+      if (coinFlip) {
+        const progress = Math.min(1, Math.max(0, (latestSceneTime - coinFlip.startedAt) / coinFlip.duration))
+        const eased = 1 - (1 - progress) ** 3
+        const gesture = coinFlip.gesture || {}
+        const turns = 4.5 + Math.min(2.5, Math.max(0, (gesture.power || 0.55) * 2.5))
+        const resultHalfTurn = coinFlip.outcome === 'trash' ? Math.PI : 0
+        momentCoin.position.set(
+          coinFlip.start.x + (gesture.direction?.x || 0) * 0.85 * Math.sin(progress * Math.PI),
+          coinFlip.start.y + Math.sin(progress * Math.PI) * (2.9 + Math.min(1.2, (gesture.power || 0.55) * 1.2)),
+          coinFlip.start.z + 0.12 * Math.sin(progress * Math.PI * 2),
+        )
+        const disc = momentCoin.userData.disc
+        disc.rotation.x = Math.PI / 2 + turns * Math.PI * 2 * eased + resultHalfTurn * eased
+        disc.rotation.y = Math.PI / 2 * (1 - eased)
+        disc.rotation.z = Math.sin(progress * Math.PI * 10) * (1 - progress) * 0.18
+        const impact = Math.min(5, Math.floor(progress * 6))
+        if (impact > coinFlip.lastImpact && impact < 5) {
+          coinFlip.lastImpact = impact
+          onDiceImpactRef.current?.({ step: impact, energy: 0.34 + Math.sin(impact * 1.7) * 0.12, side: impact % 2 })
+        }
+        if (progress >= 1) {
+          momentCoin.position.set(coinFlip.start.x, coinFlip.start.y, coinFlip.start.z)
+          disc.rotation.x = Math.PI / 2 + Math.round(turns) * Math.PI * 2 + resultHalfTurn
+          disc.rotation.y = 0
+          disc.rotation.z = 0
+          const completedKey = coinFlip.key
+          coinFlip = null
+          onCoinFlipCompleteRef.current?.(completedKey)
+        }
+      } else if (!momentCoin.userData.touch) {
+        momentCoin.position.y = momentCoin.userData.baseHeight + Math.sin(latestSceneTime * 1.1) * 0.08
+      } else {
+        const touch = momentCoin.userData.touch
+        const press = Math.min(1, Math.hypot(touch.x, touch.y) / 44)
+        momentCoin.position.y = momentCoin.userData.baseHeight - press * 0.06 + Math.sin((latestSceneTime - touch.startedAt) / 1000 * 17) * 0.025
+        momentCoin.userData.disc.rotation.z = touch.x * 0.001
       }
       if (drawnCard?.userData.flight) {
         const flight = drawnCard.userData.flight

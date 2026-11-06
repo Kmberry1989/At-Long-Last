@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { activityRegistry } from './activityRegistry.jsx'
 import { buildInitialSession } from './sessionLogic.js'
 import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, needsRevealInteraction, resolveNightPrize } from './independentNight.js'
@@ -91,16 +91,28 @@ describe('independent night pacing', () => {
     expect(getNightProgress(s, steps, 0).readyToReveal).toBe(false)
   })
 
-  it('draws a private named moment every roll, applies its die-scaled setback, and leaves shared hearts alone', async () => {
+  it('waits for the coin flip to select a private moment, then resolves its die-scaled movement', async () => {
     const s = session()
     const result = makeRollSteps(s, [], 0, [1, 2], [], () => 0)
     const rollStep = result.created.find(step => step.id === 'roll-1-0')
     expect(rollStep.state.move).toMatchObject({ id: 'roll-1-0', playerIndex: 0, from: 0 })
-    expect(rollStep.state.momentCard).toMatchObject({ category: 'trash', title: 'Cold Coffee Again' })
-    expect(rollStep.state.momentCard.movement).toBe(-1)
+    expect(rollStep.state.momentPending).toBe(true)
+    expect(rollStep.state.momentCard).toBeUndefined()
     expect(canAnswerStep(rollStep, 0)).toBe(true)
     expect(getNightProgress(s, result.created, 1).canRoll).toBe(true)
-    const resolution = await advanceNightStep(result.session, result.created, rollStep.id, 0, { resolveMoment: true })
+
+    const random = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0)
+    const flipped = await advanceNightStep(result.session, result.created, rollStep.id, 0, { flipMoment: true })
+    random.mockRestore()
+    expect(flipped.step.state).toMatchObject({
+      momentPending: false,
+      coinResult: 'trash',
+      momentCard: { category: 'trash', title: 'Cold Coffee Again', movement: -1 },
+    })
+    const stepsAfterFlip = result.created.map(step => step.id === rollStep.id ? flipped.step : step)
+    const resolution = await advanceNightStep(flipped.session, stepsAfterFlip, rollStep.id, 0, { resolveMoment: true })
     expect(resolution.session.hearts).toBe(result.session.hearts)
     expect(resolution.session.positions[0]).toBe((result.session.positions[0] + 19) % 20)
     expect(resolution.step.state.momentResolution).toMatchObject({ movement: -1, lowerDie: 1 })

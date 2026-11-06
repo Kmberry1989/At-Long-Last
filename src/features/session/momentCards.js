@@ -30,8 +30,17 @@ const treasureMoments = [
 
 export const MOMENT_DECKS = Object.freeze({ trash: trashMoments, treasure: treasureMoments })
 
-export function drawMomentCard(random = Math.random, dice = [1, 1]) {
-  const category = random() < 0.5 ? 'trash' : 'treasure'
+export function flipMomentCoin(random = Math.random) {
+  return random() < 0.5 ? 'trash' : 'treasure'
+}
+
+export function drawMomentCard(categoryOrRandom, randomOrDice = Math.random, diceArg = [1, 1]) {
+  // Keep the old random-first call shape usable by previews and older callers.
+  const legacyCall = typeof categoryOrRandom === 'function'
+  const category = legacyCall ? flipMomentCoin(categoryOrRandom) : categoryOrRandom
+  const random = legacyCall ? categoryOrRandom : randomOrDice
+  const dice = legacyCall && Array.isArray(randomOrDice) ? randomOrDice : diceArg
+  if (!MOMENT_DECKS[category]) throw new Error('Flip the moment coin before drawing a card.')
   const deck = MOMENT_DECKS[category]
   const card = deck[Math.floor(random() * deck.length)]
   const lowerDie = Math.min(...dice)

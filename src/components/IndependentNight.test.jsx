@@ -14,21 +14,18 @@ vi.mock('../features/session/nightKissService.js', () => ({
   subscribeToNightKisses: (_db, _id, next) => { mocks.kissNext = next; next(mocks.kisses); return () => {} },
 }))
 vi.mock('../audio/AudioProvider.jsx', () => ({ useAudio: () => mocks.audio }))
-vi.mock('../board/BoardScene.jsx', () => ({ BoardScene: ({ canRoll, onReady, onRoll, rolling, onDiceSettled, onPieceMoveComplete, deferPieceMoveKey, cardDrawKey, onCardDrawComplete }) => {
-  const deferred = useRef(null)
+vi.mock('../board/BoardScene.jsx', () => ({ BoardScene: ({ canRoll, canFlipCoin, onCoinFlip, onReady, onRoll, rolling, onDiceSettled, onPieceMoveComplete, coinFlipKey, onCoinFlipComplete, cardDrawKey, onCardDrawComplete }) => {
   const settled = useRef(false)
   const drawn = useRef(null)
+  const flipped = useRef(null)
   useEffect(() => onReady?.(), [onReady])
   useEffect(() => {
     if (!rolling) { settled.current = false; return }
     if (!settled.current) { settled.current = true; onDiceSettled?.({ dice: [1, 2] }) }
   }, [onDiceSettled, rolling])
-  useEffect(() => {
-    if (deferred.current && !deferPieceMoveKey) onPieceMoveComplete?.({ playerIndex: 1 })
-    deferred.current = deferPieceMoveKey
-  }, [deferPieceMoveKey, onPieceMoveComplete])
+  useEffect(() => { if (coinFlipKey && flipped.current !== coinFlipKey) { flipped.current = coinFlipKey; onCoinFlipComplete?.(coinFlipKey) } }, [coinFlipKey, onCoinFlipComplete])
   useEffect(() => { if (cardDrawKey && drawn.current !== cardDrawKey) { drawn.current = cardDrawKey; onCardDrawComplete?.(cardDrawKey) } }, [cardDrawKey, onCardDrawComplete])
-  return <div data-testid="board" data-rolling={rolling ? 'true' : 'false'}><button aria-label="Roll dice" data-testid="board-dice" disabled={!canRoll} onClick={() => onRoll({ source: 'touch' })} /></div>
+  return <div data-testid="board" data-rolling={rolling ? 'true' : 'false'}><button aria-label="Roll dice" data-testid="board-dice" disabled={!canRoll} onClick={() => onRoll({ source: 'touch' })} /><button aria-label="3D coin" data-testid="board-coin" disabled={!canFlipCoin} onClick={() => onCoinFlip({ source: 'touch', power: 0.7 })} /><button aria-label="Movement complete" data-testid="board-movement-complete" onClick={() => onPieceMoveComplete?.({ playerIndex: 1 })} /></div>
 } }))
 vi.mock('./JournalDrawer.jsx', () => ({ JournalDrawer: () => null }))
 import { IndependentNight } from './IndependentNight.jsx'
@@ -60,30 +57,34 @@ it('keeps only the trade action in the board HUD', async () => {
   expect(screen.queryByRole('button', { name: /center the board/i })).not.toBeInTheDocument()
   expect(screen.queryByLabelText(/shared hearts/i)).not.toBeInTheDocument()
 })
-it('keeps a moment category hidden until its card is drawn', async () => {
+it('keeps the moment category hidden until the player flips the coin', async () => {
   render(<IndependentNight />)
   act(() => mocks.next([{
     id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart',
-    state: { momentCard: { category: 'treasure', title: 'A Warm Mug Left Ready', movement: 2 } },
-    ready: false, completed: false, skipped: false,
+    state: { momentPending: true, move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: [1, 1] } },
+    ready: true, completed: true, skipped: false,
   }]))
-  const drawAction = await screen.findByRole('button', { name: 'Continue' })
-  expect(drawAction).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Flip coin' })).toBeInTheDocument()
   expect(screen.queryByText(/trash|treasure/i)).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
-  expect(window.__atLongLastGameState.rollStage).toBe('confirm-roll')
+  expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
 })
-it('requires dice acknowledgement, completes the piece move, confirms landing, then draws and flips the card', async () => {
+it('flips the board coin, then draws and turns the selected deck card', async () => {
   render(<IndependentNight />)
-  act(() => mocks.next([{
-    id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: false, completed: false, skipped: false,
-    state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentCard: { category: 'treasure', id: 'warm-mug', title: 'A Warm Mug Left Ready', scene: 'The kettle is still warm.', effect: 'A small kindness', movement: 2, lowerDie: 1 } },
-  }]))
-  fireEvent.click(await screen.findByRole('button', { name: 'Continue' }))
-  expect(await screen.findByRole('button', { name: 'Draw card' })).toBeInTheDocument()
+  const pendingStep = {
+    id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,
+    state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentPending: true },
+  }
+  act(() => mocks.next([pendingStep]))
+  expect(await screen.findByRole('button', { name: 'Flip coin' })).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Draw card' }))
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'A Warm Mug Left Ready' })).toBeInTheDocument())
+  const cardStep = {
+    id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,
+    state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentPending: false, coinResult: 'treasure', momentCard: { category: 'treasure', id: 'warm-mug', title: 'A Warm Mug Left Ready', scene: 'The kettle is still warm.', effect: 'A small kindness', movement: 2, lowerDie: 1 } },
+  }
+  mocks.command.mockImplementationOnce(async () => { act(() => mocks.next([cardStep])); return cardStep })
+  fireEvent.click(screen.getByTestId('board-coin'))
+  expect(await screen.findByRole('heading', { name: 'A Warm Mug Left Ready' }, { timeout: 2500 })).toBeInTheDocument()
 })
 it('tumbles before calculating and saving the roll result', async () => {
   vi.useFakeTimers()

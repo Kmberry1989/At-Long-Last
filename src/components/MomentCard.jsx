@@ -12,7 +12,7 @@ export function MomentCard({ card, onResolve, disabled = false }) {
   const movementLabel = `${card.movement < 0 ? 'Back' : 'Ahead'} ${Math.abs(card.movement)} ${Math.abs(card.movement) === 1 ? 'space' : 'spaces'}`
   return (
     <div className={`moment-card-draw ${revealed ? 'is-revealed' : ''}`}>
-      {!revealed && <div aria-hidden="true" className="moment-card-back-art" style={{ backgroundImage: "url('/assets/game-ui/moment-card-back.png')" }} />}
+      {!revealed && <div aria-hidden="true" className="moment-card-back-art" style={{ backgroundImage: `url('/assets/game-ui/${card.category}-moment-card-back.webp')` }} />}
       <article className={`moment-card moment-card-${card.category}`} aria-labelledby="moment-card-title" aria-hidden={!revealed}>
       <div className="moment-card-mark" aria-hidden="true"><BrandIcon name={card.category === 'trash' ? 'trash' : 'treasure'} /></div>
       {card.image && <img className="moment-card-art" src={card.image} alt="" />}
