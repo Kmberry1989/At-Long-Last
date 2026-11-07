@@ -242,18 +242,16 @@ describe('Our Bloom collection rules', () => {
 describe('Connect Four night-finale rules', () => {
   it('persists a legal drop, rejects duplicate and out-of-turn moves, then alternates next night', async () => {
     const { couple, hostDb, guestDb } = await createAndJoinRoom()
-    await expect(dropConnectFourMove(guestDb, couple.id, GUEST_UID, 'night-one', 2)).rejects.toThrow(/partner’s move/i)
+    await expect(dropConnectFourMove(guestDb, couple.id, GUEST_UID, 'move-two', 2, 'moon')).rejects.toThrow(/partner’s turn/i)
 
-    const first = await dropConnectFourMove(hostDb, couple.id, HOST_UID, 'night-one', 2)
-    expect(first.state.lastMove).toMatchObject({ column: 2, playerUid: HOST_UID, row: 0, sessionId: 'night-one' })
+    const first = await dropConnectFourMove(hostDb, couple.id, HOST_UID, 'move-one', 2, 'garnet')
+    expect(first.state.lastMove).toMatchObject({ column: 2, playerUid: HOST_UID, row: 0, sessionId: 'move-one' })
     expect((await getDoc(doc(guestDb, 'coupleProgress', couple.id))).data().connectFour.board[2]).toBe(0)
-    await expect(dropConnectFourMove(hostDb, couple.id, HOST_UID, 'night-one', 3)).rejects.toThrow(/already been played/i)
+    await expect(dropConnectFourMove(guestDb, couple.id, GUEST_UID, 'locked-token', 3, 'leaf')).rejects.toThrow(/not been unlocked/i)
+    await expect(dropConnectFourMove(hostDb, couple.id, HOST_UID, 'move-one', 3, 'garnet')).rejects.toThrow(/already been played/i)
 
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await updateDoc(doc(context.firestore(), 'coupleProgress', couple.id), { lifetimeNights: 1 })
-    })
-    const next = await dropConnectFourMove(guestDb, couple.id, GUEST_UID, 'night-two', 2)
-    expect(next.state.lastMove).toMatchObject({ column: 2, playerUid: GUEST_UID, row: 1, sessionId: 'night-two' })
+    const next = await dropConnectFourMove(guestDb, couple.id, GUEST_UID, 'move-two', 2, 'moon')
+    expect(next.state.lastMove).toMatchObject({ column: 2, playerUid: GUEST_UID, row: 1, sessionId: 'move-two' })
   })
 })
 

@@ -28,7 +28,11 @@
 .connect-four-header { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 100%; min-height: 58px; }
 .connect-four-players { display: flex; align-items: center; gap: clamp(4px, 1.5vw, 12px); }
 .connect-four-player { display: grid; justify-items: center; gap: 2px; min-width: 42px; color: rgba(255,239,212,.85); font: 600 clamp(9px, 2.5vw, 12px)/1.1 'DM Sans', Arial, sans-serif; }
-.connect-four-player img { width: clamp(26px, 7vw, 38px); height: clamp(26px, 7vw, 38px); object-fit: contain; filter: drop-shadow(0 0 8px rgba(255,203,137,.36)); }
+.connect-four-player-token { width: clamp(26px, 7vw, 38px); height: clamp(26px, 7vw, 38px); padding: 2px; border: 2px solid var(--player-token-ring); border-radius: 50%; background: rgba(21,17,29,.68); box-shadow: 0 0 12px color-mix(in srgb, var(--player-token-ring) 42%, transparent); }
+.connect-four-token-art { display: block; width: 100%; height: 100%; border-radius: 50%; background-repeat: no-repeat; background-size: 300% 300%; }
+.connect-four-token-frame { position: relative; z-index: 2; display: block; width: 91%; height: 91%; padding: 2px; box-sizing: border-box; border: 2px solid var(--player-token-ring); border-radius: 50%; background: rgba(23,17,28,.7); box-shadow: 0 2px 5px rgba(14,8,18,.68), 0 0 10px color-mix(in srgb, var(--player-token-ring) 35%, transparent); }
+.player-token-0 { --player-token-ring: #ed9b9f; }
+.player-token-1 { --player-token-ring: #8ccac7; }
 .connect-four-player.player-1 { color: #d3e5e5; }
 .connect-four-title-block { grid-column: 2; grid-row: 1; text-align: center; }
 .connect-four-kicker { color: #dfbd88; font: 700 clamp(8px, 2vw, 10px)/1.2 'DM Sans', Arial, sans-serif; letter-spacing: .17em; }
@@ -36,6 +40,15 @@
 .connect-four-status { margin: 4px 0 0; color: #f4d8ac; font: 700 clamp(11px, 3vw, 14px)/1.15 'DM Sans', Arial, sans-serif; }
 .connect-four-status.is-winner { color: #ffe2a0; text-shadow: 0 0 16px rgba(250,195,99,.68); }
 .connect-four-close { grid-column: 3; grid-row: 1; justify-self: end; width: 36px; height: 36px; padding: 0; border: 1px solid rgba(240,216,179,.32); border-radius: 50%; color: #f9e6c6; background: rgba(255,255,255,.06); font-size: 26px; line-height: 1; cursor: pointer; }
+.connect-four-token-picker { z-index: 2; display: flex; justify-content: center; gap: clamp(2px, 1.2vw, 8px); width: 100%; margin: 4px 0 2px; }
+.connect-four-token-choice { position: relative; display: grid; place-items: center; flex: 0 1 38px; width: clamp(29px, 8vw, 42px); aspect-ratio: 1; padding: 3px; border: 1px solid rgba(238,209,166,.48); border-radius: 50%; background: rgba(255,242,222,.1); cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.connect-four-token-choice .connect-four-token-art { width: 100%; height: 100%; }
+.connect-four-token-choice.is-selected { border-color: #ffdc9e; box-shadow: 0 0 0 2px rgba(255,216,154,.28), 0 0 16px rgba(255,206,127,.33); transform: translateY(-2px); }
+.connect-four-token-choice.is-locked { filter: grayscale(1); opacity: .38; cursor: not-allowed; }
+.connect-four-token-lock { position: absolute; inset: auto 0 1px; color: #fff; font: 900 11px/1 Arial,sans-serif; text-align: center; text-shadow: 0 1px 2px #000; }
+.connect-four-token-lock i { display: block; position: relative; width: 8px; height: 7px; margin: 0 auto; border: 1px solid #fff2dd; border-radius: 2px; background: #4a3742; }
+.connect-four-token-lock i::before { position: absolute; left: 1px; top: -6px; width: 4px; height: 5px; border: 1px solid #fff2dd; border-bottom: 0; border-radius: 5px 5px 0 0; content: ''; }
+.connect-four-unlock-note { margin: 0; color: rgba(255,237,206,.64); text-align: center; font: 500 9px/1.1 'DM Sans',Arial,sans-serif; }
 .connect-four-board-wrap { display: grid; place-items: center; flex: 1 1 auto; width: 100%; min-height: 0; }
 .connect-four-board-stage { position: relative; container-type: size; width: min(100%, 530px); max-height: 100%; aspect-ratio: 1150 / 1367; }
 .connect-four-board-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 20px 24px rgba(0,0,0,.4)); }
@@ -44,7 +57,7 @@
 .connect-four-cell { position: relative; display: grid; flex: 1 1 0; min-height: 0; place-items: center; pointer-events: none; }
 .connect-four-token { position: relative; z-index: 2; display: block; width: 91%; height: 91%; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(23,10,19,.72)); }
 .connect-four-cell.is-winning::after { position: absolute; z-index: 1; inset: 1%; border-radius: 50%; content: ''; box-shadow: 0 0 24px 8px rgba(255,211,126,.66); animation: connect-four-win-glow 1.35s ease-in-out infinite alternate; }
-.connect-four-cell.is-winning .connect-four-token { filter: drop-shadow(0 0 9px rgba(255,218,142,.9)) drop-shadow(0 2px 3px rgba(23,10,19,.72)); }
+.connect-four-cell.is-winning .connect-four-token-frame { filter: drop-shadow(0 0 9px rgba(255,218,142,.9)); }
 .connect-four-column-hit { position: absolute; z-index: 4; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 999px; background: transparent; cursor: pointer; touch-action: manipulation; }
 .connect-four-column-hit:not(:disabled):hover { background: linear-gradient(to bottom, rgba(255,228,173,.18), transparent 60%); }
 .connect-four-column-hit:not(:disabled):active { background: linear-gradient(to bottom, rgba(255,228,173,.28), transparent 70%); }
@@ -55,10 +68,11 @@
 .connect-four-done { display: flex; align-items: center; justify-content: center; gap: 12px; width: min(100%, 340px); min-height: 46px; margin-top: 8px; border: 1px solid rgba(255,231,181,.9); border-radius: 999px; color: #2d1d27; background: linear-gradient(105deg, #f7d895, #f1bd7d 54%, #e28783); box-shadow: 0 8px 26px rgba(237,172,107,.2); font: 700 14px 'DM Sans', Arial, sans-serif; cursor: pointer; }
 .connect-four-done span { font-size: 19px; transition: transform .2s ease; }
 .connect-four-done:hover span { transform: translateX(4px); }
-.connect-four-token.is-dropping { transform-origin: center; animation: connect-four-token-drop .82s cubic-bezier(.2,.72,.24,1.03) both; }
-@keyframes connect-four-token-drop { 0% { opacity: .35; transform: translateY(-100cqh) scale(.84) rotate(-12deg); } 69% { opacity: 1; transform: translateY(9%) scale(1.04) rotate(3deg); } 84% { transform: translateY(-5%) scale(.98) rotate(-1deg); } 100% { transform: translateY(0) scale(1) rotate(0); } }
+.connect-four-close-match { margin: 2px auto 0; padding: 5px 12px; border: 0; color: rgba(255,237,206,.68); background: transparent; font: 600 11px 'DM Sans',Arial,sans-serif; cursor: pointer; }
+.connect-four-token-frame.is-dropping { transform-origin: center; animation: connect-four-token-drop .82s cubic-bezier(.2,.72,.24,1.03) both; }
+@keyframes connect-four-token-drop { 0% { opacity: .35; transform: translateY(-100cqh) scale(.84); } 69% { opacity: 1; transform: translateY(9%) scale(1.04); } 84% { transform: translateY(-5%) scale(.98); } 100% { transform: translateY(0) scale(1); } }
 @keyframes connect-four-result-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes connect-four-win-glow { from { opacity: .45; transform: scale(.94); } to { opacity: 1; transform: scale(1.06); } }
 @media (max-width: 400px) { .connect-four-card { padding-inline: 8px; } .connect-four-header { min-height: 52px; } .connect-four-close { width: 30px; height: 30px; font-size: 23px; } }
 @media (max-height: 720px) { .connect-four-card { padding-top: 7px; padding-bottom: max(7px, env(safe-area-inset-bottom)); } .connect-four-header { min-height: 46px; } .connect-four-hint { min-height: 18px; padding-top: 1px; } }
-@media (prefers-reduced-motion: reduce) { .connect-four-token.is-dropping, .connect-four-cell.is-winning::after, .connect-four-result { animation-duration: .01ms; animation-iteration-count: 1; } .connect-four-done span { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .connect-four-token-frame.is-dropping, .connect-four-cell.is-winning::after, .connect-four-result { animation-duration: .01ms; animation-iteration-count: 1; } .connect-four-done span, .connect-four-token-choice { transition: none; } }

@@ -16,7 +16,7 @@ import {
 
 import { momentId, momentPayload } from './milestoneService.js'
 import { FLOWER_DAYS_TO_BLOOM, FLOWER_SPECIES } from '../../flower/flowerSpecies.js'
-import { createConnectFourState, getConnectFourMovePlayer, placeConnectFourPiece } from '../session/connectFour.js'
+import { createConnectFourState, getConnectFourMovePlayer, isConnectFourTokenUnlocked, placeConnectFourPiece } from '../session/connectFour.js'
 
 export const BASE_THEME_CARDS = [
   { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy' },
@@ -384,7 +384,7 @@ export function subscribeToCoupleProgress(db, coupleId, onNext, onError) {
   )
 }
 
-export async function dropConnectFourMove(db, coupleId, playerUid, sessionId, column) {
+export async function dropConnectFourMove(db, coupleId, playerUid, moveId, column, tokenId) {
   const ref = doc(db, 'coupleProgress', coupleId)
   return runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(ref)
@@ -395,15 +395,18 @@ export async function dropConnectFourMove(db, coupleId, playerUid, sessionId, co
     const coupleData = coupleSnapshot.exists() ? coupleSnapshot.data() : null
     const orderedPlayers = Array.isArray(coupleData?.playerIds) && coupleData.playerIds.length === 2 ? [...coupleData.playerIds] : []
     if (!orderedPlayers.includes(playerUid)) throw new Error('You are not part of this game.')
-    const moveUid = getConnectFourMovePlayer(current, orderedPlayers)
-    if (moveUid !== playerUid) throw new Error('It’s your partner’s move tonight.')
+    if (!isConnectFourTokenUnlocked(tokenId, current.lifetimeNights)) throw new Error('That token has not been unlocked yet.')
     let state = current.connectFour
     if (!state || state.playerUids?.length !== 2) {
-      state = createConnectFourState(orderedPlayers)
+      state = createConnectFourState(orderedPlayers, getConnectFourMovePlayer(current, orderedPlayers))
     } else if (state.playerUids.some((uid, index) => uid !== orderedPlayers[index])) {
       throw new Error('This board belongs to a different pair of players.')
     }
-    const { state: nextState, result } = placeConnectFourPiece(state, { column, playerUid, sessionId })
+    if (state.winnerUid || state.moveCount >= 42) throw new Error('This match is complete. Start another match to play again.')
+    if (state.lastMove?.sessionId === moveId) throw new Error('This move has already been played.')
+    const moveUid = getConnectFourMovePlayer(current, orderedPlayers, state)
+    if (moveUid !== playerUid) throw new Error('It’s your partner’s turn.')
+    const { state: nextState, result } = placeConnectFourPiece(state, { column, playerUid, sessionId: moveId, tokenId })
     const payload = { connectFour: nextState, coupleId, createdAt: current.createdAt || serverTimestamp(), updatedAt: serverTimestamp() }
     if (snapshot.exists()) transaction.update(ref, payload)
     else {
@@ -412,6 +415,28 @@ export async function dropConnectFourMove(db, coupleId, playerUid, sessionId, co
       transaction.set(ref, createPayload)
     }
     return { state: nextState, result }
+  })
+}
+
+export async function startNewConnectFourMatch(db, coupleId, playerUid) {
+  const ref = doc(db, 'coupleProgress', coupleId)
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref)
+    const coupleSnapshot = await transaction.get(doc(db, 'couples', coupleId))
+    if (!snapshot.exists()) throw new Error('The shared game progress is still loading.')
+    const current = { id: snapshot.id, ...snapshot.data() }
+    const orderedPlayers = coupleSnapshot.exists() ? coupleSnapshot.data().playerIds || [] : []
+    if (!orderedPlayers.includes(playerUid) || orderedPlayers.length !== 2) throw new Error('You are not part of this game.')
+    const previous = current.connectFour
+    if (!previous?.winnerUid && previous?.moveCount < 42) {
+      if (previous?.moveCount === 0) return previous
+      throw new Error('Finish the current match before starting another.')
+    }
+    const previousStarter = previous?.starterUid || orderedPlayers[0]
+    const starterUid = previousStarter === orderedPlayers[0] ? orderedPlayers[1] : orderedPlayers[0]
+    const connectFour = createConnectFourState(orderedPlayers, starterUid)
+    transaction.update(ref, { connectFour, updatedAt: serverTimestamp() })
+    return connectFour
   })
 }
 

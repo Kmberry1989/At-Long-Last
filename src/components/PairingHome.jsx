@@ -10,12 +10,17 @@ import { ProfileSheet } from './ProfileSheet.jsx'
 import { OurStoryScreens } from './OurStoryScreens.jsx'
 import { BrandIcon } from './BrandIcon.jsx'
 import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/emailInvitationService.js'
+import { ConnectFourFinale } from './ConnectFourFinale.jsx'
+import { createConnectFourState, placeConnectFourPiece } from '../features/session/connectFour.js'
+import { dropConnectFourMove, startNewConnectFourMatch } from '../features/couple/progressService.js'
+import { useAudio } from '../audio/AudioProvider.jsx'
 import './PairingHome.css'
 
 export function PairingHome({ avatar, onAvatarChange }) {
-  const { couple, inviteByEmail, acceptInvitation, declineInvitation, incomingInvitations = [], sentInvitation, invitationsLoading, invitationError, commitPairing, unpair, loading, error, profile } = useCouple()
-  const { user, authWorking, verifyEmail, refreshEmailVerification } = useFirebaseApp()
+  const { couple, inviteByEmail, acceptInvitation, declineInvitation, incomingInvitations = [], sentInvitation, invitationsLoading, invitationError, commitPairing, unpair, loading, error, profile, progress: coupleProgress } = useCouple()
+  const { user, db, enabled, authWorking, verifyEmail, refreshEmailVerification } = useFirebaseApp()
   const { session, gameOpen, readyToPlay, error: sessionError, beginNight, openGame, closeGame, working: sessionWorking, journalEntries = [] } = useSession()
+  const audio = useAudio()
   const name = profile?.displayName || user?.displayName || 'Player'
   const [partnerEmail, setPartnerEmail] = useState('')
   const [confirmUnpair, setConfirmUnpair] = useState(false)
@@ -26,6 +31,10 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [noticeError, setNoticeError] = useState(false)
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [storyScreen, setStoryScreen] = useState('')
+  const [connectFourOpen, setConnectFourOpen] = useState(false)
+  const [connectFourPreview, setConnectFourPreview] = useState(null)
+  const [connectFourBusy, setConnectFourBusy] = useState(false)
+  const [connectFourError, setConnectFourError] = useState('')
   const profileButtonRef = useRef(null)
   const partner = couple?.players?.find((player) => player.uid !== user?.uid)
   const paired = couple?.playerIds?.length === 2
@@ -33,6 +42,8 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const ownCommitment = couple?.commitments?.includes(user?.uid)
   const hasCurrentNight = Boolean(couple?.activeSessionId && (!session || session.status === 'active'))
   const disabled = busy || loading || authWorking || sessionWorking
+  const connectFourPlayers = (couple?.playerIds || []).map((uid) => couple.players?.find((player) => player.uid === uid) || { uid, displayName: uid === user?.uid ? name : partner?.displayName || 'Your person' })
+  const connectFourState = coupleProgress?.connectFour || connectFourPreview || createConnectFourState(connectFourPlayers.map((player) => player.uid))
 
   useEffect(() => { setConfirmUnpair(false); setConfirmCommit(false); setAcceptPermanent(false); setNotice('') }, [couple?.id])
   useEffect(() => {
@@ -50,6 +61,35 @@ export function PairingHome({ avatar, onAvatarChange }) {
     catch (nextError) { setNoticeError(true); setNotice(nextError.code === 'permission-denied' ? 'This invitation changed or your sign-in expired. Refresh and try again.' : nextError.message || 'Please try again.') }
     finally { setBusy(false) }
   }
+
+  async function dropConnectFour(column, tokenId) {
+    if (connectFourBusy || !user?.uid || !couple?.id) return
+    setConnectFourBusy(true); setConnectFourError('')
+    try {
+      const moveId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      if (enabled) await dropConnectFourMove(db, couple.id, user.uid, moveId, column, tokenId)
+      else setConnectFourPreview(placeConnectFourPiece(connectFourState, { column, playerUid: user.uid, sessionId: moveId, tokenId }).state)
+    } catch (nextError) { setConnectFourError(nextError.message || 'Could not place that token.') }
+    finally { setConnectFourBusy(false) }
+  }
+
+  async function newConnectFourMatch() {
+    if (connectFourBusy || !user?.uid || !couple?.id) return
+    setConnectFourBusy(true); setConnectFourError('')
+    try {
+      if (enabled) await startNewConnectFourMatch(db, couple.id, user.uid)
+      else {
+        const previousStarter = connectFourState.starterUid || connectFourPlayers[0]?.uid
+        setConnectFourPreview(createConnectFourState(connectFourPlayers.map((player) => player.uid), connectFourPlayers.find((player) => player.uid !== previousStarter)?.uid))
+      }
+    } catch (nextError) { setConnectFourError(nextError.message || 'Could not start another match.') }
+    finally { setConnectFourBusy(false) }
+  }
+
+  const connectFourLanding = useCallback((winnerUid) => {
+    if (winnerUid) audio?.playConnectFourWin?.()
+    else audio?.playConnectFourDrop?.()
+  }, [audio?.playConnectFourDrop, audio?.playConnectFourWin])
 
   function piecePicker() {
     return <Disclosure label="Your piece"><PlayerPiecePicker disabled={disabled} value={avatar} onChange={onAvatarChange} /></Disclosure>
@@ -139,6 +179,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
           </form> : <button className="primary-btn" disabled={disabled} onClick={() => setConfirmCommit(true)} type="button">Commit</button>}
         </div>}
         {hasCurrentNight ? <button className="primary-btn night-start-button" disabled={disabled} onClick={openGame} type="button"><BrandIcon name="moon" /><span>Continue our night</span></button> : <button className="primary-btn night-start-button" disabled={disabled} onClick={() => act(() => beginNight('long'))} type="button"><BrandIcon name="moon" /><span>Begin our night</span></button>}
+        <button className="secondary-link connect-four-lobby-link" disabled={connectFourBusy} onClick={() => { setConnectFourError(''); setConnectFourOpen(true) }} type="button">Play Connect Four</button>
         {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Saved game unavailable. Try Continue again.' : 'Couldn’t start. Try again.'}</p>}
           <button aria-label="Our Story" className="story-open-button" onClick={() => setStoryScreen('chooser')} type="button"><BrandIcon name="more" /></button>
       </>}
@@ -152,6 +193,8 @@ export function PairingHome({ avatar, onAvatarChange }) {
       {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
       {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} onClose={closeProfileSheet} />}
       {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} onClose={() => setStoryScreen('')} />}
+      {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} disabled={connectFourBusy} onDrop={dropConnectFour} onClose={() => setConnectFourOpen(false)} onNewGame={newConnectFourMatch} onLand={connectFourLanding} />}
+      {connectFourError && <p className="error-copy" role="alert">{connectFourError}</p>}
     </>
   )
 }

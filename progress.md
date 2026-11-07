@@ -551,3 +551,10 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Added a shared Connect Four board as the final one-piece move of each night, with lifetime-night alternation, Firestore transaction validation, and a fresh board on later nights after a completed game. Kept the completed board visible through the current reveal flow.
 - Added generated board and player-token art, smooth token drops and a winning-line glow, a soft landing thunk, and a four-note win flourish. The centered mobile layout fits a 390 × 844 viewport without scrolling and honors reduced motion.
 - Validation: production build, focused game-logic tests (3), focused Firestore authorization test (1), lint, and diff checks passed. Full Firestore suite: 52/53; one unrelated existing night-flow timing test failed its expected progress count. Browser visual review confirmed all art decoded, the winning state rendered, and no viewport overflow.
+
+## 2026-11-07 — Anytime Connect Four and collectible flat tokens
+
+- Moved Connect Four out of the nightly finish gate into an optional paired-home game. Players can take alternating moves in one persistent match, close and resume whenever, and start a new match after a win; the first player alternates between matches.
+- Generated a face-on 3 × 3 token atlas with nine illustrated medallions. The first two are available at start; further designs unlock after 3, 7, 14, 25, 40, 60, and 100 shared nights. Tokens are cosmetic and never spend hearts.
+- Each placed board piece remembers its chosen token. Firestore validates token IDs, turn ownership, and shared-night unlock thresholds. The mobile token picker and board were visually reviewed at 390 × 844 with no page overflow.
+- Production build passed. Full tests/emulator suite were not run in this pass.

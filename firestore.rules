@@ -1657,17 +1657,27 @@ service cloud.firestore {
           && data.at is timestamp;
       }
 
-      function isValidConnectFour(data) {
+      function isValidConnectFour(data, lifetimeNights) {
         let players = get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds;
         return data is map
           && data.keys().hasAll(['board', 'lastMove', 'moveCount', 'playerUids', 'winnerUid'])
-          && data.keys().hasOnly(['board', 'lastMove', 'moveCount', 'playerUids', 'winnerUid'])
+          && data.keys().hasOnly(['board', 'lastMove', 'moveCount', 'playerUids', 'winnerUid', 'starterUid', 'nextPlayerUid', 'tokenIds'])
           && data.board is list && data.board.size() == 42 && data.board.hasOnly([-1, 0, 1])
           && data.moveCount is int && data.moveCount >= 0 && data.moveCount <= 42
           && data.playerUids is list && (data.playerUids.size() == 0 || data.playerUids.size() == 2)
           && (data.playerUids.size() != 2 || data.playerUids[0] != data.playerUids[1])
           && (data.playerUids.size() == 0 || data.playerUids.hasOnly(players))
           && (data.winnerUid == null || data.winnerUid in data.playerUids)
+          && (!('starterUid' in data) || data.starterUid == null || data.starterUid in data.playerUids)
+          && (!('nextPlayerUid' in data) || data.nextPlayerUid == null || data.nextPlayerUid in data.playerUids)
+          && (!('tokenIds' in data) || (data.tokenIds is list && data.tokenIds.size() == 42 && data.tokenIds.hasOnly([null, 'garnet', 'moon', 'leaf', 'key', 'shell', 'lantern', 'letter', 'blossom', 'compass'])))
+          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['leaf']) || lifetimeNights >= 3)
+          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['key']) || lifetimeNights >= 7)
+          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['shell']) || lifetimeNights >= 14)
+          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['lantern']) || lifetimeNights >= 25)
+          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['letter']) || lifetimeNights >= 40)
+          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['blossom']) || lifetimeNights >= 60)
+          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['compass']) || lifetimeNights >= 100)
           && (data.lastMove == null || (
             data.lastMove is map
             && data.lastMove.keys().hasAll(['column', 'playerUid', 'row', 'sessionId'])
@@ -1717,7 +1727,7 @@ service cloud.firestore {
           && data.koupons is list
           && data.koupons.size() <= 20
           && isValidCompanion(data.companion)
-          && (!('connectFour' in data) || isValidConnectFour(data.connectFour))
+          && (!('connectFour' in data) || isValidConnectFour(data.connectFour, data.lifetimeNights))
           && (data.anniversary == null || isDateString(data.anniversary))
           && (
             !('selectedTheme' in data)
