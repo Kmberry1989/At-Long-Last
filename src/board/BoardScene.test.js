@@ -8,6 +8,7 @@ import {
   BOARD_CARD_PILE_DOT_COUNT,
   BOARD_CARD_PILE_DOT_SIZE,
   BOARD_CARD_PILE_POSITIONS,
+  BOARD_MOMENT_COIN_POSITION,
   BOARD_CARD_PILE_LABEL_Y,
   BOARD_SKIN_SURFACE_Y,
   createPrimitiveDie,
@@ -49,16 +50,24 @@ describe('board card pile markers', () => {
     expect(BOARD_CARD_PILE_DOT_COUNT).toBeGreaterThanOrEqual(64)
     expect(BOARD_CARD_PILE_DOT_SIZE).toBeGreaterThanOrEqual(0.18)
   })
-  it('keeps dotted draw and discard zones within the circular inset and clear of the dice base', () => {
+  it('keeps separate Trash, Treasure, and discard zones within the circular inset and clear of the coin and dice base', () => {
     const centers = Object.values(BOARD_CARD_PILE_POSITIONS)
-    expect(centers).toHaveLength(2)
+    expect(centers).toHaveLength(3)
     for (const [x, z] of centers) {
       expect(Math.hypot(x, z) + BOARD_CARD_PILE_RADIUS).toBeLessThan(BOARD_INSET_RADIUS)
     }
-    const [draw, discard] = centers
-    expect(Math.hypot(draw[0] - discard[0], draw[1] - discard[1])).toBeGreaterThan(BOARD_CARD_PILE_RADIUS * 2)
-    expect(Math.hypot(draw[0] + 2.62, draw[1] - 0.64)).toBeGreaterThan(BOARD_CARD_PILE_RADIUS + DICE_HOME_BASE_RADIUS)
-    expect(Math.hypot(discard[0] + 2.62, discard[1] - 0.64)).toBeGreaterThan(BOARD_CARD_PILE_RADIUS + DICE_HOME_BASE_RADIUS)
+    for (let first = 0; first < centers.length; first += 1) {
+      for (let second = first + 1; second < centers.length; second += 1) {
+        expect(Math.hypot(centers[first][0] - centers[second][0], centers[first][1] - centers[second][1]))
+          .toBeGreaterThan(BOARD_CARD_PILE_RADIUS * 2)
+      }
+      expect(Math.hypot(centers[first][0] + 2.62, centers[first][1] - 0.64))
+        .toBeGreaterThan(BOARD_CARD_PILE_RADIUS + DICE_HOME_BASE_RADIUS)
+      expect(Math.hypot(centers[first][0] - BOARD_MOMENT_COIN_POSITION[0], centers[first][1] - BOARD_MOMENT_COIN_POSITION[1]))
+        .toBeGreaterThan(BOARD_CARD_PILE_RADIUS + 0.76)
+    }
+    expect(Math.hypot(BOARD_MOMENT_COIN_POSITION[0] + 2.62, BOARD_MOMENT_COIN_POSITION[1] - 0.64))
+      .toBeGreaterThan(DICE_HOME_BASE_RADIUS + 0.76)
   })
 
   it('keeps pile names printed on the board surface rather than camera-facing labels', () => {

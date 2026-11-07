@@ -352,7 +352,6 @@ function LegacyGameScreen() {
     !diceAnimating &&
     (
       session.phase === 'keepsake' ||
-      session.phase === 'vibeSetup' ||
       session.phase === 'activityChoice' ||
       session.phase === 'activity' ||
       session.phase === 'duelWheel' ||
@@ -512,16 +511,6 @@ function LegacyGameScreen() {
             player={session.players[session.activePlayerIndex]}
           />
           {error && <p className="error-copy" role="alert">{error}</p>}
-        </div>
-      )}
-
-      {!diceAnimating && session.phase === 'vibeSetup' && (
-        <div className="overlay-screen">
-          <div className="overlay-card" role="status">
-            <h3>Opening board…</h3>
-            {error && <p className="error-copy">{error}</p>}
-            {error && <button className="primary-btn" onClick={() => window.location.reload()} type="button">Reconnect</button>}
-          </div>
         </div>
       )}
 

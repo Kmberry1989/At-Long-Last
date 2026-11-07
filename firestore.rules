@@ -968,8 +968,8 @@ service cloud.firestore {
         && data.status == 'active'
         && data.hearts == 6
         && data.round == 1
-        && data.activePlayerIndex == 0
-        && data.startingPlayerIndex == 0
+        && data.activePlayerIndex in [0, 1]
+        && data.startingPlayerIndex == data.activePlayerIndex
         && data.turnsTakenThisRound == 0
         && data.positions == [0, 0]
         && data.currentDuel == null

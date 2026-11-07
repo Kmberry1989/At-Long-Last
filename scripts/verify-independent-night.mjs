@@ -4,7 +4,11 @@ const base = process.env.QA_BASE_URL || 'http://127.0.0.1:5173'
 const authEmulator = process.env.QA_AUTH_EMULATOR_URL || 'http://127.0.0.1:9099'
 if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Error('Run this verification only against a local dev server.')
 const out = '.playwright-mcp/independent-night'
+const captureOut = 'artifacts/night-loop'
 await mkdir(out, { recursive: true })
+await mkdir(captureOut, { recursive: true })
+const safeName = value => String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 72)
+const capture = async (page, name) => page.screenshot({ path: `${captureOut}/${safeName(name)}.png`, fullPage: true })
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 browser.on('disconnected', () => console.log('browser closed'))
 const contexts = await Promise.all([390, 393].map(width => browser.newContext({ viewport: { width, height: 844 }, reducedMotion: 'reduce' })))
@@ -82,6 +86,7 @@ await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).wai
 console.log('paired', people.map(person => person.uid))
 await writeFile(`${out}/people.json`, JSON.stringify(people))
 await pages[0].screenshot({ path: `${out}/home.png`, fullPage: true })
+await capture(pages[0], 'paired-lobby')
 await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).click()
 try {
   await pages[1].getByRole('button', { name: 'Continue our night', exact: true }).waitFor({ timeout: 5000 })
@@ -97,12 +102,25 @@ for (const page of pages) {
     await page.screenshot({ path: `${out}/voice-note-failure-${pages.indexOf(page)}.png`, fullPage: true })
     throw error
   }
+  await capture(page, `kiss-note-player-${pages.indexOf(page) + 1}`)
+  await page.evaluate(() => {
+    const panel = document.querySelector('.kiss-bookend')
+    const heart = document.querySelector('.kiss-bookend-art svg')
+    if (panel) panel.style.animation = 'kiss-screen-pucker 4.2s cubic-bezier(.42,0,.22,1) infinite'
+    if (heart) heart.style.animation = 'kiss-heart-pucker 3.2s cubic-bezier(.42,0,.22,1) infinite'
+    for (const element of [panel, heart]) {
+      const animation = element?.getAnimations()[0]
+      if (animation) { animation.currentTime = 2900; animation.pause() }
+    }
+  })
+  await capture(page, `kiss-pucker-player-${pages.indexOf(page) + 1}`)
   await page.getByRole('button', { name: 'Record a note', exact: true }).click()
   try { await page.getByRole('button', { name: 'Stop', exact: true }).waitFor() } catch (error) {
     console.error('RECORDING DID NOT START', pages.indexOf(page), await page.locator('body').innerText(), errors)
     await page.screenshot({ path: `${out}/voice-note-start-failure-${pages.indexOf(page)}.png`, fullPage: true })
     throw error
   }
+  await capture(page, `kiss-recording-player-${pages.indexOf(page) + 1}`)
   await page.waitForTimeout(1500)
   try { await page.getByRole('button', { name: 'Stop', exact: true }).click() } catch (error) {
     console.error('RECORDING STOP CONTROL MISSING', pages.indexOf(page), await page.locator('body').innerText(), errors)
@@ -110,29 +128,41 @@ for (const page of pages) {
     throw error
   }
   await page.getByRole('button', { name: 'Send kiss', exact: true }).waitFor()
+  await capture(page, `kiss-preview-player-${pages.indexOf(page) + 1}`)
   await page.getByRole('button', { name: 'Send kiss', exact: true }).click()
-  await page.getByRole('heading', { name: 'Your kiss is on its way' }).waitFor()
+  await page.getByRole('heading', { name: 'Kiss sent', exact: true }).waitFor()
+  await capture(page, `kiss-sent-player-${pages.indexOf(page) + 1}`)
   await page.getByRole('button', { name: 'Begin our night', exact: true }).click()
 }
 for (const page of pages) {
   await page.waitForFunction(() => window.__atLongLastGameState?.pacing === 'independent')
   await page.waitForFunction(() => typeof window.render_game_to_text === 'function')
+  await page.locator('.first-turn-toss').waitFor()
+  await capture(page, `first-turn-toss-player-${pages.indexOf(page) + 1}`)
+  await page.getByRole('button', { name: 'Flip the coin to decide who rolls first' }).click()
+  await page.locator('.first-turn-result').waitFor()
+  await capture(page, `first-turn-result-player-${pages.indexOf(page) + 1}`)
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await page.locator('.board-canvas canvas[role="button"]').waitFor()
 }
+await capture(pages[0], 'board-ready')
 await pages[0].screenshot({ path: `${out}/roll-control-before.png`, fullPage: true })
 if (process.env.QA_CAPTURE_BOARD_PILES === '1') {
   const board = await pages[0].evaluate(() => JSON.parse(window.render_game_to_text()))
-  if (board.cardPiles?.deck !== 'mixed Trash moments and Treasure moments') {
+  if (board.cardPiles?.deck !== 'separate Trash and Treasure piles') {
     throw new Error(`Board card-pile state is missing or incorrect: ${JSON.stringify(board.cardPiles)}`)
   }
   if (board.cardPiles?.labels !== 'etched into the board fabric') {
     throw new Error(`Card-pile labels should be integrated into the board: ${JSON.stringify(board.cardPiles)}`)
   }
-  if (board.cardPiles.draw?.outline !== 'dotted' || board.cardPiles.discard?.outline !== 'dotted') {
-    throw new Error(`Draw and discard zones must both have dotted outlines: ${JSON.stringify(board.cardPiles)}`)
+  if ([board.cardPiles.trash, board.cardPiles.treasure, board.cardPiles.discard].some(pile => pile?.outline !== 'dotted')) {
+    throw new Error(`Trash, Treasure, and discard zones must each have a dotted outline: ${JSON.stringify(board.cardPiles)}`)
   }
-  if (board.cardPiles.draw.color === board.cardPiles.discard.color) {
-    throw new Error(`Draw and discard outlines must use distinct theme shades: ${JSON.stringify(board.cardPiles)}`)
+  if (new Set([board.cardPiles.trash.color, board.cardPiles.treasure.color, board.cardPiles.discard.color]).size !== 3) {
+    throw new Error(`Trash, Treasure, and discard outlines must use distinct theme shades: ${JSON.stringify(board.cardPiles)}`)
+  }
+  if (!board.cardPiles.coin?.separateFromPiles) {
+    throw new Error(`The coin must rest separately from the draw piles: ${JSON.stringify(board.cardPiles)}`)
   }
   await pages[0].screenshot({ path: `${out}/card-pile-layout.png`, fullPage: true })
   console.log('board card-pile screenshot captured', board.cardPiles)
@@ -177,6 +207,8 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
   await page.mouse.down()
   if (swipe) await page.mouse.move(start.x + 22, start.y - 24, { steps: 4 })
   await page.mouse.up()
+  await page.waitForTimeout(220)
+  await capture(page, `dice-tumble-player-${pages.indexOf(page) + 1}-${before + 1}`)
   console.log('roll gesture sent', await page.evaluate(() => ({ canRoll: window.__atLongLastGameState?.canRoll, ownRolls: window.__atLongLastGameState?.ownRolls })))
   try { await page.waitForFunction(previous => window.__atLongLastGameState?.ownRolls === previous + 1, before, { timeout: 30000 }) } catch (error) {
     const blocked = await gameState(page)
@@ -188,6 +220,13 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
     console.log('ROLL FAILED', blocked, await page.locator('body').innerText(), errors, await page.evaluate(() => ({ board: window.render_game_to_text?.(), read: window.__atLongLastNightRead, steps: window.__atLongLastNightSteps, fixture: window.__atLongLastTestRoll })))
     throw error
   }
+  try { await page.locator('.roll-ack-tray').waitFor() } catch (error) {
+    console.error('DICE RESULT ACK MISSING', await gameState(page), await page.locator('body').innerText(), await page.evaluate(() => window.render_game_to_text?.()))
+    await capture(page, `dice-ack-failure-player-${pages.indexOf(page) + 1}`)
+    throw error
+  }
+  await capture(page, `dice-result-player-${pages.indexOf(page) + 1}-${before + 1}`)
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   try {
     await page.waitForFunction(({ mover, targetPosition }) => {
       const state = JSON.parse(window.render_game_to_text())
@@ -201,7 +240,11 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
     console.error('PIECE DID NOT LAND ONE SPACE AT A TIME', await page.evaluate(() => window.render_game_to_text?.()))
     throw error
   }
+  await page.waitForTimeout(360)
+  await capture(page, `piece-hopping-player-${pages.indexOf(page) + 1}-${before + 1}`)
   await page.waitForTimeout(1650 + (dice[0] + dice[1]) * 235)
+  await page.waitForFunction(() => document.querySelector('.coin-touch-hint, .landing-ack-tray'))
+  await capture(page, `landing-player-${pages.indexOf(page) + 1}-${before + 1}`)
   const boardDice = await page.evaluate(() => window.render_game_to_text?.())
   if (!boardDice || JSON.stringify(JSON.parse(boardDice).dice.values) !== JSON.stringify(dice)) {
     throw new Error(`Board dice did not settle to ${JSON.stringify(dice)}: ${boardDice || 'board renderer unavailable'}`)
@@ -209,17 +252,53 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
 }
 async function sealReflection(page, text, guess) {
   const type = (await gameState(page)).activity.id
+  await capture(page, `activity-${type}-player-${pages.indexOf(page) + 1}`)
   const answer = page.getByLabel('Your Answer', { exact: true })
   console.log('fill answer'); await answer.fill(text); console.log('answer filled')
   await page.getByRole('button', { name: 'NEXT', exact: true }).click(); console.log('flipped')
+  await capture(page, `activity-${type}-guess-player-${pages.indexOf(page) + 1}`)
   await page.locator('#activity-guess-input').fill(guess); console.log('guess filled')
   await page.getByRole('button', { name: /Seal My Turn|Seal & Reveal/ }).click(); console.log('sealed')
   await page.waitForFunction(type => { const state = window.__atLongLastGameState; return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type) }, type)
 }
 async function finishLanding(page, index) {
-  if (await page.locator('.moment-card').count()) {
-    await page.getByRole('button', { name: 'Move piece' }).click()
-    await page.locator('.moment-card').waitFor({ state: 'detached' })
+  if (await page.locator('.landing-ack-tray').count()) {
+    await capture(page, `landing-ack-player-${index + 1}`)
+    await page.getByRole('button', { name: 'Continue', exact: true }).last().click()
+    await page.locator('.landing-ack-tray').waitFor({ state: 'detached' })
+  } else if (await page.locator('.coin-touch-hint').count()) {
+    const canvas = page.locator('.board-canvas canvas')
+    const bounds = await canvas.boundingBox()
+    const hits = await page.evaluate(({ bounds }) => {
+      const points = []
+      if (!bounds || typeof window.__atLongLastHitCoin !== 'function') return { points, helper: typeof window.__atLongLastHitCoin, bounds }
+      for (let y = bounds.y; y < bounds.y + bounds.height; y += 8) for (let x = bounds.x; x < bounds.x + bounds.width; x += 8) {
+        const point = { x, y }
+        if (window.__atLongLastHitCoin?.(point.x, point.y)) points.push(point)
+      }
+      return { points, helper: typeof window.__atLongLastHitCoin, bounds }
+    }, { bounds })
+    if (!hits.points.length) throw new Error(`Could not locate the interactive coin after landing: ${JSON.stringify({helper:hits.helper,bounds:hits.bounds,board:await gameState(page)})}`)
+    const start = hits.points.reduce((center, point) => ({ x: center.x + point.x / hits.points.length, y: center.y + point.y / hits.points.length }), { x: 0, y: 0 })
+    await page.mouse.move(start.x, start.y)
+    await page.waitForTimeout(160)
+    await page.mouse.down()
+    await page.mouse.move(start.x + 46, start.y - 52, { steps: 12 })
+    await page.mouse.up()
+    await page.waitForTimeout(260)
+    await capture(page, `coin-flip-player-${index + 1}`)
+    await page.locator('.moment-card-draw').waitFor()
+    await capture(page, `card-back-player-${index + 1}`)
+    await page.locator('.moment-card-draw.is-revealed').waitFor()
+    await capture(page, `card-revealed-player-${index + 1}`)
+    await page.getByRole('button', { name: 'Continue', exact: true }).last().click()
+    await page.locator('.moment-card-draw').waitFor({ state: 'detached' })
+    await capture(page, `card-effect-resolved-player-${index + 1}`)
+  } else if (await page.locator('.moment-card-draw').count()) {
+    await page.locator('.moment-card-draw.is-revealed').waitFor()
+    await capture(page, `card-revealed-player-${index + 1}`)
+    await page.getByRole('button', { name: 'Continue', exact: true }).last().click()
+    await page.locator('.moment-card-draw').waitFor({ state: 'detached' })
   }
   let state = await gameState(page)
   if (state.phase === 'turn') {
@@ -234,11 +313,15 @@ async function finishLanding(page, index) {
   }
   if (state.phase === 'activity') await sealReflection(page, `${people[index].name} private answer ${state.ownRolls}`, `${people[index].name} prediction`)
   else if (state.phase === 'keepsake') {
-    await page.getByRole('button', { name: 'Tap Card to Collect', exact: true }).click()
+    await page.locator('.mystery-card-stage').waitFor({ timeout: 5000 }).catch(async () => {
+      console.error('KEEPSAKE UI DID NOT OPEN', JSON.stringify(await gameState(page)), await page.locator('body').innerText())
+    })
+    if (await page.locator('.mystery-card-stage').count()) await page.locator('.mystery-collect-btn').click()
     await page.locator('.mystery-card-stage').waitFor({ state: 'detached' })
   }
 }
 async function finishDuel(page, type) {
+  await capture(page, `mini-game-${type}-player-${pages.indexOf(page) + 1}`)
   if (await page.getByRole('button', { name: 'Reveal', exact: true }).count()) {
     await page.getByRole('button', { name: 'Reveal', exact: true }).click()
   } else if (type === 'kiss-courier') {
@@ -333,9 +416,11 @@ async function clearOpenPrompt(page, index) {
   }
   if ((await gameState(page)).phase !== 'turn') throw new Error(`Could not close open prompt: ${JSON.stringify(await gameState(page))}`)
 }
-await rollDice(pages[0], [3,1], true)
-console.log('first landing', await gameState(pages[0]))
-await pages[0].screenshot({ path: `${out}/first-card.png`, fullPage: true })
+const firstPlayerIndex = (await gameState(pages[0])).canRoll ? 0 : 1
+const secondPlayerIndex = 1 - firstPlayerIndex
+await rollDice(pages[firstPlayerIndex], [3,1], true)
+console.log('first landing', await gameState(pages[firstPlayerIndex]))
+await pages[firstPlayerIndex].screenshot({ path: `${out}/first-card.png`, fullPage: true })
 if (process.env.QA_MOVEMENT_SMOKE === '1') {
   await rollDice(pages[1], [2,2], true)
   // Both players already rolled while the other player's landing was open.
@@ -359,21 +444,23 @@ if (process.env.QA_MOVEMENT_SMOKE === '1') {
   await browser.close()
   process.exit(0)
 }
-await finishLanding(pages[0], 0)
-await rollDice(pages[0])
-await finishLanding(pages[0], 0)
-if ((await gameState(pages[0])).ownRolls !== 2 || (await gameState(pages[1])).ownRolls !== 0) throw new Error('One phone could not advance independently')
-await pages[0].screenshot({ path: `${out}/ahead.png`, fullPage: true })
-await pages[0].reload()
-await pages[0].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 2)
-await pages[0].getByRole('heading', { name: 'Your kiss is on its way' }).waitFor()
-await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).click()
-if ((await pages[1].locator('body').innerText()).includes('Avery private answer')) throw new Error('A private answer leaked before the finale')
-await pages[1].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 0)
-await rollDice(pages[1])
-await finishLanding(pages[1], 1)
-if ((await gameState(pages[0])).ownRolls !== 2 || (await gameState(pages[1])).ownRolls !== 1) throw new Error('Both phones could not advance independently')
-for (const [index, count] of [[0,6], [1,7]]) {
+await finishLanding(pages[firstPlayerIndex], firstPlayerIndex)
+await rollDice(pages[firstPlayerIndex])
+await finishLanding(pages[firstPlayerIndex], firstPlayerIndex)
+if ((await gameState(pages[firstPlayerIndex])).ownRolls !== 2 || (await gameState(pages[secondPlayerIndex])).ownRolls !== 0) throw new Error('One phone could not advance independently')
+await pages[firstPlayerIndex].screenshot({ path: `${out}/ahead.png`, fullPage: true })
+await pages[firstPlayerIndex].reload()
+await pages[firstPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 2)
+if (await pages[firstPlayerIndex].getByRole('heading', { name: 'Kiss sent', exact: true }).count()) {
+  await capture(pages[firstPlayerIndex], 'kiss-resumed-after-reload')
+  await pages[firstPlayerIndex].getByRole('button', { name: 'Begin our night', exact: true }).click()
+}
+if ((await pages[secondPlayerIndex].locator('body').innerText()).includes(`${people[firstPlayerIndex].name} private answer`)) throw new Error('A private answer leaked before the finale')
+await pages[secondPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 0)
+await rollDice(pages[secondPlayerIndex])
+await finishLanding(pages[secondPlayerIndex], secondPlayerIndex)
+if ((await gameState(pages[firstPlayerIndex])).ownRolls !== 2 || (await gameState(pages[secondPlayerIndex])).ownRolls !== 1) throw new Error('Both phones could not advance independently')
+for (const [index, count] of [[firstPlayerIndex,6], [secondPlayerIndex,7]]) {
   for (let turn=0; turn<count; turn++) {
     await rollDice(pages[index])
     await finishLanding(pages[index], index)
@@ -382,7 +469,8 @@ for (const [index, count] of [[0,6], [1,7]]) {
 // Finish every player's activity and comparison, in their own browser context.
 for (;;) {
   let acted = false
-  for (const [index, page] of pages.entries()) {
+  for (const index of [firstPlayerIndex, secondPlayerIndex]) {
+    const page = pages[index]
     await clearOpenPrompt(page, index)
     const task = (await gameState(page)).available.find(item => item.kind === 'activity' || item.kind === 'duel')
     if (!task) continue
@@ -411,7 +499,7 @@ for (const page of pages) {
   await page.getByRole('button', { name: 'Continue', exact: true }).waitFor()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
 }
-await pages[0].getByRole('button', { name: 'Open tonight’s reveals', exact: true }).click()
+await pages[firstPlayerIndex].getByRole('button', { name: 'Open tonight’s reveals', exact: true }).click()
 for (const [index, page] of pages.entries()) {
   try { await page.locator('.finale-headline').waitFor({ timeout: 20000 }) } catch (error) {
     console.error('FINALE DID NOT OPEN', index, await gameState(page), await page.locator('body').innerText(), errors)

@@ -42,7 +42,7 @@ function buildReadySession(overrides = {}) {
     spicy: 0.2,
   }
   const base = finalizeVibeSetup(
-    buildInitialSession(buildCouple(overrides.preset || 'standard')),
+    buildInitialSession(buildCouple(overrides.preset || 'standard'), () => 0),
     vibeWeights,
   )
 
@@ -55,14 +55,23 @@ function buildReadySession(overrides = {}) {
 
 describe('sessionLogic', () => {
   it('builds the initial session with spotlight, perks, and momentum state', () => {
-    const session = buildInitialSession(buildCouple())
+    const session = buildInitialSession(buildCouple(), () => 0)
 
-    expect(session.phase).toBe('vibeSetup')
-    expect(session.vibeWeights).toBeNull()
+    expect(session.phase).toBe('turn')
+    expect(session.vibeWeights).toEqual({ playful: 0.3, spicy: 0.2, tender: 0.5 })
     expect(session.moodVotes).toEqual({})
     expect(session.spotlight.act).toBe('warmup')
     expect(session.momentum.playful).toBe(0)
     expect(session.keepsakePerks).toEqual([])
+  })
+
+  it('uses the coin toss result as the first player and starting turn order', () => {
+    const playerOneStarts = buildInitialSession(buildCouple(), () => 0.2)
+    const playerTwoStarts = buildInitialSession(buildCouple(), () => 0.8)
+    expect(playerOneStarts.startingPlayerIndex).toBe(0)
+    expect(playerOneStarts.activePlayerIndex).toBe(0)
+    expect(playerTwoStarts.startingPlayerIndex).toBe(1)
+    expect(playerTwoStarts.activePlayerIndex).toBe(1)
   })
 
   it('moves an in-progress opening setup directly to the first turn', () => {

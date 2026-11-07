@@ -20,7 +20,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createCoupleDocument,
   joinCoupleByInviteCode,
@@ -248,6 +248,17 @@ afterAll(async () => {
 })
 
 describe('verified two-account lifecycle', () => {
+  it('accepts either coin-toss result as the first active player', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const random = vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(value => { value[0] = 0xc0000000; return value })
+    let sessionId
+    try { sessionId = await ensureActiveSession(hostDb, couple) }
+    finally { random.mockRestore() }
+    const saved = (await getDoc(doc(hostDb, 'sessions', sessionId))).data()
+    expect(saved.startingPlayerIndex).toBe(1)
+    expect(saved.activePlayerIndex).toBe(1)
+  })
+
   it('stores a free keepsake draw and its page atomically without spending hearts', async () => {
     const { couple, hostDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)

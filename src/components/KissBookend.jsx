@@ -134,8 +134,7 @@ export function KissBookend({ mode = 'send', recording, onSend, onCatch, onConti
   return (
     <section className="kiss-bookend" aria-label="Send a kiss with a voice note">
       <div className={`kiss-bookend-art${recording ? ' is-sent' : ''}`} aria-hidden="true"><BrandIcon name="heart" /></div>
-      <h2>{recording ? 'Your kiss is on its way' : 'Send a kiss'}</h2>
-      {!recording && <p className="kiss-bookend-prompt">{voicePrompt}</p>}
+      <h2>{recording ? 'Kiss sent' : 'Send a kiss'}</h2>
       {!recording ? <>
         {!recorded ? <button className={`primary-btn kiss-bookend-action${recordingActive ? ' is-recording' : ''}`} disabled={working} onClick={recordingActive ? stopRecording : startRecording} type="button">{recordingActive ? 'Stop' : 'Record a note'}</button> : <>
           <audio className="kiss-bookend-audio" controls src={recorded.audioData} />

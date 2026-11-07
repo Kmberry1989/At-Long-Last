@@ -132,7 +132,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
             <button className="ghost-btn" disabled={disabled} onClick={() => act(async () => { const verified = await refreshEmailVerification(); setNotice(verified ? 'Email verified' : 'Open the verification link in your email, then check again.') })} type="button">Check verification</button>
           </> : confirmCommit ? <form className="commit-confirm" aria-label="Permanent commitment" onSubmit={(event) => { event.preventDefault(); if (acceptPermanent) act(async () => { await commitPairing(); setConfirmCommit(false) }) }}>
             <strong>Commit to {partner?.displayName || 'your person'}?</strong>
-            <p>This permanently links {user.email} with their account when you both confirm. Neither email can choose another partner. It cannot be undone.</p>
+            <p>You’ll both confirm this permanent commitment. It can’t be undone.</p>
             <label><input type="checkbox" checked={acceptPermanent} onChange={(event) => setAcceptPermanent(event.target.checked)} required />I understand this is permanent.</label>
             <button className="primary-btn" disabled={!acceptPermanent || disabled} type="submit">Commit forever</button>
             <button className="ghost-btn" onClick={() => { setConfirmCommit(false); setAcceptPermanent(false) }} type="button">Not yet</button>

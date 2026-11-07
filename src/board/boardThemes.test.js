@@ -40,7 +40,7 @@ describe('board themes', () => {
 
     for (const theme of themes) {
       expect(theme.environment.panorama).toMatch(/^\/assets\/board\/skyboxes\/.+\.webp$/)
-      expect(theme.skinOverlay).toMatch(/^\/assets\/board\/skins\/.+\.svg$/)
+      expect(theme.skinOverlay).toMatch(/^\/assets\/board\/skins\/.+\.png$/)
       expect(theme.surfaces.inset.texture).toMatch(/^\/assets\/board\/.+\.(png|jpg|svg)$/)
       expect(theme.diceSkin).toMatchObject({ face: expect.stringMatching(/^#/), alternate: expect.stringMatching(/^#/), pip: expect.stringMatching(/^#/), edge: expect.stringMatching(/^#/), fabric: expect.stringMatching(/^#/) })
       expect(theme.spaceColors).toMatchObject({ connection: expect.stringMatching(/^#/), duel: expect.stringMatching(/^#/), heart: expect.stringMatching(/^#/), keepsake: expect.stringMatching(/^#/), oops: expect.stringMatching(/^#/ ) })
@@ -76,12 +76,13 @@ describe('board themes', () => {
     }
     for (const theme of themes) {
       const palette = getBoardCardPilePalette(theme)
-      expect(palette.draw).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(palette.trash).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(palette.treasure).toMatch(/^#[0-9a-f]{6}$/i)
       expect(palette.discard).toMatch(/^#[0-9a-f]{6}$/i)
-      expect(palette.discard).not.toBe(palette.draw)
-      expect(brightness(palette.discard) - brightness(palette.draw)).toBeGreaterThan(0.08)
+      expect(new Set([palette.trash, palette.treasure, palette.discard]).size).toBe(3)
+      expect(brightness(palette.discard) - brightness(palette.trash)).toBeGreaterThan(0.08)
     }
-    expect(new Set(themes.map(theme => getBoardCardPilePalette(theme).draw)).size).toBe(themes.length)
+    expect(new Set(themes.map(theme => getBoardCardPilePalette(theme).trash)).size).toBe(themes.length)
   })
 })
 

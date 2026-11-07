@@ -10,10 +10,10 @@ import './Milestones.css'
 const MilestonesContext = createContext({ moments: [] })
 export function useMilestones() { return useContext(MilestonesContext) }
 export function momentCopy(moment) {
-  if (moment.kind === 'connected') return { chapter: 'Our beginning', title: 'A shared beginning', line: 'Two people. One little world.', icon: '✦' }
-  if (moment.kind === 'committed') return { chapter: 'Our commitment', title: 'We choose us.', line: 'One commitment. Every chapter ahead.', icon: '♥' }
-  if (moment.nights === 1) return { chapter: 'Our first night', title: 'The first of many.', line: 'Your first night together, saved forever.', icon: '☾' }
-  return { chapter: 'Another chapter', title: `${moment.nights} nights. One story.`, line: 'Look at everything you have made together.', icon: '✧' }
+  if (moment.kind === 'connected') return { chapter: 'Our beginning', title: 'A shared beginning', line: '', icon: '♥' }
+  if (moment.kind === 'committed') return { chapter: 'Our commitment', title: 'We choose us.', line: '', icon: '♥' }
+  if (moment.nights === 1) return { chapter: 'Our first night', title: 'The first of many.', line: '', icon: '♥' }
+  return { chapter: 'Another chapter', title: `${moment.nights} nights.`, line: '', icon: '♥' }
 }
 function receiptKey(uid, id) { return `at-long-last:celebration:${uid}:${id}` }
 function locallySeen(uid, id) { try { return localStorage.getItem(receiptKey(uid, id)) === 'seen' } catch { return false } }
@@ -81,8 +81,7 @@ export function MomentCelebration({ moment, onContinue }) {
       <div className="moment-pieces" aria-hidden="true"><PlayerPortrait player={people[0]} /><span className="moment-seal"><BrandText text={copy.icon} /></span><PlayerPortrait player={people[1]} /></div>
       <p className="moment-names">{moment.names[0]} <span>&amp;</span> {moment.names[1]}</p>
       <h2 id="moment-title">{copy.title}</h2>
-      <p className="moment-line">{copy.line}</p>
-      <p className="moment-saved">Saved in your scrapbook</p>
+      {copy.line && <p className="moment-line">{copy.line}</p>}
     </div>
     <div className="moment-controls">
       <button className="moment-sound audio-toggle" onClick={audio?.toggleMuted} type="button" aria-label={audio?.muted || !audio?.unlocked ? 'Enable celebration sound' : 'Mute celebration sound'}>{audio?.muted || !audio?.unlocked ? 'Sound on' : 'Mute sound'}</button>

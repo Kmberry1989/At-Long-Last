@@ -17,11 +17,11 @@ async function answer(s, steps, id, playerIndex, input) {
 }
 
 describe('independent night pacing', () => {
-  it('keeps fresh nights in private tone setup until both players vote', () => {
+  it('starts fresh nights directly on the first turn without tone setup', () => {
     const opening = buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' })
-    expect(opening.phase).toBe('vibeSetup')
-    expect(opening.vibeWeights).toBeNull()
-    expect(getNightProgress(opening, [], 0).canRoll).toBe(false)
+    expect(opening.phase).toBe('turn')
+    expect(opening.vibeWeights).toEqual({ tender: 0.5, playful: 0.3, spicy: 0.2 })
+    expect(getNightProgress(opening, [], 0).canRoll).toBe(true)
   })
 
   it('lets a player continue rolling after submitting their duel while the partner has not drawn yet', async () => {

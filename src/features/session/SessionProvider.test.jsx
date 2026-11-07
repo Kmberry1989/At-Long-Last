@@ -93,16 +93,16 @@ describe('SessionProvider', () => {
     expect(resolveSessionHostId(null, buildCouple())).toBe('u1')
   })
 
-  it('initializes local preview sessions at the independent vibe setup', async () => {
+  it('initializes local preview sessions on the first turn', async () => {
     renderProvider()
 
-    await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('vibeSetup'))
+    await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('turn'))
     expect(screen.getByTestId('spotlight')).toHaveTextContent('warmup')
     expect(screen.getByTestId('momentum-playful')).toHaveTextContent('0')
     expect(screen.getByTestId('journal-count')).toHaveTextContent('0')
   })
 
-  it('preserves vibe setup for an independent preview session', async () => {
+  it('migrates an old preview session out of the retired vibe setup', async () => {
     mockState.initialSessionOverride = {
       ...ensureSessionArcState({
         ...buildInitialSession(buildCouple()),
@@ -113,7 +113,7 @@ describe('SessionProvider', () => {
 
     renderProvider()
 
-    await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('vibeSetup'))
+    await waitFor(() => expect(screen.getByTestId('phase')).toHaveTextContent('turn'))
     expect(screen.getByTestId('journal-count')).toHaveTextContent('0')
   })
 

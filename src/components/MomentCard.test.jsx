@@ -15,7 +15,7 @@ describe('MomentCard', () => {
     expect(screen.getByRole('heading', { name: 'Dinner Runs Late' })).toBeInTheDocument()
     expect(screen.getByText('Back 2 spaces')).toBeInTheDocument()
     expect(container.querySelector('.moment-card-art')).toHaveAttribute('src', '/assets/moment-cards/late-dinner.jpg')
-    fireEvent.click(screen.getByRole('button', { name: 'Move piece' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onResolve).toHaveBeenCalledOnce()
   })
 

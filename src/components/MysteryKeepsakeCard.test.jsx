@@ -46,7 +46,7 @@ describe('MysteryKeepsakeCard', () => {
     )
     expect(compact.querySelector('.is-compact')).toBeDefined()
     expect(screen.getByText('Sparkler Photo')).toBeDefined()
-    expect(screen.getByText('Drawn by Kyle')).toBeDefined()
+    expect(screen.queryByText('Drawn by Kyle')).not.toBeInTheDocument()
   })
 
   it('reveals card with audio after reveal timer expires', () => {
@@ -74,7 +74,7 @@ describe('MysteryKeepsakeCard', () => {
     // Revealed front face is visible
     expect(screen.getByText('Sparkler Photo')).toBeDefined()
     expect(screen.getByText('Encore Glow', { exact: false })).toBeDefined()
-    expect(screen.getByText(/Free Privilege/i)).toBeDefined()
+    expect(screen.queryByText(/Free Privilege/i)).not.toBeInTheDocument()
   })
 
   it('collects card with audio and invokes onCollect callback', () => {
@@ -93,7 +93,7 @@ describe('MysteryKeepsakeCard', () => {
     })
 
     // Click collect button
-    const collectBtn = screen.getByRole('button', { name: /Tap Card to Collect/i })
+    const collectBtn = screen.getByRole('button', { name: 'Collect' })
     fireEvent.click(collectBtn)
 
     expect(audioMocks.playSuccess).toHaveBeenCalledTimes(1)
@@ -106,7 +106,7 @@ describe('MysteryKeepsakeCard', () => {
     expect(onCollect).toHaveBeenCalledTimes(1)
   })
 
-  it('allows tapping the floating card directly to collect', () => {
+  it('keeps one clear collect action instead of duplicating it on the card', () => {
     const onCollect = vi.fn()
     render(
       <MysteryKeepsakeCard
@@ -120,8 +120,8 @@ describe('MysteryKeepsakeCard', () => {
       vi.advanceTimersByTime(650)
     })
 
-    const cardButton = screen.getByRole('button', { name: /Collect Sparkler Photo/i })
-    fireEvent.click(cardButton)
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Collect' }))
 
     expect(audioMocks.playSuccess).toHaveBeenCalledTimes(1)
 

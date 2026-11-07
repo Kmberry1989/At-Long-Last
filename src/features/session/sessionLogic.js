@@ -64,6 +64,15 @@ export function getSessionAct(round = 1, totalRounds = 6) {
   return 'spark'
 }
 
+function secureCoinDraw() {
+  if (globalThis.crypto?.getRandomValues) {
+    const value = new Uint32Array(1)
+    globalThis.crypto.getRandomValues(value)
+    return value[0] / 0x100000000
+  }
+  return Math.random()
+}
+
 export function buildSpotlight(act, vibeWeights = DEFAULT_VIBE_WEIGHTS) {
   if (act === 'spark') {
     const vibe = getDominantVibe(vibeWeights)
@@ -282,12 +291,13 @@ function addMomentum(session, vibe) {
   return nextSession
 }
 
-export function buildInitialSession(couple) {
+export function buildInitialSession(couple, random = null) {
   const preset = getSessionPreset(couple.sessionPreset)
+  const startingPlayerIndex = (random ? random() : secureCoinDraw()) < 0.5 ? 0 : 1
 
   return ensureSessionArcState({
-    actionText: `${couple.players[0]?.displayName || 'Player one'} rolls first.`,
-    activePlayerIndex: 0,
+    actionText: `${couple.players[startingPlayerIndex]?.displayName || `Player ${startingPlayerIndex + 1}`} rolls first.`,
+    activePlayerIndex: startingPlayerIndex,
     completedSpotlightActs: [],
     coupleId: couple.id,
     currentDuel: null,
@@ -308,7 +318,7 @@ export function buildInitialSession(couple) {
     pendingActivityOptions: null,
     pendingActivityType: null,
     pendingKeepsake: null,
-    phase: 'vibeSetup',
+    phase: 'turn',
     pacingVersion: 1,
     players: couple.players,
     positions: [0, 0],
@@ -318,14 +328,14 @@ export function buildInitialSession(couple) {
     roundDuelBonus: 0,
     sealedMatches: 0,
     sharedDuelWins: 0,
-    startingPlayerIndex: 0,
+    startingPlayerIndex,
     totalRounds: preset.totalRounds,
     turnsTakenThisRound: 0,
     usedActivityIds: [],
     usedDuelIds: [],
     usedKeepsakePerks: [],
     vibeVotes: {},
-    vibeWeights: null,
+    vibeWeights: DEFAULT_VIBE_WEIGHTS,
   })
 }
 

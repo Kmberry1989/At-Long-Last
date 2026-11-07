@@ -24,13 +24,17 @@ export const DICE_HOME_BASE_FLOAT_HEIGHT = 0.72
 export const DICE_ROLL_DURATION_SECONDS = 2.05
 export const BOARD_SKIN_SURFACE_Y = 0.126
 export const BOARD_CARD_PILE_LABEL_Y = BOARD_SKIN_SURFACE_Y + 0.018
-export const BOARD_CARD_PILE_RADIUS = 2.5
+export const BOARD_CARD_PILE_RADIUS = 2.05
+export const BOARD_CARD_PILE_WIDTH = 4.8
+export const BOARD_CARD_PILE_DEPTH = 3.8
 export const BOARD_CARD_PILE_DOT_COUNT = 64
-export const BOARD_CARD_PILE_DOT_SIZE = 0.18
+export const BOARD_CARD_PILE_DOT_SIZE = 0.24
 export const BOARD_CARD_PILE_POSITIONS = {
-  draw: [1.05, -3.45],
+  trash: [-2.4, -4.1],
+  treasure: [2.4, -4.1],
   discard: [1.05, 3.45],
 }
+export const BOARD_MOMENT_COIN_POSITION = [0, -1.55]
 
 export function getDiceHomeBaseMotion(elapsed, reducedMotion = false) {
   const bob = reducedMotion ? 0 : Math.sin(elapsed * 0.92 + 0.7)
@@ -213,7 +217,8 @@ function makePileLabelTexture(kind, theme) {
   context.shadowColor = 'rgba(255, 244, 220, 0.62)'
   context.shadowBlur = 7
   context.font = "900 82px 'Avenir Next', sans-serif"
-  context.fillText(kind === 'draw' ? 'DRAW' : 'DISCARD', 256, 64)
+  const label = kind === 'discard' ? 'DISCARD' : 'DRAW'
+  context.fillText(label, 256, 64)
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   return texture
@@ -230,36 +235,9 @@ function makeCardBackTexture(category = null) {
 }
 
 function makeMomentCoinFace(category) {
-  const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 512
-  const context = canvas.getContext('2d')
-  const gradient = context.createRadialGradient(256, 210, 12, 256, 256, 280)
-  gradient.addColorStop(0, category === 'treasure' ? '#f8dfab' : '#d9b889')
-  gradient.addColorStop(0.68, category === 'treasure' ? '#c8994e' : '#8d6658')
-  gradient.addColorStop(1, '#4d3344')
-  context.fillStyle = gradient
-  context.fillRect(0, 0, 512, 512)
-  context.strokeStyle = 'rgba(255,244,216,.9)'
-  context.lineWidth = 9
-  context.beginPath()
-  context.arc(256, 256, 222, 0, Math.PI * 2)
-  context.stroke()
-  context.strokeStyle = 'rgba(78,48,56,.72)'
-  context.lineWidth = 3
-  context.beginPath()
-  context.arc(256, 256, 204, 0, Math.PI * 2)
-  context.stroke()
-  context.strokeStyle = '#fff3d2'
-  drawBrandIcon(context, category, 256, 226, 172)
-  context.fillStyle = '#4c3040'
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.font = "700 38px 'Avenir Next', sans-serif"
-  context.letterSpacing = '9px'
-  context.fillText(category.toUpperCase(), 256, 392)
-  const texture = new THREE.CanvasTexture(canvas)
+  const texture = new THREE.TextureLoader().load(`/assets/board/coins/${category}-face.png`)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 8
   return texture
 }
 
@@ -291,66 +269,70 @@ function createMomentCoin(theme, position) {
 
 function createBoardCardPileMarker(theme, kind, color) {
   const group = new THREE.Group()
-  const isDrawPile = kind === 'draw'
+  const isDrawPile = kind === 'trash' || kind === 'treasure'
   const [x, z] = BOARD_CARD_PILE_POSITIONS[kind]
   group.name = `board-card-${kind}-pile-marker`
   group.position.set(x, 0, z)
-  group.userData.cardKind = isDrawPile ? 'Trash or Treasure' : 'resolved cards'
+  group.userData.cardKind = isDrawPile ? `${kind} moments` : 'resolved cards'
 
   const dotPositions = []
   const dotCount = BOARD_CARD_PILE_DOT_COUNT
   for (let index = 0; index < dotCount; index += 1) {
-    const angle = (index / dotCount) * Math.PI * 2
+    const perimeter = (index / dotCount) * 2 * (BOARD_CARD_PILE_WIDTH + BOARD_CARD_PILE_DEPTH)
+    let x = 0, z = 0
+    if (perimeter < BOARD_CARD_PILE_WIDTH) { x = -BOARD_CARD_PILE_WIDTH / 2 + perimeter; z = -BOARD_CARD_PILE_DEPTH / 2 }
+    else if (perimeter < BOARD_CARD_PILE_WIDTH + BOARD_CARD_PILE_DEPTH) { x = BOARD_CARD_PILE_WIDTH / 2; z = -BOARD_CARD_PILE_DEPTH / 2 + perimeter - BOARD_CARD_PILE_WIDTH }
+    else if (perimeter < 2 * BOARD_CARD_PILE_WIDTH + BOARD_CARD_PILE_DEPTH) { x = BOARD_CARD_PILE_WIDTH / 2 - (perimeter - BOARD_CARD_PILE_WIDTH - BOARD_CARD_PILE_DEPTH); z = BOARD_CARD_PILE_DEPTH / 2 }
+    else { x = -BOARD_CARD_PILE_WIDTH / 2; z = BOARD_CARD_PILE_DEPTH / 2 - (perimeter - 2 * BOARD_CARD_PILE_WIDTH - BOARD_CARD_PILE_DEPTH) }
     dotPositions.push(
-      Math.cos(angle) * BOARD_CARD_PILE_RADIUS,
+      x,
       BOARD_CARD_PILE_LABEL_Y + 0.006,
-      Math.sin(angle) * BOARD_CARD_PILE_RADIUS,
+      z,
     )
   }
   const dottedLine = new THREE.Points(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3)),
-    new THREE.PointsMaterial({ color, size: BOARD_CARD_PILE_DOT_SIZE, sizeAttenuation: true, transparent: true, opacity: 1, depthWrite: false }),
+    new THREE.PointsMaterial({ color: '#f5d39a', size: BOARD_CARD_PILE_DOT_SIZE, sizeAttenuation: true, transparent: true, opacity: 1, depthTest: false, depthWrite: false }),
   )
   dottedLine.name = `${kind}-pile-dotted-outline`
-  dottedLine.renderOrder = 4
+  dottedLine.renderOrder = 30
   group.add(dottedLine)
 
-  const categories = isDrawPile ? ['trash', 'treasure'] : [null]
+  const categories = isDrawPile ? [kind] : [null]
   for (const category of categories) {
     const cardTexture = makeCardBackTexture(category)
     const cardCount = isDrawPile ? 3 : 1
     for (let index = 0; index < cardCount; index += 1) {
-    const card = new THREE.Group()
-    card.name = `${kind}-pile-${category || 'resolved'}-card-${index + 1}`
-    const categoryOffset = isDrawPile ? (category === 'trash' ? -0.53 : 0.53) : 0
-    card.position.set(categoryOffset + (isDrawPile ? (index - 1) * 0.035 : 0), 0.225 + index * 0.125, isDrawPile ? (1 - index) * 0.045 : 0)
-    card.rotation.y = isDrawPile ? -0.16 : 0.12
-    const body = new THREE.Mesh(
-      new RoundedBoxGeometry(2, 0.16, 2.24, 0.08, 4),
-      new THREE.MeshStandardMaterial({
-        color: theme.cardSkin.bottom,
-        emissive: isDrawPile ? color : theme.cardSkin.accent,
-        emissiveIntensity: isDrawPile ? 0.035 : 0.06,
-        metalness: 0.12,
-        roughness: 0.72,
-      }),
-    )
-    card.castShadow = true
-    card.receiveShadow = true
-    body.castShadow = true
-    body.receiveShadow = true
-    card.add(body)
-    const graphic = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.8, 2.02),
-      new THREE.MeshBasicMaterial({ map: cardTexture, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1 }),
-    )
-    graphic.name = isDrawPile
-      ? `${kind}-pile-${category}-card-${index + 1}-crest`
-      : `${kind}-pile-card-${index + 1}-resolved-face`
-    graphic.rotation.x = -Math.PI / 2
-    graphic.position.y = 0.068
-    card.add(graphic)
-    group.add(card)
+      const card = new THREE.Group()
+      card.name = `${kind}-pile-${category || 'resolved'}-card-${index + 1}`
+      card.position.set(isDrawPile ? (index - 1) * 0.035 : 0, 0.225 + index * 0.125, isDrawPile ? (1 - index) * 0.045 : 0)
+      card.rotation.y = isDrawPile ? -0.08 : 0.12
+      const body = new THREE.Mesh(
+        new RoundedBoxGeometry(2.55, 0.16, 2.85, 0.08, 4),
+        new THREE.MeshStandardMaterial({
+          color: theme.cardSkin.bottom,
+          emissive: isDrawPile ? color : theme.cardSkin.accent,
+          emissiveIntensity: isDrawPile ? 0.035 : 0.06,
+          metalness: 0.12,
+          roughness: 0.72,
+        }),
+      )
+      card.castShadow = true
+      card.receiveShadow = true
+      body.castShadow = true
+      body.receiveShadow = true
+      card.add(body)
+      const graphic = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.3, 2.58),
+        new THREE.MeshBasicMaterial({ map: cardTexture, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1 }),
+      )
+      graphic.name = isDrawPile
+        ? `${kind}-pile-${category}-card-${index + 1}-crest`
+        : `${kind}-pile-card-${index + 1}-resolved-face`
+      graphic.rotation.x = -Math.PI / 2
+      graphic.position.y = 0.068
+      card.add(graphic)
+      group.add(card)
     }
   }
 
@@ -360,7 +342,7 @@ function createBoardCardPileMarker(theme, kind, color) {
   )
   label.name = `${kind}-pile-label`
   label.rotation.x = -Math.PI / 2
-    label.position.set(0, BOARD_CARD_PILE_LABEL_Y, 1.72)
+  label.position.set(0, BOARD_CARD_PILE_LABEL_Y, 1.55)
   label.renderOrder = 5
   group.add(label)
 
@@ -467,8 +449,12 @@ function createSingleDie(value, skin, isDie2 = false) {
     5: [[-0.23, -0.23], [0.23, -0.23], [0, 0], [-0.23, 0.23], [0.23, 0.23]],
     6: [[-0.23, -0.26], [-0.23, 0], [-0.23, 0.26], [0.23, -0.26], [0.23, 0], [0.23, 0.26]],
   }
-  const pipMaterial = new THREE.MeshStandardMaterial({ color: skin.pip, emissive: skin.pip, emissiveIntensity: 0.22, metalness: 0.42, roughness: 0.28 })
-  const pipGeometry = new THREE.SphereGeometry(0.07, 14, 10)
+  // Dark inset wells and a thin bevel make the pips read as cut into the die,
+  // rather than gold studs attached to its faces.
+  const pipMaterial = new THREE.MeshStandardMaterial({ color: '#211922', roughness: 0.96, metalness: 0.02 })
+  const pipGeometry = new THREE.CircleGeometry(0.092, 24)
+  const pipBevelGeometry = new THREE.TorusGeometry(0.091, 0.008, 5, 24)
+  const pipBevelMaterial = new THREE.MeshStandardMaterial({ color: skin.edge, emissive: skin.edge, emissiveIntensity: 0.035, roughness: 0.82, metalness: 0.06 })
 
   // A die is marked on every face. Opposites sum to seven, and the resting
   // rotation below turns the rolled value toward the camera-facing top.
@@ -481,11 +467,21 @@ function createSingleDie(value, skin, isDie2 = false) {
   faces.forEach(({ value: faceValue, axis, sign }) => {
     const group = new THREE.Group()
     pipLayouts[faceValue].forEach(([a, b]) => {
-      const pip = new THREE.Mesh(pipGeometry, pipMaterial)
-      if (axis === 'y') pip.position.set(a, sign * 0.485, b)
-      else if (axis === 'x') pip.position.set(sign * 0.485, a, b)
-      else pip.position.set(a, b, sign * 0.485)
-      pip.castShadow = true
+      const normal = axis === 'y'
+        ? new THREE.Vector3(0, sign, 0)
+        : axis === 'x'
+          ? new THREE.Vector3(sign, 0, 0)
+          : new THREE.Vector3(0, 0, sign)
+      const pip = new THREE.Group()
+      if (axis === 'y') pip.position.set(a, sign * 0.472, b)
+      else if (axis === 'x') pip.position.set(sign * 0.472, a, b)
+      else pip.position.set(a, b, sign * 0.472)
+      pip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal)
+      const well = new THREE.Mesh(pipGeometry, pipMaterial)
+      well.position.z = 0.001
+      const bevel = new THREE.Mesh(pipBevelGeometry, pipBevelMaterial)
+      bevel.position.z = -0.004
+      pip.add(well, bevel)
       group.add(pip)
     })
     pipGroups[faceValue] = group
@@ -554,12 +550,12 @@ function setPrimitiveDiceValues(dicePair, values) {
 function settlePrimitiveDice(dicePair, values) {
   setPrimitiveDiceValues(dicePair, values)
   const { die1, die2 } = dicePair.userData
-  die1.position.set(-2.0, 0.62, 0.45)
+  die1.position.set(-0.35, 0.62, -0.25)
   die1.userData.displayYaw = 0.32
   setPrimitiveDieValue(die1, values[0])
   die1.scale.setScalar(1)
 
-  die2.position.set(-3.25, 0.62, 0.82)
+  die2.position.set(0.72, 0.62, 0.35)
   die2.userData.displayYaw = -0.26
   setPrimitiveDieValue(die2, values[1])
   die2.scale.setScalar(1)
@@ -882,7 +878,7 @@ export function BoardScene({
       0.1,
       100,
     )
-    camera.position.set(0, 16, 18)
+    camera.position.set(0, 18, 24)
     camera.lookAt(0, 0, 0)
 
     const renderer = new THREE.WebGLRenderer({
@@ -1134,6 +1130,10 @@ export function BoardScene({
         if (finalValues) dieRoll.finalValues = finalValues
         return
       }
+      const { die1, die2 } = dice.userData
+      const homeLift = getDiceHomeBaseMotion((latestSceneTime - startedAt) / 1000, reducedMotion).lift
+      die1.position.set(-2.0, 0.62 + homeLift, 0.45)
+      die2.position.set(-3.25, 0.62 + homeLift, 0.82)
       dieRoll = {
         finalValues,
         startedAt: latestSceneTime,
@@ -1172,6 +1172,7 @@ export function BoardScene({
     }
     if (import.meta.env.DEV) {
       window.__atLongLastHitDice = (x, y) => hitsDice({ clientX: x, clientY: y })
+      window.__atLongLastHitCoin = (x, y) => hitsCoin({ clientX: x, clientY: y })
     }
     const consumePointer = (event) => {
       event.preventDefault()
@@ -1316,7 +1317,7 @@ export function BoardScene({
     const boardGroup = new THREE.Group()
     scene.add(boardGroup)
 
-    const ringTexture = textureLoader.load(`/assets/board/rings/${boardTheme.id}.svg`)
+    const ringTexture = textureLoader.load(`/assets/board/rings/${boardTheme.id}.png`)
     ringTexture.colorSpace = THREE.SRGBColorSpace
     ringTexture.wrapS = THREE.RepeatWrapping
     ringTexture.wrapT = THREE.ClampToEdgeWrapping
@@ -1594,10 +1595,11 @@ export function BoardScene({
     scene.add(boardSkin)
 
     const cardPilePalette = getBoardCardPilePalette(boardTheme)
-    const drawPileMarker = createBoardCardPileMarker(boardTheme, 'draw', cardPilePalette.draw)
+    const trashPileMarker = createBoardCardPileMarker(boardTheme, 'trash', cardPilePalette.trash)
+    const treasurePileMarker = createBoardCardPileMarker(boardTheme, 'treasure', cardPilePalette.treasure)
     const discardPileMarker = createBoardCardPileMarker(boardTheme, 'discard', cardPilePalette.discard)
-    scene.add(drawPileMarker, discardPileMarker)
-    const momentCoin = createMomentCoin(boardTheme, BOARD_CARD_PILE_POSITIONS.draw)
+    scene.add(trashPileMarker, treasurePileMarker, discardPileMarker)
+    const momentCoin = createMomentCoin(boardTheme, BOARD_MOMENT_COIN_POSITION)
     scene.add(momentCoin)
 
     players.forEach((player, index) => {
@@ -1663,9 +1665,9 @@ export function BoardScene({
         group.userData.underglow.material.opacity = motion.glowOpacity
         group.userData.lightRim.material.emissiveIntensity = motion.glowIntensity
       })
-      const activePos = boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
+      const activePos = tokenGroups[activePlayerIndexRef.current]?.position || boardPath[targetIndicesRef.current[activePlayerIndexRef.current]].position
       const otherIndex = (activePlayerIndexRef.current + 1) % 2
-      const otherPos = boardPath[targetIndicesRef.current[otherIndex]]?.position || activePos
+      const otherPos = tokenGroups[otherIndex]?.position || boardPath[targetIndicesRef.current[otherIndex]]?.position || activePos
       const midpoint = new THREE.Vector3().addVectors(activePos, otherPos).multiplyScalar(0.5)
 
       const idleOrbit = shouldOrbitBoard({
@@ -1679,13 +1681,13 @@ export function BoardScene({
       })
       controls.autoRotate = idleOrbit
       if (idleOrbit) {
-        camera.position.y = THREE.MathUtils.lerp(camera.position.y, 14.5, Math.min(1, frameDeltaSeconds * 0.55))
+        camera.position.y = THREE.MathUtils.lerp(camera.position.y, 18.5, Math.min(1, frameDeltaSeconds * 0.55))
         controls.target.lerp(boardCenter, Math.min(1, frameDeltaSeconds * 0.55))
       } else if (!manualView) {
         const isKeepsakePhase = phaseRef.current === 'keepsake'
         const targetFocus = pacingMode === 'sharedSpotlight' || isKeepsakePhase ? activePos : midpoint
-        const targetY = isKeepsakePhase ? 10.5 : 16
-        const targetZ = isKeepsakePhase ? 12.5 + activePos.z * 0.15 : 18 + targetFocus.z * 0.2
+        const targetY = isKeepsakePhase ? 10.5 : activePieceMove ? 13.5 : 18
+        const targetZ = isKeepsakePhase ? 12.5 + activePos.z * 0.15 : (activePieceMove ? 17 : 24) + targetFocus.z * 0.2
         camera.position.x = THREE.MathUtils.lerp(
           camera.position.x,
           isKeepsakePhase ? activePos.x * 0.42 : targetFocus.x * 0.22,
@@ -1724,26 +1726,26 @@ export function BoardScene({
         const gesture = dieRoll.gesture || {}
         const direction = gesture.direction || { x: 0.55, y: -0.3 }
         const throwPower = 0.78 + Math.max(0, Math.min(1, gesture.power || 0)) * 0.72
-        die1.position.x = -2.0 + lift1 * (0.35 + direction.x * 0.42) + Math.sin(progress * Math.PI * 2.5) * 0.16
+        die1.position.x = THREE.MathUtils.lerp(-2.0, -0.15, progress) + lift1 * (0.35 + direction.x * 0.42) + Math.sin(progress * Math.PI * 2.5) * 0.16
         die1.position.y = 0.62 + diceHomeMotion.lift + lift1 * 1.08 * throwPower
-        die1.position.z = 0.45 + lift1 * (0.18 + direction.y * 0.38) + Math.cos(progress * Math.PI * 2) * 0.12 * lift1
+        die1.position.z = THREE.MathUtils.lerp(0.45, -0.3, progress) + lift1 * (0.18 + direction.y * 0.38) + Math.cos(progress * Math.PI * 2) * 0.12 * lift1
         die1.rotation.x = -0.04 + eased * (Math.PI * (3.5 + throwPower) + (dieRoll.finalValues?.[0] || 0) * 0.18)
         die1.rotation.y = 0.32 + eased * (Math.PI * (4.2 + throwPower) + (dieRoll.finalValues?.[0] || 0) * 0.22 + direction.x)
         die1.rotation.z = -0.06 + eased * Math.PI * 3
-        die1.scale.setScalar(1 + lift1 * 1.05)
+        die1.scale.setScalar(1 + lift1 * 0.25)
 
         const prog2 = Math.min(1, Math.max(0, (progress - 0.04) / 0.96))
         const eased2 = 1 - (1 - prog2) ** 3
         const lift2 = Math.sin(prog2 * Math.PI)
         const tumbleFace2 = 1 + (Math.floor(elapsed * 17 + 2) % 6)
         setPrimitiveDieValue(die2, dieRoll.finalValues && prog2 >= 1 ? dieRoll.finalValues[1] : tumbleFace2)
-        die2.position.x = -3.25 + lift2 * (0.42 - direction.x * 0.4) - Math.sin(prog2 * Math.PI * 2.4) * 0.15
+        die2.position.x = THREE.MathUtils.lerp(-3.25, 1.0, prog2) + lift2 * (0.42 - direction.x * 0.4) - Math.sin(prog2 * Math.PI * 2.4) * 0.15
         die2.position.y = 0.62 + diceHomeMotion.lift + lift2 * 1.16 * throwPower
-        die2.position.z = 0.82 + lift2 * (0.14 - direction.y * 0.38) - Math.cos(prog2 * Math.PI * 2) * 0.1 * lift2
+        die2.position.z = THREE.MathUtils.lerp(0.82, 0.25, prog2) + lift2 * (0.14 - direction.y * 0.38) - Math.cos(prog2 * Math.PI * 2) * 0.1 * lift2
         die2.rotation.x = 0.08 + eased2 * (Math.PI * (4.4 + throwPower) + (dieRoll.finalValues?.[1] || 0) * 0.16)
         die2.rotation.y = -0.26 + eased2 * (Math.PI * (3.6 + throwPower) + (dieRoll.finalValues?.[1] || 0) * 0.24 - direction.x)
         die2.rotation.z = 0.12 - eased2 * Math.PI * 3.2
-        die2.scale.setScalar(1 + lift2 * 1.05)
+        die2.scale.setScalar(1 + lift2 * 0.25)
 
         const impactStep = Math.min(8, Math.floor(Math.min(1, elapsed / duration) * 9))
         if (impactStep > dieRoll.lastImpactStep) {
@@ -1777,10 +1779,10 @@ export function BoardScene({
 
       if (cardDrawKeyRef.current && cardDrawKeyRef.current !== activeCardDrawKey) {
         activeCardDrawKey = cardDrawKeyRef.current
-        const pile = scene.getObjectByName('board-card-draw-pile-marker')
+        const pile = scene.getObjectByName(`board-card-${momentCardCategoryRef.current}-pile-marker`)
         if (pile) {
           const start = pile.getWorldPosition(new THREE.Vector3())
-          start.x += momentCardCategoryRef.current === 'treasure' ? 0.53 : -0.53
+          start.y += 0.65
           const facing = new THREE.Vector3()
           camera.getWorldDirection(facing)
           const group = new THREE.Group()
@@ -1969,7 +1971,7 @@ export function BoardScene({
           id: boardTheme.id,
           label: boardTheme.label,
           cardPilePalette,
-          ringTexture: `/assets/board/rings/${boardTheme.id}.svg`,
+          ringTexture: `/assets/board/rings/${boardTheme.id}.png`,
           round,
           environment: boardTheme.environment.mode,
           panorama: boardTheme.environment.panorama,
@@ -2022,17 +2024,19 @@ export function BoardScene({
           boardInset: { color: boardTheme.surfaces.inset.color, texture: boardTheme.surfaces.inset.texture, shape: 'circle', radius: BOARD_INSET_RADIUS },
           tabletop: boardTheme.surfaces.tabletop.texture,
           skinOverlay: boardTheme.skinOverlay,
-          storyRing: { radius: ringRadius, height: ringHeight, hollow: true, texture: `/assets/board/rings/${boardTheme.id}.svg` },
+          storyRing: { radius: ringRadius, height: ringHeight, hollow: true, texture: `/assets/board/rings/${boardTheme.id}.png` },
           spaceColors: boardTheme.spaceColors,
           tiles: 'separate theme-colored raised spaces with pulsing underglow',
           connector: 'none',
         },
         cardPiles: {
-          deck: 'mixed Trash moments and Treasure moments',
-          cardBack: 'paired branded trash-paper and treasure-gem emblems',
+          deck: 'separate Trash and Treasure piles',
+          cardBack: 'generated branded Trash and Treasure backs',
           labels: 'etched into the board fabric',
-          draw: { position: BOARD_CARD_PILE_POSITIONS.draw, outline: 'dotted', color: cardPilePalette.draw, cards: 3 },
+          trash: { position: BOARD_CARD_PILE_POSITIONS.trash, outline: 'dotted', color: cardPilePalette.trash, cards: 3 },
+          treasure: { position: BOARD_CARD_PILE_POSITIONS.treasure, outline: 'dotted', color: cardPilePalette.treasure, cards: 3 },
           discard: { position: BOARD_CARD_PILE_POSITIONS.discard, outline: 'dotted', color: cardPilePalette.discard, cards: 1 },
+          coin: { position: BOARD_MOMENT_COIN_POSITION, separateFromPiles: true },
         },
         path: {
           branchCount: 0,
@@ -2098,7 +2102,10 @@ export function BoardScene({
       if (window.advanceTime === advanceTime) {
         delete window.advanceTime
       }
-      if (import.meta.env.DEV) delete window.__atLongLastHitDice
+      if (import.meta.env.DEV) {
+        delete window.__atLongLastHitDice
+        delete window.__atLongLastHitCoin
+      }
       dracoLoader.dispose()
       if (dieRef.current === dice) {
         dieRef.current = null

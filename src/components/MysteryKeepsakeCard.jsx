@@ -1,4 +1,3 @@
-import { PlayerPortrait } from './PlayerPortrait.jsx'
 import { BrandText } from './BrandIcon.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
@@ -45,13 +44,9 @@ export function KeepsakeCard({ item, player = null, revealed = true, compact = f
       {/* Front of Card (Revealed) */}
       <div aria-hidden={!revealed} className="keepsake-card-face keepsake-card-front">
         <CardFrame />
-        <div className="keepsake-front-top">
-          <span className="keepsake-front-brand">AT LONG LAST</span>
-          <span className="keepsake-free-draw-badge"><BrandText text={"✧ Free Privilege ✧"} /></span>
-        </div>
+        <div className="keepsake-front-top"><span className="keepsake-front-brand">AT LONG LAST</span></div>
 
         <span aria-hidden="true" className="keepsake-front-mark"><BrandText text={CARD_MARKS[item?.id] || '✦'} /></span>
-        <span className="keepsake-front-kind">KEEPSAKE</span>
         <strong className="keepsake-front-title">{item?.label || 'A surprise'}</strong>
         <span className="keepsake-front-blurb">{item?.blurb || ''}</span>
 
@@ -62,12 +57,6 @@ export function KeepsakeCard({ item, player = null, revealed = true, compact = f
           )}
         </div>
 
-        {player && (
-          <div className="keepsake-front-drawer">
-            <PlayerPortrait player={player} className="drawer-thumb" />
-            <span>Drawn by {player.displayName}</span>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -120,15 +109,7 @@ export function MysteryKeepsakeCard({ item, onCollect, onReveal, player = null }
 
       {/* Buoyant Hover Card Container */}
       <div className="mystery-card-float">
-        <button
-          aria-label={revealed ? `Collect ${item?.label || 'Keepsake'}` : 'Mystery keepsake revealing'}
-          className="mystery-card-button"
-          disabled={!revealed || collecting}
-          onClick={collect}
-          type="button"
-        >
-          <KeepsakeCard item={item} player={player} revealed={revealed} />
-        </button>
+        <div className="mystery-card-button" aria-hidden="true"><KeepsakeCard item={item} revealed={revealed} /></div>
       </div>
 
       {/* Tactile Action Button */}
@@ -139,9 +120,8 @@ export function MysteryKeepsakeCard({ item, onCollect, onReveal, player = null }
           onClick={collect}
           type="button"
         >
-          <BrandText text={collecting ? 'Collecting to your hand… ✨' : 'Tap Card to Collect ✦'} />
+          <BrandText text={collecting ? 'Collecting…' : 'Collect'} />
         </button>
-        <span className="mystery-zero-friction-hint"><BrandText text={"🎁 Free gift for landing on this space — no hearts spent. "} /></span>
       </div>
 
       <span aria-live="polite" className="sr-only">

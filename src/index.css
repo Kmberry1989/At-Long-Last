@@ -5663,17 +5663,19 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 .game-screen.independent-night .player-strip::before {
   content: '';
   position: absolute;
-  z-index: -1;
-  inset: -24%;
+  z-index: 0;
+  inset: -38%;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--night-glow, #e8bd85) 46%, transparent), transparent 69%);
-  filter: blur(7px);
-  opacity: .7;
+  background: radial-gradient(circle, color-mix(in srgb, var(--night-glow, #e8bd85) 66%, transparent), transparent 70%);
+  filter: blur(12px);
+  opacity: .88;
   animation: portraitCornerAura 6.8s ease-in-out infinite;
   pointer-events: none;
 }
 .game-screen.independent-night .player-strip:nth-child(2)::before { animation-delay: -3.4s; }
 .game-screen.independent-night .player-strip .profile-portrait {
+  position: relative;
+  z-index: 1;
   filter: drop-shadow(0 4px 9px rgba(11, 8, 16, .52)) drop-shadow(0 0 8px color-mix(in srgb, var(--night-glow, #e8bd85) 30%, transparent));
 }
 .profile-portrait .portrait-frame-art {
