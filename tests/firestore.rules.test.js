@@ -39,7 +39,7 @@ import { activityRegistry } from '../src/features/session/activityRegistry.jsx'
 import { ensureProfileDocument } from '../src/features/couple/profileService.js'
 import { resolveKeepsakeDecision } from '../src/features/session/sessionLogic.js'
 import { KEEPSAKES } from '../src/features/session/boardConfig.js'
-import { pickFlower, waterFlower } from '../src/features/couple/progressService.js'
+import { dropConnectFourMove, pickFlower, waterFlower } from '../src/features/couple/progressService.js'
 
 const PROJECT_ID = process.env.RULES_TEST_PROJECT || 'demo-at-long-last'
 const HOST_UID = 'host-account'
@@ -236,6 +236,24 @@ describe('Our Bloom collection rules', () => {
     const picked = await pickFlower(hostDb, couple.id)
     expect(picked.events).toEqual([{ type: 'flower-picked', speciesId: 'daisy' }])
     expect((await getDoc(ref)).data().flower).toMatchObject({ collected: ['daisy'], growth: 0, speciesIndex: 1, stage: 0 })
+  })
+})
+
+describe('Connect Four night-finale rules', () => {
+  it('persists a legal drop, rejects duplicate and out-of-turn moves, then alternates next night', async () => {
+    const { couple, hostDb, guestDb } = await createAndJoinRoom()
+    await expect(dropConnectFourMove(guestDb, couple.id, GUEST_UID, 'night-one', 2)).rejects.toThrow(/partner’s move/i)
+
+    const first = await dropConnectFourMove(hostDb, couple.id, HOST_UID, 'night-one', 2)
+    expect(first.state.lastMove).toMatchObject({ column: 2, playerUid: HOST_UID, row: 0, sessionId: 'night-one' })
+    expect((await getDoc(doc(guestDb, 'coupleProgress', couple.id))).data().connectFour.board[2]).toBe(0)
+    await expect(dropConnectFourMove(hostDb, couple.id, HOST_UID, 'night-one', 3)).rejects.toThrow(/already been played/i)
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'coupleProgress', couple.id), { lifetimeNights: 1 })
+    })
+    const next = await dropConnectFourMove(guestDb, couple.id, GUEST_UID, 'night-two', 2)
+    expect(next.state.lastMove).toMatchObject({ column: 2, playerUid: GUEST_UID, row: 1, sessionId: 'night-two' })
   })
 })
 

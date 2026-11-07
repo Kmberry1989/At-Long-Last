@@ -16,6 +16,7 @@ import {
 
 import { momentId, momentPayload } from './milestoneService.js'
 import { FLOWER_DAYS_TO_BLOOM, FLOWER_SPECIES } from '../../flower/flowerSpecies.js'
+import { createConnectFourState, getConnectFourMovePlayer, placeConnectFourPiece } from '../session/connectFour.js'
 
 export const BASE_THEME_CARDS = [
   { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy' },
@@ -213,6 +214,7 @@ export function buildDefaultProgress(coupleId) {
   return {
     anniversary: null,
     companion: { heartsFed: 0, name: 'Bud', stage: 0 },
+    connectFour: createConnectFourState([]),
     coupleId,
     createdAt: serverTimestamp(),
     flower: buildDefaultFlower(),
@@ -380,6 +382,37 @@ export function subscribeToCoupleProgress(db, coupleId, onNext, onError) {
     },
     onError,
   )
+}
+
+export async function dropConnectFourMove(db, coupleId, playerUid, sessionId, column) {
+  const ref = doc(db, 'coupleProgress', coupleId)
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref)
+    const coupleSnapshot = await transaction.get(doc(db, 'couples', coupleId))
+    const current = snapshot.exists()
+      ? { id: snapshot.id, ...snapshot.data() }
+      : { ...buildDefaultProgress(coupleId), id: coupleId }
+    const coupleData = coupleSnapshot.exists() ? coupleSnapshot.data() : null
+    const orderedPlayers = Array.isArray(coupleData?.playerIds) && coupleData.playerIds.length === 2 ? [...coupleData.playerIds] : []
+    if (!orderedPlayers.includes(playerUid)) throw new Error('You are not part of this game.')
+    const moveUid = getConnectFourMovePlayer(current, orderedPlayers)
+    if (moveUid !== playerUid) throw new Error('It’s your partner’s move tonight.')
+    let state = current.connectFour
+    if (!state || state.playerUids?.length !== 2) {
+      state = createConnectFourState(orderedPlayers)
+    } else if (state.playerUids.some((uid, index) => uid !== orderedPlayers[index])) {
+      throw new Error('This board belongs to a different pair of players.')
+    }
+    const { state: nextState, result } = placeConnectFourPiece(state, { column, playerUid, sessionId })
+    const payload = { connectFour: nextState, coupleId, createdAt: current.createdAt || serverTimestamp(), updatedAt: serverTimestamp() }
+    if (snapshot.exists()) transaction.update(ref, payload)
+    else {
+      const createPayload = { ...current, ...payload }
+      delete createPayload.id
+      transaction.set(ref, createPayload)
+    }
+    return { state: nextState, result }
+  })
 }
 
 async function transactProgress(db, coupleId, mutate) {

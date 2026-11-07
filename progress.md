@@ -545,3 +545,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Moved the 3D coin to a dedicated clear position between the draw piles and dice base. Kept the separate discard pile and its third theme shade.
 - Added focused regressions for all three pile positions, their palette separation, and clearance around the coin and dice base. Focused board/theme tests passed (35); lint, production build, and `git diff --check` passed.
 - Paired two disposable players in the local Firebase emulators, completed opening setup and private Vibe votes, and captured the board at `.playwright-mcp/independent-night/card-pile-layout.png`. The 390 × 844 mobile capture shows both draw stacks, all dotted zones, the coin between the piles, and the separate dice base. No production data was used; changes remain local and undeployed.
+
+## 2026-11-07 — Connect Four night finale
+
+- Added a shared Connect Four board as the final one-piece move of each night, with lifetime-night alternation, Firestore transaction validation, and a fresh board on later nights after a completed game. Kept the completed board visible through the current reveal flow.
+- Added generated board and player-token art, smooth token drops and a winning-line glow, a soft landing thunk, and a four-note win flourish. The centered mobile layout fits a 390 × 844 viewport without scrolling and honors reduced motion.
+- Validation: production build, focused game-logic tests (3), focused Firestore authorization test (1), lint, and diff checks passed. Full Firestore suite: 52/53; one unrelated existing night-flow timing test failed its expected progress count. Browser visual review confirmed all art decoded, the winning state rendered, and no viewport overflow.

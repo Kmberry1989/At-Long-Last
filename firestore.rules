@@ -1657,6 +1657,28 @@ service cloud.firestore {
           && data.at is timestamp;
       }
 
+      function isValidConnectFour(data) {
+        let players = get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds;
+        return data is map
+          && data.keys().hasAll(['board', 'lastMove', 'moveCount', 'playerUids', 'winnerUid'])
+          && data.keys().hasOnly(['board', 'lastMove', 'moveCount', 'playerUids', 'winnerUid'])
+          && data.board is list && data.board.size() == 42 && data.board.hasOnly([-1, 0, 1])
+          && data.moveCount is int && data.moveCount >= 0 && data.moveCount <= 42
+          && data.playerUids is list && (data.playerUids.size() == 0 || data.playerUids.size() == 2)
+          && (data.playerUids.size() != 2 || data.playerUids[0] != data.playerUids[1])
+          && (data.playerUids.size() == 0 || data.playerUids.hasOnly(players))
+          && (data.winnerUid == null || data.winnerUid in data.playerUids)
+          && (data.lastMove == null || (
+            data.lastMove is map
+            && data.lastMove.keys().hasAll(['column', 'playerUid', 'row', 'sessionId'])
+            && data.lastMove.keys().hasOnly(['column', 'playerUid', 'row', 'sessionId'])
+            && isBoundedInt(data.lastMove.column, 0, 6)
+            && isBoundedInt(data.lastMove.row, 0, 5)
+            && data.lastMove.playerUid in data.playerUids
+            && isBoundedString(data.lastMove.sessionId, 1, 128)
+          ));
+      }
+
       function isValidProgress(data) {
         return data is map
           && data.keys().hasAll([
@@ -1669,7 +1691,7 @@ service cloud.firestore {
             'coupleId', 'lifetimeHearts', 'heartsSpent', 'lifetimeNights',
             'unlockedThemes', 'streakCount', 'streakLastDate', 'freezeTokens',
             'trophies', 'koupons', 'companion', 'flower', 'anniversary', 'nudge',
-            'selectedTheme', 'lastBankedSessionId',
+            'selectedTheme', 'lastBankedSessionId', 'connectFour',
             'createdAt', 'updatedAt'
           ])
           && data.coupleId == coupleId
@@ -1695,6 +1717,7 @@ service cloud.firestore {
           && data.koupons is list
           && data.koupons.size() <= 20
           && isValidCompanion(data.companion)
+          && (!('connectFour' in data) || isValidConnectFour(data.connectFour))
           && (data.anniversary == null || isDateString(data.anniversary))
           && (
             !('selectedTheme' in data)

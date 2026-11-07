@@ -520,6 +520,16 @@ export function createAudioEngine(suppliedContext = null) {
       playTone({ frequency: 523.25, volume: 0.03, duration: 0.08 })
       playTone({ frequency: 659.25, volume: 0.022, duration: 0.12 })
     },
+    playConnectFourDrop() {
+      playTone({ frequency: 164.81, type: 'sine', volume: 0.052, attack: 0.002, duration: 0.075, release: 0.12 })
+      playTone({ frequency: 329.63, type: 'triangle', volume: 0.016, attack: 0.004, duration: 0.045, release: 0.12 })
+    },
+    playConnectFourWin() {
+      playTone({ frequency: 261.63, type: 'sine', volume: 0.022, duration: 0.22, release: 0.32 })
+      ;[523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
+        setTimeout(() => playTone({ frequency, type: index === 3 ? 'sine' : 'triangle', volume: index === 3 ? 0.025 : 0.021, duration: 0.13, release: 0.32 }), index * 82)
+      })
+    },
     playHeartTick(step = 1) {
       if (muted) return
       const note = 500 + ((Math.max(1, step) - 1) % 12) * 15
@@ -742,6 +752,8 @@ export function AudioProvider({ children }) {
       playError: () => getExistingEngine()?.playError(),
       playPhase: (phase) => getExistingEngine()?.playPhase(phase),
       playSuccess: () => getExistingEngine()?.playSuccess(),
+      playConnectFourDrop: () => getExistingEngine()?.playConnectFourDrop(),
+      playConnectFourWin: () => getExistingEngine()?.playConnectFourWin(),
       playHeartTick: (step) => getExistingEngine()?.playHeartTick(step),
       playDuelPulse: (step) => getExistingEngine()?.playDuelPulse(step),
       playThemeArrival: (themeId) => getExistingEngine()?.playThemeArrival(themeId),

@@ -2,7 +2,7 @@ import { TruceTradeModal } from './TruceTradeModal.jsx'
 import { BrandIcon } from './BrandIcon.jsx'
 import { musicStageFor } from '../audio/musicPatterns.js'
 import { PlayerPortrait } from './PlayerPortrait.jsx'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
 import { useSession } from '../features/session/SessionProvider.jsx'
@@ -21,6 +21,9 @@ import { DuelArena } from './DuelArena.jsx'
 import { FinaleScreen } from './FinaleScreen.jsx'
 import { NightTransitionBanner } from './NightTransitionBanner.jsx'
 import { MomentCard } from './MomentCard.jsx'
+import { ConnectFourFinale } from './ConnectFourFinale.jsx'
+import { createConnectFourState, getConnectFourMovePlayer, placeConnectFourPiece } from '../features/session/connectFour.js'
+import { dropConnectFourMove } from '../features/couple/progressService.js'
 import './independent-night.css'
 
 const BoardScene = lazy(() => import('../board/BoardScene.jsx').then(module => ({ default: module.BoardScene })))
@@ -59,6 +62,8 @@ export function IndependentNight() {
   const [rollGesture, setRollGesture] = useState(null)
   const [tradeOpen, setTradeOpen] = useState(false)
   const [journalOpen, setJournalOpen] = useState(false)
+  const [connectFourOpen, setConnectFourOpen] = useState(false)
+  const [connectFourPreview, setConnectFourPreview] = useState(null)
   const firstTurnRevealKey = `at-long-last:first-turn-toss:${session?.id || 'none'}:${userId || `preview-${previewPlayer}`}`
   const [firstTurnRevealDismissed, setFirstTurnRevealDismissed] = useState(() => {
     try { return sessionStorage.getItem(firstTurnRevealKey) === 'yes' } catch { return false }
@@ -90,6 +95,11 @@ export function IndependentNight() {
   const duelSession = selected?.kind === 'duel' ? { ...session, round: selected.round, currentDuel: { id: selected.type, attempt: 1 }, duelResults: {} } : null
   const isOpeningTurn = session?.phase === 'turn' && session.round === 1 && session.turnsTakenThisRound === 0 && !session.lastRoll && !session.lastMove
   const showFirstTurnCoin = isOpeningTurn && !firstTurnRevealDismissed
+  const connectFourPlayers = (couple?.playerIds?.length === 2 ? couple.playerIds : session.players.map(player => player.uid))
+    .map(uid => session.players.find(player => player.uid === uid) || { uid, displayName: 'Player' })
+  const connectFourState = coupleProgress?.connectFour || connectFourPreview || createConnectFourState(connectFourPlayers.map(player => player.uid))
+  const connectFourMoverUid = getConnectFourMovePlayer(coupleProgress || { lifetimeNights: 0 }, connectFourPlayers.map(player => player.uid))
+  const connectFourDone = connectFourState.lastMove?.sessionId === session.id
 
   useEffect(() => {
     try {
@@ -208,6 +218,33 @@ export function IndependentNight() {
       [partnerUid]: { ...current[partnerUid], caughtBy: { ...current[partnerUid]?.caughtBy, [playerUid]: true } },
     }))
   }
+
+  async function dropFinalPiece(column) {
+    if (working || !playerUid || !couple?.id || !connectFourMoverUid || connectFourDone) return
+    setWorking(true)
+    setError('')
+    try {
+      if (enabled) {
+        await dropConnectFourMove(db, couple.id, playerUid, session.id, column)
+      } else {
+        const result = placeConnectFourPiece(connectFourState, { column, playerUid, sessionId: session.id })
+        setConnectFourPreview(result.state)
+      }
+    } catch (nextError) {
+      setError(nextError.message)
+      audio?.playError?.()
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const playConnectFourLanding = useCallback((winnerUid) => {
+    if (winnerUid) {
+      if (audio?.playConnectFourWin) audio.playConnectFourWin()
+      else audio?.playSuccess?.()
+    } else if (audio?.playConnectFourDrop) audio.playConnectFourDrop()
+    else audio?.playPieceStep?.()
+  }, [audio?.playConnectFourDrop, audio?.playConnectFourWin, audio?.playPieceStep, audio?.playSuccess])
 
   async function roll(gesture) {
     if (!progress.canRoll || (usesKissBookend && !ownKiss) || working || rolling || rollPresentation || !boardReady || !loaded) return
@@ -385,7 +422,8 @@ export function IndependentNight() {
           </div>
           {progress.readyToFinish && usesKissBookend && !partnerKissCaught && <button className="primary-btn" type="button" disabled={working || !nightKissesLoaded || !partnerKiss} onClick={() => setCatchKissOpen(true)}>Catch their kiss</button>}
           {progress.readyToFinish && usesKissBookend && partnerKissCaught && !bothKissesCaught && <p className="kiss-bookend-wait">Waiting for their catch</p>}
-          {progress.readyToFinish && (!usesKissBookend || bothKissesCaught) && <button className="primary-btn" type="button" disabled={working || (usesKissBookend && !nightKissesLoaded)} onClick={() => run({ kind: 'finish' })}>Open tonight’s reveals</button>}
+          {progress.readyToFinish && (!usesKissBookend || bothKissesCaught) && !connectFourDone && <button className="primary-btn" type="button" disabled={working || (usesKissBookend && !nightKissesLoaded) || !connectFourMoverUid} onClick={() => setConnectFourOpen(true)}>Connect Four</button>}
+          {progress.readyToFinish && (!usesKissBookend || bothKissesCaught) && connectFourDone && <button className="primary-btn" type="button" disabled={working || (usesKissBookend && !nightKissesLoaded)} onClick={() => run({ kind: 'finish' })}>Open tonight’s reveals</button>}
           {!progress.canRoll && !progress.available.length && !progress.readyToFinish && loaded && <p className="support-copy">Your part is saved. {session.players[1 - playerIndex]?.displayName} still has moments to finish. You can return later.</p>}
           {!enabled && <button className="secondary-link" type="button" onClick={() => setPreviewPlayer(index => 1 - index)}>Preview as {session.players[1 - playerIndex]?.displayName}</button>}
         </div>}
@@ -408,6 +446,7 @@ export function IndependentNight() {
       {usesKissBookend && catchKissOpen && partnerKiss && <div className="overlay-screen independent-overlay kiss-bookend-overlay">
         <KissBookend mode="catch" recording={partnerKiss} voicePrompt={KISS_COURIER_VOICE_PROMPT} working={working} onCatch={catchOpeningKiss} onContinue={() => setCatchKissOpen(false)} />
       </div>}
+      {connectFourOpen && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} moverUid={connectFourMoverUid} playerUid={playerUid} sessionId={session.id} disabled={working} onDrop={dropFinalPiece} onContinue={() => setConnectFourOpen(false)} onLand={playConnectFourLanding} />}
       {session.phase === 'finale' && <FinaleScreen session={session} finalSummary={buildFinalSummary(session, tonight)} journalEntries={journalEntries}
         themeId={coupleProgress?.selectedTheme || 'cozy'} players={session.players} canPlayAgain={canRecoverSession} working={working}
         onOpenScrapbook={() => setJournalOpen(true)} onPlayAgain={startFreshSession} />}
