@@ -52,7 +52,7 @@ describe('Connect Four anytime match', () => {
     expect(state.moveCount).toBe(11)
     expect(state.board.filter(cell => cell >= 0)).toHaveLength(11)
     expect(() => play(state, 6, 'two', 'move-12')).toThrow(/match is complete/i)
-    expect(getUnlockedConnectFourTokens(2).map(token => token.id)).toEqual(['garnet', 'moon'])
+    expect(getUnlockedConnectFourTokens(2).map(token => token.id)).toEqual(['garnet', 'moon', 'strawberry', 'chicken'])
     expect(getUnlockedConnectFourTokens(3).map(token => token.id)).toContain('leaf')
     expect(CONNECT_FOUR_COLUMNS * CONNECT_FOUR_ROWS).toBe(42)
   })

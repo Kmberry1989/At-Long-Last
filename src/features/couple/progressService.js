@@ -16,7 +16,7 @@ import {
 
 import { momentId, momentPayload } from './milestoneService.js'
 import { FLOWER_DAYS_TO_BLOOM, FLOWER_SPECIES } from '../../flower/flowerSpecies.js'
-import { createConnectFourState, getConnectFourMovePlayer, isConnectFourTokenUnlocked, placeConnectFourPiece } from '../session/connectFour.js'
+import { createConnectFourState, getConnectFourMovePlayer, getConnectFourPlayerTokenIds, getConnectFourTokenPreferences, isConnectFourTokenUnlocked, placeConnectFourPiece } from '../session/connectFour.js'
 
 export const BASE_THEME_CARDS = [
   { art: '/assets/themes/tabletop-cozy-night-in.webp', id: 'cozy', label: 'Cozy' },
@@ -215,6 +215,7 @@ export function buildDefaultProgress(coupleId) {
     anniversary: null,
     companion: { heartsFed: 0, name: 'Bud', stage: 0 },
     connectFour: createConnectFourState([]),
+    connectFourTokenPreferences: {},
     coupleId,
     createdAt: serverTimestamp(),
     flower: buildDefaultFlower(),
@@ -406,7 +407,12 @@ export async function dropConnectFourMove(db, coupleId, playerUid, moveId, colum
     if (state.lastMove?.sessionId === moveId) throw new Error('This move has already been played.')
     const moveUid = getConnectFourMovePlayer(current, orderedPlayers, state)
     if (moveUid !== playerUid) throw new Error('It’s your partner’s turn.')
-    const { state: nextState, result } = placeConnectFourPiece(state, { column, playerUid, sessionId: moveId, tokenId })
+    const playerIndex = orderedPlayers.indexOf(playerUid)
+    const lockedToken = getConnectFourPlayerTokenIds(state)[playerIndex]
+    const selectedToken = lockedToken || getConnectFourTokenPreferences(current, orderedPlayers)[playerUid]
+    if (tokenId && tokenId !== selectedToken) throw new Error('Your Connect Four token is set in your profile.')
+    if (!isConnectFourTokenUnlocked(selectedToken, current.lifetimeNights)) throw new Error('That token has not been unlocked yet.')
+    const { state: nextState, result } = placeConnectFourPiece(state, { column, playerUid, sessionId: moveId, tokenId: selectedToken })
     const payload = { connectFour: nextState, coupleId, createdAt: current.createdAt || serverTimestamp(), updatedAt: serverTimestamp() }
     if (snapshot.exists()) transaction.update(ref, payload)
     else {
@@ -415,6 +421,36 @@ export async function dropConnectFourMove(db, coupleId, playerUid, moveId, colum
       transaction.set(ref, createPayload)
     }
     return { state: nextState, result }
+  })
+}
+
+export async function selectConnectFourTokenPreference(db, coupleId, playerUid, tokenId) {
+  const ref = doc(db, 'coupleProgress', coupleId)
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref)
+    const coupleSnapshot = await transaction.get(doc(db, 'couples', coupleId))
+    const current = snapshot.exists()
+      ? { id: snapshot.id, ...snapshot.data() }
+      : { ...buildDefaultProgress(coupleId), id: coupleId }
+    const playerUids = coupleSnapshot.exists() ? coupleSnapshot.data().playerIds || [] : []
+    if (playerUids.length !== 2 || !playerUids.includes(playerUid)) throw new Error('You are not part of this game.')
+    if (!isConnectFourTokenUnlocked(tokenId, current.lifetimeNights)) throw new Error('That token has not been unlocked yet.')
+    const activeMatch = current.connectFour
+    if (activeMatch?.moveCount > 0 && !activeMatch.winnerUid && activeMatch.moveCount < 42) {
+      throw new Error('Finish this match before changing your token.')
+    }
+    const preferences = getConnectFourTokenPreferences(current, playerUids)
+    const partnerUid = playerUids.find((uid) => uid !== playerUid)
+    if (preferences[partnerUid] === tokenId) throw new Error('You both chose that token. Ask your person to choose another one, or pick a different token.')
+    const connectFourTokenPreferences = { ...current.connectFourTokenPreferences, [playerUid]: tokenId }
+    const payload = { connectFourTokenPreferences, updatedAt: serverTimestamp() }
+    if (snapshot.exists()) transaction.update(ref, payload)
+    else {
+      const createPayload = { ...current, ...payload }
+      delete createPayload.id
+      transaction.set(ref, createPayload)
+    }
+    return connectFourTokenPreferences
   })
 }
 

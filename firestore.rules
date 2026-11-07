@@ -1657,6 +1657,48 @@ service cloud.firestore {
           && data.at is timestamp;
       }
 
+      function isValidConnectFourTokenPreference(tokenId, lifetimeNights) {
+        return tokenId == 'garnet' || tokenId == 'moon' || tokenId == 'strawberry' || tokenId == 'chicken'
+          || (tokenId == 'leaf' && lifetimeNights >= 3)
+          || (tokenId == 'key' && lifetimeNights >= 7)
+          || (tokenId == 'shell' && lifetimeNights >= 14)
+          || (tokenId == 'lantern' && lifetimeNights >= 25)
+          || (tokenId == 'letter' && lifetimeNights >= 40)
+          || (tokenId == 'blossom' && lifetimeNights >= 60)
+          || (tokenId == 'compass' && lifetimeNights >= 100)
+          || (tokenId == 'candle' && lifetimeNights >= 125)
+          || (tokenId == 'teacup' && lifetimeNights >= 150)
+          || (tokenId == 'cottage' && lifetimeNights >= 175)
+          || (tokenId == 'paintbox' && lifetimeNights >= 200)
+          || (tokenId == 'hourglass' && lifetimeNights >= 225)
+          || (tokenId == 'umbrella' && lifetimeNights >= 250)
+          || (tokenId == 'picnic' && lifetimeNights >= 275)
+          || (tokenId == 'musicbox' && lifetimeNights >= 300)
+          || (tokenId == 'sunrise' && lifetimeNights >= 365)
+          || (tokenId == 'beehive' && lifetimeNights >= 400)
+          || (tokenId == 'cherries' && lifetimeNights >= 425)
+          || (tokenId == 'fern' && lifetimeNights >= 450)
+          || (tokenId == 'moonwindow' && lifetimeNights >= 475)
+          || (tokenId == 'apple' && lifetimeNights >= 500)
+          || (tokenId == 'ribbonbow' && lifetimeNights >= 525)
+          || (tokenId == 'gardenlantern' && lifetimeNights >= 550);
+      }
+
+      function isValidConnectFourTokenPreferences(data, lifetimeNights) {
+        let players = get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds;
+        let preferences = data.connectFourTokenPreferences;
+        return !('connectFourTokenPreferences' in data) || (
+          preferences is map
+          && players is list
+          && (players.size() == 0 || players.size() == 2)
+          && preferences.size() <= 2
+          && preferences.keys().hasOnly(players)
+          && (players.size() < 1 || !(players[0] in preferences) || isValidConnectFourTokenPreference(preferences[players[0]], lifetimeNights))
+          && (players.size() < 2 || !(players[1] in preferences) || isValidConnectFourTokenPreference(preferences[players[1]], lifetimeNights))
+          && (players.size() != 2 || ((players[0] in preferences ? preferences[players[0]] : 'garnet') != (players[1] in preferences ? preferences[players[1]] : 'moon')))
+        );
+      }
+
       function isValidConnectFour(data, lifetimeNights) {
         let players = get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds;
         return data is map
@@ -1670,8 +1712,8 @@ service cloud.firestore {
           && (data.winnerUid == null || data.winnerUid in data.playerUids)
           && (!('starterUid' in data) || data.starterUid == null || data.starterUid in data.playerUids)
           && (!('nextPlayerUid' in data) || data.nextPlayerUid == null || data.nextPlayerUid in data.playerUids)
-          && (!('tokenIds' in data) || (data.tokenIds is list && data.tokenIds.size() == 42 && data.tokenIds.hasOnly([null, 'garnet', 'moon', 'leaf', 'key', 'shell', 'lantern', 'letter', 'blossom', 'compass', 'candle', 'teacup', 'cottage', 'paintbox', 'hourglass', 'umbrella', 'picnic', 'musicbox', 'sunrise'])))
-          && (!('playerTokenIds' in data) || (data.playerTokenIds is list && data.playerTokenIds.size() == 2 && data.playerTokenIds.hasOnly([null, 'garnet', 'moon', 'leaf', 'key', 'shell', 'lantern', 'letter', 'blossom', 'compass', 'candle', 'teacup', 'cottage', 'paintbox', 'hourglass', 'umbrella', 'picnic', 'musicbox', 'sunrise'])))
+          && (!('tokenIds' in data) || (data.tokenIds is list && data.tokenIds.size() == 42 && data.tokenIds.hasOnly([null, 'garnet', 'moon', 'leaf', 'key', 'shell', 'lantern', 'letter', 'blossom', 'compass', 'candle', 'teacup', 'cottage', 'paintbox', 'hourglass', 'umbrella', 'picnic', 'musicbox', 'sunrise', 'strawberry', 'chicken', 'beehive', 'cherries', 'fern', 'moonwindow', 'apple', 'ribbonbow', 'gardenlantern'])))
+          && (!('playerTokenIds' in data) || (data.playerTokenIds is list && data.playerTokenIds.size() == 2 && data.playerTokenIds.hasOnly([null, 'garnet', 'moon', 'leaf', 'key', 'shell', 'lantern', 'letter', 'blossom', 'compass', 'candle', 'teacup', 'cottage', 'paintbox', 'hourglass', 'umbrella', 'picnic', 'musicbox', 'sunrise', 'strawberry', 'chicken', 'beehive', 'cherries', 'fern', 'moonwindow', 'apple', 'ribbonbow', 'gardenlantern'])))
           && (!('tokenIds' in data) || !data.tokenIds.hasAny(['leaf']) || lifetimeNights >= 3)
           && (!('tokenIds' in data) || !data.tokenIds.hasAny(['key']) || lifetimeNights >= 7)
           && (!('tokenIds' in data) || !data.tokenIds.hasAny(['shell']) || lifetimeNights >= 14)
@@ -1688,6 +1730,13 @@ service cloud.firestore {
           && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['picnic'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['picnic']))) || lifetimeNights >= 275)
           && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['musicbox'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['musicbox']))) || lifetimeNights >= 300)
           && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['sunrise'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['sunrise']))) || lifetimeNights >= 365)
+          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['beehive'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['beehive']))) || lifetimeNights >= 400)
+          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['cherries'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['cherries']))) || lifetimeNights >= 425)
+          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['fern'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['fern']))) || lifetimeNights >= 450)
+          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['moonwindow'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['moonwindow']))) || lifetimeNights >= 475)
+          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['apple'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['apple']))) || lifetimeNights >= 500)
+          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['ribbonbow'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['ribbonbow']))) || lifetimeNights >= 525)
+          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['gardenlantern'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['gardenlantern']))) || lifetimeNights >= 550)
           && (data.lastMove == null || (
             data.lastMove is map
             && data.lastMove.keys().hasAll(['column', 'playerUid', 'row', 'sessionId'])
@@ -1711,7 +1760,7 @@ service cloud.firestore {
             'coupleId', 'lifetimeHearts', 'heartsSpent', 'lifetimeNights',
             'unlockedThemes', 'streakCount', 'streakLastDate', 'freezeTokens',
             'trophies', 'koupons', 'companion', 'flower', 'anniversary', 'nudge',
-            'selectedTheme', 'lastBankedSessionId', 'connectFour',
+            'selectedTheme', 'lastBankedSessionId', 'connectFour', 'connectFourTokenPreferences',
             'createdAt', 'updatedAt'
           ])
           && data.coupleId == coupleId
@@ -1738,6 +1787,7 @@ service cloud.firestore {
           && data.koupons.size() <= 20
           && isValidCompanion(data.companion)
           && (!('connectFour' in data) || isValidConnectFour(data.connectFour, data.lifetimeNights))
+          && isValidConnectFourTokenPreferences(data, data.lifetimeNights)
           && (data.anniversary == null || isDateString(data.anniversary))
           && (
             !('selectedTheme' in data)

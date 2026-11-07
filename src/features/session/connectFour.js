@@ -21,6 +21,15 @@ export const CONNECT_FOUR_TOKENS = [
   { id: 'picnic', name: 'Picnic basket', unlockAt: 275, atlas: 1, sprite: [0, 2] },
   { id: 'musicbox', name: 'Music box', unlockAt: 300, atlas: 1, sprite: [1, 2] },
   { id: 'sunrise', name: 'Sunrise hills', unlockAt: 365, atlas: 1, sprite: [2, 2] },
+  { id: 'strawberry', name: 'Strawberry', unlockAt: 0, atlas: 2, sprite: [0, 0] },
+  { id: 'chicken', name: 'Little chicken', unlockAt: 0, atlas: 2, sprite: [1, 0] },
+  { id: 'beehive', name: 'Honey jar', unlockAt: 400, atlas: 2, sprite: [2, 0] },
+  { id: 'cherries', name: 'Cherries', unlockAt: 425, atlas: 2, sprite: [0, 1] },
+  { id: 'fern', name: 'Fern frond', unlockAt: 450, atlas: 2, sprite: [1, 1] },
+  { id: 'moonwindow', name: 'Moonlit window', unlockAt: 475, atlas: 2, sprite: [2, 1] },
+  { id: 'apple', name: 'Little apple', unlockAt: 500, atlas: 2, sprite: [0, 2] },
+  { id: 'ribbonbow', name: 'Ribbon bow', unlockAt: 525, atlas: 2, sprite: [1, 2] },
+  { id: 'gardenlantern', name: 'Garden lantern', unlockAt: 550, atlas: 2, sprite: [2, 2] },
 ]
 
 export function getUnlockedConnectFourTokens(lifetimeNights = 0) {
@@ -40,6 +49,15 @@ export function getConnectFourPlayerTokenIds(state) {
     if (cellIndex >= 0) selected[playerIndex] = state?.tokenIds?.[cellIndex] || null
   }
   return selected
+}
+
+export function getConnectFourTokenPreferences(progress, playerUids = []) {
+  const preferences = { ...progress?.connectFourTokenPreferences }
+  const matchTokens = getConnectFourPlayerTokenIds(progress?.connectFour)
+  playerUids.slice(0, 2).forEach((uid, index) => {
+    if (uid && !preferences[uid]) preferences[uid] = matchTokens[index] || (index === 0 ? 'garnet' : 'moon')
+  })
+  return preferences
 }
 
 export function createConnectFourState(playerUids = [], starterUid = playerUids[0] || null) {

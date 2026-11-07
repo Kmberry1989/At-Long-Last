@@ -11,8 +11,8 @@ import { OurStoryScreens } from './OurStoryScreens.jsx'
 import { BrandIcon } from './BrandIcon.jsx'
 import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/emailInvitationService.js'
 import { ConnectFourFinale } from './ConnectFourFinale.jsx'
-import { createConnectFourState, placeConnectFourPiece } from '../features/session/connectFour.js'
-import { dropConnectFourMove, startNewConnectFourMatch } from '../features/couple/progressService.js'
+import { createConnectFourState, getConnectFourTokenPreferences, placeConnectFourPiece } from '../features/session/connectFour.js'
+import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectFourMatch } from '../features/couple/progressService.js'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import './PairingHome.css'
 
@@ -35,6 +35,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [connectFourPreview, setConnectFourPreview] = useState(null)
   const [connectFourBusy, setConnectFourBusy] = useState(false)
   const [connectFourError, setConnectFourError] = useState('')
+  const [connectFourTokenPreview, setConnectFourTokenPreview] = useState({})
   const profileButtonRef = useRef(null)
   const partner = couple?.players?.find((player) => player.uid !== user?.uid)
   const paired = couple?.playerIds?.length === 2
@@ -44,6 +45,10 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const disabled = busy || loading || authWorking || sessionWorking
   const connectFourPlayers = (couple?.playerIds || []).map((uid) => couple.players?.find((player) => player.uid === uid) || { uid, displayName: uid === user?.uid ? name : partner?.displayName || 'Your person' })
   const connectFourState = coupleProgress?.connectFour || connectFourPreview || createConnectFourState(connectFourPlayers.map((player) => player.uid))
+  const connectFourTokenPreferences = getConnectFourTokenPreferences({ ...coupleProgress, connectFourTokenPreferences: { ...coupleProgress?.connectFourTokenPreferences, ...connectFourTokenPreview } }, couple?.playerIds || [])
+  const selectedConnectFourToken = connectFourTokenPreferences[user?.uid]
+  const partnerConnectFourToken = connectFourTokenPreferences[partner?.uid]
+  const connectFourMatchActive = connectFourState.moveCount > 0 && !connectFourState.winnerUid && connectFourState.moveCount < 42
 
   useEffect(() => { setConfirmUnpair(false); setConfirmCommit(false); setAcceptPermanent(false); setNotice('') }, [couple?.id])
   useEffect(() => {
@@ -84,6 +89,16 @@ export function PairingHome({ avatar, onAvatarChange }) {
       }
     } catch (nextError) { setConnectFourError(nextError.message || 'Could not start another match.') }
     finally { setConnectFourBusy(false) }
+  }
+
+  async function selectPlayerConnectFourToken(tokenId) {
+    if (!couple?.id || !user?.uid) return
+    if (connectFourMatchActive) throw new Error('Finish this match before changing your token.')
+    if (enabled) await selectConnectFourTokenPreference(db, couple.id, user.uid, tokenId)
+    else {
+      if (partnerConnectFourToken === tokenId) throw new Error('You both chose that token. Pick a different one.')
+      setConnectFourTokenPreview((previous) => ({ ...previous, [user.uid]: tokenId }))
+    }
   }
 
   const connectFourLanding = useCallback((winnerUid) => {
@@ -191,9 +206,9 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </> : <button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(true)} type="button">{paired ? 'Cancel connection' : 'Cancel invite'}</button>}
       </div>}
       {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
-      {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} onClose={closeProfileSheet} />}
+      {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
       {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} onClose={() => setStoryScreen('')} />}
-      {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} disabled={connectFourBusy} onDrop={dropConnectFour} onClose={() => setConnectFourOpen(false)} onNewGame={newConnectFourMatch} onLand={connectFourLanding} />}
+      {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} onDrop={dropConnectFour} onClose={() => setConnectFourOpen(false)} onNewGame={newConnectFourMatch} onLand={connectFourLanding} />}
       {connectFourError && <p className="error-copy" role="alert">{connectFourError}</p>}
     </>
   )
