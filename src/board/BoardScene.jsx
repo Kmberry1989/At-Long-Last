@@ -25,8 +25,8 @@ export const DICE_ROLL_DURATION_SECONDS = 2.05
 export const BOARD_SKIN_SURFACE_Y = 0.126
 export const BOARD_CARD_PILE_LABEL_Y = BOARD_SKIN_SURFACE_Y + 0.018
 export const BOARD_CARD_PILE_RADIUS = 2.05
-export const BOARD_CARD_PILE_WIDTH = 4.8
-export const BOARD_CARD_PILE_DEPTH = 3.8
+export const BOARD_CARD_PILE_WIDTH = 3.35
+export const BOARD_CARD_PILE_DEPTH = 2.9
 export const BOARD_CARD_PILE_DOT_COUNT = 64
 export const BOARD_CARD_PILE_DOT_SIZE = 0.24
 export const BOARD_CARD_PILE_POSITIONS = {
@@ -292,7 +292,7 @@ function createBoardCardPileMarker(theme, kind, color) {
   }
   const dottedLine = new THREE.Points(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3)),
-    new THREE.PointsMaterial({ color: '#f5d39a', size: BOARD_CARD_PILE_DOT_SIZE, sizeAttenuation: true, transparent: true, opacity: 1, depthTest: false, depthWrite: false }),
+    new THREE.PointsMaterial({ color: '#f5d39a', size: BOARD_CARD_PILE_DOT_SIZE, sizeAttenuation: true, transparent: true, opacity: 1, depthTest: true, depthWrite: false }),
   )
   dottedLine.name = `${kind}-pile-dotted-outline`
   dottedLine.renderOrder = 30
