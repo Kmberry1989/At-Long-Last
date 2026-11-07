@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CONNECT_FOUR_COLUMNS, CONNECT_FOUR_ROWS, CONNECT_FOUR_TOKENS, getConnectFourMovePlayer, getUnlockedConnectFourTokens } from '../features/session/connectFour.js'
+import { CONNECT_FOUR_COLUMNS, CONNECT_FOUR_ROWS, CONNECT_FOUR_TOKENS, getConnectFourMovePlayer, getConnectFourPlayerTokenIds, getUnlockedConnectFourTokens } from '../features/session/connectFour.js'
 import './connect-four-finale.css'
 
 const BOARD_ART = '/assets/connect-four/board.webp'
-const TOKEN_SHEET = '/assets/connect-four/token-atlas.webp'
+const TOKEN_SHEETS = ['/assets/connect-four/token-atlas.webp', '/assets/connect-four/token-atlas-2.webp']
 
 function tokenStyle(tokenId) {
   const token = CONNECT_FOUR_TOKENS.find((entry) => entry.id === tokenId) || CONNECT_FOUR_TOKENS[0]
   const [x, y] = token.sprite
-  return { backgroundImage: `url(${TOKEN_SHEET})`, backgroundPosition: `${x * 50}% ${y * 50}%` }
+  return { backgroundImage: `url(${TOKEN_SHEETS[token.atlas]})`, backgroundPosition: `${x * 50}% ${y * 50}%` }
 }
 
 function getWinningCells(board) {
@@ -30,7 +30,12 @@ function getWinningCells(board) {
 export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 0, disabled, onDrop, onClose, onNewGame, onLand }) {
   const [animatingKey, setAnimatingKey] = useState(null)
   const unlocked = useMemo(() => getUnlockedConnectFourTokens(lifetimeNights), [lifetimeNights])
-  const [selectedToken, setSelectedToken] = useState(unlocked[0]?.id || 'garnet')
+  const playerTokenIds = useMemo(() => getConnectFourPlayerTokenIds(state), [state])
+  const playerIndex = Math.max(0, state.playerUids?.indexOf(playerUid) ?? players.findIndex((player) => player.uid === playerUid))
+  const ownTokenId = playerTokenIds[playerIndex]
+  const partnerTokenId = playerTokenIds[1 - playerIndex]
+  const initialToken = unlocked.find((token) => token.id !== partnerTokenId)?.id || 'garnet'
+  const [selectedToken, setSelectedToken] = useState(ownTokenId || initialToken)
   const seenMove = useRef(state?.lastMove?.sessionId || '')
   const move = state?.lastMove
   const moveKey = move?.sessionId || ''
@@ -40,6 +45,11 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
   const draw = !state?.winnerUid && state?.moveCount === CONNECT_FOUR_COLUMNS * CONNECT_FOUR_ROWS
   const winningCells = useMemo(() => getWinningCells(state.board), [state.board])
   const nextGame = Boolean(state?.winnerUid) || draw
+
+  useEffect(() => {
+    if (ownTokenId) setSelectedToken(ownTokenId)
+    else if (partnerTokenId === selectedToken) setSelectedToken(initialToken)
+  }, [ownTokenId, partnerTokenId, selectedToken, initialToken])
 
   useEffect(() => {
     if (!moveKey || seenMove.current === moveKey) return
@@ -58,7 +68,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
       const row = CONNECT_FOUR_ROWS - 1 - visualRow
       const index = row * CONNECT_FOUR_COLUMNS + column
       const owner = state.board[index]
-      const tokenId = state.tokenIds?.[index] || (owner === 1 ? 'moon' : 'garnet')
+      const tokenId = playerTokenIds[owner] || (owner === 1 ? 'moon' : 'garnet')
       const shouldAnimate = move?.column === column && move?.row === row && animatingKey === moveKey
       const isWinningPiece = winningCells.has(index)
       return <span className={`connect-four-cell${owner >= 0 ? ' has-token' : ''}${isWinningPiece ? ' is-winning' : ''}`} key={index}>
@@ -78,7 +88,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
       <header className="connect-four-header">
         <div className="connect-four-players">
           {players.slice(0, 2).map((player, index) => <div className={`connect-four-player player-${index}`} key={player.uid}>
-            <span aria-hidden="true" className={`connect-four-player-token player-token-${index}`}><span className="connect-four-token-art" style={tokenStyle(state.tokenIds?.[state.board.findIndex((owner) => owner === index)] || (index === 0 ? 'garnet' : 'moon'))} /></span>
+            <span aria-hidden="true" className={`connect-four-player-token player-token-${index}`}><span className="connect-four-token-art" style={tokenStyle(playerTokenIds[index] || (index === 0 ? 'garnet' : 'moon'))} /></span>
             <span>{player.displayName}</span>
           </div>)}
         </div>
@@ -90,16 +100,18 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
         <button className="connect-four-close" type="button" onClick={onClose} aria-label="Close Connect Four">×</button>
       </header>
 
-      {isYourMove && !nextGame && <div className="connect-four-token-picker" aria-label="Choose a token">
+      {isYourMove && !nextGame && !ownTokenId && <div className="connect-four-token-picker" aria-label="Choose one token for this match">
         {CONNECT_FOUR_TOKENS.map((token) => {
           const isUnlocked = unlocked.some((entry) => entry.id === token.id)
-          return <button key={token.id} type="button" className={`connect-four-token-choice${selectedToken === token.id ? ' is-selected' : ''}${!isUnlocked ? ' is-locked' : ''}`} disabled={!isUnlocked || disabled} onClick={() => setSelectedToken(token.id)} aria-label={isUnlocked ? token.name : `${token.name}, unlock after ${token.unlockAt} shared nights`} aria-pressed={selectedToken === token.id} title={isUnlocked ? token.name : `Unlock after ${token.unlockAt} shared nights`}>
+          const alreadyChosen = partnerTokenId === token.id
+          return <button key={token.id} type="button" className={`connect-four-token-choice${selectedToken === token.id ? ' is-selected' : ''}${!isUnlocked || alreadyChosen ? ' is-locked' : ''}`} disabled={!isUnlocked || alreadyChosen || disabled} onClick={() => setSelectedToken(token.id)} aria-label={alreadyChosen ? `${token.name}, your partner chose this token` : isUnlocked ? token.name : `${token.name}, unlock after ${token.unlockAt} shared nights`} aria-pressed={selectedToken === token.id} title={alreadyChosen ? 'Your partner chose this token' : isUnlocked ? token.name : `Unlock after ${token.unlockAt} shared nights`}>
             <span aria-hidden="true" className="connect-four-token-art" style={tokenStyle(token.id)} />
             {!isUnlocked && <span className="connect-four-token-lock" aria-hidden="true"><i /></span>}
+            {alreadyChosen && <span className="connect-four-token-lock" aria-hidden="true"><i /></span>}
           </button>
         })}
       </div>}
-      {isYourMove && !nextGame && <p className="connect-four-unlock-note">New designs unlock as you share more nights.</p>}
+      {isYourMove && !nextGame && <p className="connect-four-unlock-note">{ownTokenId ? 'Your token is set for this match.' : 'Pick one token for this match. New designs unlock with shared nights.'}</p>}
 
       <div className="connect-four-board-wrap">
         <div className="connect-four-board-stage">
@@ -113,7 +125,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
       {draw && <p className="connect-four-result">Every space found its place.</p>}
       {winnerName && <p className="connect-four-result">Four in a row, kept in your story.</p>}
       {nextGame ? <button className="connect-four-done" type="button" onClick={onNewGame}>Play again <span>↻</span></button>
-        : <p className="connect-four-hint">{isYourMove ? 'Pick a token, then a column' : 'The board updates as you play'}</p>}
+        : <p className="connect-four-hint">{isYourMove ? ownTokenId ? 'Drop a piece' : 'Pick a token, then a column' : 'The board updates as you play'}</p>}
       <button className="connect-four-close-match" type="button" onClick={onClose}>Done for now</button>
     </section>
   </div>

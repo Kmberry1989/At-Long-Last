@@ -3,15 +3,24 @@ export const CONNECT_FOUR_ROWS = 6
 export const CONNECT_FOUR_CELLS = CONNECT_FOUR_COLUMNS * CONNECT_FOUR_ROWS
 
 export const CONNECT_FOUR_TOKENS = [
-  { id: 'garnet', name: 'Garnet heart', unlockAt: 0, sprite: [0, 0] },
-  { id: 'moon', name: 'Crescent moon', unlockAt: 0, sprite: [1, 0] },
-  { id: 'leaf', name: 'Botanical leaf', unlockAt: 3, sprite: [2, 0] },
-  { id: 'key', name: 'Antique key', unlockAt: 7, sprite: [0, 1] },
-  { id: 'shell', name: 'Scallop shell', unlockAt: 14, sprite: [1, 1] },
-  { id: 'lantern', name: 'Little lantern', unlockAt: 25, sprite: [2, 1] },
-  { id: 'letter', name: 'Sealed letter', unlockAt: 40, sprite: [0, 2] },
-  { id: 'blossom', name: 'Five-petal bloom', unlockAt: 60, sprite: [1, 2] },
-  { id: 'compass', name: 'Compass rose', unlockAt: 100, sprite: [2, 2] },
+  { id: 'garnet', name: 'Garnet heart', unlockAt: 0, atlas: 0, sprite: [0, 0] },
+  { id: 'moon', name: 'Crescent moon', unlockAt: 0, atlas: 0, sprite: [1, 0] },
+  { id: 'leaf', name: 'Botanical leaf', unlockAt: 3, atlas: 0, sprite: [2, 0] },
+  { id: 'key', name: 'Antique key', unlockAt: 7, atlas: 0, sprite: [0, 1] },
+  { id: 'shell', name: 'Scallop shell', unlockAt: 14, atlas: 0, sprite: [1, 1] },
+  { id: 'lantern', name: 'Little lantern', unlockAt: 25, atlas: 0, sprite: [2, 1] },
+  { id: 'letter', name: 'Sealed letter', unlockAt: 40, atlas: 0, sprite: [0, 2] },
+  { id: 'blossom', name: 'Five-petal bloom', unlockAt: 60, atlas: 0, sprite: [1, 2] },
+  { id: 'compass', name: 'Compass rose', unlockAt: 100, atlas: 0, sprite: [2, 2] },
+  { id: 'candle', name: 'Candlelight', unlockAt: 125, atlas: 1, sprite: [0, 0] },
+  { id: 'teacup', name: 'Flowered teacup', unlockAt: 150, atlas: 1, sprite: [1, 0] },
+  { id: 'cottage', name: 'Little cottage', unlockAt: 175, atlas: 1, sprite: [2, 0] },
+  { id: 'paintbox', name: 'Paint and palette', unlockAt: 200, atlas: 1, sprite: [0, 1] },
+  { id: 'hourglass', name: 'Hourglass', unlockAt: 225, atlas: 1, sprite: [1, 1] },
+  { id: 'umbrella', name: 'Rainy day umbrella', unlockAt: 250, atlas: 1, sprite: [2, 1] },
+  { id: 'picnic', name: 'Picnic basket', unlockAt: 275, atlas: 1, sprite: [0, 2] },
+  { id: 'musicbox', name: 'Music box', unlockAt: 300, atlas: 1, sprite: [1, 2] },
+  { id: 'sunrise', name: 'Sunrise hills', unlockAt: 365, atlas: 1, sprite: [2, 2] },
 ]
 
 export function getUnlockedConnectFourTokens(lifetimeNights = 0) {
@@ -23,12 +32,23 @@ export function isConnectFourTokenUnlocked(tokenId, lifetimeNights = 0) {
   return getUnlockedConnectFourTokens(lifetimeNights).some((token) => token.id === tokenId)
 }
 
+export function getConnectFourPlayerTokenIds(state) {
+  const selected = Array.isArray(state?.playerTokenIds) ? [...state.playerTokenIds] : [null, null]
+  for (let playerIndex = 0; playerIndex < 2; playerIndex += 1) {
+    if (selected[playerIndex]) continue
+    const cellIndex = state?.board?.findIndex((owner) => owner === playerIndex) ?? -1
+    if (cellIndex >= 0) selected[playerIndex] = state?.tokenIds?.[cellIndex] || null
+  }
+  return selected
+}
+
 export function createConnectFourState(playerUids = [], starterUid = playerUids[0] || null) {
   return {
     board: Array(CONNECT_FOUR_CELLS).fill(-1),
     lastMove: null,
     moveCount: 0,
     playerUids: [...playerUids],
+    playerTokenIds: [null, null],
     starterUid,
     nextPlayerUid: starterUid,
     tokenIds: Array(CONNECT_FOUR_CELLS).fill(null),
@@ -81,11 +101,20 @@ export function placeConnectFourPiece(state, { column, playerUid, sessionId, tok
   const row = findConnectFourLandingRow(boardBeforeMove, column)
   if (row < 0) throw new Error('That column is full. Choose another one.')
   const playerIndex = state.playerUids.indexOf(playerUid)
+  const playerTokenIds = getConnectFourPlayerTokenIds(state)
+  const previousTokenId = playerTokenIds[playerIndex]
+  const opposingTokenId = playerTokenIds[1 - playerIndex]
+  const selectedTokenId = tokenId || previousTokenId || (playerIndex === 0 ? 'garnet' : 'moon')
+  if (previousTokenId && previousTokenId !== selectedTokenId) throw new Error('Choose the same token you picked for this match.')
+  if (!previousTokenId && opposingTokenId === selectedTokenId) throw new Error('Your partner already chose that token. Pick a different one.')
+  playerTokenIds[playerIndex] = selectedTokenId
   const board = [...boardBeforeMove]
   const landingIndex = row * CONNECT_FOUR_COLUMNS + column
   board[landingIndex] = playerIndex
   const tokenIds = [...tokenIdsBeforeMove]
-  tokenIds[landingIndex] = tokenId || (playerIndex === 0 ? 'garnet' : 'moon')
+  for (let index = 0; index < tokenIds.length; index += 1) {
+    if (board[index] === playerIndex) tokenIds[index] = selectedTokenId
+  }
   const winnerIndex = getConnectFourWinner(board, column, row)
   const winnerUid = winnerIndex >= 0 ? state.playerUids[winnerIndex] : null
   const moveCount = state.moveCount + 1
@@ -97,6 +126,7 @@ export function placeConnectFourPiece(state, { column, playerUid, sessionId, tok
       lastMove: { column, playerUid, row, sessionId },
       moveCount,
       nextPlayerUid: winnerUid || tied ? null : state.playerUids[1 - playerIndex],
+      playerTokenIds,
       starterUid: state.starterUid || state.playerUids[0],
       tokenIds,
       winnerUid: winnerUid || null,
