@@ -442,7 +442,7 @@ export async function selectConnectFourTokenPreference(db, coupleId, playerUid, 
     const preferences = getConnectFourTokenPreferences(current, playerUids)
     const partnerUid = playerUids.find((uid) => uid !== playerUid)
     if (preferences[partnerUid] === tokenId) throw new Error('You both chose that token. Ask your person to choose another one, or pick a different token.')
-    const connectFourTokenPreferences = { ...current.connectFourTokenPreferences, [playerUid]: tokenId }
+    const connectFourTokenPreferences = { ...preferences, [playerUid]: tokenId }
     const payload = { connectFourTokenPreferences, updatedAt: serverTimestamp() }
     if (snapshot.exists()) transaction.update(ref, payload)
     else {
