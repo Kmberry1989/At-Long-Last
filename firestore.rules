@@ -1699,55 +1699,6 @@ service cloud.firestore {
         );
       }
 
-      function isValidConnectFour(data, lifetimeNights) {
-        let players = get(/databases/$(database)/documents/couples/$(coupleId)).data.playerIds;
-        return data is map
-          && data.keys().hasAll(['board', 'lastMove', 'moveCount', 'playerUids', 'winnerUid'])
-          && data.keys().hasOnly(['board', 'lastMove', 'moveCount', 'playerUids', 'winnerUid', 'starterUid', 'nextPlayerUid', 'tokenIds', 'playerTokenIds'])
-          && data.board is list && data.board.size() == 42 && data.board.hasOnly([-1, 0, 1])
-          && data.moveCount is int && data.moveCount >= 0 && data.moveCount <= 42
-          && data.playerUids is list && (data.playerUids.size() == 0 || data.playerUids.size() == 2)
-          && (data.playerUids.size() != 2 || data.playerUids[0] != data.playerUids[1])
-          && (data.playerUids.size() == 0 || data.playerUids.hasOnly(players))
-          && (data.winnerUid == null || data.winnerUid in data.playerUids)
-          && (!('starterUid' in data) || data.starterUid == null || data.starterUid in data.playerUids)
-          && (!('nextPlayerUid' in data) || data.nextPlayerUid == null || data.nextPlayerUid in data.playerUids)
-          && (!('tokenIds' in data) || (data.tokenIds is list && data.tokenIds.size() == 42 && data.tokenIds.hasOnly([null, 'garnet', 'moon', 'leaf', 'key', 'shell', 'lantern', 'letter', 'blossom', 'compass', 'candle', 'teacup', 'cottage', 'paintbox', 'hourglass', 'umbrella', 'picnic', 'musicbox', 'sunrise', 'strawberry', 'chicken', 'beehive', 'cherries', 'fern', 'moonwindow', 'apple', 'ribbonbow', 'gardenlantern'])))
-          && (!('playerTokenIds' in data) || (data.playerTokenIds is list && data.playerTokenIds.size() == 2 && data.playerTokenIds.hasOnly([null, 'garnet', 'moon', 'leaf', 'key', 'shell', 'lantern', 'letter', 'blossom', 'compass', 'candle', 'teacup', 'cottage', 'paintbox', 'hourglass', 'umbrella', 'picnic', 'musicbox', 'sunrise', 'strawberry', 'chicken', 'beehive', 'cherries', 'fern', 'moonwindow', 'apple', 'ribbonbow', 'gardenlantern'])))
-          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['leaf']) || lifetimeNights >= 3)
-          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['key']) || lifetimeNights >= 7)
-          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['shell']) || lifetimeNights >= 14)
-          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['lantern']) || lifetimeNights >= 25)
-          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['letter']) || lifetimeNights >= 40)
-          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['blossom']) || lifetimeNights >= 60)
-          && (!('tokenIds' in data) || !data.tokenIds.hasAny(['compass']) || lifetimeNights >= 100)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['candle'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['candle']))) || lifetimeNights >= 125)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['teacup'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['teacup']))) || lifetimeNights >= 150)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['cottage'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['cottage']))) || lifetimeNights >= 175)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['paintbox'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['paintbox']))) || lifetimeNights >= 200)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['hourglass'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['hourglass']))) || lifetimeNights >= 225)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['umbrella'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['umbrella']))) || lifetimeNights >= 250)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['picnic'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['picnic']))) || lifetimeNights >= 275)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['musicbox'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['musicbox']))) || lifetimeNights >= 300)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['sunrise'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['sunrise']))) || lifetimeNights >= 365)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['beehive'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['beehive']))) || lifetimeNights >= 400)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['cherries'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['cherries']))) || lifetimeNights >= 425)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['fern'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['fern']))) || lifetimeNights >= 450)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['moonwindow'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['moonwindow']))) || lifetimeNights >= 475)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['apple'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['apple']))) || lifetimeNights >= 500)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['ribbonbow'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['ribbonbow']))) || lifetimeNights >= 525)
-          && (((!('tokenIds' in data) || !data.tokenIds.hasAny(['gardenlantern'])) && (!('playerTokenIds' in data) || !data.playerTokenIds.hasAny(['gardenlantern']))) || lifetimeNights >= 550)
-          && (data.lastMove == null || (
-            data.lastMove is map
-            && data.lastMove.keys().hasAll(['column', 'playerUid', 'row', 'sessionId'])
-            && data.lastMove.keys().hasOnly(['column', 'playerUid', 'row', 'sessionId'])
-            && isBoundedInt(data.lastMove.column, 0, 6)
-            && isBoundedInt(data.lastMove.row, 0, 5)
-            && data.lastMove.playerUid in data.playerUids
-            && isBoundedString(data.lastMove.sessionId, 1, 128)
-          ));
-      }
-
       function isValidProgress(data) {
         return data is map
           && data.keys().hasAll([
@@ -1786,7 +1737,6 @@ service cloud.firestore {
           && data.koupons is list
           && data.koupons.size() <= 20
           && isValidCompanion(data.companion)
-          && (!('connectFour' in data) || isValidConnectFour(data.connectFour, data.lifetimeNights))
           && isValidConnectFourTokenPreferences(data, data.lifetimeNights)
           && (data.anniversary == null || isDateString(data.anniversary))
           && (

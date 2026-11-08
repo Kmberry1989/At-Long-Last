@@ -214,7 +214,6 @@ export function buildDefaultProgress(coupleId) {
   return {
     anniversary: null,
     companion: { heartsFed: 0, name: 'Bud', stage: 0 },
-    connectFour: createConnectFourState([]),
     connectFourTokenPreferences: {},
     coupleId,
     createdAt: serverTimestamp(),

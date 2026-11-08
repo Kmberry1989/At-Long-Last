@@ -1384,6 +1384,26 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   background: linear-gradient(180deg, #0c1716a3, #08100fd1), url('/assets/backgrounds/romance-game-forest.webp') center / cover no-repeat;
 }
 
+.night-reconnect {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.night-reconnect-card {
+  width: min(100%, 440px);
+  padding: clamp(24px, 6vw, 42px);
+  border-radius: 28px;
+  color: #fff2dd;
+  text-align: center;
+  background: linear-gradient(145deg, rgba(58, 34, 49, .96), rgba(25, 27, 43, .96));
+  border: 1px solid rgba(238, 204, 155, .55);
+}
+
+.night-reconnect-card h1 { margin: 0 0 12px; font-family: var(--app-display); font-size: clamp(1.7rem, 7vw, 2.5rem); }
+.night-reconnect-card p { margin: 0 0 24px; color: rgba(255, 242, 221, .82); }
+.night-reconnect-card .primary-btn { width: 100%; }
+
 /* Let the chosen board mood tint the play frame and its controls. */
 .game-screen[data-board-theme] {
   --night-glow: #c58a5b;

@@ -52,7 +52,16 @@ function getActivitySubmissionCount(state) {
 }
 
 export function GameScreen() {
-  const { session } = useSession()
+  const { session, gameOpen, readyToPlay } = useSession()
+  if (!session && gameOpen && readyToPlay) {
+    return <section className="screen active game-screen night-reconnect" role="status">
+      <div className="glass-card night-reconnect-card">
+        <h1>Your night is reconnecting</h1>
+        <p>Your saved moments are safe. The board hasn’t rejoined yet.</p>
+        <button className="primary-btn" onClick={() => window.location.reload()} type="button">Reconnect</button>
+      </div>
+    </section>
+  }
   return session?.pacingVersion === 1 ? <IndependentNight key={session.id} /> : <LegacyGameScreen />
 }
 

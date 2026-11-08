@@ -908,7 +908,9 @@ export function BoardScene({
     controls.minDistance = 9
     controls.maxDistance = 34
     controls.minPolarAngle = 0.28
-    controls.maxPolarAngle = 1.46
+    // Keep the orbit pitched toward the tabletop. Near-horizontal views make
+    // the far edge of the patterned inset climb into the panorama.
+    controls.maxPolarAngle = 1.2
     controls.panSpeed = 0.72
     controls.rotateSpeed = 0.68
     controls.zoomSpeed = 0.82
