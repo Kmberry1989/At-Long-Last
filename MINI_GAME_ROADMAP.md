@@ -106,7 +106,7 @@ Development previews:
 | **My One and Only!** | Two-player color-and-number card shedding; matching actions, drawing, and wild color choices | Spring-dealt cards, soft card-slide and turn sounds, win flourish |
 | **Catch My Heart** | Go Fish with rank requests and completed books | Card deal and draw response sounds; book count reveals |
 | **Radar Love** | Alternating hidden-fleet scans on an 8×8 grid | Animated sonar pings with distinct hit and miss cues |
-| **Say It Without Saying** | Take turns recording silent charades clips and guessing from the prompt library | Short camera clips, animated reveal, correct-guess score |
+| **Say Without Saying** | Take turns recording silent charades clips and guessing from the prompt library | Short camera clips, animated reveal, correct-guess score |
 | **Four Ever** | Connect Four, available from the lobby | Animated token drops and the existing placement and win sounds |
 
 These are branded as cozy tabletop games with velvet, plum, rose, and brass treatments.

@@ -586,3 +586,6 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
   including the new duel IDs and paired arcade access rules. Production build passed; lint has only two existing
   unused-parameter warnings in `MysteryKeepsakeCard.jsx`. Browser preview reached sign-in,
   so live camera and authenticated two-account arcade play remain unverified.
+
+- Renamed the camera game to **Say Without Saying** and clarified the on-screen flow:
+  open camera, record a clip, stop to preview, then send it. Clips auto-stop at six seconds.

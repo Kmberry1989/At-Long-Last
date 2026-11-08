@@ -21,7 +21,7 @@ describe('CoupleArcade', () => {
       ['My One and Only!', 'Draw a card'],
       ['Catch My Heart', 'Your cards'],
       ['Radar Love', 'Your scan'],
-      ['Say It Without Saying', 'Your turn to act'],
+      ['Say Without Saying', 'Your turn to act'],
     ]) {
       fireEvent.click(screen.getByText(name))
       expect(screen.getByText(screenText)).toBeInTheDocument()

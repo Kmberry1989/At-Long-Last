@@ -7,7 +7,7 @@ import './couple-arcade.css'
 
 const GAMES = [
   { id: 'my-one-and-only', name: 'My One and Only!', subtitle: 'A little card match' },
-  { id: 'say-it-without-saying', name: 'Say It Without Saying', subtitle: 'Camera charades' },
+  { id: 'say-it-without-saying', name: 'Say Without Saying', subtitle: 'Camera charades' },
   { id: 'catch-my-heart', name: 'Catch My Heart', subtitle: 'Go Fish, together' },
   { id: 'radar-love', name: 'Radar Love', subtitle: 'A hidden-fleet duel' },
 ]
@@ -206,12 +206,13 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
     <p className="arcade-turn" aria-live="polite">{status}</p>
     {state.status === 'finished' ? <button className="arcade-primary" onClick={onReset} type="button">Play again</button> : state.phase === 'act' && isActor ? <>
       <p className="charade-prompt">{prompt}</p>
+      <p className="arcade-small">Act it out silently. Record, preview, then send.</p>
       <video autoPlay className="charade-camera" muted playsInline ref={cameraRef} src={clip || undefined} />
       {!clip ? <div className="arcade-actions">
         {!streamRef.current && <button className="arcade-secondary" onClick={startCamera} type="button">Open camera</button>}
-        {streamRef.current && !recording && <button className="arcade-primary" onClick={startRecording} type="button">Record</button>}
-        {recording && <button className="arcade-primary recording" onClick={() => recorderRef.current?.stop()} type="button">Stop recording</button>}
-      </div> : <button className="arcade-primary" disabled={working} onClick={submitClip} type="button">Send charade</button>}
+        {streamRef.current && !recording && <button className="arcade-primary" onClick={startRecording} type="button">Record clip</button>}
+        {recording && <button className="arcade-primary recording" onClick={() => recorderRef.current?.stop()} type="button">Stop &amp; preview</button>}
+      </div> : <button className="arcade-primary" disabled={working} onClick={submitClip} type="button">{working ? 'Sending…' : 'Send clip'}</button>}
       {cameraError && <p className="arcade-error" role="alert">{cameraError}</p>}
     </> : state.phase === 'guess' && !isActor ? <>
       {clipUrl
