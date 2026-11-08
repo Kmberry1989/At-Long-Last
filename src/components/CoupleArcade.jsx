@@ -10,11 +10,20 @@ const GAMES = [
   { id: 'say-it-without-saying', name: 'Say Without Saying', subtitle: 'Camera charades' },
   { id: 'catch-my-heart', name: 'Catch My Heart', subtitle: 'Go Fish, together' },
   { id: 'radar-love', name: 'Radar Love', subtitle: 'A hidden-fleet duel' },
+  { id: 'our-little-pieces', name: 'Our Little Pieces', subtitle: 'A shared 3D jigsaw, anytime' },
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+const JIGSAW_ART = [
+  { title: 'Chose us', src: '/assets/moment-cards/chose-us.jpg' },
+  { title: 'First trip', src: '/assets/moment-cards/first-trip-photo.jpg' },
+  { title: 'A new tradition', src: '/assets/moment-cards/new-tradition.jpg' },
+  { title: 'Ordinary Tuesday', src: '/assets/moment-cards/ordinary-tuesday.jpg' },
+]
 
 function playArcadeFeedback(audio, next, move, currentUid) {
   if (move.kind === 'play' || move.kind === 'draw' || move.kind === 'charade') audio?.playCardSlide?.()
+  if (move.kind === 'place-ship' || move.kind === 'auto-place' || move.kind === 'move-piece') audio?.playCardSlide?.()
+  if (move.kind === 'rotate-piece') audio?.playCardFlip?.()
   if (move.kind === 'ask') {
     if (next.lastAction?.found) audio?.playSuccess?.()
     else audio?.playCardFlip?.()
@@ -97,22 +106,83 @@ function FishGame({ state, playerUid, otherName, onAction, onReset }) {
 function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   const ownIndex = state.playerUids.indexOf(playerUid)
   const ownTurn = state.turnIndex === ownIndex
+  const [selectedShip, setSelectedShip] = useState(0)
+  const [vertical, setVertical] = useState(false)
   const shots = new Set(state.shots[playerUid] || [])
   const hits = new Set(state.hits[playerUid] || [])
-  const status = state.status === 'finished'
+  const fleet = state.fleets[playerUid] || []
+  const placedCells = new Set(fleet.flatMap(ship => ship.cells))
+  const isPlacing = state.status === 'placing'
+  const isReady = Boolean(state.fleetReady[playerUid])
+  const allPlaced = fleet.length === 3 && fleet.every((ship, index) => ship.cells.length === [3, 2, 2][index])
+  const status = isPlacing
+    ? isReady ? `Fleet ready · waiting for ${otherName}` : 'Place your fleet'
+    : state.status === 'finished'
     ? state.winnerUid === playerUid ? 'You found the fleet.' : `${otherName} found your fleet.`
     : ownTurn ? 'Your scan' : `${otherName} is scanning`
   return <div className="arcade-game radar-game">
     <p aria-live="polite" className="arcade-turn">{status}</p>
+    {isPlacing && !isReady && <>
+      <div className="radar-ships" aria-label="Choose ship">
+        {fleet.map(ship => <button aria-pressed={selectedShip === ship.id} className={selectedShip === ship.id ? 'radar-ship-choice selected' : 'radar-ship-choice'} key={ship.id} onClick={() => setSelectedShip(ship.id)} type="button">Ship {ship.id + 1} · {ship.length}{ship.cells.length ? ' ✓' : ''}</button>)}
+      </div>
+      <div className="arcade-actions">
+        <button className="arcade-secondary" onClick={() => setVertical(value => !value)} type="button">{vertical ? 'Vertical' : 'Horizontal'}</button>
+        <button className="arcade-secondary" onClick={() => onAction({ kind: 'auto-place' })} type="button">Randomize fleet</button>
+      </div>
+      <p className="arcade-small">Choose a ship, direction, then tap its first space.</p>
+    </>}
     <div aria-label="Radar grid" className="radar-grid" role="grid">
       {Array.from({ length: 64 }, (_, index) => {
         const row = Math.floor(index / 8), column = index % 8, key = `${row}:${column}`
         const hit = hits.has(key)
         const miss = shots.has(key) && !hit
-        return <button aria-label={`Radar row ${row + 1}, column ${column + 1}${hit ? ', hit' : miss ? ', clear' : ''}`} className={hit ? 'radar-hit' : miss ? 'radar-miss' : ''} disabled={!ownTurn || shots.has(key) || state.status === 'finished'} key={key} onClick={() => onAction({ kind: 'shot', row, column })} role="gridcell" type="button">{hit ? '✦' : miss ? '·' : ''}</button>
+        const hasShip = placedCells.has(key)
+        const cells = Array.from({ length: fleet[selectedShip]?.length || 0 }, (_, part) => vertical ? `${row + part}:${column}` : `${row}:${column + part}`)
+        const className = isPlacing && hasShip ? 'radar-ship' : hit ? 'radar-hit' : miss ? 'radar-miss' : ''
+        return <button aria-label={`Radar row ${row + 1}, column ${column + 1}${isPlacing && hasShip ? ', ship placed' : hit ? ', hit' : miss ? ', clear' : ''}`} className={className} disabled={isPlacing ? isReady : !ownTurn || shots.has(key) || state.status === 'finished'} key={key} onClick={() => isPlacing
+          ? !isReady && onAction({ kind: 'place-ship', shipId: selectedShip, cells })
+          : onAction({ kind: 'shot', row, column })} role="gridcell" type="button">{isPlacing && hasShip ? '●' : hit ? '✦' : miss ? '·' : ''}</button>
       })}
     </div>
+    {isPlacing && !isReady && <button className="arcade-primary" disabled={!allPlaced} onClick={() => onAction({ kind: 'ready' })} type="button">Ready</button>}
+    {isPlacing && isReady && state.fleetReady[state.playerUids[1 - ownIndex]] && <p className="arcade-result">Both fleets ready · starting…</p>}
     {state.status === 'finished' && <button className="arcade-primary" onClick={onReset} type="button">Play again</button>}
+  </div>
+}
+
+function OurLittlePieces({ state, onAction, onReset }) {
+  const [selectedPiece, setSelectedPiece] = useState('')
+  const art = JIGSAW_ART[state.artIndex] || JIGSAW_ART[0]
+  const entries = Object.entries(state.pieces)
+  const correct = entries.filter(([id, piece]) => piece.slot === Number(id.slice(1)) && piece.rotation === 0).length
+  const pieceAt = slot => entries.find(([, piece]) => piece.slot === slot)
+  const finish = state.status === 'finished'
+  return <div className="arcade-game jigsaw-game">
+    <p className="arcade-turn" aria-live="polite">{finish ? 'Solved together.' : `${correct} / 9 fit · ${art.title}`}</p>
+    <p className="arcade-small">Tap one piece, then another to swap. Rotate the selected piece in quarter turns.</p>
+    <div aria-label="Shared three-dimensional jigsaw puzzle" className="jigsaw-board" role="grid">
+      {Array.from({ length: 9 }, (_, slot) => {
+        const entry = pieceAt(slot)
+        const [pieceId, piece] = entry || ['', null]
+        const pieceIndex = Number(pieceId.slice(1))
+        const classes = ['jigsaw-piece', pieceId === selectedPiece ? 'selected' : '', pieceId && pieceIndex === slot && piece.rotation === 0 ? 'piece-correct' : ''].filter(Boolean).join(' ')
+        return <button aria-label={pieceId ? `Piece ${pieceIndex + 1}, rotated ${piece.rotation} degrees, at space ${slot + 1}` : `Empty space ${slot + 1}`} aria-pressed={pieceId === selectedPiece} className={classes} disabled={finish} key={slot} onClick={() => {
+          if (!selectedPiece && pieceId) setSelectedPiece(pieceId)
+          else if (selectedPiece && selectedPiece !== pieceId) { onAction({ kind: 'move-piece', pieceId: selectedPiece, slot }); setSelectedPiece('') }
+          else if (pieceId) setSelectedPiece(pieceId)
+        }} role="gridcell" style={pieceId ? {
+          backgroundImage: `url("${art.src}")`,
+          backgroundPosition: `${(pieceIndex % 3) * 50}% ${Math.floor(pieceIndex / 3) * 50}%`,
+          transform: `rotate(${piece.rotation}deg)`,
+        } : undefined} type="button">{pieceId ? '' : '·'}</button>
+      })}
+    </div>
+    <div className="arcade-actions">
+      <button className="arcade-secondary" disabled={!selectedPiece || finish} onClick={() => selectedPiece && onAction({ kind: 'rotate-piece', pieceId: selectedPiece, direction: -1 })} type="button">↶ Rotate</button>
+      <button className="arcade-secondary" disabled={!selectedPiece || finish} onClick={() => selectedPiece && onAction({ kind: 'rotate-piece', pieceId: selectedPiece, direction: 1 })} type="button">Rotate ↷</button>
+    </div>
+    {finish && <button className="arcade-primary" onClick={onReset} type="button">A new puzzle</button>}
   </div>
 }
 
@@ -293,6 +363,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'my-one-and-only') gameUi = <UnoGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'catch-my-heart') gameUi = <FishGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'radar-love') gameUi = <RadarGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
+  if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
   return <ArcadeModal title={selectedGame ? selectedTitle : 'A little game'} onClose={onClose}>

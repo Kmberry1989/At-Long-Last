@@ -1450,11 +1450,11 @@ service cloud.firestore {
       function validArcadeState(data, allowedPlayers) {
         let state = data.state;
         return data.gameId == gameId
-          && gameId in ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying']
+          && gameId in ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying', 'our-little-pieces']
           && data.playerUids == allowedPlayers
           && data.playerUids is list && data.playerUids.size() == 2
           && state is map && state.playerUids == allowedPlayers
-          && state.status in ['playing', 'finished']
+          && (gameId == 'radar-love' ? state.status in ['placing', 'playing', 'finished'] : state.status in ['playing', 'finished'])
           && (
             (gameId == 'my-one-and-only'
               && state.keys().hasAll(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount'])
@@ -1485,10 +1485,12 @@ service cloud.firestore {
               && (state.winnerUid == null || state.winnerUid in allowedPlayers))
             ||
             (gameId == 'radar-love'
-              && state.keys().hasAll(['game', 'playerUids', 'fleets', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
-              && state.keys().hasOnly(['game', 'playerUids', 'fleets', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
+              && state.keys().hasAll(['game', 'playerUids', 'fleets', 'fleetReady', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
+              && state.keys().hasOnly(['game', 'playerUids', 'fleets', 'fleetReady', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
               && state.game == gameId && state.fleets is map
               && state.fleets.keys().hasAll(allowedPlayers) && state.fleets.keys().hasOnly(allowedPlayers)
+              && state.fleetReady is map && state.fleetReady.keys().hasAll(allowedPlayers) && state.fleetReady.keys().hasOnly(allowedPlayers)
+              && state.fleetReady[allowedPlayers[0]] is bool && state.fleetReady[allowedPlayers[1]] is bool
               && state.fleets[allowedPlayers[0]] is list && state.fleets[allowedPlayers[0]].size() == 3
               && state.fleets[allowedPlayers[1]] is list && state.fleets[allowedPlayers[1]].size() == 3
               && state.shots is map && state.shots.keys().hasAll(allowedPlayers) && state.shots.keys().hasOnly(allowedPlayers)
@@ -1498,7 +1500,20 @@ service cloud.firestore {
               && state.hits[allowedPlayers[0]] is list && state.hits[allowedPlayers[0]].size() <= 14
               && state.hits[allowedPlayers[1]] is list && state.hits[allowedPlayers[1]].size() <= 14
               && state.turnIndex in [0, 1] && state.boardSize == 8
+              && state.status in ['placing', 'playing', 'finished']
+              && (state.status == 'placing' || (state.fleetReady[allowedPlayers[0]] && state.fleetReady[allowedPlayers[1]]))
               && (state.winnerUid == null || state.winnerUid in allowedPlayers))
+            ||
+            (gameId == 'our-little-pieces'
+              && state.keys().hasAll(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy'])
+              && state.keys().hasOnly(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy'])
+              && state.game == gameId && state.artIndex in [0, 1, 2, 3]
+              && state.pieces is map && state.pieces.size() == 9
+              && state.pieces.keys().hasOnly(['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'])
+              && state.pieces.keys().hasAll(['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'])
+              && state.status in ['playing', 'finished']
+              && isBoundedInt(state.moveCount, 0, 10000)
+              && (state.completedBy == null || state.completedBy in allowedPlayers))
             ||
             (gameId == 'say-it-without-saying'
               && state.keys().hasAll(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid'])

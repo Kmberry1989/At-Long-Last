@@ -1,16 +1,22 @@
 import { collection, doc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore'
 import {
   askCatchMyHeart,
+  autoPlaceRadarLoveFleet,
   createCatchMyHeart,
   createMyOneAndOnly,
+  createOurLittlePieces,
   createRadarLove,
   drawMyOneAndOnlyCard,
   fireRadarLoveShot,
   keepDrawnMyOneAndOnlyCard,
+  moveOurLittlePiece,
+  placeRadarLoveShip,
   playMyOneAndOnlyCard,
+  readyRadarLoveFleet,
+  rotateOurLittlePiece,
 } from '../session/coupleArcade.js'
 
-export const COUPLE_ARCADE_IDS = ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying']
+export const COUPLE_ARCADE_IDS = ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying', 'our-little-pieces']
 
 export function subscribeCoupleArcades(db, coupleId, onNext, onError) {
   return onSnapshot(collection(db, 'coupleArcades', coupleId, 'games'), snapshot => {
@@ -23,6 +29,7 @@ export function createCoupleArcadeState(gameId, playerUids, random = Math.random
     case 'my-one-and-only': return createMyOneAndOnly(playerUids)
     case 'catch-my-heart': return createCatchMyHeart(playerUids)
     case 'radar-love': return createRadarLove(playerUids)
+    case 'our-little-pieces': return createOurLittlePieces(playerUids, random)
     case 'say-it-without-saying': return {
       game: gameId, playerUids: [...playerUids], actorIndex: 0, phase: 'act',
       promptIndex: Math.floor(random() * 16), clips: {}, guesses: {}, scores: [0, 0], status: 'playing', winnerUid: null,
@@ -41,7 +48,12 @@ export function applyCoupleArcadeAction(state, gameId, playerUid, action) {
   if (gameId === 'catch-my-heart' && action.kind === 'ask') {
     return askCatchMyHeart(state, { playerUid, targetUid: state.playerUids.find(uid => uid !== playerUid), rank: action.rank })
   }
+  if (gameId === 'radar-love' && action.kind === 'place-ship') return placeRadarLoveShip(state, { ...action, playerUid })
+  if (gameId === 'radar-love' && action.kind === 'auto-place') return autoPlaceRadarLoveFleet(state, playerUid)
+  if (gameId === 'radar-love' && action.kind === 'ready') return readyRadarLoveFleet(state, playerUid)
   if (gameId === 'radar-love' && action.kind === 'shot') return fireRadarLoveShot(state, { playerUid, row: action.row, column: action.column })
+  if (gameId === 'our-little-pieces' && action.kind === 'move-piece') return moveOurLittlePiece(state, { ...action, playerUid })
+  if (gameId === 'our-little-pieces' && action.kind === 'rotate-piece') return rotateOurLittlePiece(state, { ...action, playerUid })
   if (gameId === 'say-it-without-saying' && action.kind === 'charade') {
     const actorUid = state.playerUids[state.actorIndex]
     if (actorUid !== playerUid || state.phase !== 'act') throw new Error('It is not your turn to act.')

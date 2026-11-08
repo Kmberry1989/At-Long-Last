@@ -105,11 +105,14 @@ Development previews:
 | --- | --- | --- |
 | **My One and Only!** | Two-player color-and-number card shedding; matching actions, drawing, and wild color choices | Spring-dealt cards, soft card-slide and turn sounds, win flourish |
 | **Catch My Heart** | Go Fish with rank requests and completed books | Card deal and draw response sounds; book count reveals |
-| **Radar Love** | Alternating hidden-fleet scans on an 8×8 grid | Animated sonar pings with distinct hit and miss cues |
+| **Radar Love** | Players place their own fleet at their pace, then alternate hidden-fleet scans on an 8×8 grid; random placement is available | Independent setup, animated sonar pings, and distinct hit and miss cues |
+| **Our Little Pieces** | A persistent, shared 3×3 jigsaw; either player can swap or rotate pieces at any time | Raised 3D tiles, quarter-turn rotations, satisfying snap motion, and a shared completion flourish |
 | **Say Without Saying** | Take turns recording silent charades clips and guessing from the prompt library | Short camera clips, animated reveal, correct-guess score |
 | **Four Ever** | Connect Four, available from the lobby | Animated token drops and the existing placement and win sounds |
 
 These are branded as cozy tabletop games with velvet, plum, rose, and brass treatments.
+Radar Love fleet setup is independent for each partner. Our Little Pieces has no turn order;
+every move syncs so either player can continue whenever they have time.
 Motion honors reduced-motion settings. Camera charades requires camera permission and records
 silent six-second clips at low resolution, capped at 190 KB before private couple sync.
 

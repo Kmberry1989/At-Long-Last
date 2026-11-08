@@ -571,10 +571,10 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Validation: production build passed; focused BoardScene/ProfileSheet tests passed (32); targeted authenticated two-player portrait-style Firestore rules tests passed (3); `git diff --check` passed. Lint passed with two pre-existing unused-parameter warnings in `MysteryKeepsakeCard.jsx`. The full Firestore suite passed 53/54; its lone failure is the long-night heart-count assertion (expected 5, got 9). Playwright reached the board state with no console errors, but its screenshot rendered only the background, so the live landing animation and WebGL appearance still need a proper board visual pass.
 ## 2026-11-08 — Branded couple games and night writing
 
-- Added four anytime paired arcade games: My One and Only!, Catch My Heart, Radar Love,
+- Added five anytime paired arcade games: My One and Only!, Catch My Heart, Radar Love,
   and Say It Without Saying. Renamed Connect Four to Four Ever in the lobby, game screen,
   and profile token setting.
-- Added shuffled/deterministic-safe Radar Love fleet setup, persistent hit markers, scored
+- Added self-paced Radar Love fleet setup with manual placement or quick random placement, persistent hit markers, scored
   two-turn charades, and Safari-compatible MP4/WebM recording. Clips are capped at six seconds
   and 190 KB, then stored in the private paired Firestore game state; this avoids requiring
   Firebase Storage, which is not initialized on the project.
@@ -582,7 +582,7 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
   short UI animations and reduced-motion handling.
 - Added Love in the Blanks and Our Next Line to the night mini-game rotation and scrapbook
   reveal, with independent private submissions. Added rule coverage for both duel IDs.
-- Focused app coverage: 38 tests passed. Full Firestore emulator suite: 37 tests passed,
+- Focused app coverage: 39 tests passed. Full Firestore emulator suite: 37 tests passed,
   including the new duel IDs and paired arcade access rules. Production build passed; lint has only two existing
   unused-parameter warnings in `MysteryKeepsakeCard.jsx`. Browser preview reached sign-in,
   so live camera and authenticated two-account arcade play remain unverified.
@@ -592,3 +592,7 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Fixed the arcade write failure: player hands, books, fleets, shots, and hits are now
   stored as UID-keyed maps instead of nested arrays. Firestore emulator checks now create
   and apply a move to each affected game state successfully.
+- Added Our Little Pieces, a shared 3D-style jigsaw that persists every swap and quarter-turn;
+  either partner can work on the scrambled puzzle whenever they have time.
+- Radar Love now lets each player place ships manually, use random placement, and ready their
+  fleet independently; the scan phase begins only after both fleets are ready.

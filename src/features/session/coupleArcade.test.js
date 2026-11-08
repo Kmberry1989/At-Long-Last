@@ -3,13 +3,18 @@ import { applyCoupleArcadeAction, createCoupleArcadeState } from '../couple/coup
 import {
   MAD_LIBS_BLANKS,
   MAD_LIBS_TEMPLATES,
+  autoPlaceRadarLoveFleet,
   askCatchMyHeart,
   createCatchMyHeart,
   createMyOneAndOnly,
+  createOurLittlePieces,
   createRadarLove,
   fillLoveInTheBlanks,
   fireRadarLoveShot,
   playMyOneAndOnlyCard,
+  placeRadarLoveShip,
+  readyRadarLoveFleet,
+  rotateOurLittlePiece,
   weaveOurNextLine,
 } from './coupleArcade.js'
 
@@ -32,17 +37,41 @@ describe('At Long Last couple arcade mechanics', () => {
     expect(() => askCatchMyHeart(game, { playerUid: 'a', targetUid: 'b', rank: 'invalid' })).toThrow()
   })
 
-  it('keeps Radar Love fleets inside the grid and records one shot per spot', () => {
-    const game = createRadarLove(['a', 'b'], () => 0.17)
+  it('lets both players place fleets independently before Radar Love starts', () => {
+    let game = createRadarLove(['a', 'b'], () => 0.17)
+    expect(game.status).toBe('placing')
+    game = placeRadarLoveShip(game, { playerUid: 'a', shipId: 0, cells: ['0:0', '0:1', '0:2'] })
+    game = placeRadarLoveShip(game, { playerUid: 'a', shipId: 1, cells: ['2:0', '2:1'] })
+    game = placeRadarLoveShip(game, { playerUid: 'a', shipId: 2, cells: ['4:0', '4:1'] })
+    expect(() => placeRadarLoveShip(game, { playerUid: 'a', shipId: 2, cells: ['2:1', '3:1'] })).toThrow(/overlap/i)
+    game = readyRadarLoveFleet(game, 'a')
+    expect(game.status).toBe('placing')
+    game = autoPlaceRadarLoveFleet(game, 'b', () => 0.17)
+    game = readyRadarLoveFleet(game, 'b')
+    expect(game.status).toBe('playing')
     const allCells = Object.values(game.fleets).flatMap(fleet => fleet.flatMap(ship => ship.cells))
     expect(allCells).toHaveLength(14)
-    expect(new Set(allCells).size).toBe(14)
+    for (const fleet of Object.values(game.fleets)) {
+      const cells = fleet.flatMap(ship => ship.cells)
+      expect(new Set(cells).size).toBe(cells.length)
+    }
     const next = fireRadarLoveShot(game, { playerUid: 'a', row: 7, column: 7 })
     expect(next.shots.a).toContain('7:7')
     expect(() => fireRadarLoveShot(next, { playerUid: 'a', row: 7, column: 7 })).toThrow(/turn/i)
     const target = game.fleets.b[0].cells[0].split(':').map(Number)
     const hit = fireRadarLoveShot(game, { playerUid: 'a', row: target[0], column: target[1] })
     expect(hit.hits.a).toContain(`${target[0]}:${target[1]}`)
+  })
+
+  it('creates a scrambled shared puzzle and allows full quarter-turn rotations', () => {
+    const game = createOurLittlePieces(['a', 'b'], () => 0.17)
+    expect(Object.keys(game.pieces)).toHaveLength(9)
+    expect(new Set(Object.values(game.pieces).map(piece => piece.slot)).size).toBe(9)
+    expect(Object.entries(game.pieces).some(([id, piece]) => piece.slot !== Number(id.slice(1)))).toBe(true)
+    let rotated = game
+    for (let index = 0; index < 4; index += 1) rotated = rotateOurLittlePiece(rotated, { playerUid: 'b', pieceId: 'p0', direction: 1 })
+    expect(rotated.pieces.p0.rotation).toBe(game.pieces.p0.rotation)
+    expect(rotated.moveCount).toBe(4)
   })
 
   it('plays both charades in sequence, scores correct guesses, and awards the better actor', () => {

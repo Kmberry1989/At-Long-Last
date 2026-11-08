@@ -15,13 +15,14 @@ const props = {
 }
 
 describe('CoupleArcade', () => {
-  it('shows all four branded games and opens each playable local preview', () => {
+  it('shows all five branded games and opens each playable local preview', () => {
     render(<CoupleArcade {...props} />)
     for (const [name, screenText] of [
       ['My One and Only!', 'Draw a card'],
       ['Catch My Heart', 'Your cards'],
-      ['Radar Love', 'Your scan'],
+      ['Radar Love', 'Place your fleet'],
       ['Say Without Saying', 'Your turn to act'],
+      ['Our Little Pieces', /0 \/ 9 fit/],
     ]) {
       fireEvent.click(screen.getByText(name))
       expect(screen.getByText(screenText)).toBeInTheDocument()

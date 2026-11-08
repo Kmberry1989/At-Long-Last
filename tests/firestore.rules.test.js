@@ -1217,7 +1217,7 @@ describe('independent night two-account transactions', () => {
 describe('paired couple arcade games', () => {
   it('stores all playable arcade states without Firestore nested arrays', async () => {
     const { couple, hostDb } = await createAndJoinRoom()
-    for (const gameId of ['my-one-and-only', 'catch-my-heart', 'radar-love']) {
+    for (const gameId of ['my-one-and-only', 'catch-my-heart', 'radar-love', 'our-little-pieces']) {
       const state = createCoupleArcadeState(gameId, couple.playerIds, () => 0.23)
       await assertSucceeds(setDoc(doc(hostDb, 'coupleArcades', couple.id, 'games', gameId), {
         gameId,
@@ -1236,6 +1236,15 @@ describe('paired couple arcade games', () => {
           : { kind: 'draw' })
       } else if (gameId === 'catch-my-heart') {
         nextState = applyCoupleArcadeAction(state, gameId, actorUid, { kind: 'ask', rank: state.hands[actorUid][0].rank })
+      } else if (gameId === 'radar-love') {
+        let readyState = applyCoupleArcadeAction(state, gameId, actorUid, { kind: 'auto-place' })
+        readyState = applyCoupleArcadeAction(readyState, gameId, actorUid, { kind: 'ready' })
+        const partnerUid = couple.playerIds[1]
+        readyState = applyCoupleArcadeAction(readyState, gameId, partnerUid, { kind: 'auto-place' })
+        readyState = applyCoupleArcadeAction(readyState, gameId, partnerUid, { kind: 'ready' })
+        nextState = applyCoupleArcadeAction(readyState, gameId, actorUid, { kind: 'shot', row: 0, column: 0 })
+      } else if (gameId === 'our-little-pieces') {
+        nextState = applyCoupleArcadeAction(state, gameId, actorUid, { kind: 'rotate-piece', pieceId: 'p0', direction: 1 })
       } else {
         nextState = applyCoupleArcadeAction(state, gameId, actorUid, { kind: 'shot', row: 0, column: 0 })
       }

@@ -179,17 +179,61 @@ function randomFleet(random, blocked = new Set()) {
   return ships
 }
 
-export function createRadarLove(playerUids, random = Math.random) {
+export function createRadarLove(playerUids) {
   if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
-  const firstFleet = randomFleet(random)
-  const secondFleet = randomFleet(random, new Set(firstFleet.flat()))
   return {
     game: 'radar-love', playerUids: [...playerUids],
-    fleets: Object.fromEntries(playerUids.map((uid, index) => [uid, (index === 0 ? firstFleet : secondFleet).map((cells, shipIndex) => ({ id: shipIndex, cells }))])),
+    fleets: Object.fromEntries(playerUids.map(uid => [uid, [3, 2, 2].map((length, id) => ({ id, length, cells: [] }))])),
+    fleetReady: Object.fromEntries(playerUids.map(uid => [uid, false])),
     shots: Object.fromEntries(playerUids.map(uid => [uid, []])),
     hits: Object.fromEntries(playerUids.map(uid => [uid, []])),
-    turnIndex: 0, status: 'playing', winnerUid: null, lastShot: null, boardSize: 8,
+    turnIndex: 0, status: 'placing', winnerUid: null, lastShot: null, boardSize: 8,
   }
+}
+
+function completeRadarFleet(fleet) {
+  return fleet?.length === 3 && fleet.every((ship, index) => ship.cells.length === [3, 2, 2][index])
+}
+
+function startRadarWhenReady(state, fleetReady) {
+  const ready = state.playerUids.every(uid => fleetReady[uid])
+  return { ...state, fleetReady, status: ready ? 'playing' : 'placing', turnIndex: 0 }
+}
+
+export function placeRadarLoveShip(state, { playerUid, shipId, cells }) {
+  if (state.status !== 'placing' || state.fleetReady[playerUid]) throw new Error('Your fleet is already ready.')
+  if (!Number.isInteger(shipId) || shipId < 0 || shipId > 2 || !Array.isArray(cells)) throw new Error('Choose a ship and a spot on the board.')
+  const expectedLength = [3, 2, 2][shipId]
+  if (cells.length !== expectedLength || new Set(cells).size !== expectedLength) throw new Error('That ship needs a straight line of open spaces.')
+  const points = cells.map(cell => {
+    const match = /^(\d):([0-7])$/.exec(cell)
+    if (!match) throw new Error('Keep your ship inside the radar board.')
+    return [Number(match[1]), Number(match[2])]
+  })
+  if (points.some(([row]) => row > 7)) throw new Error('Keep your ship inside the radar board.')
+  const sameRow = points.every(([row]) => row === points[0][0])
+  const sameColumn = points.every(([, column]) => column === points[0][1])
+  const axis = sameRow ? 1 : 0
+  if ((!sameRow && !sameColumn) || points.some((point, index) => index > 0 && Math.abs(point[axis] - points[index - 1][axis]) !== 1)) {
+    throw new Error('Ships must sit in one straight line.')
+  }
+  const currentFleet = state.fleets[playerUid]
+  const occupied = new Set(currentFleet.filter(ship => ship.id !== shipId).flatMap(ship => ship.cells))
+  if (cells.some(cell => occupied.has(cell))) throw new Error('Ships cannot overlap.')
+  const nextFleet = currentFleet.map(ship => ship.id === shipId ? { ...ship, cells: [...cells] } : ship)
+  return { ...state, fleets: { ...state.fleets, [playerUid]: nextFleet } }
+}
+
+export function autoPlaceRadarLoveFleet(state, playerUid, random = Math.random) {
+  if (state.status !== 'placing' || state.fleetReady[playerUid]) throw new Error('Your fleet is already ready.')
+  const ships = randomFleet(random).map((cells, id) => ({ id, length: [3, 2, 2][id], cells }))
+  return { ...state, fleets: { ...state.fleets, [playerUid]: ships } }
+}
+
+export function readyRadarLoveFleet(state, playerUid) {
+  if (state.status !== 'placing' || state.fleetReady[playerUid]) throw new Error('Your fleet is already ready.')
+  if (!completeRadarFleet(state.fleets[playerUid])) throw new Error('Place all three ships first.')
+  return startRadarWhenReady(state, { ...state.fleetReady, [playerUid]: true })
 }
 
 export function fireRadarLoveShot(state, { playerUid, row, column }) {
@@ -209,6 +253,40 @@ export function fireRadarLoveShot(state, { playerUid, row, column }) {
     status: sunk ? 'finished' : 'playing', winnerUid: sunk ? playerUid : null,
     lastShot: { playerUid, row, column, hit },
   }
+}
+
+export function createOurLittlePieces(playerUids, random = Math.random) {
+  if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
+  const artIndex = Math.floor(random() * 4)
+  const slots = shuffled(Array.from({ length: 9 }, (_, index) => index), random)
+  if (slots.every((slot, index) => slot === index)) [slots[0], slots[1]] = [slots[1], slots[0]]
+  return {
+    game: 'our-little-pieces', playerUids: [...playerUids], artIndex,
+    pieces: Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`p${index}`, { slot: slots[index], rotation: Math.floor(random() * 4) * 90, placedBy: null }])),
+    status: 'playing', moveCount: 0, completedBy: null,
+  }
+}
+
+export function moveOurLittlePiece(state, { playerUid, pieceId, slot }) {
+  if (state.status !== 'playing') throw new Error('This puzzle is already complete.')
+  if (!state.playerUids.includes(playerUid) || !state.pieces[pieceId] || !Number.isInteger(slot) || slot < 0 || slot > 8) throw new Error('Choose a puzzle piece and a space to swap.')
+  const moving = state.pieces[pieceId]
+  const otherEntry = Object.entries(state.pieces).find(([id, piece]) => id !== pieceId && piece.slot === slot)
+  if (moving.slot === slot) return state
+  const pieces = { ...state.pieces, [pieceId]: { ...moving, slot, placedBy: playerUid } }
+  if (otherEntry) pieces[otherEntry[0]] = { ...otherEntry[1], slot: moving.slot, placedBy: playerUid }
+  const complete = Object.entries(pieces).every(([id, piece]) => piece.slot === Number(id.slice(1)) && piece.rotation === 0)
+  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null }
+}
+
+export function rotateOurLittlePiece(state, { playerUid, pieceId, direction = 1 }) {
+  if (state.status !== 'playing') throw new Error('This puzzle is already complete.')
+  if (!state.playerUids.includes(playerUid) || !state.pieces[pieceId] || ![-1, 1].includes(direction)) throw new Error('Choose a puzzle piece to rotate.')
+  const piece = state.pieces[pieceId]
+  const rotation = (piece.rotation + direction * 90 + 360) % 360
+  const pieces = { ...state.pieces, [pieceId]: { ...piece, rotation, placedBy: playerUid } }
+  const complete = Object.entries(pieces).every(([id, current]) => current.slot === Number(id.slice(1)) && current.rotation === 0)
+  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null }
 }
 
 export const SAY_IT_WITHOUT_SAYING_PROMPTS = [
