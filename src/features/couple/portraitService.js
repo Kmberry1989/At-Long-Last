@@ -8,6 +8,33 @@ export function subscribePortraits(db, coupleId, onNext, onError) {
   }, onError)
 }
 
+export function subscribePieceStyles(db, coupleId, onNext, onError) {
+  return onSnapshot(collection(db, 'couplePortraits', coupleId, 'players'), snapshot => {
+    onNext(Object.fromEntries(snapshot.docs.map(record => [record.id, {
+      pieceColor: record.data().pieceColor || null,
+      pieceMaterial: record.data().pieceMaterial || 'porcelain',
+    }])))
+  }, onError)
+}
+
+export async function savePieceStyle(db, coupleId, uid, style) {
+  const ref = doc(db, 'couplePortraits', coupleId, 'players', uid)
+  return runTransaction(db, async transaction => {
+    const saved = await transaction.get(ref)
+    const existing = saved.exists() ? saved.data() : {
+      photoURL: null,
+      selectedFrame: 'ribbon',
+      ownedFrames: FREE_FRAME_IDS,
+    }
+    transaction.set(ref, {
+      ...existing,
+      pieceColor: style.color,
+      pieceMaterial: style.material,
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
 export async function syncGooglePortrait(db, coupleId, user) {
   const ref = doc(db, 'couplePortraits', coupleId, 'players', user.uid)
   const photoURL = googlePhotoURL(user.photoURL)

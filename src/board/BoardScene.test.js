@@ -22,7 +22,9 @@ import {
   createPieceMovePlan,
   getBoardSpaceMotion,
   getBoardCameraShotPose,
+  getLandingEffectForSpaceType,
   getDiceHomeBaseMotion,
+  getPlayerPbrFinish,
   getSpokeFacingAngle,
   shouldOrbitBoard,
   getBoardPathSegments,
@@ -245,6 +247,22 @@ describe('cinematic board camera shots', () => {
     expect(pose.target.toArray()).toEqual(focus.toArray())
     expect(Math.hypot(pose.position.x, pose.position.z)).toBeLessThan(15.48)
     expect(pose.position.distanceTo(pose.target)).toBeGreaterThan(9)
+  })
+})
+
+describe('landing art and player finishes', () => {
+  it('maps each board space to a themed transparent cutout', () => {
+    expect(getLandingEffectForSpaceType('heart')).toBe('heart-glow')
+    expect(getLandingEffectForSpaceType('oops')).toBe('rose-petals')
+    expect(getLandingEffectForSpaceType('connection')).toBe('ribbon-wisp')
+    expect(getLandingEffectForSpaceType('duel')).toBe('music-notes')
+    expect(getLandingEffectForSpaceType('keepsake')).toBe('keepsake-light')
+  })
+
+  it('provides visibly distinct physically based material finishes', () => {
+    expect(getPlayerPbrFinish('gold').metalness).toBeGreaterThan(getPlayerPbrFinish('porcelain').metalness)
+    expect(getPlayerPbrFinish('velvet').roughness).toBeGreaterThan(getPlayerPbrFinish('satin').roughness)
+    expect(getPlayerPbrFinish('unknown')).toEqual(getPlayerPbrFinish('porcelain'))
   })
 })
 

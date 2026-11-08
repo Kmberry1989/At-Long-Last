@@ -4,7 +4,7 @@
 .profile-sheet { width: min(100%, 440px); max-height: calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom))); overflow-y: auto; overscroll-behavior: contain; padding: 14px; border: 1px solid #fff4e0; border-radius: 26px; color: #281f1d; background: linear-gradient(155deg, #fff8ef 0%, #eadccc 100%); box-shadow: 0 22px 80px #0008, inset 0 1px 0 #fff; }
 .profile-sheet-header { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; margin-bottom: 8px; }
 .profile-sheet-header h2 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 25px; }
-.profile-sheet-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 12px; padding: 4px; border: 1px solid #d4bd9c; border-radius: 999px; background: #e7d9c7; }
+.profile-sheet-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 4px 0 12px; padding: 4px; border: 1px solid #d4bd9c; border-radius: 999px; background: #e7d9c7; }
 .profile-sheet-tabs button { min-height: 38px; border: 0; border-radius: 999px; color: #57453a; background: transparent; font: 700 13px 'DM Sans', Arial, sans-serif; }
 .profile-sheet-tabs button[aria-pressed="true"] { color: #fff8eb; background: linear-gradient(120deg, #6e4747, #432b3a); box-shadow: 0 2px 6px #3c27332e; }
 .connect-four-profile-settings { text-align: center; }
@@ -17,6 +17,19 @@
 .connect-four-profile-token span { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 17px; height: 17px; border: 1px solid #fff5e6; border-radius: 50%; color: #fff8eb; background: #8d4052; font: 800 11px Arial, sans-serif; }
 .connect-four-profile-token i { position: absolute; right: -4px; bottom: -3px; padding: 2px 4px; border: 1px solid #f6e6d0; border-radius: 8px; color: #fff8ec; background: #473342; font: 700 8px Arial, sans-serif; font-style: normal; }
 .connect-four-profile-selected { padding: 8px 0 0; font-weight: 700; }
+.piece-style-settings { display: grid; justify-items: center; gap: 14px; padding: 12px 2px 6px; text-align: center; }
+.piece-style-settings h3 { margin: 0; font: 700 21px 'Fraunces', Georgia, serif; }
+.piece-color-picker { display: inline-flex; align-items: center; gap: 12px; color: #6e5a50; font-weight: 700; }
+.piece-color-picker input { width: 54px; height: 42px; padding: 3px; border: 1px solid #c8a97c; border-radius: 13px; background: #fff8ef; }
+.piece-material-options { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.piece-material-choice { min-height: 52px; border: 1px solid #c8ae8d; border-radius: 16px; color: #3d2c31; background: #f9eee4; font: 700 14px 'DM Sans', Arial, sans-serif; }
+.piece-material-choice.finish-porcelain { background: linear-gradient(145deg,#fff9ec,#e8d9c8); }
+.piece-material-choice.finish-satin { background: linear-gradient(145deg,#e8c9cc,#b68598); }
+.piece-material-choice.finish-gold { background: linear-gradient(145deg,#f6dc94,#ad7540); }
+.piece-material-choice.finish-velvet { color: #fff3e6; background: linear-gradient(145deg,#633c59,#352739); }
+.piece-material-choice.is-selected { outline: 3px solid #8f5363; outline-offset: 2px; }
+.piece-style-save { min-height: 44px; padding: 0 22px; border: 1px solid #fff3da; border-radius: 999px; color: #291d25; background: linear-gradient(110deg,#f7d48e,#d87784); font-weight: 800; box-shadow: 0 7px 18px #6b3c3d35; }
+.piece-style-save:disabled { opacity: .65; }
 .profile-sheet-close { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #c9ad87; border-radius: 50%; color: #3f332c; background: #fff8ef; }
 .profile-sheet-close .brand-icon { width: 22px; height: 22px; }
 .profile-streak-badge { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 9px; border: 1px solid #d8bf9b; border-radius: 999px; color: #8a583f; background: #fff8eb; font-weight: 750; }

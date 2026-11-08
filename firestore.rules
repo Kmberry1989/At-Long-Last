@@ -1409,14 +1409,17 @@ service cloud.firestore {
     match /couplePortraits/{coupleId}/players/{userId} {
       function validPortrait(data) {
         return data.keys().hasAll(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt'])
-          && data.keys().hasOnly(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt'])
+          && data.keys().hasOnly(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt', 'pieceColor', 'pieceMaterial'])
           && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1800
             && data.photoURL.matches('^https://([a-zA-Z0-9-]+[.])?googleusercontent[.]com/.+$')))
           && data.ownedFrames is list && data.ownedFrames.size() <= 6
           && data.ownedFrames.toSet().size() == data.ownedFrames.size()
           && data.ownedFrames.hasAll(['ribbon', 'ivory', 'midnight'])
           && data.ownedFrames.hasOnly(['ribbon', 'ivory', 'midnight', 'starlight', 'rose', 'laurel'])
-          && data.selectedFrame in data.ownedFrames && data.updatedAt == request.time;
+          && data.selectedFrame in data.ownedFrames
+          && (!('pieceColor' in data) || isValidColor(data.pieceColor))
+          && (!('pieceMaterial' in data) || data.pieceMaterial in ['porcelain', 'satin', 'gold', 'velvet'])
+          && data.updatedAt == request.time;
       }
       function paidForFrame() {
         let before = resource.data.ownedFrames;

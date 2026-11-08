@@ -2,9 +2,10 @@ import { TruceTradeModal } from './TruceTradeModal.jsx'
 import { BrandIcon } from './BrandIcon.jsx'
 import { musicStageFor } from '../audio/musicPatterns.js'
 import { PlayerPortrait } from './PlayerPortrait.jsx'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
+import { subscribePieceStyles } from '../features/couple/portraitService.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
@@ -56,6 +57,7 @@ export function IndependentNight() {
   const [coinOutcome, setCoinOutcome] = useState(null)
   const [coinGesture, setCoinGesture] = useState(null)
   const [boardReady, setBoardReady] = useState(false)
+  const [pieceStyles, setPieceStyles] = useState({})
   const [rollGesture, setRollGesture] = useState(null)
   const [tradeOpen, setTradeOpen] = useState(false)
   const [journalOpen, setJournalOpen] = useState(false)
@@ -68,6 +70,15 @@ export function IndependentNight() {
   const lock = useRef(false)
   const timer = useRef(null)
   const arrivalCueKeyRef = useRef('')
+  useEffect(() => {
+    if (!db || !couple?.id || !enabled) return undefined
+    return subscribePieceStyles(db, couple.id, setPieceStyles, () => {})
+  }, [db, couple?.id, enabled])
+
+  const boardPlayers = useMemo(() => session.players.map(player => {
+    const style = pieceStyles[player.uid]
+    return style ? { ...player, pieceColor: style.pieceColor || player.color, pieceMaterial: style.pieceMaterial } : player
+  }), [pieceStyles, session.players])
   const playerIndex = enabled ? session.players.findIndex(player => player.uid === userId) : previewPlayer
   const playerUid = session.players[playerIndex]?.uid
   const partnerUid = session.players[1 - playerIndex]?.uid
@@ -339,10 +350,10 @@ export function IndependentNight() {
               timer.current = null
               if (rollPresentation) setRollPresentation(current => current ? { ...current, stage: 'confirm-landing' } : current)
               else setRolling(false)
-            }} pacingMode="freeFlow" phase={phase} players={session.players}
+            }} pacingMode="freeFlow" phase={phase}
             canRoll={progress.canRoll && !showFirstTurnCoin && (!usesKissBookend || Boolean(ownKiss)) && loaded && boardReady && !working && !rolling} onDiceCast={audio?.playDiceCast} onDiceImpact={audio?.playDiceImpact}
             onDiceRattle={audio?.playDiceRattle} onRoll={roll} rollGesture={rollGesture}
-            positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling && boardReady && rollPresentation?.stage === 'rolling'} themeId={coupleProgress?.selectedTheme || 'cozy'} />
+            players={boardPlayers} positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling && boardReady && rollPresentation?.stage === 'rolling'} themeId={coupleProgress?.selectedTheme || 'cozy'} />
         </Suspense>
         <div className="hud top">
           <button className="trade-hud-btn control-badge" type="button" aria-label={session.lastMove?.tradeOffer?.status === 'pending' && session.lastMove.tradeOffer.fromPlayerIndex !== playerIndex ? 'Review trade offer' : 'Trade'} onClick={() => setTradeOpen(true)}><BrandIcon className="control-badge-mark" name="trade" /><span className="trade-hud-label">{session.lastMove?.tradeOffer?.status === 'pending' && session.lastMove.tradeOffer.fromPlayerIndex !== playerIndex ? 'Review offer' : 'Trade'}</span></button>

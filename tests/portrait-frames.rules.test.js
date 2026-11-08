@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { initializeTestEnvironment, assertFails } from '@firebase/rules-unit-testing'
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'vitest'
-import { syncGooglePortrait, selectPortraitFrame } from '../src/features/couple/portraitService.js'
+import { savePieceStyle, syncGooglePortrait, selectPortraitFrame } from '../src/features/couple/portraitService.js'
 import { buildDefaultProgress } from '../src/features/couple/progressService.js'
 let env
 const auth = uid => env.authenticatedContext(uid).firestore()
@@ -43,5 +43,17 @@ describe('Google portraits and heart-purchased frames', () => {
     await selectPortraitFrame(a, 'pair', 'a', 'laurel')
     await expect(selectPortraitFrame(a, 'pair', 'a', 'rose')).rejects.toThrow('48 shared hearts')
     expect((await getDoc(doc(a, 'coupleProgress', 'pair'))).data().heartsSpent).toBe(80)
+  })
+
+  it('shares validated player color and PBR finish with the couple', async () => {
+    const a = auth('a'), b = auth('b')
+    await syncGooglePortrait(a, 'pair', { uid: 'a' })
+    await savePieceStyle(a, 'pair', 'a', { color: '#8050c8', material: 'gold' })
+    const saved = (await getDoc(doc(b, 'couplePortraits', 'pair', 'players', 'a'))).data()
+    expect(saved.pieceColor).toBe('#8050c8')
+    expect(saved.pieceMaterial).toBe('gold')
+    const ref = doc(a, 'couplePortraits', 'pair', 'players', 'a')
+    await assertFails(updateDoc(ref, { pieceColor: 'purple', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(ref, { pieceMaterial: 'glass', updatedAt: serverTimestamp() }))
   })
 })

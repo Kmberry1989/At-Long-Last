@@ -12,11 +12,14 @@ function tokenStyle(token) {
   return { backgroundImage: `url(${TOKEN_SHEETS[token.atlas]})`, backgroundPosition: `${x * 50}% ${y * 50}%` }
 }
 
-export function ProfileSheet({ streak, onClose, selectedToken, partnerToken, lifetimeNights = 0, tokenLocked = false, onSelectToken, initialTab = 'frames' }) {
+export function ProfileSheet({ streak, pieceStyle = { color: '#ff7a97', material: 'porcelain' }, onSavePieceStyle, onClose, selectedToken, partnerToken, lifetimeNights = 0, tokenLocked = false, onSelectToken, initialTab = 'frames' }) {
   const closeRef = useRef(null)
   const [activeTab, setActiveTab] = useState(initialTab)
   const [savingToken, setSavingToken] = useState(false)
   const [tokenError, setTokenError] = useState('')
+  const [pieceDraft, setPieceDraft] = useState(pieceStyle)
+  const [savingPiece, setSavingPiece] = useState(false)
+  const [pieceError, setPieceError] = useState('')
   const streakDays = streak?.dayCount || 0
   const unlockedTokens = getUnlockedConnectFourTokens(lifetimeNights)
 
@@ -27,6 +30,15 @@ export function ProfileSheet({ streak, onClose, selectedToken, partnerToken, lif
     try { await onSelectToken(tokenId) }
     catch (error) { setTokenError(error.message || 'Could not update your token.') }
     finally { setSavingToken(false) }
+  }
+
+  async function savePiece() {
+    if (savingPiece || !onSavePieceStyle) return
+    setSavingPiece(true)
+    setPieceError('')
+    try { await onSavePieceStyle(pieceDraft) }
+    catch (error) { setPieceError(error.message || 'Could not save the piece style.') }
+    finally { setSavingPiece(false) }
   }
 
   useEffect(() => {
@@ -56,8 +68,17 @@ export function ProfileSheet({ streak, onClose, selectedToken, partnerToken, lif
       <nav className="profile-sheet-tabs" aria-label="Profile settings">
         <button type="button" aria-pressed={activeTab === 'frames'} onClick={() => setActiveTab('frames')}>Portrait</button>
         <button type="button" aria-pressed={activeTab === 'token'} onClick={() => setActiveTab('token')}>Game token</button>
+        <button type="button" aria-pressed={activeTab === 'piece'} onClick={() => setActiveTab('piece')}>Piece</button>
       </nav>
-      {activeTab === 'frames' ? <PortraitFrames /> : <section className="connect-four-profile-settings" aria-label="Connect Four token">
+      {activeTab === 'frames' ? <PortraitFrames /> : activeTab === 'piece' ? <section className="piece-style-settings" aria-label="Board piece style">
+        <h3>Piece style</h3>
+        <label className="piece-color-picker">Color <input aria-label="Piece color" type="color" value={pieceDraft.color} onChange={event => setPieceDraft(current => ({ ...current, color: event.target.value }))} /></label>
+        <div className="piece-material-options" role="radiogroup" aria-label="PBR finish">
+          {[['porcelain', 'Porcelain'], ['satin', 'Satin'], ['gold', 'Gold'], ['velvet', 'Velvet']].map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={pieceDraft.material === id} className={`piece-material-choice finish-${id}${pieceDraft.material === id ? ' is-selected' : ''}`} onClick={() => setPieceDraft(current => ({ ...current, material: id }))}>{label}</button>)}
+        </div>
+        <button className="piece-style-save" type="button" disabled={savingPiece} onClick={savePiece}>{savingPiece ? 'Saving…' : 'Save piece style'}</button>
+        {pieceError && <p className="error-copy" role="alert">{pieceError}</p>}
+      </section> : <section className="connect-four-profile-settings" aria-label="Connect Four token">
         <h3>Connect Four token</h3>
         <p>{tokenLocked ? 'Finish this match before changing your token.' : 'Choose the one you’ll use in every match.'}</p>
         <div className="connect-four-profile-token-grid">

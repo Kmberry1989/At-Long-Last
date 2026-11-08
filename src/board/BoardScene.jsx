@@ -36,6 +36,30 @@ export const BOARD_CARD_PILE_POSITIONS = {
 }
 export const BOARD_MOMENT_COIN_POSITION = [0, -1.55]
 
+const LANDING_EFFECTS_BY_SPACE = {
+  heart: ['heart-glow', 'rose-petals', 'music-notes'],
+  oops: ['rose-petals', 'leaf-fireflies'],
+  connection: ['ribbon-wisp', 'leaf-fireflies'],
+  duel: ['music-notes', 'ribbon-wisp'],
+  keepsake: ['keepsake-light', 'warm-cup'],
+}
+
+export function getLandingEffectForSpaceType(type, stepIndex = 0) {
+  const choices = LANDING_EFFECTS_BY_SPACE[type] || LANDING_EFFECTS_BY_SPACE.heart
+  return choices[Math.abs(stepIndex) % choices.length]
+}
+
+const PLAYER_PBR_FINISHES = {
+  porcelain: { metalness: 0.12, roughness: 0.2, clearcoat: 0.9, clearcoatRoughness: 0.16 },
+  satin: { metalness: 0.28, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3 },
+  gold: { metalness: 0.82, roughness: 0.24, clearcoat: 0.48, clearcoatRoughness: 0.22 },
+  velvet: { metalness: 0.03, roughness: 0.88, clearcoat: 0.04, clearcoatRoughness: 0.8 },
+}
+
+export function getPlayerPbrFinish(id = 'porcelain') {
+  return PLAYER_PBR_FINISHES[id] || PLAYER_PBR_FINISHES.porcelain
+}
+
 export function getDiceHomeBaseMotion(elapsed, reducedMotion = false) {
   const bob = reducedMotion ? 0 : Math.sin(elapsed * 0.92 + 0.7)
   return {
@@ -595,11 +619,12 @@ export function settlePrimitiveDie(die, value) {
   }
 }
 
-function createFallbackPawn(color) {
+function createFallbackPawn(color, finish = 'porcelain') {
+  const pbr = getPlayerPbrFinish(finish)
   const group = new THREE.Group()
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(0.42, 0.42, 0.28, 18),
-    new THREE.MeshStandardMaterial({ color: '#ffffff' }),
+    new THREE.MeshPhysicalMaterial({ color: '#ffffff', ...pbr }),
   )
   base.position.y = 0.14
   base.castShadow = true
@@ -607,7 +632,7 @@ function createFallbackPawn(color) {
 
   const body = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.36, 0.8, 8, 16),
-    new THREE.MeshStandardMaterial({ color }),
+    new THREE.MeshPhysicalMaterial({ color, ...pbr }),
   )
   body.position.y = 0.96
   body.castShadow = true
@@ -664,8 +689,9 @@ function disposeObject3D(root) {
   geometries.forEach((geometry) => geometry.dispose())
 }
 
-function tintModel(model, color) {
+function tintModel(model, color, finish = 'porcelain') {
   const playerColor = new THREE.Color(color)
+  const pbr = getPlayerPbrFinish(finish)
   model.traverse((child) => {
     if (!child.isMesh) {
       return
@@ -679,6 +705,11 @@ function tintModel(model, color) {
     const tintedMaterials = materials.map((material) => {
       const tinted = material.clone()
       tinted.color?.lerp(playerColor, 0.32)
+      if ('metalness' in tinted) tinted.metalness = pbr.metalness
+      if ('roughness' in tinted) tinted.roughness = pbr.roughness
+      if ('clearcoat' in tinted) tinted.clearcoat = pbr.clearcoat
+      if ('clearcoatRoughness' in tinted) tinted.clearcoatRoughness = pbr.clearcoatRoughness
+      if (tinted.color) tinted.needsUpdate = true
       return tinted
     })
     child.material = Array.isArray(child.material)
@@ -1579,8 +1610,9 @@ export function BoardScene({
 
     const tokenGroups = players.map((player, index) => {
       const group = new THREE.Group()
-      const positionRing = createPlayerPositionRing(player.color)
-      const fallback = createFallbackPawn(player.color)
+      const pieceColor = player.pieceColor || player.color
+      const positionRing = createPlayerPositionRing(pieceColor)
+      const fallback = createFallbackPawn(player.pieceColor || player.color, player.pieceMaterial)
       group.add(positionRing)
       group.add(fallback)
       group.position.copy(
@@ -1598,6 +1630,29 @@ export function BoardScene({
     let pieceSettlePlayerIndex = null
     let cameraShotMode = 'board'
     let drawnCard = null
+    const landingEffects = []
+    const landingEffectTextures = Object.fromEntries([
+        'heart-glow', 'keepsake-light', 'ribbon-wisp', 'music-notes',
+        'rose-petals', 'warm-cup', 'leaf-fireflies',
+      ].map(name => [name, textureLoader.load(`/assets/board/landing-effects/${name}.png`)]))
+    const spawnLandingEffect = (spaceIndex, stepIndex) => {
+      const space = BOARD_SPACES[spaceIndex]
+      const texture = landingEffectTextures[getLandingEffectForSpaceType(space?.type, stepIndex)]
+      const position = boardPath[spaceIndex]?.position
+      if (!texture || !position) return
+      texture.colorSpace = THREE.SRGBColorSpace
+      const sprite = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.25, 2.25),
+        new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+      )
+      sprite.position.set(position.x, position.y + 1.15, position.z)
+      sprite.quaternion.copy(camera.quaternion)
+      sprite.scale.setScalar(0.35)
+      sprite.userData.startedAt = latestSceneTime
+      sprite.userData.baseY = sprite.position.y
+      scene.add(sprite)
+      landingEffects.push(sprite)
+    }
     let activeCardDrawKey = null
     let coinFlip = null
     let activeCoinFlipKey = null
@@ -1641,7 +1696,7 @@ export function BoardScene({
 
           const model = gltf.scene
           fitModel(model, 1.22)
-          tintModel(model, player.color)
+          tintModel(model, player.pieceColor || player.color, player.pieceMaterial)
           const fallback = tokenGroups[index].userData.fallback
           tokenGroups[index].remove(fallback)
           disposeObject3D(fallback)
@@ -1914,6 +1969,22 @@ export function BoardScene({
         momentCoin.position.y = momentCoin.userData.baseHeight - press * 0.06 + Math.sin((latestSceneTime - touch.startedAt) / 1000 * 17) * 0.025
         momentCoin.userData.disc.rotation.z = touch.x * 0.001
       }
+      for (let index = landingEffects.length - 1; index >= 0; index -= 1) {
+        const effect = landingEffects[index]
+        const age = (latestSceneTime - effect.userData.startedAt) / 1000
+        const progress = Math.min(1, Math.max(0, age / 1.45))
+        const fade = Math.min(1, progress * 7, (1 - progress) * 2.8)
+        effect.material.opacity = Math.max(0, fade) * 0.86
+        effect.position.y = effect.userData.baseY + progress * 0.62
+        effect.scale.setScalar(0.35 + progress * 0.9)
+        effect.quaternion.copy(camera.quaternion)
+        if (progress >= 1) {
+          scene.remove(effect)
+          effect.geometry.dispose()
+          effect.material.dispose()
+          landingEffects.splice(index, 1)
+        }
+      }
       if (drawnCard?.userData.flight) {
         const flight = drawnCard.userData.flight
         const p = Math.min(1, (latestSceneTime - flight.startedAt) / 930)
@@ -1953,6 +2024,7 @@ export function BoardScene({
           let progress = Math.min(1, Math.max(0, (latestSceneTime - activePieceMove.travelStartedAt) / stepDuration))
           while (progress >= 1 && activePieceMove.stepIndex < activePieceMove.steps) {
             token.position.copy(end)
+            spawnLandingEffect(endSpace, activePieceMove.stepIndex + completedPieceSteps)
             onPieceStepRef.current?.({
               playerIndex: index,
               spaceIndex: endSpace,
@@ -2128,8 +2200,9 @@ export function BoardScene({
               targetIndicesRef.current.filter(
                 (candidate) => candidate === positionIndex,
               ).length > 1,
-            color: player.color,
+            color: player.pieceColor || player.color,
             displayName: player.displayName,
+            material: player.pieceMaterial || 'porcelain',
             positionIndex,
             positionMarker: 'player-colored illuminated ring',
           }

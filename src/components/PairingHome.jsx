@@ -14,6 +14,7 @@ import { ConnectFourFinale } from './ConnectFourFinale.jsx'
 import { createConnectFourState, getConnectFourTokenPreferences, placeConnectFourPiece } from '../features/session/connectFour.js'
 import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectFourMatch } from '../features/couple/progressService.js'
 import { useAudio } from '../audio/AudioProvider.jsx'
+import { savePieceStyle, subscribePieceStyles } from '../features/couple/portraitService.js'
 import './PairingHome.css'
 
 export function PairingHome({ avatar, onAvatarChange }) {
@@ -30,6 +31,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
+  const [pieceStyles, setPieceStyles] = useState({})
   const [storyScreen, setStoryScreen] = useState('')
   const [connectFourOpen, setConnectFourOpen] = useState(false)
   const [connectFourPreview, setConnectFourPreview] = useState(null)
@@ -38,6 +40,11 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [connectFourTokenPreview, setConnectFourTokenPreview] = useState({})
   const profileButtonRef = useRef(null)
   const partner = couple?.players?.find((player) => player.uid !== user?.uid)
+  const ownPlayer = couple?.players?.find((player) => player.uid === user?.uid)
+  const ownPieceStyle = {
+    pieceColor: pieceStyles[user?.uid]?.pieceColor || ownPlayer?.color || '#ff7a97',
+    pieceMaterial: pieceStyles[user?.uid]?.pieceMaterial || 'porcelain',
+  }
   const paired = couple?.playerIds?.length === 2
   const committed = hasCommitted(couple)
   const ownCommitment = couple?.commitments?.includes(user?.uid)
@@ -49,6 +56,16 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const selectedConnectFourToken = connectFourTokenPreferences[user?.uid]
   const partnerConnectFourToken = connectFourTokenPreferences[partner?.uid]
   const connectFourMatchActive = connectFourState.moveCount > 0 && !connectFourState.winnerUid && connectFourState.moveCount < 42
+
+  useEffect(() => {
+    if (!db || !couple?.id || !paired) return undefined
+    return subscribePieceStyles(db, couple.id, setPieceStyles, () => {})
+  }, [db, couple?.id, paired])
+
+  async function updatePieceStyle(style) {
+    if (db && enabled && couple?.id && user?.uid) await savePieceStyle(db, couple.id, user.uid, style)
+    else setPieceStyles(current => ({ ...current, [user?.uid || 'preview-you']: { pieceColor: style.color, pieceMaterial: style.material } }))
+  }
 
   useEffect(() => { setConfirmUnpair(false); setConfirmCommit(false); setAcceptPermanent(false); setNotice('') }, [couple?.id])
   useEffect(() => {
@@ -206,7 +223,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </> : <button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(true)} type="button">{paired ? 'Cancel connection' : 'Cancel invite'}</button>}
       </div>}
       {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
-      {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
+      {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
       {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} onClose={() => setStoryScreen('')} />}
       {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} onDrop={dropConnectFour} onClose={() => setConnectFourOpen(false)} onNewGame={newConnectFourMatch} onLand={connectFourLanding} />}
       {connectFourError && <p className="error-copy" role="alert">{connectFourError}</p>}
