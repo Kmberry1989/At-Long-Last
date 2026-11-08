@@ -76,7 +76,7 @@ it('keeps the moment category hidden until the player flips the coin', async () 
     state: { momentPending: true, move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: [1, 1] } },
     ready: true, completed: true, skipped: false,
   }]))
-  expect(await screen.findByText('Tap or flick the coin')).toBeInTheDocument()
+  expect(await screen.findByText('Tap the coin')).toBeInTheDocument()
   expect(screen.queryByText(/trash|treasure/i)).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
   expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
@@ -88,7 +88,7 @@ it('flips the board coin, then draws and turns the selected deck card', async ()
     state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentPending: true },
   }
   act(() => mocks.next([pendingStep]))
-  expect(await screen.findByText('Tap or flick the coin')).toBeInTheDocument()
+  expect(await screen.findByText('Tap the coin')).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
   const cardStep = {
     id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,

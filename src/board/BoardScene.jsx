@@ -418,6 +418,28 @@ export function shouldOrbitBoard({
     !interacting && !reducedMotion && idleMs >= 2800
 }
 
+export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0) {
+  const target = focus?.isVector3
+    ? focus.clone()
+    : new THREE.Vector3(focus?.x || 0, focus?.y || 0, focus?.z || 0)
+  let position
+  if (kind === 'dice') {
+    position = target.clone().add(new THREE.Vector3(0, 7.2, 7.8))
+  } else if (kind === 'coin') {
+    position = target.clone().add(new THREE.Vector3(0, 6.8, 7.2))
+  } else {
+    const radial = new THREE.Vector3(target.x, 0, target.z)
+    if (radial.lengthSq() < 0.001) radial.set(0, 0, 1)
+    radial.normalize()
+    const angle = Math.sin(elapsedSeconds * 0.55) * 0.12
+    const c = Math.cos(angle)
+    const s = Math.sin(angle)
+    const orbit = new THREE.Vector3(radial.x * c - radial.z * s, 0, radial.x * s + radial.z * c)
+    position = target.clone().addScaledVector(orbit, 3.6).add(new THREE.Vector3(0, 8.3, 0))
+  }
+  return { position, target }
+}
+
 function createSingleDie(value, skin, isDie2 = false) {
   const die = new THREE.Group()
   const bodyGeometry = new RoundedBoxGeometry(0.96, 0.96, 0.96, 5, 0.16)
@@ -1572,6 +1594,9 @@ export function BoardScene({
       return group
     })
     let activePieceMove = null
+    let pieceSettleUntil = 0
+    let pieceSettlePlayerIndex = null
+    let cameraShotMode = 'board'
     let drawnCard = null
     let activeCardDrawKey = null
     let coinFlip = null
@@ -1672,43 +1697,76 @@ export function BoardScene({
       const otherPos = tokenGroups[otherIndex]?.position || boardPath[targetIndicesRef.current[otherIndex]]?.position || activePos
       const midpoint = new THREE.Vector3().addVectors(activePos, otherPos).multiplyScalar(0.5)
 
+      if (!dieRoll && !activePieceMove && pieceMoveQueueRef.current.length) {
+        const availableMoveIndex = pieceMoveQueueRef.current.findIndex(move => move.key !== deferPieceMoveKeyRef.current)
+        if (availableMoveIndex >= 0) {
+          activePieceMove = { ...pieceMoveQueueRef.current.splice(availableMoveIndex, 1)[0], travelStartedAt: null, stepIndex: 0 }
+          pieceSettleUntil = 0
+        }
+      }
+
+      const settlingPiece = !activePieceMove && latestSceneTime < pieceSettleUntil
+        ? tokenGroups[pieceSettlePlayerIndex]?.position
+        : null
+      const movingPiecePosition = activePieceMove
+        ? tokenGroups[activePieceMove.playerIndex]?.position
+        : settlingPiece
+      const coinInFocus = canFlipCoinRef.current || Boolean(coinFlip)
+      let shotFocus = null
+      if (coinInFocus) {
+        cameraShotMode = 'coin'
+        shotFocus = momentCoin.position
+      } else if (rollingRef.current || dieRoll) {
+        cameraShotMode = 'dice'
+        shotFocus = new THREE.Vector3().addVectors(dice.userData.die1.position, dice.userData.die2.position).multiplyScalar(0.5)
+      } else if (movingPiecePosition) {
+        cameraShotMode = 'piece'
+        shotFocus = movingPiecePosition
+      } else {
+        cameraShotMode = 'board'
+      }
+
       const idleOrbit = shouldOrbitBoard({
         phase: phaseRef.current,
-        rolling: Boolean(rollingRef.current || dieRoll),
-        movingPiece: Boolean(activePieceMove),
+        rolling: Boolean(rollingRef.current || dieRoll || coinInFocus),
+        movingPiece: Boolean(activePieceMove || settlingPiece),
         queuedMoves: pieceMoveQueueRef.current.length,
         interacting: userInteracting,
         reducedMotion,
         idleMs: latestSceneTime - lastViewInputAt,
       })
-      controls.autoRotate = idleOrbit
-      if (idleOrbit) {
-        camera.position.y = THREE.MathUtils.lerp(camera.position.y, 18.5, Math.min(1, frameDeltaSeconds * 0.55))
-        controls.target.lerp(boardCenter, Math.min(1, frameDeltaSeconds * 0.55))
-      } else if (!manualView) {
-        const isKeepsakePhase = phaseRef.current === 'keepsake'
-        const targetFocus = pacingMode === 'sharedSpotlight' || isKeepsakePhase ? activePos : midpoint
-        const targetY = isKeepsakePhase ? 10.5 : activePieceMove ? 13.5 : 18
-        const targetZ = isKeepsakePhase ? 12.5 + activePos.z * 0.15 : (activePieceMove ? 17 : 24) + targetFocus.z * 0.2
-        camera.position.x = THREE.MathUtils.lerp(
-          camera.position.x,
-          isKeepsakePhase ? activePos.x * 0.42 : targetFocus.x * 0.22,
-          0.04,
-        )
-        camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY, 0.04)
-        camera.position.z = THREE.MathUtils.lerp(
-          camera.position.z,
-          targetZ,
-          0.04,
-        )
-        controls.target.x = THREE.MathUtils.lerp(controls.target.x, isKeepsakePhase ? activePos.x * 0.35 : targetFocus.x * 0.2, 0.04)
-        controls.target.y = THREE.MathUtils.lerp(controls.target.y, 0, 0.04)
-        controls.target.z = THREE.MathUtils.lerp(controls.target.z, isKeepsakePhase ? activePos.z * 0.35 : targetFocus.z * 0.38, 0.04)
-      }
-
-      if (!dieRoll && !activePieceMove && pieceMoveQueueRef.current.length) {
-        const availableMoveIndex = pieceMoveQueueRef.current.findIndex(move => move.key !== deferPieceMoveKeyRef.current)
-        if (availableMoveIndex >= 0) activePieceMove = { ...pieceMoveQueueRef.current.splice(availableMoveIndex, 1)[0], travelStartedAt: null, stepIndex: 0 }
+      controls.autoRotate = cameraShotMode === 'board' && idleOrbit
+      if (cameraShotMode !== 'board') {
+        const pose = getBoardCameraShotPose(cameraShotMode, shotFocus, elapsed)
+        const cameraEase = 1 - Math.exp(-frameDeltaSeconds * 4.5)
+        camera.position.lerp(pose.position, cameraEase)
+        controls.target.lerp(pose.target, cameraEase)
+        controls.enabled = false
+      } else {
+        controls.enabled = true
+        if (idleOrbit) {
+          camera.position.y = THREE.MathUtils.lerp(camera.position.y, 18.5, Math.min(1, frameDeltaSeconds * 0.55))
+          controls.target.lerp(boardCenter, Math.min(1, frameDeltaSeconds * 0.55))
+        } else if (!manualView) {
+          const isKeepsakePhase = phaseRef.current === 'keepsake'
+          const targetFocus = pacingMode === 'sharedSpotlight' || isKeepsakePhase ? activePos : midpoint
+          const targetY = isKeepsakePhase ? 10.5 : activePieceMove ? 13.5 : 18
+          const targetZ = isKeepsakePhase ? 12.5 + activePos.z * 0.15 : (activePieceMove ? 17 : 24) + targetFocus.z * 0.2
+          camera.position.x = THREE.MathUtils.lerp(
+            camera.position.x,
+            isKeepsakePhase ? activePos.x * 0.42 : targetFocus.x * 0.22,
+            0.04,
+          )
+          camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY, 0.04)
+          camera.position.z = THREE.MathUtils.lerp(
+            camera.position.z,
+            targetZ,
+            0.04,
+          )
+          controls.target.x = THREE.MathUtils.lerp(controls.target.x, isKeepsakePhase ? activePos.x * 0.35 : targetFocus.x * 0.2, 0.04)
+          controls.target.y = THREE.MathUtils.lerp(controls.target.y, 0, 0.04)
+          controls.target.z = THREE.MathUtils.lerp(controls.target.z, isKeepsakePhase ? activePos.z * 0.35 : targetFocus.z * 0.38, 0.04)
+        }
       }
 
       if (dieRoll) {
@@ -1719,6 +1777,7 @@ export function BoardScene({
           : Math.min(0.94, elapsed / duration)
         const eased = 1 - (1 - progress) ** 3
         const lift1 = Math.sin(progress * Math.PI)
+        const cameraLift = Math.max(0, 1 - elapsed / 0.24) * 0.72
         const tumbleFace1 = 1 + (Math.floor(elapsed * 14) % 6)
 
         const die1 = dice.userData.die1
@@ -1729,7 +1788,7 @@ export function BoardScene({
         const direction = gesture.direction || { x: 0.55, y: -0.3 }
         const throwPower = 0.78 + Math.max(0, Math.min(1, gesture.power || 0)) * 0.72
         die1.position.x = THREE.MathUtils.lerp(-2.0, -0.15, progress) + lift1 * (0.35 + direction.x * 0.42) + Math.sin(progress * Math.PI * 2.5) * 0.16
-        die1.position.y = 0.62 + diceHomeMotion.lift + lift1 * 1.08 * throwPower
+        die1.position.y = 0.62 + diceHomeMotion.lift + cameraLift + lift1 * 1.08 * throwPower
         die1.position.z = THREE.MathUtils.lerp(0.45, -0.3, progress) + lift1 * (0.18 + direction.y * 0.38) + Math.cos(progress * Math.PI * 2) * 0.12 * lift1
         die1.rotation.x = -0.04 + eased * (Math.PI * (3.5 + throwPower) + (dieRoll.finalValues?.[0] || 0) * 0.18)
         die1.rotation.y = 0.32 + eased * (Math.PI * (4.2 + throwPower) + (dieRoll.finalValues?.[0] || 0) * 0.22 + direction.x)
@@ -1742,7 +1801,7 @@ export function BoardScene({
         const tumbleFace2 = 1 + (Math.floor(elapsed * 17 + 2) % 6)
         setPrimitiveDieValue(die2, dieRoll.finalValues && prog2 >= 1 ? dieRoll.finalValues[1] : tumbleFace2)
         die2.position.x = THREE.MathUtils.lerp(-3.25, 1.0, prog2) + lift2 * (0.42 - direction.x * 0.4) - Math.sin(prog2 * Math.PI * 2.4) * 0.15
-        die2.position.y = 0.62 + diceHomeMotion.lift + lift2 * 1.16 * throwPower
+        die2.position.y = 0.62 + diceHomeMotion.lift + cameraLift + lift2 * 1.16 * throwPower
         die2.position.z = THREE.MathUtils.lerp(0.82, 0.25, prog2) + lift2 * (0.14 - direction.y * 0.38) - Math.cos(prog2 * Math.PI * 2) * 0.1 * lift2
         die2.rotation.x = 0.08 + eased2 * (Math.PI * (4.4 + throwPower) + (dieRoll.finalValues?.[1] || 0) * 0.16)
         die2.rotation.y = -0.26 + eased2 * (Math.PI * (3.6 + throwPower) + (dieRoll.finalValues?.[1] || 0) * 0.24 - direction.x)
@@ -1804,6 +1863,8 @@ export function BoardScene({
 
       const coinFacing = new THREE.Vector3(camera.position.x - momentCoin.position.x, 0, camera.position.z - momentCoin.position.z).normalize()
       momentCoin.quaternion.setFromUnitVectors(momentCoin.userData.facing, coinFacing)
+      const coinScaleTarget = cameraShotMode === 'coin' ? 1.2 : 1
+      momentCoin.scale.lerp(new THREE.Vector3(coinScaleTarget, coinScaleTarget, coinScaleTarget), 1 - Math.exp(-frameDeltaSeconds * 5))
       if (coinFlipKeyRef.current && coinOutcomeRef.current && coinFlipKeyRef.current !== activeCoinFlipKey) {
         coinFlip = {
           key: coinFlipKeyRef.current,
@@ -1904,6 +1965,8 @@ export function BoardScene({
             if (activePieceMove.stepIndex >= activePieceMove.steps) {
               const completedMove = activePieceMove
               activePieceMove = null
+              pieceSettlePlayerIndex = completedMove.playerIndex
+              pieceSettleUntil = latestSceneTime + 460
               onPieceMoveCompleteRef.current?.({
                 playerIndex: completedMove.playerIndex,
                 steps: completedMove.steps,
@@ -1959,7 +2022,7 @@ export function BoardScene({
         activePlayerIndex: activePlayerIndexRef.current,
         boardState: parsedBoardState,
         camera: {
-          mode: controls.autoRotate ? 'idle-orbit' : manualView ? 'gesture' : 'follow',
+          mode: cameraShotMode !== 'board' ? `${cameraShotMode}-closeup` : controls.autoRotate ? 'idle-orbit' : manualView ? 'gesture' : 'follow',
           position: camera.position.toArray().map((value) => Number(value.toFixed(2))),
           target: controls.target.toArray().map((value) => Number(value.toFixed(2))),
           gestures: {

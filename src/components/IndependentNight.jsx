@@ -119,7 +119,7 @@ export function IndependentNight() {
   }, [db, enabled, session.id])
   useEffect(() => {
     if (!loaded || rollPresentation || session.phase !== 'turn' || playerIndex < 0) return
-    const pending = steps.find(step => step.id === `roll-${progress.nextRound - 1}-${playerIndex}` && ((step.state?.momentPending) || (step.state?.momentCard && !step.state?.momentResolution)))
+    const pending = steps.find(step => step.ownerIndex === playerIndex && (step.state?.momentPending || (step.state?.momentCard && !step.state?.momentResolution)))
     if (!pending || selectedId === pending.id || cardDrawKey?.startsWith(`${pending.id}:`)) return
     if (pending.state.momentPending) {
       setRollPresentation({ stepId: pending.id, stage: 'confirm-landing', diceSettled: true, saved: true, resumed: true })
@@ -366,11 +366,11 @@ export function IndependentNight() {
           </div>
         </div>}
         {rollPresentation?.stage === 'confirm-roll' && <div className="roll-ack-tray"><span>{rollingDice?.join(' · ') || rollStep?.state?.move?.dice?.join(' · ')}</span><button className="primary-btn" type="button" onClick={acknowledgeDice}>Continue</button></div>}
-        {rollPresentation?.stage === 'confirm-landing' && rollStep?.state?.momentPending && <div className="roll-ack-tray coin-touch-hint" role="status">Tap or flick the coin</div>}
+        {rollPresentation?.stage === 'confirm-landing' && rollStep?.state?.momentPending && <div className="roll-ack-tray coin-touch-hint" role="status">Tap the coin</div>}
         {rollPresentation?.stage === 'confirm-landing' && !rollStep?.state?.momentPending && <div className="roll-ack-tray landing-ack-tray"><span>Piece landed</span><button className="primary-btn" type="button" onClick={acknowledgeLanding}>Continue</button></div>}
         {!selected && !rollPresentation && session.phase !== 'finale' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
           <div className="night-action-list" aria-label={progress.readyToReveal ? 'End of night reveals' : 'Your next moments'}>
-            {progress.available.map(step => <button className="primary-btn alt" data-night-step={step.id} key={step.id} type="button" disabled={working || rolling || !loaded}
+            {progress.available.filter(step => !step.state?.momentPending).map(step => <button className="primary-btn alt" data-night-step={step.id} key={step.id} type="button" disabled={working || rolling || !loaded}
               onClick={() => {
                 audio?.playAction?.()
                 if (step.state?.momentPending) setRollPresentation({ stepId: step.id, stage: 'confirm-landing', diceSettled: true, saved: true, resumed: true })

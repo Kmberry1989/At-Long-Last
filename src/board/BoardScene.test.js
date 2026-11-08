@@ -21,6 +21,7 @@ import {
   calculateStepPath,
   createPieceMovePlan,
   getBoardSpaceMotion,
+  getBoardCameraShotPose,
   getDiceHomeBaseMotion,
   getSpokeFacingAngle,
   shouldOrbitBoard,
@@ -224,6 +225,26 @@ describe('shouldOrbitBoard', () => {
     expect(shouldOrbitBoard({ ...idleTurn, phase: 'activity' })).toBe(false)
     expect(shouldOrbitBoard({ ...idleTurn, reducedMotion: true })).toBe(false)
     expect(shouldOrbitBoard({ phase: 'turn', idleMs: 2799 })).toBe(false)
+  })
+})
+
+describe('cinematic board camera shots', () => {
+  it('frames the dice and coin closely enough to read the interaction', () => {
+    const focus = new THREE.Vector3(-2, 1, 0.5)
+    const dice = getBoardCameraShotPose('dice', focus)
+    const coin = getBoardCameraShotPose('coin', focus)
+    expect(dice.target.toArray()).toEqual(focus.toArray())
+    expect(dice.position.distanceTo(dice.target)).toBeGreaterThan(9)
+    expect(coin.position.distanceTo(coin.target)).toBeGreaterThan(9)
+    expect(coin.position.distanceTo(coin.target)).toBeLessThan(11)
+  })
+
+  it('keeps the piece camera inside the board wall while orbiting the moving token', () => {
+    const focus = new THREE.Vector3(0, 0.7, -BOARD_PATH_RADIUS)
+    const pose = getBoardCameraShotPose('piece', focus, 2)
+    expect(pose.target.toArray()).toEqual(focus.toArray())
+    expect(Math.hypot(pose.position.x, pose.position.z)).toBeLessThan(15.48)
+    expect(pose.position.distanceTo(pose.target)).toBeGreaterThan(9)
   })
 })
 

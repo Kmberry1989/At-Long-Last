@@ -558,3 +558,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Generated a face-on 3 × 3 token atlas with nine illustrated medallions. The first two are available at start; further designs unlock after 3, 7, 14, 25, 40, 60, and 100 shared nights. Tokens are cosmetic and never spend hearts.
 - Each placed board piece remembers its chosen token. Firestore validates token IDs, turn ownership, and shared-night unlock thresholds. The mobile token picker and board were visually reviewed at 390 × 844 with no page overflow.
 - Production build passed. Full tests/emulator suite were not run in this pass.
+
+## 2026-11-08 — Cinematic dice, coin, and piece camera shots
+
+- Added close camera shots for dice casts and the Trash/Treasure coin, with the dice lifting out of their tray as the camera follows the throw onto the board. Coin reveal now frames/enlarges the coin and keeps that view through its flip.
+- The moving piece now gets a tracking orbital view and a short landing settle before the board returns to its normal view. A recovered pending coin moment resumes directly at the camera-framed coin, with no preliminary “Flip coin” action.
+- Verification: focused BoardScene and IndependentNight suites passed (38 tests), production build passed, and `git diff --check` passed. The local Playwright preview reached the entry flow but could not reach the Three.js board state, so the new camera choreography still needs a live gameplay visual check.
