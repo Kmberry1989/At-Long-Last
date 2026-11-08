@@ -5,6 +5,7 @@ import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
 import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS } from '../features/session/coupleArcade.js'
 import './couple-arcade.css'
+import './uno-cards.css'
 
 const GAMES = [
   { id: 'my-one-and-only', name: 'My One and Only!', subtitle: 'A little card match' },
@@ -25,6 +26,14 @@ const RADAR_REWARDS = [
   { id: 'rose-signal', name: 'Rose Signal', wins: 1 },
   { id: 'moonlit-fleet', name: 'Moonlit Fleet', wins: 3 },
 ]
+const UNO_CARD_ART = {
+  coral: '/assets/arcade/my-one-and-only/coral.jpg',
+  plum: '/assets/arcade/my-one-and-only/plum.jpg',
+  teal: '/assets/arcade/my-one-and-only/teal.jpg',
+  gold: '/assets/arcade/my-one-and-only/gold.jpg',
+  wild: '/assets/arcade/my-one-and-only/wild.jpg',
+  back: '/assets/arcade/my-one-and-only/back.jpg',
+}
 
 function playArcadeFeedback(audio, next, move, currentUid) {
   if (move.kind === 'play' || move.kind === 'draw' || move.kind === 'charade') audio?.playCardSlide?.()
@@ -67,20 +76,23 @@ function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
   }
 
   return <div className="arcade-game arcade-uno">
-    <div className={`uno-discard uno-${state.activeColor}`}><span>{state.activeColor}</span><strong>{UNO_CARD_LABELS[top?.value] || top?.value || '?'}</strong></div>
+    <div aria-label="Draw and discard piles" className="uno-table">
+      <button aria-label="Draw a card" className="uno-draw-pile" disabled={!ownTurn || Boolean(state.drawnCardId)} onClick={() => onAction({ kind: 'draw' })} style={{ backgroundImage: `url("${UNO_CARD_ART.back}")` }} type="button" />
+      <div aria-label={`Top card: ${UNO_CARD_LABELS[top?.value] || top?.value || 'none'}`} className={`uno-discard uno-${top?.color || state.activeColor}`} style={{ backgroundImage: `url("${UNO_CARD_ART[top?.color] || UNO_CARD_ART[state.activeColor]}")` }}><strong>{UNO_CARD_LABELS[top?.value] || top?.value || '?'}</strong></div>
+    </div>
     <p className="arcade-turn" aria-live="polite">{status}</p>
     {state.status === 'finished' ? <button className="arcade-primary" onClick={onReset} type="button">Play again</button> : <>
       <div className="uno-hand" aria-label="Your hand">
         {hand.map(card => {
           const canPlay = card.color === 'wild' || card.color === state.activeColor || card.value === top?.value
           const isRequiredDraw = state.drawnCardId ? card.id === state.drawnCardId : true
-          return <button className={`uno-card uno-${card.color}`} disabled={!ownTurn || !canPlay || !isRequiredDraw} key={card.id} onClick={() => play(card)} type="button" aria-label={`${card.color} ${UNO_CARD_LABELS[card.value] || card.value}`}>
+          return <button className={`uno-card uno-${card.color}`} disabled={!ownTurn || !canPlay || !isRequiredDraw} key={card.id} onClick={() => play(card)} style={{ backgroundImage: `url("${UNO_CARD_ART[card.color] || UNO_CARD_ART.back}")` }} type="button" aria-label={`${card.color} ${UNO_CARD_LABELS[card.value] || card.value}`}>
           {UNO_CARD_LABELS[card.value] || card.value}
           </button>
         })}
       </div>
       {wildId && <div className="uno-color-picker" role="group" aria-label="Choose a color">{UNO_COLORS_LIST.map(color => <button className={`uno-color-dot uno-${color}`} key={color} onClick={async () => { await onAction({ kind: 'play', cardId: wildId, color }); setWildId('') }} type="button" aria-label={`Choose ${color}`} />)}</div>}
-      <div className="arcade-actions"><button className="arcade-primary" disabled={!ownTurn || Boolean(state.drawnCardId)} onClick={() => onAction({ kind: 'draw' })} type="button">Draw a card</button>
+      <div className="arcade-actions">
         {state.drawnCardId && <button className="arcade-secondary" onClick={() => onAction({ kind: 'keep' })} type="button">Keep it</button>}
       </div>
       <p className="arcade-small">{hand.length} in your hand · {state.hands[state.playerUids[1 - ownIndex]]?.length || 0} in theirs</p>
