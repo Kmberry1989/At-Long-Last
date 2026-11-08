@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CONNECT_FOUR_COLUMNS, CONNECT_FOUR_ROWS, CONNECT_FOUR_TOKENS, getConnectFourMovePlayer, getConnectFourPlayerTokenIds } from '../features/session/connectFour.js'
+import { PlayerPortrait } from './PlayerPortrait.jsx'
 import './connect-four-finale.css'
 
 const BOARD_ART = '/assets/connect-four/board.webp'
@@ -80,7 +81,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
       <header className="connect-four-header">
         <div className="connect-four-players">
           {players.slice(0, 2).map((player, index) => <div className={`connect-four-player player-${index}`} key={player.uid}>
-            <span aria-hidden="true" className={`connect-four-player-token player-token-${index}`}><span className="connect-four-token-art" style={tokenStyle(playerTokenIds[index] || tokenPreferences[player.uid] || (index === 0 ? 'garnet' : 'moon'))} /></span>
+            <PlayerPortrait player={player} label={`${player.displayName} portrait`} className="connect-four-player-portrait" />
             <span>{player.displayName}</span>
           </div>)}
         </div>
