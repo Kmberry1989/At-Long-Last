@@ -179,7 +179,7 @@ function randomFleet(random, blocked = new Set()) {
   return ships
 }
 
-export function createRadarLove(playerUids) {
+export function createRadarLove(playerUids, previousWins = {}) {
   if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
   return {
     game: 'radar-love', playerUids: [...playerUids],
@@ -187,6 +187,7 @@ export function createRadarLove(playerUids) {
     fleetReady: Object.fromEntries(playerUids.map(uid => [uid, false])),
     shots: Object.fromEntries(playerUids.map(uid => [uid, []])),
     hits: Object.fromEntries(playerUids.map(uid => [uid, []])),
+    wins: Object.fromEntries(playerUids.map(uid => [uid, Math.max(0, Number(previousWins[uid]) || 0)])),
     turnIndex: 0, status: 'placing', winnerUid: null, lastShot: null, boardSize: 8,
   }
 }
@@ -248,22 +249,24 @@ export function fireRadarLoveShot(state, { playerUid, row, column }) {
   const shots = { ...state.shots, [playerUid]: [...state.shots[playerUid], key] }
   const hits = { ...state.hits, [playerUid]: hit ? [...state.hits[playerUid], key] : [...state.hits[playerUid]] }
   const sunk = state.fleets[targetUid].flatMap(ship => ship.cells).every(cell => shots[playerUid].includes(cell))
+  const wins = Object.fromEntries(state.playerUids.map(uid => [uid, Math.max(0, Number(state.wins?.[uid]) || 0)]))
+  if (sunk) wins[playerUid] += 1
   return {
-    ...state, shots, hits, turnIndex: sunk ? playerIndex : targetIndex,
+    ...state, shots, hits, wins, turnIndex: sunk ? playerIndex : targetIndex,
     status: sunk ? 'finished' : 'playing', winnerUid: sunk ? playerUid : null,
     lastShot: { playerUid, row, column, hit },
   }
 }
 
-export function createOurLittlePieces(playerUids, random = Math.random) {
+export function createOurLittlePieces(playerUids, random = Math.random, solvedCount = 0, puzzleNumber = 1) {
   if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
-  const artIndex = Math.floor(random() * 4)
+  const artIndex = solvedCount >= 5 ? 3 : solvedCount >= 3 ? 2 : solvedCount >= 1 ? 1 : 0
   const slots = shuffled(Array.from({ length: 9 }, (_, index) => index), random)
   if (slots.every((slot, index) => slot === index)) [slots[0], slots[1]] = [slots[1], slots[0]]
   return {
     game: 'our-little-pieces', playerUids: [...playerUids], artIndex,
     pieces: Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`p${index}`, { slot: slots[index], rotation: Math.floor(random() * 4) * 90, placedBy: null }])),
-    status: 'playing', moveCount: 0, completedBy: null,
+    status: 'playing', moveCount: 0, completedBy: null, solvedCount, puzzleNumber,
   }
 }
 
@@ -276,7 +279,7 @@ export function moveOurLittlePiece(state, { playerUid, pieceId, slot }) {
   const pieces = { ...state.pieces, [pieceId]: { ...moving, slot, placedBy: playerUid } }
   if (otherEntry) pieces[otherEntry[0]] = { ...otherEntry[1], slot: moving.slot, placedBy: playerUid }
   const complete = Object.entries(pieces).every(([id, piece]) => piece.slot === Number(id.slice(1)) && piece.rotation === 0)
-  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null }
+  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null, solvedCount: (state.solvedCount || 0) + (complete ? 1 : 0), puzzleNumber: state.puzzleNumber || 1 }
 }
 
 export function rotateOurLittlePiece(state, { playerUid, pieceId, direction = 1 }) {
@@ -286,7 +289,7 @@ export function rotateOurLittlePiece(state, { playerUid, pieceId, direction = 1 
   const rotation = (piece.rotation + direction * 90 + 360) % 360
   const pieces = { ...state.pieces, [pieceId]: { ...piece, rotation, placedBy: playerUid } }
   const complete = Object.entries(pieces).every(([id, current]) => current.slot === Number(id.slice(1)) && current.rotation === 0)
-  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null }
+  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null, solvedCount: (state.solvedCount || 0) + (complete ? 1 : 0), puzzleNumber: state.puzzleNumber || 1 }
 }
 
 export const SAY_IT_WITHOUT_SAYING_PROMPTS = [

@@ -268,14 +268,13 @@ function makeMomentCoinFace(category) {
 function createMomentCoin(theme, position) {
   const root = new THREE.Group()
   root.name = 'trash-treasure-coin'
-  root.position.set(position[0], 0.78, position[1])
+  const restHeight = BOARD_SKIN_SURFACE_Y + 0.075
+  root.position.set(position[0], restHeight, position[1])
   const side = new THREE.MeshStandardMaterial({ color: theme.diceSkin.edge, metalness: 0.9, roughness: 0.22 })
   const treasure = new THREE.MeshStandardMaterial({ map: makeMomentCoinFace('treasure'), metalness: 0.42, roughness: 0.32 })
   const trash = new THREE.MeshStandardMaterial({ map: makeMomentCoinFace('trash'), metalness: 0.42, roughness: 0.32 })
   const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.76, 0.15, 64, 1, false), [side, treasure, trash])
   coin.name = 'trash-treasure-coin-face'
-  coin.rotation.x = Math.PI / 2
-  coin.rotation.y = Math.PI / 2
   coin.castShadow = true
   coin.receiveShadow = true
   root.add(coin)
@@ -286,8 +285,7 @@ function createMomentCoin(theme, position) {
   hitTarget.name = 'trash-treasure-coin-touch-area'
   root.add(hitTarget)
   root.userData.disc = coin
-  root.userData.baseHeight = 0.78
-  root.userData.facing = new THREE.Vector3(0, 0, 1)
+  root.userData.baseHeight = restHeight
   return root
 }
 
@@ -442,7 +440,7 @@ export function shouldOrbitBoard({
     !interacting && !reducedMotion && idleMs >= 2800
 }
 
-export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0) {
+export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0, shotProgress = 0) {
   const target = focus?.isVector3
     ? focus.clone()
     : new THREE.Vector3(focus?.x || 0, focus?.y || 0, focus?.z || 0)
@@ -450,7 +448,14 @@ export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0) {
   if (kind === 'dice') {
     position = target.clone().add(new THREE.Vector3(0, 7.2, 7.8))
   } else if (kind === 'coin') {
-    position = target.clone().add(new THREE.Vector3(0, 6.8, 7.2))
+    const progress = THREE.MathUtils.clamp(shotProgress, 0, 1)
+    // Move in toward the airborne coin early, then hold the close framing all
+    // the way through its landing and suspenseful final wobble.
+    const zoom = THREE.MathUtils.smoothstep(progress, 0, 0.24)
+    const cameraHeight = THREE.MathUtils.lerp(4.4, 2.35, zoom)
+    const cameraDepth = THREE.MathUtils.lerp(4.8, 3.1, zoom)
+    const orbit = progress > 0 ? Math.sin(elapsedSeconds * 1.2) * 0.38 : 0
+    position = target.clone().add(new THREE.Vector3(orbit, cameraHeight, cameraDepth))
   } else {
     const radial = new THREE.Vector3(target.x, 0, target.z)
     if (radial.lengthSq() < 0.001) radial.set(0, 0, 1)
@@ -1767,6 +1772,9 @@ export function BoardScene({
         ? tokenGroups[activePieceMove.playerIndex]?.position
         : settlingPiece
       const coinInFocus = canFlipCoinRef.current || Boolean(coinFlip)
+      const coinShotProgress = coinFlip
+        ? Math.min(1, Math.max(0, (latestSceneTime - coinFlip.startedAt) / coinFlip.duration))
+        : 0
       let shotFocus = null
       if (coinInFocus) {
         cameraShotMode = 'coin'
@@ -1792,8 +1800,8 @@ export function BoardScene({
       })
       controls.autoRotate = cameraShotMode === 'board' && idleOrbit
       if (cameraShotMode !== 'board') {
-        const pose = getBoardCameraShotPose(cameraShotMode, shotFocus, elapsed)
-        const cameraEase = 1 - Math.exp(-frameDeltaSeconds * 4.5)
+        const pose = getBoardCameraShotPose(cameraShotMode, shotFocus, elapsed, coinShotProgress)
+        const cameraEase = 1 - Math.exp(-frameDeltaSeconds * (cameraShotMode === 'coin' ? 6.5 : 4.5))
         camera.position.lerp(pose.position, cameraEase)
         controls.target.lerp(pose.target, cameraEase)
         controls.enabled = false
@@ -1916,8 +1924,6 @@ export function BoardScene({
         }
       }
 
-      const coinFacing = new THREE.Vector3(camera.position.x - momentCoin.position.x, 0, camera.position.z - momentCoin.position.z).normalize()
-      momentCoin.quaternion.setFromUnitVectors(momentCoin.userData.facing, coinFacing)
       const coinScaleTarget = cameraShotMode === 'coin' ? 1.2 : 1
       momentCoin.scale.lerp(new THREE.Vector3(coinScaleTarget, coinScaleTarget, coinScaleTarget), 1 - Math.exp(-frameDeltaSeconds * 5))
       if (coinFlipKeyRef.current && coinOutcomeRef.current && coinFlipKeyRef.current !== activeCoinFlipKey) {
@@ -1926,7 +1932,7 @@ export function BoardScene({
           outcome: coinOutcomeRef.current,
           gesture: coinGestureRef.current,
           startedAt: latestSceneTime,
-          duration: 1.95,
+          duration: 2.8,
           lastImpact: -1,
           start: momentCoin.position.clone(),
         }
@@ -1934,40 +1940,42 @@ export function BoardScene({
       }
       if (coinFlip) {
         const progress = Math.min(1, Math.max(0, (latestSceneTime - coinFlip.startedAt) / coinFlip.duration))
-        const eased = 1 - (1 - progress) ** 3
+        // A pronounced slow-motion pocket around the apex, followed by a
+        // slightly quicker descent into the suspenseful table landing.
+        const motionProgress = THREE.MathUtils.clamp(progress - Math.sin(progress * Math.PI * 2) * 0.24 / (Math.PI * 2), 0, 1)
+        const eased = 1 - (1 - motionProgress) ** 3
         const gesture = coinFlip.gesture || {}
-        const turns = 4.5 + Math.min(2.5, Math.max(0, (gesture.power || 0.55) * 2.5))
+        const turns = Math.round(3.5 + Math.min(2.5, Math.max(0, (gesture.power || 0.55) * 2.5)))
         const resultHalfTurn = coinFlip.outcome === 'trash' ? Math.PI : 0
+        const landingWobble = progress > 0.84 ? Math.sin((progress - 0.84) / 0.16 * Math.PI * 4) * (1 - progress) * 1.1 : 0
+        const arcHeight = 4.1 + Math.min(1.25, (gesture.power || 0.55) * 1.2)
         momentCoin.position.set(
-          coinFlip.start.x + (gesture.direction?.x || 0) * 0.85 * Math.sin(progress * Math.PI),
-          coinFlip.start.y + Math.sin(progress * Math.PI) * (2.9 + Math.min(1.2, (gesture.power || 0.55) * 1.2)),
-          coinFlip.start.z + 0.12 * Math.sin(progress * Math.PI * 2),
+          coinFlip.start.x + (gesture.direction?.x || 0) * 1.2 * Math.sin(motionProgress * Math.PI),
+          coinFlip.start.y + 4 * arcHeight * motionProgress * (1 - motionProgress) + (progress > 0.93 ? 0.055 * Math.sin((progress - 0.93) / 0.07 * Math.PI) : 0),
+          coinFlip.start.z + (gesture.direction?.y || 0) * 0.9 * Math.sin(motionProgress * Math.PI),
         )
         const disc = momentCoin.userData.disc
-        disc.rotation.x = Math.PI / 2 + turns * Math.PI * 2 * eased + resultHalfTurn * eased
-        disc.rotation.y = Math.PI / 2 * (1 - eased)
-        disc.rotation.z = Math.sin(progress * Math.PI * 10) * (1 - progress) * 0.18
-        const impact = Math.min(5, Math.floor(progress * 6))
-        if (impact > coinFlip.lastImpact && impact < 5) {
+        disc.rotation.x = turns * Math.PI * 2 * eased + resultHalfTurn * eased + landingWobble
+        disc.rotation.z = Math.sin(progress * Math.PI * 5) * (1 - progress) * 0.11
+        const impact = Math.min(3, Math.floor(progress * 4))
+        if (impact > coinFlip.lastImpact && impact < 3) {
           coinFlip.lastImpact = impact
-          onDiceImpactRef.current?.({ step: impact, energy: 0.34 + Math.sin(impact * 1.7) * 0.12, side: impact % 2 })
+          onDiceImpactRef.current?.({ step: impact, energy: 0.3 + Math.sin(impact * 1.7) * 0.1, side: impact % 2 })
         }
         if (progress >= 1) {
           momentCoin.position.set(coinFlip.start.x, coinFlip.start.y, coinFlip.start.z)
-          disc.rotation.x = Math.PI / 2 + Math.round(turns) * Math.PI * 2 + resultHalfTurn
-          disc.rotation.y = 0
+          disc.rotation.x = Math.round(turns) * Math.PI * 2 + resultHalfTurn
           disc.rotation.z = 0
           const completedKey = coinFlip.key
           coinFlip = null
           onCoinFlipCompleteRef.current?.(completedKey)
         }
       } else if (!momentCoin.userData.touch) {
-        momentCoin.position.y = momentCoin.userData.baseHeight + Math.sin(latestSceneTime * 1.1) * 0.08
+        momentCoin.position.y = momentCoin.userData.baseHeight
       } else {
         const touch = momentCoin.userData.touch
         const press = Math.min(1, Math.hypot(touch.x, touch.y) / 44)
-        momentCoin.position.y = momentCoin.userData.baseHeight - press * 0.06 + Math.sin((latestSceneTime - touch.startedAt) / 1000 * 17) * 0.025
-        momentCoin.userData.disc.rotation.z = touch.x * 0.001
+        momentCoin.position.y = momentCoin.userData.baseHeight - press * 0.025
       }
       for (let index = landingEffects.length - 1; index >= 0; index -= 1) {
         const effect = landingEffects[index]

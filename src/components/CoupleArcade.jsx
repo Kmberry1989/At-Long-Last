@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { BrandIcon } from './BrandIcon.jsx'
+import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
 import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS } from '../features/session/coupleArcade.js'
 import './couple-arcade.css'
@@ -14,10 +15,15 @@ const GAMES = [
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const JIGSAW_ART = [
-  { title: 'Chose us', src: '/assets/moment-cards/chose-us.jpg' },
-  { title: 'First trip', src: '/assets/moment-cards/first-trip-photo.jpg' },
-  { title: 'A new tradition', src: '/assets/moment-cards/new-tradition.jpg' },
-  { title: 'Ordinary Tuesday', src: '/assets/moment-cards/ordinary-tuesday.jpg' },
+  { title: 'Chose us', src: '/assets/moment-cards/chose-us.jpg', unlockAt: 0 },
+  { title: 'First trip', src: '/assets/moment-cards/first-trip-photo.jpg', unlockAt: 1 },
+  { title: 'A new tradition', src: '/assets/moment-cards/new-tradition.jpg', unlockAt: 3 },
+  { title: 'Ordinary Tuesday', src: '/assets/moment-cards/ordinary-tuesday.jpg', unlockAt: 5 },
+]
+const RADAR_REWARDS = [
+  { id: 'silver-sonar', name: 'Silver Sonar', wins: 0 },
+  { id: 'rose-signal', name: 'Rose Signal', wins: 1 },
+  { id: 'moonlit-fleet', name: 'Moonlit Fleet', wins: 3 },
 ]
 
 function playArcadeFeedback(audio, next, move, currentUid) {
@@ -115,6 +121,7 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   const isPlacing = state.status === 'placing'
   const isReady = Boolean(state.fleetReady[playerUid])
   const allPlaced = fleet.length === 3 && fleet.every((ship, index) => ship.cells.length === [3, 2, 2][index])
+  const wins = state.wins?.[playerUid] || 0
   const status = isPlacing
     ? isReady ? `Fleet ready · waiting for ${otherName}` : 'Place your fleet'
     : state.status === 'finished'
@@ -122,6 +129,9 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
     : ownTurn ? 'Your scan' : `${otherName} is scanning`
   return <div className="arcade-game radar-game">
     <p aria-live="polite" className="arcade-turn">{status}</p>
+    <div aria-label="Fleet collectibles" className="arcade-collectibles">
+      {RADAR_REWARDS.map(reward => <span className={wins >= reward.wins ? 'is-collected' : ''} key={reward.id} title={wins >= reward.wins ? `${reward.name} collected` : `${reward.name} · ${Math.max(0, reward.wins - wins)} wins to unlock`}>{wins >= reward.wins ? '✦' : '◇'} {reward.name}</span>)}
+    </div>
     {isPlacing && !isReady && <>
       <div className="radar-ships" aria-label="Choose ship">
         {fleet.map(ship => <button aria-pressed={selectedShip === ship.id} className={selectedShip === ship.id ? 'radar-ship-choice selected' : 'radar-ship-choice'} key={ship.id} onClick={() => setSelectedShip(ship.id)} type="button">Ship {ship.id + 1} · {ship.length}{ship.cells.length ? ' ✓' : ''}</button>)}
@@ -139,7 +149,8 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         const miss = shots.has(key) && !hit
         const hasShip = placedCells.has(key)
         const cells = Array.from({ length: fleet[selectedShip]?.length || 0 }, (_, part) => vertical ? `${row + part}:${column}` : `${row}:${column + part}`)
-        const className = isPlacing && hasShip ? 'radar-ship' : hit ? 'radar-hit' : miss ? 'radar-miss' : ''
+        const skin = wins >= 3 ? 'radar-skin-moonlit' : wins >= 1 ? 'radar-skin-rose' : 'radar-skin-silver'
+        const className = isPlacing && hasShip ? `radar-ship ${skin}` : hit ? 'radar-hit' : miss ? 'radar-miss' : ''
         return <button aria-label={`Radar row ${row + 1}, column ${column + 1}${isPlacing && hasShip ? ', ship placed' : hit ? ', hit' : miss ? ', clear' : ''}`} className={className} disabled={isPlacing ? isReady : !ownTurn || shots.has(key) || state.status === 'finished'} key={key} onClick={() => isPlacing
           ? !isReady && onAction({ kind: 'place-ship', shipId: selectedShip, cells })
           : onAction({ kind: 'shot', row, column })} role="gridcell" type="button">{isPlacing && hasShip ? '●' : hit ? '✦' : miss ? '·' : ''}</button>
@@ -151,15 +162,20 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   </div>
 }
 
-function OurLittlePieces({ state, onAction, onReset }) {
+function OurLittlePieces({ state, onAction, onReset, audio }) {
   const [selectedPiece, setSelectedPiece] = useState('')
   const art = JIGSAW_ART[state.artIndex] || JIGSAW_ART[0]
   const entries = Object.entries(state.pieces)
   const correct = entries.filter(([id, piece]) => piece.slot === Number(id.slice(1)) && piece.rotation === 0).length
   const pieceAt = slot => entries.find(([, piece]) => piece.slot === slot)
   const finish = state.status === 'finished'
+  const solvedCount = state.solvedCount || 0
   return <div className="arcade-game jigsaw-game">
     <p className="arcade-turn" aria-live="polite">{finish ? 'Solved together.' : `${correct} / 9 fit · ${art.title}`}</p>
+    <div aria-label={`Puzzle art collection, ${JIGSAW_ART.filter(item => solvedCount >= item.unlockAt).length} of ${JIGSAW_ART.length} unlocked`} className="jigsaw-collection">
+      {JIGSAW_ART.map(item => <span aria-label={solvedCount >= item.unlockAt ? `${item.title}, collected` : `${item.title}, locked; ${item.unlockAt - solvedCount} solves to unlock`} className={solvedCount >= item.unlockAt ? 'is-collected' : ''} key={item.title} role="img" title={solvedCount >= item.unlockAt ? `${item.title} collected` : `${item.title} · ${item.unlockAt - solvedCount} solves to unlock`} style={{ backgroundImage: `url("${item.src}")` }}><i aria-hidden="true">{solvedCount >= item.unlockAt ? '✓' : '·'}</i></span>)}
+    </div>
+    <JigsawUnboxing key={`unbox-${state.puzzleNumber || 1}-${art.src}`} image={art.src} title={art.title} audio={audio} />
     <p className="arcade-small">Tap one piece, then another to swap. Rotate the selected piece in quarter turns.</p>
     <div aria-label="Shared three-dimensional jigsaw puzzle" className="jigsaw-board" role="grid">
       {Array.from({ length: 9 }, (_, slot) => {
@@ -348,7 +364,15 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   async function reset() {
     if (busy) return
     if (!enabled || !db) {
-      setGames(current => ({ ...current, [selectedGame]: { state: createCoupleArcadeState(selectedGame, playerUids) } }))
+      setGames(current => {
+        const old = current[selectedGame]?.state || {}
+        const state = createCoupleArcadeState(selectedGame, playerUids, Math.random, {
+          wins: selectedGame === 'radar-love' ? old.wins : undefined,
+          solvedCount: selectedGame === 'our-little-pieces' ? old.solvedCount : undefined,
+          puzzleNumber: selectedGame === 'our-little-pieces' ? (old.puzzleNumber || 1) + 1 : undefined,
+        })
+        return { ...current, [selectedGame]: { state } }
+      })
       return
     }
     setBusy(true)
@@ -363,7 +387,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'my-one-and-only') gameUi = <UnoGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'catch-my-heart') gameUi = <FishGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'radar-love') gameUi = <RadarGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
-  if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} />
+  if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} audio={audio} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
   return <ArcadeModal title={selectedGame ? selectedTitle : 'A little game'} onClose={onClose}>

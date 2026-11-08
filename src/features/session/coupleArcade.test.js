@@ -74,6 +74,23 @@ describe('At Long Last couple arcade mechanics', () => {
     expect(rotated.moveCount).toBe(4)
   })
 
+  it('tracks Radar Love keepsakes and preserves them when a new match starts', () => {
+    const started = createCoupleArcadeState('radar-love', ['a', 'b'])
+    const inPlay = { ...started, status: 'playing', fleets: { ...started.fleets, b: started.fleets.b.map((ship, index) => ({ ...ship, cells: index === 0 ? ['0:0'] : [] })) } }
+    const won = applyCoupleArcadeAction(inPlay, 'radar-love', 'a', { kind: 'shot', row: 0, column: 0 })
+    expect(won.wins).toEqual({ a: 1, b: 0 })
+    expect(createCoupleArcadeState('radar-love', ['a', 'b'], Math.random, { wins: won.wins }).wins).toEqual({ a: 1, b: 0 })
+  })
+
+  it('unlocks new jigsaw art after shared puzzle solves', () => {
+    const first = createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random)
+    const pieces = Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`p${index}`, { slot: index, rotation: index === 0 ? 270 : 0, placedBy: null }]))
+    const solved = applyCoupleArcadeAction({ ...first, pieces }, 'our-little-pieces', 'b', { kind: 'rotate-piece', pieceId: 'p0', direction: 1 })
+    expect(solved).toMatchObject({ status: 'finished', solvedCount: 1 })
+    expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 1 }).artIndex).toBe(1)
+    expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 3 }).artIndex).toBe(2)
+  })
+
   it('plays both charades in sequence, scores correct guesses, and awards the better actor', () => {
     let state = createCoupleArcadeState('say-it-without-saying', ['a', 'b'], () => 0)
     expect(state.promptIndex).toBe(0)

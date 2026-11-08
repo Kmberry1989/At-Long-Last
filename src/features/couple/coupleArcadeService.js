@@ -24,12 +24,12 @@ export function subscribeCoupleArcades(db, coupleId, onNext, onError) {
   }, onError)
 }
 
-export function createCoupleArcadeState(gameId, playerUids, random = Math.random) {
+export function createCoupleArcadeState(gameId, playerUids, random = Math.random, progression = {}) {
   switch (gameId) {
     case 'my-one-and-only': return createMyOneAndOnly(playerUids)
     case 'catch-my-heart': return createCatchMyHeart(playerUids)
-    case 'radar-love': return createRadarLove(playerUids)
-    case 'our-little-pieces': return createOurLittlePieces(playerUids, random)
+    case 'radar-love': return createRadarLove(playerUids, progression.wins)
+    case 'our-little-pieces': return createOurLittlePieces(playerUids, random, progression.solvedCount, progression.puzzleNumber)
     case 'say-it-without-saying': return {
       game: gameId, playerUids: [...playerUids], actorIndex: 0, phase: 'act',
       promptIndex: Math.floor(random() * 16), clips: {}, guesses: {}, scores: [0, 0], status: 'playing', winnerUid: null,
@@ -93,7 +93,12 @@ export async function resetCoupleArcade(db, coupleId, gameId, playerUids) {
   return runTransaction(db, async transaction => {
     const snapshot = await transaction.get(ref)
     if (!snapshot.exists() || !snapshot.data().playerUids?.includes(playerUids[0])) throw new Error('Open the game from your couple lobby.')
-    const state = createCoupleArcadeState(gameId, playerUids)
+    const previousState = snapshot.data().state
+    const state = createCoupleArcadeState(gameId, playerUids, Math.random, {
+      wins: gameId === 'radar-love' ? previousState.wins : undefined,
+      solvedCount: gameId === 'our-little-pieces' ? previousState.solvedCount : undefined,
+      puzzleNumber: gameId === 'our-little-pieces' ? (previousState.puzzleNumber || 1) + 1 : undefined,
+    })
     const record = { gameId, playerUids: [...playerUids], state, createdAt: snapshot.data().createdAt, updatedAt: serverTimestamp() }
     transaction.set(ref, record)
     return record

@@ -596,3 +596,10 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
   either partner can work on the scrambled puzzle whenever they have time.
 - Radar Love now lets each player place ships manually, use random placement, and ready their
   fleet independently; the scan phase begins only after both fleets are ready.
+- Added persistent Arcade collectibles: Radar Love wins collect Rose Signal and Moonlit Fleet
+  hull finishes; shared jigsaw solves unlock three new artwork scenes.
+- Added a Three.js puzzle unboxing: the keepsake box opens, displays the completed art on its lid,
+  then spills gravity-driven pieces onto the table. New puzzles replay the reveal.
+- Flattened and stabilized the board coin at rest. Its toss now launches with a physical arc,
+  slows near the apex, zooms/chases with the camera, and settles into the chosen face with a
+  short suspenseful spin and layered impact sounds.

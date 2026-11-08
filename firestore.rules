@@ -1486,7 +1486,7 @@ service cloud.firestore {
             ||
             (gameId == 'radar-love'
               && state.keys().hasAll(['game', 'playerUids', 'fleets', 'fleetReady', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
-              && state.keys().hasOnly(['game', 'playerUids', 'fleets', 'fleetReady', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
+              && state.keys().hasOnly(['game', 'playerUids', 'fleets', 'fleetReady', 'shots', 'hits', 'wins', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
               && state.game == gameId && state.fleets is map
               && state.fleets.keys().hasAll(allowedPlayers) && state.fleets.keys().hasOnly(allowedPlayers)
               && state.fleetReady is map && state.fleetReady.keys().hasAll(allowedPlayers) && state.fleetReady.keys().hasOnly(allowedPlayers)
@@ -1499,6 +1499,8 @@ service cloud.firestore {
               && state.hits is map && state.hits.keys().hasAll(allowedPlayers) && state.hits.keys().hasOnly(allowedPlayers)
               && state.hits[allowedPlayers[0]] is list && state.hits[allowedPlayers[0]].size() <= 14
               && state.hits[allowedPlayers[1]] is list && state.hits[allowedPlayers[1]].size() <= 14
+              && (!state.keys().hasAny(['wins']) || (state.wins is map && state.wins.keys().hasAll(allowedPlayers) && state.wins.keys().hasOnly(allowedPlayers)
+                && isBoundedInt(state.wins[allowedPlayers[0]], 0, 10000) && isBoundedInt(state.wins[allowedPlayers[1]], 0, 10000)))
               && state.turnIndex in [0, 1] && state.boardSize == 8
               && state.status in ['placing', 'playing', 'finished']
               && (state.status == 'placing' || (state.fleetReady[allowedPlayers[0]] && state.fleetReady[allowedPlayers[1]]))
@@ -1506,13 +1508,15 @@ service cloud.firestore {
             ||
             (gameId == 'our-little-pieces'
               && state.keys().hasAll(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy'])
-              && state.keys().hasOnly(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy'])
+              && state.keys().hasOnly(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy', 'solvedCount', 'puzzleNumber'])
               && state.game == gameId && state.artIndex in [0, 1, 2, 3]
               && state.pieces is map && state.pieces.size() == 9
               && state.pieces.keys().hasOnly(['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'])
               && state.pieces.keys().hasAll(['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'])
               && state.status in ['playing', 'finished']
               && isBoundedInt(state.moveCount, 0, 10000)
+              && (!state.keys().hasAny(['solvedCount']) || isBoundedInt(state.solvedCount, 0, 10000))
+              && (!state.keys().hasAny(['puzzleNumber']) || isBoundedInt(state.puzzleNumber, 1, 10000))
               && (state.completedBy == null || state.completedBy in allowedPlayers))
             ||
             (gameId == 'say-it-without-saying'

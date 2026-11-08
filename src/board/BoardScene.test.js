@@ -237,8 +237,9 @@ describe('cinematic board camera shots', () => {
     const coin = getBoardCameraShotPose('coin', focus)
     expect(dice.target.toArray()).toEqual(focus.toArray())
     expect(dice.position.distanceTo(dice.target)).toBeGreaterThan(9)
-    expect(coin.position.distanceTo(coin.target)).toBeGreaterThan(9)
-    expect(coin.position.distanceTo(coin.target)).toBeLessThan(11)
+    expect(coin.position.distanceTo(coin.target)).toBeLessThan(7)
+    const close = getBoardCameraShotPose('coin', focus, 1, 0.58)
+    expect(close.position.distanceTo(close.target)).toBeLessThan(coin.position.distanceTo(coin.target))
   })
 
   it('keeps the piece camera inside the board wall while orbiting the moving token', () => {
