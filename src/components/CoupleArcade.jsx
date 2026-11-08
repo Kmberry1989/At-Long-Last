@@ -38,7 +38,7 @@ function ArcadeModal({ children, title, onClose }) {
 
 function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
   const ownIndex = state.playerUids.indexOf(playerUid)
-  const hand = state.hands[ownIndex] || []
+  const hand = state.hands[playerUid] || []
   const top = state.discardPile.at(-1)
   const [wildId, setWildId] = useState('')
   const ownTurn = state.turnIndex === ownIndex
@@ -68,20 +68,21 @@ function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
       <div className="arcade-actions"><button className="arcade-primary" disabled={!ownTurn || Boolean(state.drawnCardId)} onClick={() => onAction({ kind: 'draw' })} type="button">Draw a card</button>
         {state.drawnCardId && <button className="arcade-secondary" onClick={() => onAction({ kind: 'keep' })} type="button">Keep it</button>}
       </div>
-      <p className="arcade-small">{hand.length} in your hand · {state.hands[1 - ownIndex]?.length || 0} in theirs</p>
+      <p className="arcade-small">{hand.length} in your hand · {state.hands[state.playerUids[1 - ownIndex]]?.length || 0} in theirs</p>
     </>}
   </div>
 }
 
 function FishGame({ state, playerUid, otherName, onAction, onReset }) {
   const ownIndex = state.playerUids.indexOf(playerUid)
-  const hand = state.hands[ownIndex] || []
+  const hand = state.hands[playerUid] || []
+  const otherUid = state.playerUids[1 - ownIndex]
   const ownTurn = state.turnIndex === ownIndex
   const status = state.status === 'finished'
     ? !state.winnerUid ? 'A perfect tie.' : state.winnerUid === playerUid ? 'You caught the most hearts.' : `${otherName} caught the most hearts.`
     : ownTurn ? 'Your turn' : `${otherName} is fishing`
   return <div className="arcade-game">
-    <div className="fish-books"><span>♥ {state.books[ownIndex].length}</span><span>{otherName} ♥ {state.books[1 - ownIndex].length}</span></div>
+    <div className="fish-books"><span>♥ {state.books[playerUid].length}</span><span>{otherName} ♥ {state.books[otherUid].length}</span></div>
     <p aria-live="polite" className="arcade-turn">{status}</p>
     <p className="arcade-small">Your cards</p>
     <div className="fish-hand">{hand.map(card => <span className={`fish-card fish-${card.suit}`} key={card.id}>{card.rank}<i>{card.suit === 'hearts' ? '♥' : card.suit === 'diamonds' ? '♦' : card.suit === 'clubs' ? '♣' : '♠'}</i></span>)}</div>
@@ -96,8 +97,8 @@ function FishGame({ state, playerUid, otherName, onAction, onReset }) {
 function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   const ownIndex = state.playerUids.indexOf(playerUid)
   const ownTurn = state.turnIndex === ownIndex
-  const shots = new Set(state.shots[ownIndex] || [])
-  const hits = new Set(state.hits[ownIndex] || [])
+  const shots = new Set(state.shots[playerUid] || [])
+  const hits = new Set(state.hits[playerUid] || [])
   const status = state.status === 'finished'
     ? state.winnerUid === playerUid ? 'You found the fleet.' : `${otherName} found your fleet.`
     : ownTurn ? 'Your scan' : `${otherName} is scanning`

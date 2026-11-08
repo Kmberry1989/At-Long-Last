@@ -27,7 +27,7 @@ export function createMyOneAndOnly(playerUids, random = Math.random) {
     cards.push({ id: `wild-draw-four-${i}`, color: 'wild', value: 'wild-draw-four' })
   }
   const deck = shuffled(cards, random)
-  const hands = [deck.splice(0, 7), deck.splice(0, 7)]
+  const hands = Object.fromEntries(playerUids.map(uid => [uid, deck.splice(0, 7)]))
   let first = deck.shift()
   while (first && (['skip', 'reverse', 'draw-two'].includes(first.value) || first.color === 'wild')) {
     deck.push(first)
@@ -44,21 +44,21 @@ export function playMyOneAndOnlyCard(state, { playerUid, cardId, color }) {
   const playerIndex = state.playerUids.indexOf(playerUid)
   if (state.status !== 'playing') throw new Error('This game is finished.')
   if (playerIndex !== state.turnIndex) throw new Error('Wait for your turn.')
-  const hand = state.hands[playerIndex]
+  const hand = state.hands[playerUid]
   const cardIndex = hand.findIndex(card => card.id === cardId)
   if (cardIndex < 0) throw new Error('That card is not in your hand.')
   const card = hand[cardIndex]
   const top = state.discardPile[state.discardPile.length - 1]
   if (card.color !== 'wild' && card.color !== state.activeColor && card.value !== top.value) throw new Error('Play a matching color, number, or Wild card.')
   if (card.color === 'wild' && !UNO_COLORS.includes(color)) throw new Error('Choose a color for your Wild card.')
-  const hands = state.hands.map(value => [...value])
-  const [played] = hands[playerIndex].splice(cardIndex, 1)
+  const hands = Object.fromEntries(Object.entries(state.hands).map(([uid, value]) => [uid, [...value]]))
+  const [played] = hands[playerUid].splice(cardIndex, 1)
   const discardPile = [...state.discardPile, played]
   const next = {
     ...state, hands, discardPile, activeColor: card.color === 'wild' ? color : card.color,
     drawnCardId: null, moveCount: state.moveCount + 1,
-    status: hands[playerIndex].length === 0 ? 'finished' : 'playing',
-    winnerUid: hands[playerIndex].length === 0 ? playerUid : null,
+    status: hands[playerUid].length === 0 ? 'finished' : 'playing',
+    winnerUid: hands[playerUid].length === 0 ? playerUid : null,
   }
   if (next.status === 'playing') {
     const skipNext = ['skip', 'reverse', 'draw-two', 'wild-draw-four'].includes(card.value)
@@ -68,7 +68,8 @@ export function playMyOneAndOnlyCard(state, { playerUid, cardId, color }) {
       const drawPile = [...next.drawPile]
       const penaltyCards = drawPile.splice(0, amount)
       next.drawPile = drawPile
-      next.hands = next.hands.map((value, index) => index === next.turnIndex ? [...value, ...penaltyCards] : value)
+    const targetUid = next.playerUids[next.turnIndex]
+    next.hands = { ...next.hands, [targetUid]: [...next.hands[targetUid], ...penaltyCards] }
     }
   }
   return next
@@ -86,7 +87,7 @@ export function drawMyOneAndOnlyCard(state, playerUid, random = Math.random) {
   }
   if (!drawPile.length) return { ...state, turnIndex: (playerIndex + 1) % 2 }
   const [card, ...remaining] = drawPile
-  const hands = state.hands.map((value, index) => index === playerIndex ? [...value, card] : value)
+  const hands = { ...state.hands, [playerUid]: [...state.hands[playerUid], card] }
   const playable = card.color === 'wild' || card.color === state.activeColor || card.value === state.discardPile.at(-1)?.value
   return { ...state, hands, drawPile: remaining, discardPile: recycled ? [state.discardPile.at(-1)] : state.discardPile, drawnCardId: playable ? card.id : null, turnIndex: playable ? playerIndex : (playerIndex + 1) % 2 }
 }
@@ -103,13 +104,14 @@ export const FISH_CARD_SUITS = SUITS
 export function createCatchMyHeart(playerUids, random = Math.random) {
   if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
   const deck = shuffled(SUITS.flatMap(suit => RANKS.map(rank => ({ id: `${rank}-${suit}`, rank, suit }))), random)
-  const hands = [deck.splice(0, 7), deck.splice(0, 7)]
-  const books = [[], []]
+  const hands = Object.fromEntries(playerUids.map(uid => [uid, deck.splice(0, 7)]))
+  const books = Object.fromEntries(playerUids.map(uid => [uid, []]))
   for (let playerIndex = 0; playerIndex < 2; playerIndex += 1) {
     for (const rank of RANKS) {
-      if (hands[playerIndex].filter(card => card.rank === rank).length === 4) {
-        hands[playerIndex] = hands[playerIndex].filter(card => card.rank !== rank)
-        books[playerIndex].push(rank)
+      const uid = playerUids[playerIndex]
+      if (hands[uid].filter(card => card.rank === rank).length === 4) {
+        hands[uid] = hands[uid].filter(card => card.rank !== rank)
+        books[uid].push(rank)
       }
     }
   }
@@ -120,26 +122,29 @@ export function askCatchMyHeart(state, { playerUid, targetUid, rank }) {
   const playerIndex = state.playerUids.indexOf(playerUid)
   const targetIndex = state.playerUids.indexOf(targetUid)
   if (state.status !== 'playing' || playerIndex !== state.turnIndex || targetIndex === playerIndex || targetIndex < 0) throw new Error('Wait for your turn.')
-  if (!RANKS.includes(rank) || !state.hands[playerIndex].some(card => card.rank === rank)) throw new Error('Ask for a rank in your hand.')
-  const hands = state.hands.map(hand => [...hand])
-  const books = state.books.map(book => [...book])
-  const cards = hands[targetIndex].filter(card => card.rank === rank)
+  if (!RANKS.includes(rank) || !state.hands[playerUid].some(card => card.rank === rank)) throw new Error('Ask for a rank in your hand.')
+  const hands = Object.fromEntries(Object.entries(state.hands).map(([uid, hand]) => [uid, [...hand]]))
+  const books = Object.fromEntries(Object.entries(state.books).map(([uid, book]) => [uid, [...book]]))
+  const recipientUid = state.playerUids[targetIndex]
+  const cards = hands[recipientUid].filter(card => card.rank === rank)
   if (cards.length) {
-    hands[targetIndex] = hands[targetIndex].filter(card => card.rank !== rank)
-    hands[playerIndex].push(...cards)
+    hands[recipientUid] = hands[recipientUid].filter(card => card.rank !== rank)
+    hands[playerUid].push(...cards)
   } else if (state.drawPile.length) {
-    hands[playerIndex].push(state.drawPile[0])
+    hands[playerUid].push(state.drawPile[0])
   }
   for (const candidate of RANKS) {
-    if (hands[playerIndex].filter(card => card.rank === candidate).length === 4) {
-      hands[playerIndex] = hands[playerIndex].filter(card => card.rank !== candidate)
-      books[playerIndex].push(candidate)
+    if (hands[playerUid].filter(card => card.rank === candidate).length === 4) {
+      hands[playerUid] = hands[playerUid].filter(card => card.rank !== candidate)
+      books[playerUid].push(candidate)
     }
   }
   const drawPile = cards.length ? state.drawPile : state.drawPile.slice(1)
-  if (!hands[playerIndex].length && drawPile.length) hands[playerIndex].push(drawPile.shift())
-  const finished = books[0].length + books[1].length === 13 || (!drawPile.length && (!hands[0].length || !hands[1].length))
-  const winnerIndex = books[0].length === books[1].length ? null : books[0].length > books[1].length ? 0 : 1
+  if (!hands[playerUid].length && drawPile.length) hands[playerUid].push(drawPile.shift())
+  const firstBookCount = books[state.playerUids[0]].length
+  const secondBookCount = books[state.playerUids[1]].length
+  const finished = firstBookCount + secondBookCount === 13 || (!drawPile.length && (!hands[state.playerUids[0]].length || !hands[state.playerUids[1]].length))
+  const winnerIndex = firstBookCount === secondBookCount ? null : firstBookCount > secondBookCount ? 0 : 1
   return {
     ...state, hands, books, drawPile, turnIndex: cards.length ? playerIndex : (playerIndex + 1) % 2,
     status: finished ? 'finished' : 'playing', winnerUid: finished && winnerIndex !== null ? state.playerUids[winnerIndex] : null,
@@ -179,8 +184,11 @@ export function createRadarLove(playerUids, random = Math.random) {
   const firstFleet = randomFleet(random)
   const secondFleet = randomFleet(random, new Set(firstFleet.flat()))
   return {
-    game: 'radar-love', playerUids: [...playerUids], fleets: [firstFleet, secondFleet],
-    shots: [[], []], hits: [[], []], turnIndex: 0, status: 'playing', winnerUid: null, lastShot: null, boardSize: 8,
+    game: 'radar-love', playerUids: [...playerUids],
+    fleets: Object.fromEntries(playerUids.map((uid, index) => [uid, (index === 0 ? firstFleet : secondFleet).map((cells, shipIndex) => ({ id: shipIndex, cells }))])),
+    shots: Object.fromEntries(playerUids.map(uid => [uid, []])),
+    hits: Object.fromEntries(playerUids.map(uid => [uid, []])),
+    turnIndex: 0, status: 'playing', winnerUid: null, lastShot: null, boardSize: 8,
   }
 }
 
@@ -189,12 +197,13 @@ export function fireRadarLoveShot(state, { playerUid, row, column }) {
   if (state.status !== 'playing' || playerIndex !== state.turnIndex) throw new Error('Wait for your turn.')
   if (!Number.isInteger(row) || row < 0 || row >= 8 || !Number.isInteger(column) || column < 0 || column >= 8) throw new Error('Choose a spot on the radar.')
   const key = `${row}:${column}`
-  if (state.shots[playerIndex].includes(key)) throw new Error('You already scanned that spot.')
+  if (state.shots[playerUid].includes(key)) throw new Error('You already scanned that spot.')
   const targetIndex = (playerIndex + 1) % 2
-  const hit = state.fleets[targetIndex].some(ship => ship.includes(key))
-  const shots = state.shots.map((set, index) => index === playerIndex ? [...set, key] : [...set])
-  const hits = state.hits.map((set, index) => index === playerIndex && hit ? [...set, key] : [...set])
-  const sunk = state.fleets[targetIndex].flat().every(cell => shots[playerIndex].includes(cell))
+  const targetUid = state.playerUids[targetIndex]
+  const hit = state.fleets[targetUid].some(ship => ship.cells.includes(key))
+  const shots = { ...state.shots, [playerUid]: [...state.shots[playerUid], key] }
+  const hits = { ...state.hits, [playerUid]: hit ? [...state.hits[playerUid], key] : [...state.hits[playerUid]] }
+  const sunk = state.fleets[targetUid].flatMap(ship => ship.cells).every(cell => shots[playerUid].includes(cell))
   return {
     ...state, shots, hits, turnIndex: sunk ? playerIndex : targetIndex,
     status: sunk ? 'finished' : 'playing', winnerUid: sunk ? playerUid : null,

@@ -36,7 +36,7 @@ import {
   updateSessionStateWithJournal,
 } from '../src/features/session/sessionService.js'
 import { activityRegistry } from '../src/features/session/activityRegistry.jsx'
-import { createCoupleArcadeState } from '../src/features/couple/coupleArcadeService.js'
+import { applyCoupleArcadeAction, createCoupleArcadeState } from '../src/features/couple/coupleArcadeService.js'
 import { ensureProfileDocument } from '../src/features/couple/profileService.js'
 import { resolveKeepsakeDecision } from '../src/features/session/sessionLogic.js'
 import { KEEPSAKES } from '../src/features/session/boardConfig.js'
@@ -1215,6 +1215,37 @@ describe('independent night two-account transactions', () => {
 })
 
 describe('paired couple arcade games', () => {
+  it('stores all playable arcade states without Firestore nested arrays', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    for (const gameId of ['my-one-and-only', 'catch-my-heart', 'radar-love']) {
+      const state = createCoupleArcadeState(gameId, couple.playerIds, () => 0.23)
+      await assertSucceeds(setDoc(doc(hostDb, 'coupleArcades', couple.id, 'games', gameId), {
+        gameId,
+        playerUids: couple.playerIds,
+        state,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }))
+      const actorUid = couple.playerIds[0]
+      let nextState
+      if (gameId === 'my-one-and-only') {
+        const topCard = state.discardPile.at(-1)
+        const card = state.hands[actorUid].find(item => item.color === state.activeColor || item.value === topCard.value)
+        nextState = applyCoupleArcadeAction(state, gameId, actorUid, card
+          ? { kind: 'play', cardId: card.id }
+          : { kind: 'draw' })
+      } else if (gameId === 'catch-my-heart') {
+        nextState = applyCoupleArcadeAction(state, gameId, actorUid, { kind: 'ask', rank: state.hands[actorUid][0].rank })
+      } else {
+        nextState = applyCoupleArcadeAction(state, gameId, actorUid, { kind: 'shot', row: 0, column: 0 })
+      }
+      await assertSucceeds(updateDoc(doc(hostDb, 'coupleArcades', couple.id, 'games', gameId), {
+        state: nextState,
+        updatedAt: serverTimestamp(),
+      }))
+    }
+  })
+
   it('allows paired play and bounds private charade clips in Firestore', async () => {
     const { couple, hostDb } = await createAndJoinRoom()
     const state = createCoupleArcadeState('say-it-without-saying', couple.playerIds, () => 0)

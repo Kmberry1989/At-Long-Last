@@ -582,10 +582,13 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
   short UI animations and reduced-motion handling.
 - Added Love in the Blanks and Our Next Line to the night mini-game rotation and scrapbook
   reveal, with independent private submissions. Added rule coverage for both duel IDs.
-- Focused app coverage: 38 tests passed. Full Firestore emulator suite: 36 tests passed,
+- Focused app coverage: 38 tests passed. Full Firestore emulator suite: 37 tests passed,
   including the new duel IDs and paired arcade access rules. Production build passed; lint has only two existing
   unused-parameter warnings in `MysteryKeepsakeCard.jsx`. Browser preview reached sign-in,
   so live camera and authenticated two-account arcade play remain unverified.
 
 - Renamed the camera game to **Say Without Saying** and clarified the on-screen flow:
   open camera, record a clip, stop to preview, then send it. Clips auto-stop at six seconds.
+- Fixed the arcade write failure: player hands, books, fleets, shots, and hits are now
+  stored as UID-keyed maps instead of nested arrays. Firestore emulator checks now create
+  and apply a move to each affected game state successfully.

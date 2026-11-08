@@ -1459,9 +1459,10 @@ service cloud.firestore {
             (gameId == 'my-one-and-only'
               && state.keys().hasAll(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount'])
               && state.keys().hasOnly(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount'])
-              && state.game == gameId && state.hands is list && state.hands.size() == 2
-              && state.hands[0] is list && state.hands[0].size() <= 108
-              && state.hands[1] is list && state.hands[1].size() <= 108
+              && state.game == gameId && state.hands is map
+              && state.hands.keys().hasAll(allowedPlayers) && state.hands.keys().hasOnly(allowedPlayers)
+              && state.hands[allowedPlayers[0]] is list && state.hands[allowedPlayers[0]].size() <= 108
+              && state.hands[allowedPlayers[1]] is list && state.hands[allowedPlayers[1]].size() <= 108
               && state.drawPile is list && state.drawPile.size() <= 108
               && state.discardPile is list && state.discardPile.size() <= 108
               && state.activeColor in ['coral', 'plum', 'teal', 'gold']
@@ -1472,28 +1473,30 @@ service cloud.firestore {
             (gameId == 'catch-my-heart'
               && state.keys().hasAll(['game', 'playerUids', 'hands', 'drawPile', 'books', 'turnIndex', 'status', 'winnerUid', 'lastAction'])
               && state.keys().hasOnly(['game', 'playerUids', 'hands', 'drawPile', 'books', 'turnIndex', 'status', 'winnerUid', 'lastAction'])
-              && state.game == gameId && state.hands is list && state.hands.size() == 2
-              && state.hands[0] is list && state.hands[0].size() <= 52
-              && state.hands[1] is list && state.hands[1].size() <= 52
+              && state.game == gameId && state.hands is map
+              && state.hands.keys().hasAll(allowedPlayers) && state.hands.keys().hasOnly(allowedPlayers)
+              && state.hands[allowedPlayers[0]] is list && state.hands[allowedPlayers[0]].size() <= 52
+              && state.hands[allowedPlayers[1]] is list && state.hands[allowedPlayers[1]].size() <= 52
               && state.drawPile is list && state.drawPile.size() <= 52
-              && state.books is list && state.books.size() == 2
-              && state.books[0] is list && state.books[0].size() <= 13
-              && state.books[1] is list && state.books[1].size() <= 13
+              && state.books is map && state.books.keys().hasAll(allowedPlayers) && state.books.keys().hasOnly(allowedPlayers)
+              && state.books[allowedPlayers[0]] is list && state.books[allowedPlayers[0]].size() <= 13
+              && state.books[allowedPlayers[1]] is list && state.books[allowedPlayers[1]].size() <= 13
               && state.turnIndex in [0, 1]
               && (state.winnerUid == null || state.winnerUid in allowedPlayers))
             ||
             (gameId == 'radar-love'
               && state.keys().hasAll(['game', 'playerUids', 'fleets', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
               && state.keys().hasOnly(['game', 'playerUids', 'fleets', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
-              && state.game == gameId && state.fleets is list && state.fleets.size() == 2
-              && state.fleets[0] is list && state.fleets[0].size() == 3
-              && state.fleets[1] is list && state.fleets[1].size() == 3
-              && state.shots is list && state.shots.size() == 2
-              && state.shots[0] is list && state.shots[0].size() <= 64
-              && state.shots[1] is list && state.shots[1].size() <= 64
-              && state.hits is list && state.hits.size() == 2
-              && state.hits[0] is list && state.hits[0].size() <= 14
-              && state.hits[1] is list && state.hits[1].size() <= 14
+              && state.game == gameId && state.fleets is map
+              && state.fleets.keys().hasAll(allowedPlayers) && state.fleets.keys().hasOnly(allowedPlayers)
+              && state.fleets[allowedPlayers[0]] is list && state.fleets[allowedPlayers[0]].size() == 3
+              && state.fleets[allowedPlayers[1]] is list && state.fleets[allowedPlayers[1]].size() == 3
+              && state.shots is map && state.shots.keys().hasAll(allowedPlayers) && state.shots.keys().hasOnly(allowedPlayers)
+              && state.shots[allowedPlayers[0]] is list && state.shots[allowedPlayers[0]].size() <= 64
+              && state.shots[allowedPlayers[1]] is list && state.shots[allowedPlayers[1]].size() <= 64
+              && state.hits is map && state.hits.keys().hasAll(allowedPlayers) && state.hits.keys().hasOnly(allowedPlayers)
+              && state.hits[allowedPlayers[0]] is list && state.hits[allowedPlayers[0]].size() <= 14
+              && state.hits[allowedPlayers[1]] is list && state.hits[allowedPlayers[1]].size() <= 14
               && state.turnIndex in [0, 1] && state.boardSize == 8
               && (state.winnerUid == null || state.winnerUid in allowedPlayers))
             ||
