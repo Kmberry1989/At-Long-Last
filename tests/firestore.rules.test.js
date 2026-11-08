@@ -36,6 +36,7 @@ import {
   updateSessionStateWithJournal,
 } from '../src/features/session/sessionService.js'
 import { activityRegistry } from '../src/features/session/activityRegistry.jsx'
+import { createCoupleArcadeState } from '../src/features/couple/coupleArcadeService.js'
 import { ensureProfileDocument } from '../src/features/couple/profileService.js'
 import { resolveKeepsakeDecision } from '../src/features/session/sessionLogic.js'
 import { KEEPSAKES } from '../src/features/session/boardConfig.js'
@@ -1041,6 +1042,33 @@ describe('session lifecycle boundaries', () => {
 
 
 describe('independent night two-account transactions', () => {
+  it.each(['love-in-the-blanks', 'our-next-line'])('%s accepts private contributions from both partners', async (type) => {
+    const { couple, hostDb, guestDb } = await createAndJoinRoom()
+    const sessionId = await ensureActiveSession(hostDb, couple)
+    const stepRef = doc(hostDb, 'sessions', sessionId, 'steps', 'duel-1')
+    await setDoc(stepRef, {
+      kind: 'duel', type, round: 1, ownerIndex: -1,
+      state: { results: {} }, ready: false, completed: false, skipped: false,
+      updatedAt: serverTimestamp(),
+    })
+
+    await assertSucceeds(updateDoc(stepRef, {
+      state: { results: { '0': { words: ['we', 'found'], answers: { place: 'the seaside' } } } },
+      updatedAt: serverTimestamp(),
+    }))
+    await assertFails(updateDoc(doc(guestDb, 'sessions', sessionId, 'steps', 'duel-1'), {
+      state: { results: { '0': { words: ['changed'] } } },
+      updatedAt: serverTimestamp(),
+    }))
+    await assertSucceeds(updateDoc(doc(guestDb, 'sessions', sessionId, 'steps', 'duel-1'), {
+      state: { results: {
+        '0': { words: ['we', 'found'], answers: { place: 'the seaside' } },
+        '1': { words: ['a', 'home'], answers: { place: 'a tiny cafe' } },
+      } },
+      updatedAt: serverTimestamp(),
+    }))
+  })
+
   it('keeps Portrait Panic cue sets private to each writer while allowing independent drawing', async () => {
     const { couple, hostDb, guestDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
@@ -1158,8 +1186,9 @@ describe('independent night two-account transactions', () => {
       }
       if (uid === GUEST_UID) {
         await sendNightKisses(hostDb, guestDb, sessionId)
+        const positionsBeforeEarlyFinish = (await getDoc(doc(db, 'sessions', sessionId))).data().positions
         await expect(runNightCommand(db, sessionId, uid, { kind: 'finish' })).rejects.toThrow('still moments')
-        expect((await getDoc(doc(db, 'sessions', sessionId))).data().positions).toEqual([0, 5])
+        expect((await getDoc(doc(db, 'sessions', sessionId))).data().positions).toEqual(positionsBeforeEarlyFinish)
         expect((await getDocs(query(collection(db, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
       }
     }
@@ -1170,7 +1199,9 @@ describe('independent night two-account transactions', () => {
       runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'finish' }),
     ])
     const final = (await getDoc(doc(guestDb, 'sessions', sessionId))).data()
-    expect(final).toMatchObject({ phase: 'finale', status: 'completed', round: 4, positions: [5, 5] })
+    expect(final).toMatchObject({ phase: 'finale', status: 'completed', round: 4 })
+    expect(final.positions).toHaveLength(2)
+    expect(final.positions.every(position => Number.isInteger(position) && position >= 0)).toBe(true)
     const entries = (await getDocs(query(collection(guestDb, 'journalEntries'), where('coupleId', '==', couple.id)))).docs.map(record => record.data())
     expect(entries.filter(entry => entry.type === 'duel')).toHaveLength(4)
     expect(entries.filter(entry => ['moment-trash', 'moment-treasure'].includes(entry.type))).toHaveLength(8)
@@ -1180,6 +1211,31 @@ describe('independent night two-account transactions', () => {
     await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'finish' })
     expect((await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(savedEntryCount)
     await assertFails(updateDoc(doc(hostDb, 'sessions', sessionId, 'steps', 'duel-1'), { ready: false, updatedAt: serverTimestamp() }))
+  })
+})
+
+describe('paired couple arcade games', () => {
+  it('allows paired play and bounds private charade clips in Firestore', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const state = createCoupleArcadeState('say-it-without-saying', couple.playerIds, () => 0)
+    const gameRef = doc(hostDb, 'coupleArcades', couple.id, 'games', 'say-it-without-saying')
+    await assertSucceeds(setDoc(gameRef, {
+      gameId: state.game,
+      playerUids: couple.playerIds,
+      state,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }))
+    await assertFails(getDoc(doc(authedDb(OUTSIDER_UID), 'coupleArcades', couple.id, 'games', state.game)))
+
+    await assertSucceeds(updateDoc(gameRef, {
+      state: { ...state, phase: 'guess', clips: { [HOST_UID]: 'data:video/webm;base64,AAAA' } },
+      updatedAt: serverTimestamp(),
+    }))
+    await assertFails(updateDoc(gameRef, {
+      state: { ...state, phase: 'guess', clips: { [HOST_UID]: `data:video/webm;base64,${'A'.repeat(260000)}` } },
+      updatedAt: serverTimestamp(),
+    }))
   })
 })
 

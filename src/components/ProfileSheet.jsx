@@ -78,8 +78,8 @@ export function ProfileSheet({ streak, pieceStyle = { color: '#ff7a97', material
         </div>
         <button className="piece-style-save" type="button" disabled={savingPiece} onClick={savePiece}>{savingPiece ? 'Saving…' : 'Save piece style'}</button>
         {pieceError && <p className="error-copy" role="alert">{pieceError}</p>}
-      </section> : <section className="connect-four-profile-settings" aria-label="Connect Four token">
-        <h3>Connect Four token</h3>
+      </section> : <section className="connect-four-profile-settings" aria-label="Four Ever token">
+        <h3>Four Ever token</h3>
         <p>{tokenLocked ? 'Finish this match before changing your token.' : 'Choose the one you’ll use in every match.'}</p>
         <div className="connect-four-profile-token-grid">
           {CONNECT_FOUR_TOKENS.map((token) => {

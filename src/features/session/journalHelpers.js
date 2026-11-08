@@ -173,6 +173,14 @@ export function buildDuelJournalEntry({
         getLetterpressWords(duelResults?.[players[1]?.uid]?.excerpt),
       )
     : ''
+  const isOurNextLine = duel.id === 'our-next-line'
+  const nextLineWords = isOurNextLine
+    ? players.map(player => String(duelResults?.[player.uid]?.excerpt || '').trim().split(/\s+/).filter(Boolean).slice(0, 8))
+    : []
+  const nextLineText = isOurNextLine && nextLineWords.length === 2
+    ? weaveLetterpressWords(nextLineWords[0], nextLineWords[1])
+    : null
+  const isLoveInTheBlanks = duel.id === 'love-in-the-blanks'
   const isGratitude = duel.id === 'gratitude-duel'
   const gratitudePrompt = isGratitude
     ? getGratitudePrompt(duel.prompts, session?.id || '', session?.round || 1)
@@ -187,6 +195,10 @@ export function buildDuelJournalEntry({
         ? `You ranked ${starMapMatches}/5 values in the same order and banked ${heartBonus} shared hearts.`
         : isLetterpress
           ? `You wove a sentence together and banked ${heartBonus} shared hearts.`
+          : isOurNextLine
+            ? `You wrote a new line together and banked ${heartBonus} shared hearts.`
+          : isLoveInTheBlanks
+            ? `You made two little stories and banked ${heartBonus} shared hearts.`
           : isGratitude
             ? `You shared an appreciation and banked ${heartBonus} shared hearts.`
         : `You both landed ${duel.label} and banked ${heartBonus} shared hearts.`
@@ -230,6 +242,19 @@ export function buildDuelJournalEntry({
   const letterpressText = isLetterpress && letterpressSentence
     ? `${getLetterpressPrompt(session?.id || '', session?.round || 1)}\n\n${letterpressSentence}`
     : null
+  const ourNextLineText = nextLineText
+    ? `Our Next Line\n\n${nextLineText}`
+    : null
+  const loveInTheBlanksText = isLoveInTheBlanks
+    ? players.map(player => {
+        try {
+          const story = JSON.parse(duelResults?.[player.uid]?.excerpt || '{}')
+          return `${player.displayName ?? 'Player'} — ${story.title || 'Your little story'}\n${story.text || ''}`
+        } catch {
+          return `${player.displayName ?? 'Player'}: ${duelResults?.[player.uid]?.excerpt || ''}`
+        }
+      }).join('\n\n')
+    : null
   const gratitudeText = isGratitude
     ? [
         gratitudePrompt,
@@ -269,7 +294,7 @@ export function buildDuelJournalEntry({
     },
     sessionId,
     summary,
-    text: wavelengthText || starMapText || letterpressText || gratitudeText || portraitPanicText || highlights || summary,
+    text: wavelengthText || starMapText || letterpressText || ourNextLineText || loveInTheBlanksText || gratitudeText || portraitPanicText || highlights || summary,
     title: duel.label,
     type: 'duel',
     vibe: duel.vibe,

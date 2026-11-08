@@ -11,6 +11,7 @@ import { OurStoryScreens } from './OurStoryScreens.jsx'
 import { BrandIcon } from './BrandIcon.jsx'
 import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/emailInvitationService.js'
 import { ConnectFourFinale } from './ConnectFourFinale.jsx'
+import { CoupleArcade } from './CoupleArcade.jsx'
 import { createConnectFourState, getConnectFourTokenPreferences, placeConnectFourPiece } from '../features/session/connectFour.js'
 import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectFourMatch } from '../features/couple/progressService.js'
 import { useAudio } from '../audio/AudioProvider.jsx'
@@ -38,6 +39,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [connectFourBusy, setConnectFourBusy] = useState(false)
   const [connectFourError, setConnectFourError] = useState('')
   const [connectFourTokenPreview, setConnectFourTokenPreview] = useState({})
+  const [arcadeOpen, setArcadeOpen] = useState(false)
   const profileButtonRef = useRef(null)
   const partner = couple?.players?.find((player) => player.uid !== user?.uid)
   const ownPlayer = couple?.players?.find((player) => player.uid === user?.uid)
@@ -211,7 +213,10 @@ export function PairingHome({ avatar, onAvatarChange }) {
           </form> : <button className="primary-btn" disabled={disabled} onClick={() => setConfirmCommit(true)} type="button">Commit</button>}
         </div>}
         {hasCurrentNight ? <button className="primary-btn night-start-button" disabled={disabled} onClick={openGame} type="button"><BrandIcon name="moon" /><span>Continue our night</span></button> : <button className="primary-btn night-start-button" disabled={disabled} onClick={() => act(() => beginNight('long'))} type="button"><BrandIcon name="moon" /><span>Begin our night</span></button>}
-        <button className="secondary-link connect-four-lobby-link" disabled={connectFourBusy} onClick={() => { setConnectFourError(''); setConnectFourOpen(true) }} type="button">Play Connect Four</button>
+        <div className="lobby-game-links">
+          <button className="secondary-link connect-four-lobby-link" disabled={connectFourBusy} onClick={() => { setConnectFourError(''); setConnectFourOpen(true) }} type="button">Play Four Ever</button>
+          <button className="secondary-link couple-arcade-lobby-link" onClick={() => setArcadeOpen(true)} type="button">Other little games</button>
+        </div>
         {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Saved game unavailable. Try Continue again.' : 'Couldn’t start. Try again.'}</p>}
           <button aria-label="Our Story" className="story-open-button" onClick={() => setStoryScreen('chooser')} type="button"><BrandIcon name="more" /></button>
       </>}
@@ -226,6 +231,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
       {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
       {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} onClose={() => setStoryScreen('')} />}
       {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} onDrop={dropConnectFour} onClose={() => setConnectFourOpen(false)} onNewGame={newConnectFourMatch} onLand={connectFourLanding} />}
+      {arcadeOpen && paired && <CoupleArcade db={db} enabled={enabled} coupleId={couple.id} players={connectFourPlayers} currentUid={user?.uid} onClose={() => setArcadeOpen(false)} />}
       {connectFourError && <p className="error-copy" role="alert">{connectFourError}</p>}
     </>
   )

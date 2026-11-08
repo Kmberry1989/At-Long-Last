@@ -8,6 +8,7 @@ import { STAR_MAP_VALUES, encodeStarMapRanking } from './starMapData.js'
 import { getLetterpressPrompt, getLetterpressWords } from './letterpressData.js'
 import { getGratitudePrompt } from './gratitudeData.js'
 import { hasThreeLetters } from './responseValidation.js'
+import { MAD_LIBS_BLANKS, MAD_LIBS_TEMPLATES, fillLoveInTheBlanks } from './coupleArcade.js'
 import {
   WAVELENGTH_DUEL_ID,
   WAVELENGTH_PROMPT_COUNT,
@@ -451,6 +452,88 @@ function LetterpressDuel({ disabled, promptSeed = '', round = 1, onComplete }) {
   )
 }
 
+const NEXT_LINE_SEEDS = [
+  { mode: 'story', line: 'One evening, we found a small door…' },
+  { mode: 'song', line: 'Our little song begins with…' },
+  { mode: 'story', line: 'The map led us somewhere unexpected…' },
+  { mode: 'song', line: 'If this moment had a chorus…' },
+]
+
+function getNextLineSeed(seed, round) {
+  const text = `${seed}:${round}`
+  let hash = 2166136261
+  for (const character of text) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  return NEXT_LINE_SEEDS[(hash >>> 0) % NEXT_LINE_SEEDS.length]
+}
+
+function OurNextLineDuel({ disabled, promptSeed = '', round = 1, onComplete }) {
+  const [words, setWords] = useState([])
+  const [word, setWord] = useState('')
+  const seed = getNextLineSeed(promptSeed, round)
+  const normalized = word.trim().replace(/\s+/g, '')
+
+  function addWord() {
+    if (disabled || !normalized || words.length >= 8) return
+    setWords(current => [...current, normalized.slice(0, 24)])
+    setWord('')
+  }
+
+  function seal() {
+    if (disabled || words.length !== 8) return
+    onComplete({ excerpt: words.join(' '), highlight: `wrote an ${seed.mode} in eight words`, score: 0, time: 0, won: true })
+  }
+
+  return (
+    <div className="overlay-card duel-card vibe-tender letterpress-duel-card our-next-line-card">
+      <h3>Our Next Line</h3>
+      <p className="letterpress-prompt">{seed.line}</p>
+      <div aria-label="Your words so far" className="next-line-words" aria-live="polite">
+        {words.map((entry, index) => <span key={`${index}-${entry}`}>{entry}</span>)}
+      </div>
+      {words.length < 8 ? <div className="next-line-input">
+        <label className="sr-only" htmlFor="next-line-word">One word</label>
+        <input autoComplete="off" className="text-entry" id="next-line-word" maxLength={32} onChange={event => setWord(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addWord() } }} value={word} />
+        <button className="primary-btn" disabled={disabled || !normalized} onClick={addWord} type="button">Add word</button>
+      </div> : <button className="primary-btn" disabled={disabled} onClick={seal} type="button">Seal line</button>}
+      <span className="letterpress-count">{words.length}/8</span>
+    </div>
+  )
+}
+
+function LoveInTheBlanksDuel({ disabled, promptSeed = '', round = 1, onComplete }) {
+  const [answers, setAnswers] = useState({})
+  const [step, setStep] = useState(0)
+  const text = `${promptSeed}:${round}`
+  let hash = 2166136261
+  for (const character of text) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  const template = MAD_LIBS_TEMPLATES[(hash >>> 0) % MAD_LIBS_TEMPLATES.length]
+  const blank = MAD_LIBS_BLANKS[step]
+  const story = fillLoveInTheBlanks(template, answers)
+
+  function choose(value) {
+    if (disabled || !blank) return
+    const next = { ...answers, [blank.id]: value }
+    setAnswers(next)
+    if (step === MAD_LIBS_BLANKS.length - 1) {
+      onComplete({ excerpt: JSON.stringify({ title: template.title, text: fillLoveInTheBlanks(template, next) }), highlight: 'made a little story together', score: 0, time: 0, won: true })
+      return
+    }
+    setStep(current => current + 1)
+  }
+
+  return (
+    <div className="overlay-card duel-card vibe-playful love-in-the-blanks-card">
+      <h3>Love in the Blanks</h3>
+      <p className="letterpress-prompt">{blank.label}</p>
+      <div className="mad-lib-options" role="group" aria-label={blank.label}>
+        {blank.choices.map(choice => <button className="mad-lib-choice" disabled={disabled} key={choice} onClick={() => choose(choice)} type="button">{choice}</button>)}
+      </div>
+      <span className="letterpress-count">{step + 1}/{MAD_LIBS_BLANKS.length}</span>
+      <p className="sr-only" aria-live="polite">{story}</p>
+    </div>
+  )
+}
+
 function SliderMatchDuel({ disabled, duel, onComplete }) {
   const [value, setValue] = useState(5)
 
@@ -758,6 +841,14 @@ const duelComponentMap = {
   },
   'letterpress-one-word': {
     component: LetterpressDuel,
+    resolveTie: resolveSharedCompletion,
+  },
+  'our-next-line': {
+    component: OurNextLineDuel,
+    resolveTie: resolveSharedCompletion,
+  },
+  'love-in-the-blanks': {
+    component: LoveInTheBlanksDuel,
     resolveTie: resolveSharedCompletion,
   },
   'portrait-panic-directed': {

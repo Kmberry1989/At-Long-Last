@@ -91,6 +91,28 @@ Development previews:
   couple-only access, retention controls, and explicit deletion are the durable follow-up.
 - Best new art: instant-photo frames, date stamps, corner mounts, and handwritten caption labels.
 
+## Night additions — ready for rotation
+
+- **Love in the Blanks**: each partner privately chooses words for a short Mad Lib; both
+  stories are revealed together in the scrapbook.
+- **Our Next Line**: each partner writes eight words privately; the scrapbook alternates
+  their words into one shared story or song. Both activities are self-paced, so neither
+  person waits for the other to finish before continuing.
+
+## Anytime couple arcade
+
+| Game | Play pattern | Feedback |
+| --- | --- | --- |
+| **My One and Only!** | Two-player color-and-number card shedding; matching actions, drawing, and wild color choices | Spring-dealt cards, soft card-slide and turn sounds, win flourish |
+| **Catch My Heart** | Go Fish with rank requests and completed books | Card deal and draw response sounds; book count reveals |
+| **Radar Love** | Alternating hidden-fleet scans on an 8×8 grid | Animated sonar pings with distinct hit and miss cues |
+| **Say It Without Saying** | Take turns recording silent charades clips and guessing from the prompt library | Short camera clips, animated reveal, correct-guess score |
+| **Four Ever** | Connect Four, available from the lobby | Animated token drops and the existing placement and win sounds |
+
+These are branded as cozy tabletop games with velvet, plum, rose, and brass treatments.
+Motion honors reduced-motion settings. Camera charades requires camera permission and records
+silent six-second clips at low resolution, capped at 190 KB before private couple sync.
+
 ## Future asset wishlist
 
 1. Brass-and-enamel continuum dial with two colored marker pins for Vibe Check.

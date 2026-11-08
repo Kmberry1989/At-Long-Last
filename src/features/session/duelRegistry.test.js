@@ -10,21 +10,25 @@ describe('duelRegistry', () => {
     expect(duelRegistry['wavelength-duel'].resolveHearts(perfect, perfect)).toBe(10)
     expect(duelRegistry['wavelength-duel'].resolveHearts(perfect, { excerpt: 'a=bbbbb;g=bbbbb' })).toBe(2)
   })
-  it('contains the full 16-item duel pack with unique ids', () => {
-    expect(duelIds).toHaveLength(16)
-    expect(new Set(duelIds).size).toBe(16)
+  it('contains the full 18-item duel pack with unique ids', () => {
+    expect(duelIds).toHaveLength(18)
+    expect(new Set(duelIds).size).toBe(18)
     expect(duelIds).toContain('wavelength-duel')
+    expect(duelIds).toContain('love-in-the-blanks')
+    expect(duelIds).toContain('our-next-line')
   })
 
   it('keeps legacy duel implementations available without adding them to new nights', () => {
-    expect(duelIds).toHaveLength(16)
-    expect(selectableDuelDefinitions).toHaveLength(8)
+    expect(duelIds).toHaveLength(18)
+    expect(selectableDuelDefinitions).toHaveLength(10)
     expect(duelRegistry['heartbeat-hold-tender']).toBeDefined()
     expect(duelRegistry['reaction-heart']).toBeDefined()
     expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('heartbeat-hold-tender')
     expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('reaction-heart')
     expect(selectableDuelDefinitions.map((entry) => entry.id)).not.toContain('voice-note-trailer')
     expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('letterpress-one-word')
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('love-in-the-blanks')
+    expect(selectableDuelDefinitions.map((entry) => entry.id)).toContain('our-next-line')
     const gratitudePrompts = duelDefinitions.find((entry) => entry.id === 'gratitude-duel').prompts
     expect(gratitudePrompts).toHaveLength(36)
     expect(new Set(gratitudePrompts).size).toBe(36)
@@ -87,6 +91,8 @@ describe('duelRegistry', () => {
       'emoji-court',
       'fever-dream-date',
       'gratitude-duel',
+      'love-in-the-blanks',
+      'our-next-line',
       'letterpress-one-word',
       'portrait-panic-directed',
       'slow-draw-portrait-romantic',

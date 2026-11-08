@@ -20,7 +20,26 @@ export const activityDefinitions = [
   ...SEALED_ACTIVITY_DEFINITIONS,
 ]
 
-export const duelDefinitions = [...RAW_DUELS, WAVELENGTH_DUEL_DEFINITION].map((duel) => ({
+export const NIGHT_WRITING_DUELS = [
+  {
+    id: 'love-in-the-blanks', vibe: 'playful', intensity: 1,
+    name: 'Love in the Blanks', tagline: 'Make tonight’s little story', durationSec: 60, players: 2,
+    mechanics: 'Each player fills a short romantic Mad Lib privately with At Long Last word choices. Both stories reveal together.',
+    howToPlay: ['Pick one word for each blank', 'Seal your story', 'Read both stories together later'],
+    firebaseEvents: ['duel:madLibSealed', 'duel:madLibReveal'], boardReward: 'A shared story for the scrapbook',
+    assetsNeeded: ['word-choice cards', 'story reveal'], skippable: true,
+  },
+  {
+    id: 'our-next-line', vibe: 'tender', intensity: 1,
+    name: 'Our Next Line', tagline: 'Write a story or song one word at a time', durationSec: 90, players: 2,
+    mechanics: 'Each player privately adds eight single words to a shared story or song seed, then the night reveal alternates their words.',
+    howToPlay: ['Choose a story or song seed', 'Add eight words, one at a time', 'Read the lines woven together later'],
+    firebaseEvents: ['duel:lineSealed', 'duel:lineReveal'], boardReward: 'A co-written line for the scrapbook',
+    assetsNeeded: ['one-word steps', 'woven line reveal'], skippable: true,
+  },
+]
+
+export const duelDefinitions = [...RAW_DUELS, WAVELENGTH_DUEL_DEFINITION, ...NIGHT_WRITING_DUELS].map((duel) => ({
   ...duel,
   label: duel.id === 'constellation-home' ? 'Star Map' : duel.name,
   prompt: duel.howToPlay?.[0] || duel.tagline,
@@ -37,6 +56,8 @@ export const MINI_GAME_FAMILIES = {
   'gratitude-duel': 'creative-calm',
   'constellation-home': 'creative-calm',
   'sync-breath': 'creative-calm',
+  'love-in-the-blanks': 'creative-calm',
+  'our-next-line': 'creative-calm',
 }
 
 export const selectableDuelDefinitions = duelDefinitions

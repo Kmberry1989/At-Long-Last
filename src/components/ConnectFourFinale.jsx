@@ -87,16 +87,16 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
         </div>
         <div className="connect-four-title-block">
           <span className="connect-four-kicker">A LITTLE MATCH, ANYTIME</span>
-          <h2 id="connect-four-title">Connect Four</h2>
+          <h2 id="connect-four-title">Four Ever</h2>
           <p className={`connect-four-status${winnerName ? ' is-winner' : ''}`} aria-live="polite">{status}</p>
         </div>
-        <button className="connect-four-close" type="button" onClick={onClose} aria-label="Close Connect Four">×</button>
+        <button className="connect-four-close" type="button" onClick={onClose} aria-label="Close Four Ever">×</button>
       </header>
 
       <div className="connect-four-board-wrap">
         <div className="connect-four-board-stage">
           <img className="connect-four-board-art" src={BOARD_ART} alt="" />
-          <div className="connect-four-grid" aria-label="Connect Four board">
+          <div className="connect-four-grid" aria-label="Four Ever board">
             {Array.from({ length: CONNECT_FOUR_COLUMNS }, (_, column) => <div className="connect-four-column" key={column}>{renderColumn(column)}</div>)}
           </div>
         </div>

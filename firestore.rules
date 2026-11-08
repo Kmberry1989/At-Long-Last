@@ -1441,6 +1441,92 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /coupleArcades/{coupleId}/games/{gameId} {
+      function validCharadeClip(clips, uid) {
+        return !clips.keys().hasAny([uid])
+          || (clips[uid] is string && clips[uid].size() <= 260000
+            && clips[uid].matches('^data:video/(webm|mp4).*'));
+      }
+      function validArcadeState(data, allowedPlayers) {
+        let state = data.state;
+        return data.gameId == gameId
+          && gameId in ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying']
+          && data.playerUids == allowedPlayers
+          && data.playerUids is list && data.playerUids.size() == 2
+          && state is map && state.playerUids == allowedPlayers
+          && state.status in ['playing', 'finished']
+          && (
+            (gameId == 'my-one-and-only'
+              && state.keys().hasAll(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount'])
+              && state.keys().hasOnly(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount'])
+              && state.game == gameId && state.hands is list && state.hands.size() == 2
+              && state.hands[0] is list && state.hands[0].size() <= 108
+              && state.hands[1] is list && state.hands[1].size() <= 108
+              && state.drawPile is list && state.drawPile.size() <= 108
+              && state.discardPile is list && state.discardPile.size() <= 108
+              && state.activeColor in ['coral', 'plum', 'teal', 'gold']
+              && state.turnIndex in [0, 1]
+              && (state.winnerUid == null || state.winnerUid in allowedPlayers)
+              && isBoundedInt(state.moveCount, 0, 10000))
+            ||
+            (gameId == 'catch-my-heart'
+              && state.keys().hasAll(['game', 'playerUids', 'hands', 'drawPile', 'books', 'turnIndex', 'status', 'winnerUid', 'lastAction'])
+              && state.keys().hasOnly(['game', 'playerUids', 'hands', 'drawPile', 'books', 'turnIndex', 'status', 'winnerUid', 'lastAction'])
+              && state.game == gameId && state.hands is list && state.hands.size() == 2
+              && state.hands[0] is list && state.hands[0].size() <= 52
+              && state.hands[1] is list && state.hands[1].size() <= 52
+              && state.drawPile is list && state.drawPile.size() <= 52
+              && state.books is list && state.books.size() == 2
+              && state.books[0] is list && state.books[0].size() <= 13
+              && state.books[1] is list && state.books[1].size() <= 13
+              && state.turnIndex in [0, 1]
+              && (state.winnerUid == null || state.winnerUid in allowedPlayers))
+            ||
+            (gameId == 'radar-love'
+              && state.keys().hasAll(['game', 'playerUids', 'fleets', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
+              && state.keys().hasOnly(['game', 'playerUids', 'fleets', 'shots', 'hits', 'turnIndex', 'status', 'winnerUid', 'lastShot', 'boardSize'])
+              && state.game == gameId && state.fleets is list && state.fleets.size() == 2
+              && state.fleets[0] is list && state.fleets[0].size() == 3
+              && state.fleets[1] is list && state.fleets[1].size() == 3
+              && state.shots is list && state.shots.size() == 2
+              && state.shots[0] is list && state.shots[0].size() <= 64
+              && state.shots[1] is list && state.shots[1].size() <= 64
+              && state.hits is list && state.hits.size() == 2
+              && state.hits[0] is list && state.hits[0].size() <= 14
+              && state.hits[1] is list && state.hits[1].size() <= 14
+              && state.turnIndex in [0, 1] && state.boardSize == 8
+              && (state.winnerUid == null || state.winnerUid in allowedPlayers))
+            ||
+            (gameId == 'say-it-without-saying'
+              && state.keys().hasAll(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid'])
+              && state.keys().hasOnly(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid'])
+              && state.game == gameId && state.actorIndex in [0, 1]
+              && state.phase in ['act', 'guess'] && isBoundedInt(state.promptIndex, 0, 15)
+              && state.clips is map && state.clips.size() <= 2 && state.clips.keys().hasOnly(allowedPlayers)
+              && validCharadeClip(state.clips, allowedPlayers[0])
+              && validCharadeClip(state.clips, allowedPlayers[1])
+              && state.guesses is map && state.guesses.size() <= 2 && state.guesses.keys().hasOnly(allowedPlayers)
+              && state.scores is list && state.scores.size() == 2
+              && isBoundedInt(state.scores[0], 0, 2) && isBoundedInt(state.scores[1], 0, 2)
+              && (state.winnerUid == null || state.winnerUid in allowedPlayers))
+          );
+      }
+      function validArcadeRecord(data) {
+        let allowedPlayers = coupleData(coupleId).playerIds;
+        return data is map
+          && data.keys().hasAll(['gameId', 'playerUids', 'state', 'createdAt', 'updatedAt'])
+          && data.keys().hasOnly(['gameId', 'playerUids', 'state', 'createdAt', 'updatedAt'])
+          && data.createdAt is timestamp && data.updatedAt == request.time
+          && validArcadeState(data, allowedPlayers);
+      }
+      allow read: if isActiveParticipant(coupleId);
+      allow create: if isActiveParticipant(coupleId) && validArcadeRecord(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isActiveParticipant(coupleId) && validArcadeRecord(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
     match /profiles/{userId} {
       function isValidProfile(data) {
         return data.keys().hasAll([
@@ -1882,7 +1968,7 @@ service cloud.firestore {
         && night().get('pacingVersion', 0) == 1 && night().status == 'active'
         && validStep(request.resource.data)
         && (request.resource.data.kind == 'duel'
-          ? (request.resource.data.ownerIndex == -1 && stepId == 'duel-' + string(request.resource.data.round) && request.resource.data.type in ['constellation-home', 'heartbeat-hold-tender', 'letterpress-one-word', 'sync-breath', 'gratitude-duel', 'doodle-duel-memory', 'portrait-panic-directed', 'wavelength-slider', 'emoji-court', 'reaction-heart', 'kiss-courier', 'fever-dream-date', 'voice-note-trailer', 'temperature-check', 'slow-draw-portrait-romantic', 'wavelength-duel'])
+          ? (request.resource.data.ownerIndex == -1 && stepId == 'duel-' + string(request.resource.data.round) && request.resource.data.type in ['constellation-home', 'heartbeat-hold-tender', 'letterpress-one-word', 'sync-breath', 'gratitude-duel', 'doodle-duel-memory', 'portrait-panic-directed', 'wavelength-slider', 'emoji-court', 'reaction-heart', 'kiss-courier', 'fever-dream-date', 'voice-note-trailer', 'temperature-check', 'slow-draw-portrait-romantic', 'wavelength-duel', 'love-in-the-blanks', 'our-next-line'])
           : (request.resource.data.ownerIndex in [0, 1]
             && night().players[request.resource.data.ownerIndex].uid == request.auth.uid
             && stepId == 'roll-' + string(request.resource.data.round) + '-' + string(request.resource.data.ownerIndex)))
