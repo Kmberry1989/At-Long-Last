@@ -13,6 +13,7 @@ import { MUSIC_PATTERNS } from './musicPatterns.js'
 import { SCORE_TICK_SECONDS, scoreFrame } from './ambientScore.js'
 import { createKeepsakeAudioEngine } from './keepsakeSoundtrack.js'
 import { createFirstAmbientEngine } from './firstAmbientSoundtrack.js'
+import { arcadeThemeForStage, isArcadeStage } from './arcadeThemes.js'
 
 const AudioContextContext = createContext(null)
 export function createAudioEngine(suppliedContext = null) {
@@ -34,6 +35,9 @@ export function createAudioEngine(suppliedContext = null) {
   const musicBoxBus = context.createGain()
   musicBoxBus.gain.value = 0.65
   musicBoxBus.connect(masterGain)
+  const arcadeBus = context.createGain()
+  arcadeBus.gain.value = 0
+  arcadeBus.connect(lowpass)
   const accompaniment = context.createGain()
   accompaniment.gain.value = 0
   const accompanimentFilter = context.createBiquadFilter()
@@ -46,6 +50,7 @@ export function createAudioEngine(suppliedContext = null) {
   wetGate.connect(masterGain)
   const echo = context.createDelay(3)
   echo.delayTime.value = 1.2
+  arcadeBus.connect(echo)
   const echoReturn = context.createGain()
   echoReturn.gain.value = 0.18
   musicBoxBus.connect(echo)
@@ -259,6 +264,11 @@ export function createAudioEngine(suppliedContext = null) {
   }
 
   function scheduleScoreTick(tick, when) {
+    const arcadeSong = arcadeThemeForStage(stage)
+    if (arcadeSong) {
+      scheduleArcadeBar(arcadeSong, tick % arcadeSong.bars.length, when)
+      return
+    }
     const frame = scoreFrame(tick, stage)
     const { chord, piano: note, bell: answer } = frame
     if (frame.barStart) {
@@ -311,6 +321,37 @@ export function createAudioEngine(suppliedContext = null) {
     }
   }
 
+  function scheduleArcadeBar(song, barIndex, when) {
+    const bar = song.bars[barIndex]
+    const barDuration = song.secondsPerBar
+    const style = song.voice
+    bar.chord.forEach((frequency, index) => {
+      softNote(frequency, when, barDuration * .92, index === 0 ? .019 : .011, arcadeBus, index === 1 ? 'sine' : 'triangle')
+    })
+    softNote(bar.bass, when, barDuration * .62, .046, arcadeBus, 'sine')
+    softNote(bar.bass * 2, when + barDuration * .5, barDuration * .2, .009, arcadeBus, 'triangle')
+
+    bar.melody.forEach((note) => {
+      if (!note) return
+      const level = note.accent ? .053 : .037
+      if (style === 'celesta') {
+        softNote(note.frequency, when + note.at, note.length, level, arcadeBus, 'sine')
+        softNote(note.frequency * 2, when + note.at + .012, note.length * .48, level * .3, arcadeBus, 'sine')
+      } else if (style === 'waterglass') {
+        softNote(note.frequency, when + note.at, note.length * 1.25, level * .82, arcadeBus, 'sine')
+        softNote(note.frequency * 2.76, when + note.at + .01, note.length * .5, level * .14, arcadeBus, 'sine')
+      } else if (style === 'sonar') {
+        softNote(note.frequency, when + note.at, note.length * 1.35, level * .72, arcadeBus, 'sine')
+      } else {
+        softNote(note.frequency, when + note.at, note.length, level, arcadeBus, 'triangle')
+        softNote(note.frequency * 2, when + note.at + .012, note.length * .55, level * .16, arcadeBus, 'sine')
+      }
+    })
+    if (barIndex % 4 === 3) {
+      softNote(bar.chord[2] * 2, when + barDuration * .72, barDuration * .18, .018, arcadeBus, 'sine')
+    }
+  }
+
   function clearAmbientTimers() {
     window.clearInterval(scoreTimer)
     scoreTimer = null
@@ -321,16 +362,17 @@ export function createAudioEngine(suppliedContext = null) {
     if (scoreTimer !== null) return
     nextTickTime = context.currentTime + 0.06
     const schedule = () => {
+      const tickDuration = arcadeThemeForStage(stage)?.secondsPerBar || SCORE_TICK_SECONDS
       // Skip missed beats after a background-tab stall instead of playing a burst.
-      if (nextTickTime < context.currentTime - SCORE_TICK_SECONDS) {
-        const missed = Math.ceil((context.currentTime - nextTickTime) / SCORE_TICK_SECONDS)
+      if (nextTickTime < context.currentTime - tickDuration) {
+        const missed = Math.ceil((context.currentTime - nextTickTime) / tickDuration)
         scoreTick += missed
-        nextTickTime += missed * SCORE_TICK_SECONDS
+        nextTickTime += missed * tickDuration
       }
       while (nextTickTime < context.currentTime + 0.2) {
         if (!muted) scheduleScoreTick(scoreTick, Math.max(nextTickTime, context.currentTime))
         scoreTick += 1
-        nextTickTime += SCORE_TICK_SECONDS
+        nextTickTime += tickDuration
       }
     }
     schedule()
@@ -568,9 +610,15 @@ export function createAudioEngine(suppliedContext = null) {
       applyMasterLevel()
     },
     setStage(nextStage, when = context.currentTime) {
-      if (!MUSIC_PATTERNS[nextStage] || stage === nextStage) return
+      const arcadeSong = arcadeThemeForStage(nextStage)
+      if ((!MUSIC_PATTERNS[nextStage] && !arcadeSong) || stage === nextStage) return
       stage = nextStage
-      accompaniment.gain.setTargetAtTime(stage === 'menu' ? 0 : 0.8, when, 1.2)
+      if (arcadeSong) {
+        scoreTick = 0
+        nextTickTime = when + 0.08
+      }
+      arcadeBus.gain.setTargetAtTime(arcadeSong ? .92 : .0001, when, .75)
+      accompaniment.gain.setTargetAtTime(stage === 'menu' || arcadeSong ? 0 : 0.8, when, 1.2)
       // Keep the clock and ringing notes; the next musical tick takes the new voice.
       applyMasterLevel()
       if (import.meta.env.DEV) window.__atLongLastMusicStage = stage
@@ -585,6 +633,7 @@ export function createAudioEngine(suppliedContext = null) {
       room.disconnect()
       roomReturn.disconnect()
       stringFilter.disconnect()
+      arcadeBus.disconnect()
       accompaniment.disconnect()
       accompanimentFilter.disconnect()
       wetGate.disconnect()
@@ -634,7 +683,8 @@ export function AudioProvider({ children }) {
   const syncTracks = useCallback(() => {
     const main = engineRef.current
     if (!main?.unlocked) return
-    const activeTheme = scrapbookOpenRef.current ? 'original' : themeRef.current
+    const arcadeActive = isArcadeStage(desiredStageRef.current)
+    const activeTheme = arcadeActive ? 'continuous' : scrapbookOpenRef.current ? 'original' : themeRef.current
     const mainMuted = musicPausedRef.current || celebratingRef.current || mutedRef.current || activeTheme !== 'continuous'
     if (main.muted !== mainMuted) main.setMuted(mainMuted)
     if (activeTheme === 'original' && !mutedRef.current && !keepsakeEngineRef.current) {
@@ -647,7 +697,7 @@ export function AudioProvider({ children }) {
     }
     for (const [name, engine] of [['original', keepsakeEngineRef.current], ['first', firstEngineRef.current]]) {
       if (!engine) continue
-      const nextStage = name === 'first'
+      const nextStage = arcadeActive ? 'game' : name === 'first'
         ? desiredStageRef.current === 'menu' ? 'lobby' : 'game'
         : scrapbookOpenRef.current ? 'reflective' : desiredStageRef.current
       if (archiveStageRef.current[name] !== nextStage) {
@@ -694,6 +744,7 @@ export function AudioProvider({ children }) {
   }
 
   function getExistingEngine() {
+    if (isArcadeStage(desiredStageRef.current)) return engineRef.current
     if (scrapbookOpenRef.current || themeRef.current === 'original') return keepsakeEngineRef.current
     return themeRef.current === 'first' ? firstEngineRef.current : engineRef.current
   }

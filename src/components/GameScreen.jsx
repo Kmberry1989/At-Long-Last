@@ -23,6 +23,7 @@ import {
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { useSynth } from './useSynth.js'
 import { musicStageFor } from '../audio/musicPatterns.js'
+import { arcadeStage } from '../audio/arcadeThemes.js'
 import {
   ActiveTurnState,
   PartnerAwayState,
@@ -162,7 +163,9 @@ function LegacyGameScreen() {
       setStage?.('menu')
       return
     }
-    const musicStage = musicStageFor(session, activity)
+    const musicStage = session.phase === 'duel' && session.currentDuel?.id
+      ? arcadeStage(session.currentDuel.id)
+      : musicStageFor(session, activity)
     setStage?.(musicStage)
     const arrivalKey = `${session.id}:${selectedTheme}`
     if (arrivalCueKeyRef.current !== arrivalKey) {

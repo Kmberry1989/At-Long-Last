@@ -15,6 +15,7 @@ import { CoupleArcade } from './CoupleArcade.jsx'
 import { createConnectFourState, getConnectFourTokenPreferences, placeConnectFourPiece } from '../features/session/connectFour.js'
 import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectFourMatch } from '../features/couple/progressService.js'
 import { useAudio } from '../audio/AudioProvider.jsx'
+import { arcadeStage } from '../audio/arcadeThemes.js'
 import { savePieceStyle, subscribePieceStyles } from '../features/couple/portraitService.js'
 import './PairingHome.css'
 
@@ -63,6 +64,12 @@ export function PairingHome({ avatar, onAvatarChange }) {
     if (!db || !couple?.id || !paired) return undefined
     return subscribePieceStyles(db, couple.id, setPieceStyles, () => {})
   }, [db, couple?.id, paired])
+
+  useEffect(() => {
+    if (!connectFourOpen || arcadeOpen) return undefined
+    audio?.setStage?.(arcadeStage('four-ever'))
+    return () => audio?.setStage?.('menu')
+  }, [audio, arcadeOpen, connectFourOpen])
 
   async function updatePieceStyle(style) {
     if (db && enabled && couple?.id && user?.uid) await savePieceStyle(db, couple.id, user.uid, style)

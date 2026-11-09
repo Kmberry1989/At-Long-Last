@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
+import { arcadeStage } from '../audio/arcadeThemes.js'
 import { BrandIcon } from './BrandIcon.jsx'
 import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
@@ -333,6 +334,11 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   const otherPlayer = players.find(player => player.uid !== currentUid)
   const otherName = otherPlayer?.displayName || 'your person'
   const state = games[selectedGame]?.state
+
+  useEffect(() => {
+    audio?.setStage?.(selectedGame ? arcadeStage(selectedGame) : 'menu')
+    return () => audio?.setStage?.('menu')
+  }, [audio, selectedGame])
 
   useEffect(() => {
     if (!enabled || !db || !coupleId) return undefined
