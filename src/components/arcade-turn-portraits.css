@@ -1,0 +1,41 @@
+.arcade-player-rail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: min(100%, 360px);
+  margin: -2px auto 14px;
+  padding: 0 18px;
+  box-sizing: border-box;
+}
+
+.arcade-player-badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.arcade-player-badge.is-active::before {
+  position: absolute;
+  z-index: -1;
+  inset: -45%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 194, 119, .55), rgba(204, 118, 129, .18) 48%, transparent 72%);
+  filter: blur(9px);
+  content: '';
+  animation: arcadePortraitAura 1.7s ease-in-out infinite;
+}
+
+.arcade-player-portrait {
+  width: clamp(58px, 15vw, 76px) !important;
+  height: clamp(58px, 15vw, 76px) !important;
+}
+
+@keyframes arcadePortraitAura {
+  0%, 100% { opacity: .68; transform: scale(.88); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcade-player-badge.is-active::before { animation: none; opacity: .8; }
+}

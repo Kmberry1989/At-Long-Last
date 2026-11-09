@@ -42,6 +42,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
   const draw = !state?.winnerUid && state?.moveCount === CONNECT_FOUR_COLUMNS * CONNECT_FOUR_ROWS
   const winningCells = useMemo(() => getWinningCells(state.board), [state.board])
   const nextGame = Boolean(state?.winnerUid) || draw
+  const activePlayerIndex = !nextGame ? players.findIndex((player) => player.uid === moverUid) : -1
 
   useEffect(() => {
     if (!moveKey || seenMove.current === moveKey) return
@@ -80,8 +81,8 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
     <section className="connect-four-card">
       <header className="connect-four-header">
         <div className="connect-four-players">
-          {players.slice(0, 2).map((player, index) => <div className={`connect-four-player player-${index}`} key={player.uid}>
-            <PlayerPortrait player={player} label={`${player.displayName} portrait`} className="connect-four-player-portrait" />
+          {players.slice(0, 2).map((player, index) => <div className={`connect-four-player player-${index}${index === activePlayerIndex ? ' is-turn-active' : ''}`} key={player.uid}>
+            <PlayerPortrait player={player} label={`${player.displayName}${index === activePlayerIndex ? ', taking this turn' : ' portrait'}`} className={`connect-four-player-portrait${index === activePlayerIndex ? ' is-turn-active' : ''}`} />
             <span>{player.displayName}</span>
           </div>)}
         </div>

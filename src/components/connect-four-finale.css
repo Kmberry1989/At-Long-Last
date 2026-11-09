@@ -30,6 +30,7 @@
 .connect-four-player { position: absolute; top: 50%; display: grid; justify-items: center; gap: 2px; min-width: 48px; transform: translateY(-50%); color: rgba(255,239,212,.85); font: 600 clamp(9px, 2.5vw, 12px)/1.1 'DM Sans', Arial, sans-serif; }
 .connect-four-player.player-0 { left: 0; }
 .connect-four-player.player-1 { right: 0; }
+.connect-four-player.is-turn-active { z-index: 5; color: #ffe4ae; }
 .connect-four-player-portrait { width: clamp(36px, 10vw, 52px) !important; height: clamp(36px, 10vw, 52px) !important; }
 .connect-four-player-token { width: clamp(26px, 7vw, 38px); height: clamp(26px, 7vw, 38px); padding: 2px; border: 2px solid var(--player-token-ring); border-radius: 50%; background: rgba(21,17,29,.68); box-shadow: 0 0 12px color-mix(in srgb, var(--player-token-ring) 42%, transparent); }
 .connect-four-token-art { display: block; width: 100%; height: 100%; border-radius: 50%; background-repeat: no-repeat; background-size: 300% 300%; }

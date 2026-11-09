@@ -360,7 +360,7 @@ export function IndependentNight() {
         </div>
         <div className="hud players" aria-label="Players">
           {session.players.map((player, index) => <div key={player.uid} aria-label={`${player.displayName}${index === playerIndex ? ', you' : ', your person'}`} className={`player-strip${index === playerIndex ? ' active mine' : ''}`}>
-            <PlayerPortrait player={player} label={`${player.displayName}${index === playerIndex ? ', you' : ', your person'}`} />
+            <PlayerPortrait className={index === playerIndex ? 'is-turn-active' : ''} player={player} label={`${player.displayName}${index === playerIndex ? ', you' : ', your person'}`} />
           </div>)}
         </div>
         {showFirstTurnCoin && <div className="first-turn-toss" role="dialog" aria-modal="true" aria-label="First turn coin toss">

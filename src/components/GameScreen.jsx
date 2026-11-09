@@ -52,6 +52,23 @@ function getActivitySubmissionCount(state) {
   )
 }
 
+function hasActivitySubmission(state, playerIndex) {
+  const key = String(playerIndex)
+  return Boolean(
+    state?.answers?.[key] ||
+    state?.choices?.[key] ||
+    state?.sealed?.[key] ||
+    Number.isFinite(state?.values?.[key]) ||
+    state?.results?.[key] ||
+    state?.submissions?.[key] ||
+    state?.captions?.[key] ||
+    state?.halves?.some((half) => half.playerIndex === playerIndex) ||
+    (playerIndex === state?.predictorIndex && state?.predictionId) ||
+    (playerIndex === state?.subjectIndex && state?.actualId) ||
+    state?.entries?.some((entry) => entry.playerIndex === playerIndex)
+  )
+}
+
 export function GameScreen() {
   const { session, gameOpen, readyToPlay } = useSession()
   if (!session && gameOpen && readyToPlay) {
@@ -156,6 +173,20 @@ function LegacyGameScreen() {
   useSynth(session, activity)
 
   const activityEntry = activity ? activityRegistry[activity.type] : null
+  const privateFlowNextIndex = activityEntry?.supportsPrivateFlow
+    ? session.players.findIndex((_, index) => !hasActivitySubmission(activity?.state, index))
+    : -1
+  const portraitTurnIndex = session.phase === 'activity' && Number.isInteger(activity?.state?.turnIndex)
+    ? activity.state.turnIndex
+    : session.phase === 'activity' && privateFlowNextIndex >= 0
+      ? privateFlowNextIndex
+      : session.phase === 'activity' && !activityEntry?.supportsPrivateFlow
+        ? session.activePlayerIndex
+    : session.phase === 'duel' && !myDuelResult
+      ? playerIndex
+      : ['turn', 'activityChoice'].includes(session.phase)
+        ? session.activePlayerIndex
+        : -1
 
   const selectedTheme = progress?.selectedTheme || 'cozy'
   useEffect(() => {
@@ -468,10 +499,10 @@ function LegacyGameScreen() {
           {session.players.map((player, index) => (
             <div
               key={player.uid}
-              aria-label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === session.activePlayerIndex ? ', taking this turn' : ''}`}
-              className={`player-strip${index === session.activePlayerIndex ? ' active' : ''}${index === playerIndex ? ' mine' : ''}`}
+              aria-label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === portraitTurnIndex ? ', taking this turn' : ''}`}
+              className={`player-strip${index === portraitTurnIndex ? ' active' : ''}${index === playerIndex ? ' mine' : ''}`}
             >
-              <PlayerPortrait player={player} label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === session.activePlayerIndex ? ', taking this turn' : ''}`} />
+              <PlayerPortrait className={index === portraitTurnIndex ? 'is-turn-active' : ''} player={player} label={`${player.displayName}, ${index === playerIndex ? 'you' : 'your partner'}${index === portraitTurnIndex ? ', taking this turn' : ''}`} />
             </div>
           ))}
         </div>

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
+import { PlayerPortrait } from './PlayerPortrait.jsx'
+import './arcade-turn-portraits.css'
 import { BrandIcon } from './BrandIcon.jsx'
 import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
@@ -34,6 +36,19 @@ const UNO_CARD_ART = {
   gold: '/assets/arcade/my-one-and-only/gold.jpg',
   wild: '/assets/arcade/my-one-and-only/wild.jpg',
   back: '/assets/arcade/my-one-and-only/back.jpg',
+}
+
+function getActiveArcadePlayerUid(gameId, state, currentUid) {
+  if (!state || state.status === 'finished') return null
+  if (gameId === 'say-it-without-saying') {
+    const activeIndex = state.phase === 'act' ? state.actorIndex : state.phase === 'guess' ? (state.actorIndex + 1) % 2 : -1
+    return state.playerUids?.[activeIndex] || null
+  }
+  if (gameId === 'radar-love' && state.status === 'placing') {
+    return state.fleetReady?.[currentUid] ? null : currentUid
+  }
+  if (gameId === 'our-little-pieces') return null
+  return Number.isInteger(state.turnIndex) ? state.playerUids?.[state.turnIndex] || null : null
 }
 
 function playArcadeFeedback(audio, next, move, currentUid) {
@@ -334,6 +349,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   const otherPlayer = players.find(player => player.uid !== currentUid)
   const otherName = otherPlayer?.displayName || 'your person'
   const state = games[selectedGame]?.state
+  const activeArcadePlayerUid = getActiveArcadePlayerUid(selectedGame, state, currentUid)
 
   useEffect(() => {
     audio?.setStage?.(selectedGame ? arcadeStage(selectedGame) : 'menu')
@@ -411,6 +427,14 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   return <ArcadeModal title={selectedGame ? selectedTitle : 'A little game'} onClose={onClose}>
     {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button className="arcade-game-tile" disabled={!COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => openGame(game.id)} type="button"><strong>{game.name}</strong><span>{game.subtitle}</span><BrandIcon name="chevron" /></button>)}</div> : <>
       <button className="arcade-back" onClick={() => { setSelectedGame(''); setError('') }} type="button">All games</button>
+      {state && <div className="arcade-player-rail" aria-label="Players">
+        {players.slice(0, 2).map(player => {
+          const active = player.uid === activeArcadePlayerUid
+          return <div className={`arcade-player-badge${active ? ' is-active' : ''}`} key={player.uid}>
+            <PlayerPortrait className={`arcade-player-portrait${active ? ' is-turn-active' : ''}`} label={`${player.displayName}${active ? ', taking this turn' : ''}`} player={player} />
+          </div>
+        })}
+      </div>}
       {busy && !state ? <p role="status">Opening…</p> : gameUi}
     </>}
     {error && <p className="arcade-error" role="alert">{error}</p>}
