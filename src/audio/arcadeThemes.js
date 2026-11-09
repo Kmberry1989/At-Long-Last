@@ -76,11 +76,14 @@ function makeSong(id, blueprint) {
   const random = seededRandom(blueprint.seed)
   const scale = SCALE_INTERVALS[blueprint.mode]
   const secondsPerBar = 240 / blueprint.bpm
-  const sectionShifts = [0, 1, 0, -1, 2, 1, -1, 0]
+  // The opening four bars return halfway through as a recognizable hook;
+  // the final phrase brings it back in a lower, softer register.
+  const sectionShifts = [0, 1, 0, -1, 0, 1, -1, 0]
   const bars = Array.from({ length: 32 }, (_, barIndex) => {
     const phrase = Math.floor(barIndex / 4)
-    const motif = blueprint.motif[barIndex % 4]
-    const chordDegree = blueprint.progression[barIndex % blueprint.progression.length]
+    const motif = [...blueprint.motif[barIndex % 4]]
+    if (barIndex === 31) motif[7] = 0
+    const chordDegree = barIndex === 30 ? 4 : barIndex === 31 ? 0 : blueprint.progression[barIndex % blueprint.progression.length]
     const chordRoot = blueprint.root - 12 + scale[chordDegree % scale.length] + Math.floor(chordDegree / scale.length) * 12
     const chord = [0, 2, 4].map((step) => pitchAtDegree(blueprint.root - 12, scale, chordDegree + step))
     const melody = motif.map((degree, step) => {
@@ -88,7 +91,7 @@ function makeSong(id, blueprint) {
       let movedDegree = degree + sectionShifts[phrase]
       if (phrase % 4 === 2) movedDegree = 6 - degree + sectionShifts[phrase]
       // Small, seed-locked ornaments make later phrases answer the opening motif.
-      if (step > 0 && step < 7 && random() > 0.91) movedDegree += random() > 0.5 ? 1 : -1
+      if (phrase !== 0 && phrase !== 4 && step > 0 && step < 7 && random() > 0.91) movedDegree += random() > 0.5 ? 1 : -1
       const octave = phrase === 5 && step >= 4 ? 1 : phrase === 7 && step >= 4 ? -1 : 0
       return {
         at: step * secondsPerBar / 8,
