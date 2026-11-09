@@ -83,11 +83,13 @@
 }
 
 .lobby-screen.auth-screen .brand-logo {
-  width: min(100%, 342px);
+  width: clamp(104px, 29vw, 142px);
   height: auto;
   margin: 0;
   filter: drop-shadow(0 3px 18px #ffb77d38);
 }
+
+.lobby-screen.auth-screen .lobby-content { gap: 18px; }
 
 .lobby-screen.auth-screen .auth-card {
   margin: 0;
@@ -236,8 +238,8 @@
 
 @media (max-width: 460px) {
   .lobby-screen.auth-screen { padding-inline: 20px; }
-  .lobby-screen.auth-screen .lobby-content { gap: 22px; }
-  .lobby-screen.auth-screen .brand-logo { width: min(100%, 300px); }
+  .lobby-screen.auth-screen .lobby-content { gap: 16px; }
+  .lobby-screen.auth-screen .brand-logo { width: clamp(104px, 29vw, 142px); }
   .lobby-screen.auth-screen .auth-card { padding: 24px; }
   .lobby-screen.auth-screen .auth-intro h2 { font-size: 27px; }
 }
@@ -245,7 +247,7 @@
 @media (max-height: 740px) {
   .lobby-screen.auth-screen { padding-top: 66px; padding-bottom: 24px; }
   .lobby-screen.auth-screen .lobby-content { gap: 18px; align-content: start; }
-  .lobby-screen.auth-screen .brand-logo { width: 246px; }
+  .lobby-screen.auth-screen .brand-logo { width: 100px; }
   .lobby-screen.auth-screen .auth-card { padding: 20px; gap: 14px; }
 }
 

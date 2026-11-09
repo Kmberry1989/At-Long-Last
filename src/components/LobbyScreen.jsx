@@ -60,7 +60,7 @@ export function LobbyScreen() {
     <div aria-hidden="true" className="lobby-backdrop"><LoginSky romantic={hasPartner && !gameOpen} /><div className="orbital orbital-a" /><div className="orbital orbital-b" /><div className="orbital orbital-c" /><div className="board-fragment fragment-a" /><div className="board-fragment fragment-b" /><div className="board-fragment fragment-c" /><div className="token token-heart"><BrandText text={"♥"} /></div><div className="token token-die"><BrandText text={"✦"} /></div><div className="token token-note"><BrandText text={"♫"} /></div><div className="path-ribbon ribbon-a" /><div className="path-ribbon ribbon-b" /></div>
     <div className="lobby-content">
       <div className={`title-band${enabled ? ' auth-title-band' : ''}`}>
-        <img alt="At Long Last" className="brand-logo" src="/assets/ui/atlonglast-wordmark-wide.png" />
+        <img alt="At Long Last" className="brand-logo" src={authScreen ? '/assets/ui/atlonglast-wordmark-lockup.png' : '/assets/ui/atlonglast-wordmark-wide.png'} />
       </div>
       <div className={`glass-card hero-card lobby-card${authScreen ? ' auth-card' : ''}`}>
         {!ready ? <h2>Loading…</h2> : !enabled ? <>

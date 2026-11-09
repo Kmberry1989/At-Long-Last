@@ -24,6 +24,6 @@ export function OpeningSplash({ onComplete }) {
 
   if (!visible) return null
   return <div aria-hidden="true" className={`opening-splash${leaving ? ' is-leaving' : ''}`}>
-    <div className="opening-splash-wordmark" style={{ backgroundImage: "url('/assets/ui/atlonglast-wordmark-wide.png')" }} />
+    <img className="opening-splash-wordmark" src="/assets/ui/atlonglast-wordmark-lockup.png" alt="" />
   </div>
 }

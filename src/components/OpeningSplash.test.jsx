@@ -9,9 +9,7 @@ describe('opening splash', () => {
     vi.useFakeTimers()
     const onComplete = vi.fn()
     const { container } = render(<OpeningSplash onComplete={onComplete} />)
-    expect(container.querySelector('.opening-splash-wordmark')).toHaveStyle({
-      backgroundImage: "url('/assets/ui/atlonglast-wordmark-wide.png')",
-    })
+    expect(container.querySelector('.opening-splash-wordmark')).toHaveAttribute('src', '/assets/ui/atlonglast-wordmark-lockup.png')
     expect(container.querySelector('.opening-splash')).not.toHaveClass('is-leaving')
 
     act(() => { vi.advanceTimersByTime(1350) })
