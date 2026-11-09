@@ -105,7 +105,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
       {draw && <p className="connect-four-result">Every space found its place.</p>}
       {winnerName && <p className="connect-four-result">Four in a row, kept in your story.</p>}
       {nextGame ? <button className="connect-four-done" type="button" onClick={onNewGame}>Play again <span>↻</span></button>
-        : <p className="connect-four-hint">{isYourMove ? 'Drop a piece' : 'The board updates as you play'}</p>}
+        : isYourMove && <p className="connect-four-hint">Drop a piece</p>}
       <button className="connect-four-close-match" type="button" onClick={onClose}>Done for now</button>
     </section>
   </div>
