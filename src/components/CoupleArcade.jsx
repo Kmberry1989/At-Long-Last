@@ -3,7 +3,6 @@ import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
 import { PlayerPortrait } from './PlayerPortrait.jsx'
 import './arcade-turn-portraits.css'
-import { BrandIcon } from './BrandIcon.jsx'
 import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
 import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS } from '../features/session/coupleArcade.js'
@@ -11,11 +10,11 @@ import './couple-arcade.css'
 import './uno-cards.css'
 
 const GAMES = [
-  { id: 'my-one-and-only', name: 'My One and Only!', subtitle: 'A little card match' },
-  { id: 'say-it-without-saying', name: 'Say Without Saying', subtitle: 'Camera charades' },
-  { id: 'catch-my-heart', name: 'Catch My Heart', subtitle: 'Go Fish, together' },
-  { id: 'radar-love', name: 'Radar Love', subtitle: 'A hidden-fleet duel' },
-  { id: 'our-little-pieces', name: 'Our Little Pieces', subtitle: 'A shared 3D jigsaw, anytime' },
+  { id: 'my-one-and-only', name: 'My One and Only!', icon: '/assets/arcade/icons/my-one-and-only.png' },
+  { id: 'say-it-without-saying', name: 'Say Without Saying', icon: '/assets/arcade/icons/say-it-without-saying.png' },
+  { id: 'catch-my-heart', name: 'Catch My Heart', icon: '/assets/arcade/icons/catch-my-heart.png' },
+  { id: 'radar-love', name: 'Radar Love', icon: '/assets/arcade/icons/radar-love.png' },
+  { id: 'our-little-pieces', name: 'Our Little Pieces', icon: '/assets/arcade/icons/our-little-pieces.png' },
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const JIGSAW_ART = [
@@ -424,8 +423,8 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} audio={audio} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
-  return <ArcadeModal title={selectedGame ? selectedTitle : 'A little game'} onClose={onClose}>
-    {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button className="arcade-game-tile" disabled={!COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => openGame(game.id)} type="button"><strong>{game.name}</strong><span>{game.subtitle}</span><BrandIcon name="chevron" /></button>)}</div> : <>
+  return <ArcadeModal title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={onClose}>
+    {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button aria-label={game.name} className="arcade-game-tile" disabled={!COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => openGame(game.id)} type="button"><img alt="" className="arcade-game-art" src={game.icon} /></button>)}</div> : <>
       <button className="arcade-back" onClick={() => { setSelectedGame(''); setError('') }} type="button">All games</button>
       {state && <div className="arcade-player-rail" aria-label="Players">
         {players.slice(0, 2).map(player => {

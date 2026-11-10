@@ -47,6 +47,7 @@ describe('MysteryKeepsakeCard', () => {
     expect(compact.querySelector('.is-compact')).toBeDefined()
     expect(screen.getByText('Sparkler Photo')).toBeDefined()
     expect(screen.queryByText('Drawn by Kyle')).not.toBeInTheDocument()
+    expect(compact.querySelector('.keepsake-front-art')).toHaveAttribute('src', '/assets/keepsakes/sparkler-photo.webp')
   })
 
   it('reveals card with audio after reveal timer expires', () => {

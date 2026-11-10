@@ -176,15 +176,15 @@ function LegacyGameScreen() {
   const privateFlowNextIndex = activityEntry?.supportsPrivateFlow
     ? session.players.findIndex((_, index) => !hasActivitySubmission(activity?.state, index))
     : -1
-  const portraitTurnIndex = session.phase === 'activity' && Number.isInteger(activity?.state?.turnIndex)
+  const portraitTurnIndex = session?.phase === 'activity' && Number.isInteger(activity?.state?.turnIndex)
     ? activity.state.turnIndex
-    : session.phase === 'activity' && privateFlowNextIndex >= 0
+    : session?.phase === 'activity' && privateFlowNextIndex >= 0
       ? privateFlowNextIndex
-      : session.phase === 'activity' && !activityEntry?.supportsPrivateFlow
+      : session?.phase === 'activity' && !activityEntry?.supportsPrivateFlow
         ? session.activePlayerIndex
-    : session.phase === 'duel' && !myDuelResult
+    : session?.phase === 'duel' && !myDuelResult
       ? playerIndex
-      : ['turn', 'activityChoice'].includes(session.phase)
+      : ['turn', 'activityChoice'].includes(session?.phase)
         ? session.activePlayerIndex
         : -1
 

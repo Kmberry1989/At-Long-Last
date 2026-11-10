@@ -28,7 +28,9 @@ export function NightTransitionBanner({ phase, transitionKey, playPhase }) {
   }, [phase, transitionKey, playPhase])
 
   const content = phaseContent[phase]
-  if (!content || !visible) return null
+  // Keepsake cards already introduce this phase visually on the board. The
+  // extra banner repeats their category and competes with the card reveal.
+  if (!content || !visible || phase === 'keepsake') return null
 
   return (
     <div className="night-transition-banner" role="status" aria-live="polite" key={transitionKey}>

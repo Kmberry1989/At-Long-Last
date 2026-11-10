@@ -230,14 +230,6 @@ export function ActivityCardModal({
             <span className="sealed-dot is-pending"><BrandText text={"⏳ "} />{partnerPlayer.displayName}</span>
           </div>
 
-          {onToggleMinimize && (
-            <button
-              className="secondary-btn activity-peek-board-btn"
-              onClick={onToggleMinimize}
-              type="button"
-            ><BrandText text={"👁️ Peek at Board While Waiting "} /></button>
-          )}
-
           {error && <p className="error-copy">{error}</p>}
         </div>
       ) : (

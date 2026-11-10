@@ -35,6 +35,7 @@ export function IndependentNight() {
   const [selectedId, setSelectedId] = useState(() => {
     try { return sessionStorage.getItem(selectedIdStorageKey) || null } catch { return null }
   })
+  const [activityMinimized, setActivityMinimized] = useState(false)
   const audio = useAudio()
   const [steps, setSteps] = useState([])
   const [nightKisses, setNightKisses] = useState({})
@@ -108,6 +109,10 @@ export function IndependentNight() {
       else sessionStorage.removeItem(selectedIdStorageKey)
     } catch { /* Keep the night usable when tab storage is unavailable. */ }
   }, [selectedId, selectedIdStorageKey])
+
+  useEffect(() => {
+    setActivityMinimized(false)
+  }, [selected?.id])
 
   useEffect(() => {
     const active = selected?.kind === 'activity' ? { type: selected.type, vibe: entry?.vibe, state: selected.state } : null
@@ -379,7 +384,7 @@ export function IndependentNight() {
         {rollPresentation?.stage === 'confirm-roll' && <div className="roll-ack-tray"><span>{rollingDice?.join(' · ') || rollStep?.state?.move?.dice?.join(' · ')}</span><button className="primary-btn" type="button" onClick={acknowledgeDice}>Continue</button></div>}
         {rollPresentation?.stage === 'confirm-landing' && rollStep?.state?.momentPending && <div className="roll-ack-tray coin-touch-hint" role="status">Tap the coin</div>}
         {rollPresentation?.stage === 'confirm-landing' && !rollStep?.state?.momentPending && <div className="roll-ack-tray landing-ack-tray"><span>Piece landed</span><button className="primary-btn" type="button" onClick={acknowledgeLanding}>Continue</button></div>}
-        {!selected && !rollPresentation && session.phase !== 'finale' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
+        {(!selected || activityMinimized) && !rollPresentation && session.phase !== 'finale' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
           <div className="night-action-list" aria-label={progress.readyToReveal ? 'End of night reveals' : 'Your next moments'}>
             {progress.available.filter(step => !step.state?.momentPending).map(step => <button className="primary-btn alt" data-night-step={step.id} key={step.id} type="button" disabled={working || rolling || !loaded}
               onClick={() => {
@@ -406,7 +411,8 @@ export function IndependentNight() {
       {selectedContentReady && !rolling && <div className={`overlay-screen independent-overlay${selected.state.momentCard && !selected.state.momentResolution ? ' moment-card-overlay' : ''}`}>
         {selected.state.momentCard && !selected.state.momentResolution && <MomentCard key={`${selected.id}-moment`} card={selected.state.momentCard} disabled={working} onResolve={() => submit({ resolveMoment: true })} />}
         {(!selected.state.momentCard || selected.state.momentResolution) && selected.kind === 'activity' && Activity && <Activity key={`${selected.id}-${playerIndex}`} activity={{ ...selected, id: `${session.id}-${selected.id}`, state: isIndependentActivity(selected.type) ? { ...selected.state, turnIndex: playerIndex } : selected.state }}
-          deferReveal={!progress.readyToReveal} disabled={working} error={error} onSubmit={submit} playerIndex={playerIndex} players={session.players} />}
+          deferReveal={!progress.readyToReveal} disabled={working} error={error} isMinimized={activityMinimized}
+          onToggleMinimize={() => setActivityMinimized(value => !value)} onSubmit={submit} playerIndex={playerIndex} players={session.players} />}
         {(!selected.state.momentCard || selected.state.momentResolution) && selected.kind === 'keepsake' && <MysteryKeepsakeCard key={selected.id} item={selected.state.keepsake} onReveal={() => audio?.playAction?.()} onCollect={() => submit({ collect: true })} player={session.players[playerIndex]} />}
         {selected.kind === 'duel' && progress.readyToReveal && isWavelengthCommit(selected.state.results?.[String(playerIndex)]) ? <div className="overlay-card"><button className="primary-btn" disabled={working} type="button" onClick={() => submit({})}>Reveal</button></div> : selected.kind === 'duel' && <DuelArena key={`${selected.id}-${playerIndex}`} duel={duel} session={duelSession} playerIndex={playerIndex} players={session.players}
           disabled={working} DuelComponent={duel.start} onComplete={submit} duelState={selected.state}

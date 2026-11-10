@@ -1,12 +1,13 @@
-.moment-card-draw { position: relative; width: min(100%, 470px); min-height: 0; margin: auto; perspective: 1100px; animation: momentCardDraw 620ms cubic-bezier(.2,.75,.25,1) both; }
-.moment-card-back-art { position: absolute; inset: 0; border: 1px solid rgba(244,216,170,.6); border-radius: 28px; background: url('/assets/game-ui/moment-card-back.png') center / cover; box-shadow: 0 24px 80px rgba(0,0,0,.44); animation: momentCardTurn 680ms cubic-bezier(.2,.75,.25,1) both; }
+.moment-card-draw { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(100%, 420px); min-width: 0; min-height: 0; margin: auto; perspective: 1100px; animation: momentCardDraw 620ms cubic-bezier(.2,.75,.25,1) both; }
+.moment-card-back-art { position: absolute; inset: 0 0 106px; border: 1px solid rgba(244,216,170,.6); border-radius: 28px; background: url('/assets/game-ui/moment-card-back.png') center / cover; box-shadow: 0 24px 80px rgba(0,0,0,.44); animation: momentCardTurn 680ms cubic-bezier(.2,.75,.25,1) both; }
 .moment-card-draw > .moment-card { width: 100%; min-height: 100%; animation: momentCardTurn 520ms cubic-bezier(.2,.75,.25,1) both; }
 .moment-card-draw:not(.is-revealed) > .moment-card { visibility: hidden; }
 .moment-card {
   position: relative;
-  width: min(100%, 520px);
+  width: 100%;
+  min-width: 0;
   margin: auto;
-  padding: clamp(24px, 6vw, 42px);
+  padding: clamp(18px, 4vw, 26px);
   overflow: hidden;
   color: #fff5e6;
   text-align: center;
@@ -16,29 +17,29 @@
   box-shadow: 0 24px 80px rgba(0, 0, 0, .44), inset 0 0 34px rgba(255, 231, 197, .045);
 }
 .moment-card::before { content: ''; position: absolute; inset: 10px; border: 1px solid rgba(244, 216, 170, .14); border-radius: 20px; pointer-events: none; }
-.moment-card-mark { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 12px; color: #f1ca83; border: 1px solid rgba(241, 202, 131, .48); border-radius: 50%; background: rgba(241, 202, 131, .1); }
-.moment-card-mark .brand-icon { width: 30px; height: 30px; }
-.moment-card-art { display: block; width: min(100%, 340px); max-height: min(25dvh, 170px); aspect-ratio: 16 / 9; object-fit: cover; object-position: center; margin: 0 auto 10px; border: 1px solid rgba(245, 225, 202, .28); border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,.22); }
+.moment-card-art { display: block; width: min(100%, min(45dvh, 370px)); height: auto; aspect-ratio: 1 / 1; max-width: 100%; object-fit: contain; object-position: center; margin: 0 auto 12px; border: 1px solid rgba(245, 225, 202, .28); border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,.22); }
 .moment-card-kind { color: #f3d598; font-size: .72rem; font-weight: 800; letter-spacing: .24em; text-transform: uppercase; }
 .moment-card h1 { margin: 8px 0 10px; font-family: var(--font-display, Georgia, serif); font-size: clamp(1.7rem, 7vw, 2.3rem); line-height: 1.08; }
 .moment-card p { max-width: 32ch; margin: 0 auto 12px; color: rgba(255, 245, 230, .78); line-height: 1.45; }
-.moment-card-effect { display: grid; gap: 8px; justify-items: center; margin: 12px 0; padding: 12px; color: #f5dfbb; border: 1px solid rgba(245, 225, 202, .2); border-radius: 16px; background: rgba(255,255,255,.075); }
+.moment-card-effect { display: grid; gap: 4px; justify-items: center; margin: 0; padding: 5px 8px; color: #f5dfbb; text-align: center; }
 .moment-card-effect strong { display: inline-flex; align-items: center; gap: 8px; color: #fff5e6; font-size: 1.12rem; }
 .moment-card-effect .brand-icon { width: 22px; height: 22px; color: #f2ca7e; }
-.moment-card-resolve { width: 100%; min-height: 52px; border-radius: 16px; }
+.moment-card-resolve { position: relative; z-index: 1; width: 100%; min-height: 52px; border-radius: 16px; }
 .moment-card-resolve:active { transform: scale(.975); }
 .moment-card-resolve:focus-visible { outline: 2px solid #f5cf86; outline-offset: 2px; }
-.independent-overlay.moment-card-overlay { display: grid; place-items: center; gap: 0; overflow: hidden; }
+.independent-overlay.moment-card-overlay { display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; gap: 0; overflow: auto; }
 .game-screen.has-gameplay-overlay .overlay-screen.moment-card-overlay { padding: max(18px, calc(env(safe-area-inset-top) + 18px)) 18px max(18px, calc(env(safe-area-inset-bottom) + 18px)); }
 .moment-card-overlay > .night-back,
 .moment-card-overlay > .night-seal-note { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 .moment-card-overlay > .night-back { top: max(8px, calc(env(safe-area-inset-top) + 8px)); }
 .moment-card-overlay > .night-seal-note { top: max(48px, calc(env(safe-area-inset-top) + 48px)); }
-.moment-card-overlay > .moment-card-draw { width: min(100%, 470px); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 36px); min-height: 0; margin: 0; overflow: hidden; }
-.moment-card-draw > .moment-card { max-height: 100%; overflow: hidden; }
+.moment-card-overlay > .moment-card-draw { width: min(100%, 420px); min-width: 0; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 116px); min-height: 0; margin: 42px 0 0; overflow: visible; }
+.moment-card-draw > .moment-card { min-width: 0; overflow: hidden; }
+.moment-card-draw:not(.is-revealed) > .moment-card-effect,
+.moment-card-draw:not(.is-revealed) > .moment-card-resolve { visibility: hidden; }
 @keyframes momentCardDraw { from { opacity: 0; transform: translateY(24px) scale(.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes momentCardTurn { from { transform: rotateY(0) scale(.96); } to { transform: rotateY(90deg) scale(1); } }
 .moment-card-draw.is-revealed > .moment-card { animation: momentCardReveal 540ms cubic-bezier(.2,.75,.25,1) both; }
 @keyframes momentCardReveal { from { opacity: 0; transform: rotateY(-90deg) scale(.96); } to { opacity: 1; transform: rotateY(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .moment-card-draw, .moment-card-back-art, .moment-card-draw.is-revealed > .moment-card { animation: none; } }
-@media (max-height: 720px) { .moment-card { padding: 18px 22px; } .moment-card-mark { width: 42px; height: 42px; margin-bottom: 6px; } .moment-card-mark .brand-icon { width: 24px; height: 24px; } .moment-card-effect { gap: 6px; margin: 10px 0; padding: 10px; } }
+@media (max-height: 720px) { .moment-card { padding: 18px 22px; } .moment-card-art { width: min(100%, 260px); } .moment-card-effect { gap: 4px; padding: 4px 8px; } .moment-card-overlay > .moment-card-draw { max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 100px); margin-top: 36px; } }

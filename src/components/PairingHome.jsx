@@ -221,7 +221,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </div>}
         {hasCurrentNight ? <button className="primary-btn night-start-button" disabled={disabled} onClick={openGame} type="button"><BrandIcon name="moon" /><span>Continue our night</span></button> : <button className="primary-btn night-start-button" disabled={disabled} onClick={() => act(() => beginNight('long'))} type="button"><BrandIcon name="moon" /><span>Begin our night</span></button>}
         <div className="lobby-game-links">
-          <button className="secondary-link connect-four-lobby-link" disabled={connectFourBusy} onClick={() => { setConnectFourError(''); setConnectFourOpen(true) }} type="button">Play Four Ever</button>
+          <button aria-label="Play Four Ever" className="secondary-link connect-four-lobby-link" disabled={connectFourBusy} onClick={() => { setConnectFourError(''); setConnectFourOpen(true) }} type="button"><img alt="" src="/assets/arcade/icons/four-ever.png" /></button>
           <button className="secondary-link couple-arcade-lobby-link" onClick={() => setArcadeOpen(true)} type="button">Other little games</button>
         </div>
         {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Saved game unavailable. Try Continue again.' : 'Couldn’t start. Try again.'}</p>}

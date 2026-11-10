@@ -3,37 +3,19 @@ import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import './mystery-keepsake-card.css'
 
-const CARD_MARKS = {
-  'sparkler-photo': '✦',
-  'midnight-snack': '☾',
-  'love-note': '♡',
-  'dance-ticket': '♫',
-  'breakfast-in-bed': '☕',
-  'playful-veto': '⚖',
-  'bloom-blessing': '🌸',
+const CARD_ART = {
+  'sparkler-photo': '/assets/keepsakes/sparkler-photo.webp',
+  'midnight-snack': '/assets/keepsakes/midnight-snack.webp',
+  'love-note': '/assets/keepsakes/pocket-love-note.webp',
+  'dance-ticket': '/assets/keepsakes/last-dance-ticket.webp',
 }
 
-function CardFrame() {
-  return (
-    <svg aria-hidden="true" className="keepsake-card-frame" viewBox="0 0 300 420" preserveAspectRatio="none">
-      <rect x="10" y="10" width="280" height="400" rx="21" />
-      <rect x="18" y="18" width="264" height="384" rx="16" />
-      <path d="M31 77 Q31 31 77 31 M223 31 Q269 31 269 77 M269 343 Q269 389 223 389 M77 389 Q31 389 31 343" />
-      <path d="M49 65 Q49 49 65 49 M235 49 Q251 49 251 65 M251 355 Q251 371 235 371 M65 371 Q49 371 49 355" />
-      <path d="M150 23 l7 8 -7 8 -7 -8 Z M150 381 l7 8 -7 8 -7 -8 Z M23 210 l8 -7 8 7 -8 7 Z M261 210 l8 -7 8 7 -8 7 Z" />
-      <circle cx="31" cy="31" r="3" /><circle cx="269" cy="31" r="3" />
-      <circle cx="31" cy="389" r="3" /><circle cx="269" cy="389" r="3" />
-    </svg>
-  )
-}
-
-export function KeepsakeCard({ item, player = null, revealed = true, compact = false, className = '' }) {
+export function KeepsakeCard({ item, revealed = true, compact = false, className = '' }) {
 
   return (
     <div className={`keepsake-card${revealed ? ' is-revealed' : ''}${compact ? ' is-compact' : ''} ${className}`}>
       {/* Back of Card (Face Down in Deck) */}
       <div aria-hidden={revealed} className="keepsake-card-face keepsake-card-back">
-        <CardFrame />
         <span aria-hidden="true" className="keepsake-back-star"><BrandText text={"✧"} /></span>
         <span className="keepsake-back-brand">AT LONG LAST</span>
         <span className="keepsake-back-free-tag">MYSTERY KEEPSAKE</span>
@@ -43,10 +25,9 @@ export function KeepsakeCard({ item, player = null, revealed = true, compact = f
 
       {/* Front of Card (Revealed) */}
       <div aria-hidden={!revealed} className="keepsake-card-face keepsake-card-front">
-        <CardFrame />
         <div className="keepsake-front-top"><span className="keepsake-front-brand">AT LONG LAST</span></div>
 
-        <span aria-hidden="true" className="keepsake-front-mark"><BrandText text={CARD_MARKS[item?.id] || '✦'} /></span>
+        {CARD_ART[item?.id] && <img aria-hidden="true" className="keepsake-front-art" src={CARD_ART[item.id]} alt="" />}
         <strong className="keepsake-front-title">{item?.label || 'A surprise'}</strong>
         <span className="keepsake-front-blurb">{item?.blurb || ''}</span>
 
@@ -62,7 +43,7 @@ export function KeepsakeCard({ item, player = null, revealed = true, compact = f
   )
 }
 
-export function MysteryKeepsakeCard({ item, onCollect, onReveal, player = null }) {
+export function MysteryKeepsakeCard({ item, onCollect, onReveal }) {
   const audio = useAudio() || {}
   const { playCardFlip, playSuccess } = audio
 

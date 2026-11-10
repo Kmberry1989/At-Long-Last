@@ -25,3 +25,20 @@
 .arcade-collectibles{display:flex;justify-content:center;flex-wrap:wrap;gap:5px;margin:-3px 0 2px}.arcade-collectibles span{padding:4px 7px;border:1px solid #e8d5c42c;border-radius:999px;color:#f4e6dc80;font-size:10px}.arcade-collectibles span.is-collected{border-color:#f1cc8c79;color:#ffe2a6;background:#f1cc8c12}
 .jigsaw-collection{display:flex;justify-content:center;gap:7px}.jigsaw-collection span{position:relative;width:40px;height:30px;border:1px solid #d9b779;border-radius:7px;background-size:cover;background-position:center;box-shadow:0 3px 6px #0005;filter:grayscale(1);opacity:.48}.jigsaw-collection span.is-collected{filter:none;opacity:1}.jigsaw-collection i{position:absolute;right:-4px;bottom:-4px;display:grid;width:15px;height:15px;place-items:center;border:1px solid #f8dfac;border-radius:50%;background:#2d2035;color:#ffe4a8;font:700 10px Arial,sans-serif}
 .jigsaw-unboxing{position:relative;width:min(100%,390px);height:clamp(150px,42vw,205px);overflow:hidden;border:1px solid #d9b7798a;border-radius:16px;background:linear-gradient(145deg,#382637,#191824);box-shadow:inset 0 0 25px #d39b5e1a,0 8px 20px #0005}.jigsaw-unboxing-mount,.jigsaw-unboxing-mount canvas{display:block;width:100%;height:100%}.jigsaw-unboxing-caption{position:absolute;left:10px;bottom:8px;padding:4px 9px;border:1px solid #ffe2b84d;border-radius:999px;background:#251b2bba;color:#ffedcb;font:600 10px 'DM Sans',Arial,sans-serif;letter-spacing:.04em;pointer-events:none}.jigsaw-unboxing.is-fallback .jigsaw-unboxing-mount{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 100%,#d69a5338,transparent 65%),linear-gradient(145deg,#382637,#191824)}.jigsaw-unboxing.is-fallback .jigsaw-unboxing-mount::before{width:44%;height:54%;border:5px solid #bd9259;border-radius:10px;background:var(--jigsaw-art) center/cover,linear-gradient(#76504b,#392637);box-shadow:0 12px 18px #0008,0 7px 0 #6f4d42;content:""}
+.arcade-game-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.arcade-game-tile{display:block;overflow:hidden;padding:0;border:0;border-radius:18px;background:transparent;box-shadow:0 7px 18px #09071155;line-height:0}
+.arcade-game-art{display:block;width:100%;height:auto;aspect-ratio:1.3;object-fit:contain;border-radius:18px}
+.arcade-game-tile:focus-visible{outline:3px solid #ffe2a4;outline-offset:3px}
+.arcade-game-tile:hover{transform:translateY(-3px) scale(1.015);box-shadow:0 12px 24px #09071188}
+.arcade-game-tile:active{transform:scale(.97)}
+@media(max-width:390px){.arcade-game-list{gap:8px}.arcade-game-art{border-radius:13px}.couple-arcade-modal{padding:16px 12px}}
+@media(prefers-reduced-motion:reduce){.arcade-game-tile,.arcade-game-tile:hover,.arcade-game-tile:active{transition:none;transform:none}}
+
+/* Keep the five branded game covers visible together on short phone screens. */
+@media(max-width:480px){
+  .couple-arcade-modal{max-height:calc(100dvh - 24px);padding:12px 10px;background:linear-gradient(150deg,rgba(55,26,44,.995),rgba(21,22,39,.995))}
+  .couple-arcade-modal>header{min-height:32px;margin-bottom:8px}
+  .couple-arcade-modal h2{font-size:clamp(22px,6vw,28px)}
+  .arcade-game-list{gap:7px}
+  .arcade-game-art{aspect-ratio:1.45;border-radius:12px}
+}
