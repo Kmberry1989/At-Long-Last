@@ -236,6 +236,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
   const recordingTimeoutRef = useRef(0)
   const chunksRef = useRef([])
   const [recording, setRecording] = useState(false)
+  const [cameraReady, setCameraReady] = useState(false)
   const [clip, setClip] = useState(null)
   const [cameraError, setCameraError] = useState('')
   const [clipUrl, setClipUrl] = useState('')
@@ -257,12 +258,18 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
 
   async function startCamera() {
     try {
+      if (streamRef.current?.getTracks().some(track => track.readyState === 'live')) {
+        setCameraReady(true)
+        return
+      }
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is unavailable in this browser.')
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 20 } }, audio: false })
       streamRef.current = stream
       if (cameraRef.current) cameraRef.current.srcObject = stream
+      setCameraReady(true)
       setCameraError('')
     } catch {
+      setCameraReady(false)
       setCameraError('Allow camera access to act this prompt.')
     }
   }
@@ -323,8 +330,8 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
       <p className="arcade-small">Act it out silently. Record, preview, then send.</p>
       <video autoPlay className="charade-camera" muted playsInline ref={cameraRef} src={clip || undefined} />
       {!clip ? <div className="arcade-actions">
-        {!streamRef.current && <button className="arcade-secondary" onClick={startCamera} type="button">Open camera</button>}
-        {streamRef.current && !recording && <button className="arcade-primary" onClick={startRecording} type="button">Record clip</button>}
+        {!cameraReady && <button className="arcade-secondary" onClick={startCamera} type="button">Open camera</button>}
+        {cameraReady && !recording && <button className="arcade-primary" onClick={startRecording} type="button">Record clip</button>}
         {recording && <button className="arcade-primary recording" onClick={() => recorderRef.current?.stop()} type="button">Stop &amp; preview</button>}
       </div> : <button className="arcade-primary" disabled={working} onClick={submitClip} type="button">{working ? 'Sending…' : 'Send clip'}</button>}
       {cameraError && <p className="arcade-error" role="alert">{cameraError}</p>}

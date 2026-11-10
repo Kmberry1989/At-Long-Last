@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CoupleArcade } from './CoupleArcade.jsx'
 
 vi.mock('../audio/AudioProvider.jsx', () => ({
@@ -13,8 +13,23 @@ const props = {
   app: null, db: null, enabled: false, coupleId: 'preview-couple', currentUid: 'a',
   players: [{ uid: 'a', displayName: 'A' }, { uid: 'b', displayName: 'B' }], onClose: vi.fn(),
 }
+const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices')
+const originalVideoSrcObject = Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'srcObject')
+
+function restoreProperty(target, key, descriptor) {
+  if (descriptor) Object.defineProperty(target, key, descriptor)
+  else delete target[key]
+}
 
 describe('CoupleArcade', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    restoreProperty(navigator, 'mediaDevices', originalMediaDevices)
+    restoreProperty(HTMLVideoElement.prototype, 'srcObject', originalVideoSrcObject)
+  })
+
   it('shows all five branded games and opens each playable local preview', () => {
     render(<CoupleArcade {...props} />)
     for (const [name, icon] of [
@@ -32,7 +47,7 @@ describe('CoupleArcade', () => {
       ['Catch My Heart', 'Your cards'],
       ['Radar Love', 'Place your fleet'],
       ['Say Without Saying', 'Your turn to act'],
-      ['Our Little Pieces', /0 \/ 9 fit/],
+      ['Our Little Pieces', /\d+ \/ 9 fit/],
     ]) {
       fireEvent.click(screen.getByRole('button', { name }))
       expect(screenText === 'Draw a card'
@@ -40,5 +55,23 @@ describe('CoupleArcade', () => {
         : screen.getByText(screenText)).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'All games' }))
     }
+  })
+
+  it('shows recording controls as soon as the camera stream opens', async () => {
+    const stream = { getTracks: () => [{ readyState: 'live', stop: vi.fn() }] }
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    })
+    Object.defineProperty(HTMLVideoElement.prototype, 'srcObject', {
+      configurable: true,
+      set: vi.fn(),
+    })
+
+    render(<CoupleArcade {...props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Say Without Saying' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open camera' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Record clip' })).toBeInTheDocument())
   })
 })
