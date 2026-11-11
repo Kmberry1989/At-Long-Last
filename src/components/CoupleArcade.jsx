@@ -19,11 +19,18 @@ const GAMES = [
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const JIGSAW_ART = [
-  { title: 'Chose us', src: '/assets/moment-cards/chose-us.jpg', unlockAt: 0 },
-  { title: 'First trip', src: '/assets/moment-cards/first-trip-photo.jpg', unlockAt: 1 },
-  { title: 'A new tradition', src: '/assets/moment-cards/new-tradition.jpg', unlockAt: 3 },
-  { title: 'Ordinary Tuesday', src: '/assets/moment-cards/ordinary-tuesday.jpg', unlockAt: 5 },
+  { title: 'Lakeside tea', src: '/assets/arcade/our-little-pieces/golden-hour-lakeside.webp', unlockAt: 0 },
+  { title: 'Chose us', src: '/assets/moment-cards/chose-us.jpg', unlockAt: 1 },
+  { title: 'First trip', src: '/assets/moment-cards/first-trip-photo.jpg', unlockAt: 3 },
+  { title: 'A new tradition', src: '/assets/moment-cards/new-tradition.jpg', unlockAt: 5 },
+  { title: 'Ordinary Tuesday', src: '/assets/moment-cards/ordinary-tuesday.jpg', unlockAt: 7 },
 ]
+const FISH_CARD_BACK = '/assets/arcade/catch-my-heart/card-back.webp'
+const FISH_SUIT_ART = '/assets/arcade/catch-my-heart/suit-emblems.webp'
+const RADAR_FLEET_ART = '/assets/arcade/radar-love/fleet-sprite.webp'
+const CHARADE_PROMPT_ART = '/assets/arcade/say-without-saying/prompt-art.webp'
+const FISH_SUIT_POSITIONS = { hearts: '0%', diamonds: '33.333%', clubs: '66.667%', spades: '100%' }
+const CHARADE_PROMPT_SPRITES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 2, 10, 13, 12, 11]
 const RADAR_REWARDS = [
   { id: 'silver-sonar', name: 'Silver Sonar', wins: 0 },
   { id: 'rose-signal', name: 'Rose Signal', wins: 1 },
@@ -60,7 +67,8 @@ function playArcadeFeedback(audio, next, move, currentUid) {
     else audio?.playCardFlip?.()
   }
   if (move.kind === 'shot') {
-    if (next.lastShot?.hit) audio?.playSuccess?.()
+    if (typeof next.lastShot?.sunkShipId === 'number') audio?.playCardSeal?.()
+    else if (next.lastShot?.hit) audio?.playSuccess?.()
     else audio?.playDuelPulse?.(1)
   }
   if (next.status === 'finished') {
@@ -125,10 +133,10 @@ function FishGame({ state, playerUid, otherName, onAction, onReset }) {
     ? !state.winnerUid ? 'A perfect tie.' : state.winnerUid === playerUid ? 'You caught the most hearts.' : `${otherName} caught the most hearts.`
     : ownTurn ? 'Your turn' : `${otherName} is fishing`
   return <div className="arcade-game">
-    <div className="fish-books"><span>♥ {state.books[playerUid].length}</span><span>{otherName} ♥ {state.books[otherUid].length}</span></div>
+    <div className="fish-books"><span>♥ {state.books[playerUid].length}</span><span aria-label={`${state.drawPile.length} cards remaining in the draw pile`} className="fish-draw-pile" role="img" style={{ backgroundImage: `url("${FISH_CARD_BACK}")` }}><i aria-hidden="true">{state.drawPile.length}</i></span><span>{otherName} ♥ {state.books[otherUid].length}</span></div>
     <p aria-live="polite" className="arcade-turn">{status}</p>
     <p className="arcade-small">Your cards</p>
-    <div className="fish-hand">{hand.map(card => <span className={`fish-card fish-${card.suit}`} key={card.id}>{card.rank}<i>{card.suit === 'hearts' ? '♥' : card.suit === 'diamonds' ? '♦' : card.suit === 'clubs' ? '♣' : '♠'}</i></span>)}</div>
+    <div className="fish-hand">{hand.map(card => <span aria-label={`${card.rank} of ${card.suit}`} className={`fish-card fish-${card.suit}`} key={card.id}>{card.rank}<i aria-hidden="true" className="fish-suit-mark" style={{ backgroundImage: `url("${FISH_SUIT_ART}")`, backgroundPositionX: FISH_SUIT_POSITIONS[card.suit] }} /></span>)}</div>
     {state.status === 'finished' ? <button className="arcade-primary" onClick={onReset} type="button">Play again</button> : <>
       <p className="arcade-small">Ask {otherName} for a rank you hold.</p>
       <div className="fish-ranks">{RANKS.filter(rank => hand.some(card => card.rank === rank)).map(rank => <button disabled={!ownTurn} key={rank} onClick={() => onAction({ kind: 'ask', rank })} type="button">{rank}</button>)}</div>
@@ -145,8 +153,10 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   const shots = new Set(state.shots[playerUid] || [])
   const hits = new Set(state.hits[playerUid] || [])
   const fleet = state.fleets[playerUid] || []
-  const placedCells = new Set(fleet.flatMap(ship => ship.cells))
+  const targetFleet = state.fleets[state.playerUids[1 - ownIndex]] || []
   const isPlacing = state.status === 'placing'
+  const visibleShips = isPlacing ? fleet.filter(ship => ship.cells.length) : targetFleet.filter(ship => ship.cells.length && ship.cells.every(cell => hits.has(cell)))
+  const placedCells = new Set(fleet.flatMap(ship => ship.cells))
   const isReady = Boolean(state.fleetReady[playerUid])
   const allPlaced = fleet.length === 3 && fleet.every((ship, index) => ship.cells.length === [3, 2, 2][index])
   const wins = state.wins?.[playerUid] || 0
@@ -178,10 +188,32 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         const hasShip = placedCells.has(key)
         const cells = Array.from({ length: fleet[selectedShip]?.length || 0 }, (_, part) => vertical ? `${row + part}:${column}` : `${row}:${column + part}`)
         const skin = wins >= 3 ? 'radar-skin-moonlit' : wins >= 1 ? 'radar-skin-rose' : 'radar-skin-silver'
-        const className = isPlacing && hasShip ? `radar-ship ${skin}` : hit ? 'radar-hit' : miss ? 'radar-miss' : ''
+        const sunkShip = !isPlacing && visibleShips.find(ship => ship.cells.includes(key))
+        const className = [isPlacing && hasShip ? `radar-ship ${skin}` : hit ? 'radar-hit' : miss ? 'radar-miss' : '', sunkShip ? 'radar-sunk-cell' : ''].filter(Boolean).join(' ')
         return <button aria-label={`Radar row ${row + 1}, column ${column + 1}${isPlacing && hasShip ? ', ship placed' : hit ? ', hit' : miss ? ', clear' : ''}`} className={className} disabled={isPlacing ? isReady : !ownTurn || shots.has(key) || state.status === 'finished'} key={key} onClick={() => isPlacing
           ? !isReady && onAction({ kind: 'place-ship', shipId: selectedShip, cells })
-          : onAction({ kind: 'shot', row, column })} role="gridcell" type="button">{isPlacing && hasShip ? '●' : hit ? '✦' : miss ? '·' : ''}</button>
+          : onAction({ kind: 'shot', row, column })} role="gridcell" type="button">{!isPlacing && (hit ? '✦' : miss ? '·' : '')}</button>
+      })}
+      {visibleShips.map(ship => {
+        const origin = ship.cells[0]
+        const [row, column] = origin.split(':').map(Number)
+        const next = ship.cells[1]?.split(':').map(Number)
+        const horizontal = Boolean(next && next[0] === row)
+        const shipExtent = `calc(${ship.length * 12.5}% + ${ship.length * 0.5 - 4}px)`
+        const cellSize = 'calc(12.5% - 3.5px)'
+        const rowStep = `calc(${row * 12.5}% + ${row * 0.5}px)`
+        const columnStep = `calc(${column * 12.5}% + ${column * 0.5}px)`
+        const offset = `(${shipExtent} - ${cellSize}) / 2`
+        return <span aria-hidden="true" className={`radar-vessel${horizontal ? ' is-horizontal' : ''}${state.lastShot?.sunkShipId === ship.id ? ' is-sinking' : ''}`} key={`ship-${ship.id}`} style={{
+          backgroundImage: `url("${RADAR_FLEET_ART}")`,
+          backgroundPosition: `${ship.id * 50}% center`,
+          backgroundSize: '300% 100%',
+          height: shipExtent,
+          left: horizontal ? `calc(${columnStep} + ${offset})` : columnStep,
+          top: horizontal ? `calc(${rowStep} - ${offset})` : rowStep,
+          width: cellSize,
+          '--ship-rotation': horizontal ? 'rotate(90deg)' : 'none',
+        }} />
       })}
     </div>
     {isPlacing && !isReady && <button className="arcade-primary" disabled={!allPlaced} onClick={() => onAction({ kind: 'ready' })} type="button">Ready</button>}
@@ -245,6 +277,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
   const actorUid = state.playerUids[state.actorIndex]
   const isActor = actorUid === playerUid
   const prompt = SAY_IT_WITHOUT_SAYING_PROMPTS[state.promptIndex] || SAY_IT_WITHOUT_SAYING_PROMPTS[0]
+  const promptSprite = CHARADE_PROMPT_SPRITES[state.promptIndex] ?? 0
 
   useEffect(() => () => {
     streamRef.current?.getTracks().forEach(track => track.stop())
@@ -328,6 +361,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
     <p className="arcade-turn" aria-live="polite">{status}</p>
     {state.status === 'finished' ? <button className="arcade-primary" onClick={onReset} type="button">Play again</button> : state.phase === 'act' && isActor ? <>
       <p className="charade-prompt">{prompt}</p>
+      <span aria-hidden="true" className="charade-prompt-art" style={{ backgroundImage: `url("${CHARADE_PROMPT_ART}")`, backgroundPosition: `${(promptSprite % 4) * 33.333}% ${Math.floor(promptSprite / 4) * 33.333}%` }} />
       <p className="arcade-small">Act it out silently. Record, preview, then send.</p>
       <video autoPlay className="charade-camera" muted playsInline ref={cameraRef} src={clip || undefined} />
       {!clip ? <div className="arcade-actions">

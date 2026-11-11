@@ -248,19 +248,22 @@ export function fireRadarLoveShot(state, { playerUid, row, column }) {
   const hit = state.fleets[targetUid].some(ship => ship.cells.includes(key))
   const shots = { ...state.shots, [playerUid]: [...state.shots[playerUid], key] }
   const hits = { ...state.hits, [playerUid]: hit ? [...state.hits[playerUid], key] : [...state.hits[playerUid]] }
+  const sunkShipId = hit
+    ? state.fleets[targetUid].find(ship => ship.cells.length && ship.cells.includes(key) && ship.cells.every(cell => shots[playerUid].includes(cell)))?.id ?? null
+    : null
   const sunk = state.fleets[targetUid].flatMap(ship => ship.cells).every(cell => shots[playerUid].includes(cell))
   const wins = Object.fromEntries(state.playerUids.map(uid => [uid, Math.max(0, Number(state.wins?.[uid]) || 0)]))
   if (sunk) wins[playerUid] += 1
   return {
     ...state, shots, hits, wins, turnIndex: sunk ? playerIndex : targetIndex,
     status: sunk ? 'finished' : 'playing', winnerUid: sunk ? playerUid : null,
-    lastShot: { playerUid, row, column, hit },
+    lastShot: { playerUid, row, column, hit, sunkShipId },
   }
 }
 
 export function createOurLittlePieces(playerUids, random = Math.random, solvedCount = 0, puzzleNumber = 1) {
   if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
-  const artIndex = solvedCount >= 5 ? 3 : solvedCount >= 3 ? 2 : solvedCount >= 1 ? 1 : 0
+  const artIndex = solvedCount >= 7 ? 4 : solvedCount >= 5 ? 3 : solvedCount >= 3 ? 2 : solvedCount >= 1 ? 1 : 0
   const slots = shuffled(Array.from({ length: 9 }, (_, index) => index), random)
   if (slots.every((slot, index) => slot === index)) [slots[0], slots[1]] = [slots[1], slots[0]]
   return {

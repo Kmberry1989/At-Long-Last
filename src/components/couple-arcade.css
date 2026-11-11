@@ -42,3 +42,23 @@
   .arcade-game-list{gap:7px}
   .arcade-game-art{aspect-ratio:1.45;border-radius:12px}
 }
+
+/* Catch My Heart's deck uses generated foil suit art and a matching card back. */
+.fish-books{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;width:100%;color:#ffd993;font:700 16px 'DM Sans',Arial,sans-serif}
+.fish-books>span:last-child{text-align:right}
+.fish-draw-pile{position:relative;display:grid;width:31px;height:45px;place-items:center;border:1px solid #efd29b;border-radius:5px;background-position:center;background-size:cover;box-shadow:2px 2px 0 #d6ba8b,4px 4px 0 #5c4452,0 6px 10px #0006}
+.fish-draw-pile i{display:grid;width:18px;height:18px;place-items:center;border:1px solid #f8e2b1;border-radius:50%;background:#251c2cdd;color:#fff1d2;font:700 10px 'DM Sans',Arial,sans-serif}
+.fish-card{position:relative;overflow:hidden}
+.fish-card .fish-suit-mark{display:block;width:19px;height:19px;background-repeat:no-repeat;background-size:400% 100%;filter:drop-shadow(0 1px 1px #50332255)}
+.charade-prompt-art{display:block;width:clamp(118px,35vw,166px);aspect-ratio:1;border:1px solid #f0d2a4a8;border-radius:15px;background-repeat:no-repeat;background-size:400% 400%;box-shadow:0 8px 18px #08061066}
+
+/* The generated ships sit over their tappable grid cells; the sink is a brief 2.5D beat. */
+.radar-grid{position:relative;isolation:isolate;overflow:visible}
+.radar-grid button{position:relative;overflow:visible}
+.radar-grid button.radar-sunk-cell{background:radial-gradient(circle,#f5c77d88,transparent 74%);color:transparent;box-shadow:inset 0 0 12px #eeac7070}
+.radar-vessel{position:absolute;z-index:4;display:block;border:1px solid #f1d09588;border-radius:35% 35% 28% 28%;background-repeat:no-repeat;box-shadow:0 0 14px #e6bd8055;filter:drop-shadow(0 2px 3px #090913c9);pointer-events:none;transform:var(--ship-rotation);transform-origin:center;transform-style:preserve-3d}
+.radar-vessel.is-sinking{animation:radar-vessel-sink 1.35s cubic-bezier(.43,.03,.88,.45) both}
+.radar-vessel.is-sinking::after{position:absolute;inset:30% 14%;border:1px solid #ffe3a9b8;border-radius:50%;background:radial-gradient(ellipse,#fff1cb80,transparent 72%);content:"";animation:radar-splash .82s ease-out both}
+@keyframes radar-vessel-sink{0%,18%{opacity:1;filter:drop-shadow(0 0 16px #ffdf9a);transform:var(--ship-rotation) translateY(0) rotateX(0) scale(1)}55%{opacity:.82;transform:var(--ship-rotation) translateY(7px) rotateX(32deg) scale(.94)}100%{opacity:.22;filter:drop-shadow(0 7px 5px #05070d99) blur(1px);transform:var(--ship-rotation) translateY(18px) rotateX(68deg) scale(.78)}}
+@keyframes radar-splash{0%{opacity:0;transform:scale(.25)}28%{opacity:.92}100%{opacity:0;transform:scale(1.55)}}
+@media(prefers-reduced-motion:reduce){.radar-vessel.is-sinking,.radar-vessel.is-sinking::after{animation:none}.radar-vessel.is-sinking{opacity:.5;transform:var(--ship-rotation) translateY(8px) rotateX(55deg) scale(.82)}}
