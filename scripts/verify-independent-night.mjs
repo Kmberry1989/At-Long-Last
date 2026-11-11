@@ -134,6 +134,25 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
   await pages[0].waitForFunction(() => !document.querySelector('.arcade-error'))
   await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
   await capture(pages[0], 'arcade-my-one-and-only-played')
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
+  const unoArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
+  await unoArcade.getByRole('button', { name: 'My One and Only!', exact: true }).click()
+  await pages[1].locator('.uno-hand').waitFor()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  const unoStatusBeforeReload = await pages[1].locator('.arcade-turn').innerText()
+  const unoHandSizeBeforeReload = await pages[1].locator('.uno-hand .uno-card').count()
+  await pages[1].reload()
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).waitFor()
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
+  await pages[1].getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'My One and Only!', exact: true }).click()
+  await pages[1].locator('.uno-hand').waitFor()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  if (await pages[1].locator('.arcade-turn').innerText() !== unoStatusBeforeReload
+    || await pages[1].locator('.uno-hand .uno-card').count() !== unoHandSizeBeforeReload) {
+    throw new Error('My One and Only did not restore the same turn and hand after reload.')
+  }
+  await capture(pages[1], 'arcade-my-one-and-only-restored-after-reload')
+  await returnToArcade(pages[1])
   await returnToArcade(pages[0])
 
   await arcade.getByRole('button', { name: 'Catch My Heart', exact: true }).click()
@@ -147,6 +166,23 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
   }
   await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
   await capture(pages[0], 'arcade-catch-my-heart-played')
+  await pages[1].getByRole('button', { name: 'Catch My Heart', exact: true }).click()
+  await pages[1].locator('.fish-ranks button').first().waitFor()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  const fishStatusBeforeReload = await pages[1].locator('.arcade-turn').innerText()
+  const fishResultBeforeReload = await pages[1].locator('.arcade-result').innerText()
+  await pages[1].reload()
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).waitFor()
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
+  await pages[1].getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'Catch My Heart', exact: true }).click()
+  await pages[1].locator('.fish-ranks button').first().waitFor()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  if (await pages[1].locator('.arcade-turn').innerText() !== fishStatusBeforeReload
+    || await pages[1].locator('.arcade-result').innerText() !== fishResultBeforeReload) {
+    throw new Error('Catch My Heart did not restore the same turn and last ask after reload.')
+  }
+  await capture(pages[1], 'arcade-catch-my-heart-restored-after-reload')
+  await returnToArcade(pages[1])
   await returnToArcade(pages[0])
 
   await arcade.getByRole('button', { name: 'Say Without Saying', exact: true }).click()
@@ -212,6 +248,20 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
   await pages[0].waitForFunction(() => document.querySelectorAll('.radar-hit, .radar-miss').length === 1)
   await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
   await capture(pages[0], 'arcade-radar-love-played')
+  const radarStatusBeforeReload = await pages[1].locator('.arcade-turn').innerText()
+  const radarMarksBeforeReload = await pages[1].locator('.radar-hit, .radar-miss').count()
+  await pages[1].reload()
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).waitFor()
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
+  await pages[1].getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'Radar Love', exact: true }).click()
+  await pages[1].locator('.radar-grid').waitFor()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  if (await pages[1].locator('.arcade-turn').innerText() !== radarStatusBeforeReload
+    || await pages[1].locator('.radar-hit, .radar-miss').count() !== radarMarksBeforeReload) {
+    throw new Error('Radar Love did not restore the same turn and shot after reload.')
+  }
+  await capture(pages[1], 'arcade-radar-love-restored-after-reload')
+  await returnToArcade(pages[1])
   await returnToArcade(pages[0])
 
   await arcade.getByRole('button', { name: 'Our Little Pieces', exact: true }).click()
@@ -242,7 +292,8 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
   await firstColumn.waitFor({ state: 'visible' })
   let activeFourEverPage = pages[0]
   if (!(await firstColumn.isEnabled())) {
-    await returnToArcade(pages[1])
+    if (await pages[1].getByRole('button', { name: 'All games', exact: true }).count()) await returnToArcade(pages[1])
+    else if (!(await pages[1].getByRole('dialog', { name: 'Our Arcade' }).count())) await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
     const partnerArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
     await partnerArcade.waitFor()
     await partnerArcade.getByRole('button', { name: 'Four Ever', exact: true }).click()
@@ -250,7 +301,8 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
   }
   await activeFourEverPage.getByRole('button', { name: 'Drop piece in column 4' }).click()
   if (activeFourEverPage === pages[0]) {
-    await returnToArcade(pages[1])
+    if (await pages[1].getByRole('button', { name: 'All games', exact: true }).count()) await returnToArcade(pages[1])
+    else if (!(await pages[1].getByRole('dialog', { name: 'Our Arcade' }).count())) await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
     const partnerArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
     await partnerArcade.waitFor()
     await partnerArcade.getByRole('button', { name: 'Four Ever', exact: true }).click()

@@ -8,6 +8,13 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Verification: local two-profile Auth/Firestore emulator arcade smoke passed for all five shared games, two complete charade turns with the reload checkpoint, and synchronized Four Ever moves. Focused app tests passed (2 files / 13 tests); lint, build, and diff check passed.
 - Reviewed the mobile viewport screenshot at `artifacts/arcade-resume/arcade-say-without-saying-restored-clip-viewport.png`; the dialog title and close control are no longer covered by lobby controls.
 - Limitation: the E2E MediaRecorder is synthetic, so reconnect proves persisted state/source restoration but not real encoded video playback. Physical-device camera/audio and production account checks remain outstanding.
+
+## 2026-11-11 — Shared arcade state survives reload
+
+- Extended the two-profile emulator smoke to reload a partner browser after an UNO play, a Catch My Heart ask, and a Radar Love shot. Reopening each game restored the same turn, and restored the corresponding hand count, ask result, or shot marks.
+- Captured evidence in `artifacts/arcade-resume/arcade-my-one-and-only-restored-after-reload.png`, `arcade-catch-my-heart-restored-after-reload.png`, and `arcade-radar-love-restored-after-reload.png`.
+- Full arcade smoke still passes for all five shared games, two charade turns including clip URL restoration, and synchronized Four Ever moves.
+- This proves emulator-backed persistence through reload; real-device media decoding, sound, camera permissions, and production Firestore remain separate checks.
 - Next: add reload/resume checkpoints for the turn-based card games and Radar Love, then continue the full-game scrapbook/progression audit.
 
 ## 2026-11-01 — Buoyant circular spaces and dice home base

@@ -10,6 +10,14 @@
 - **Checks:** Arcade smoke passed for all five games and Four Ever synchronization. Focused app tests passed (2 files / 13 tests); lint, production build, and `git diff --check` passed.
 - **Limits:** The smoke's synthetic MediaRecorder yields a placeholder WebM blob, so it proves the clip URL persists and the guess flow resumes, not that a real device's encoded video decodes or plays after reconnect. Physical-device camera, audio, and production Firestore were not tested.
 
+## 2026-11-11 — Independent arcade turn restoration
+
+- **UNO:** After a legal move, the partner reloaded and reopened the game. The active turn and private hand size matched the saved pre-reload state.
+- **Catch My Heart:** After a legal ask, the partner reloaded and reopened the game. The active turn and last ask/result matched the saved state.
+- **Radar Love:** After a shot, the partner reloaded and reopened the game. The active turn and visible hit/miss count matched the saved state.
+- **Evidence:** `artifacts/arcade-resume/arcade-my-one-and-only-restored-after-reload.png`, `artifacts/arcade-resume/arcade-catch-my-heart-restored-after-reload.png`, and `artifacts/arcade-resume/arcade-radar-love-restored-after-reload.png`.
+- **Limits:** This emulator pass verifies saved UI state after reload, not concurrent production-device latency, physical camera/video decoding, or sound output.
+
 ## 2026-11-09 — Continued local-emulator night playthrough
 
 - **Environment:** Local Vite app with local Auth/Firestore emulators and disposable test identities. This is not a production or physical-phone test. The test resumed as Rowan at a 450 × 844 browser viewport; an earlier two-profile emulator run is recorded above in the session artifacts.
