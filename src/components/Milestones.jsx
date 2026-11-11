@@ -75,7 +75,8 @@ export function MomentCelebration({ moment, onContinue }) {
   }
   return <div className={`moment-celebration moment-${moment.kind}`} role="dialog" aria-modal="true" aria-labelledby="moment-title" ref={root} tabIndex={-1} onKeyDown={keyDown}>
     <div aria-hidden="true" className="moment-halo" />
-    <div aria-hidden="true" className="moment-stars">{Array.from({ length: 22 }, (_, index) => <i key={index} style={{ '--i': index, left: `${5 + index * 37 % 90}%`, top: `${8 + index * 17 % 80}%`, animationDuration: `${6 + index % 5}s` }} />)}</div>
+    {moment.kind === 'committed' && <div aria-hidden="true" className="moment-aurora" />}
+    <div aria-hidden="true" className="moment-stars">{Array.from({ length: moment.kind === 'committed' ? 42 : 22 }, (_, index) => <i key={index} style={{ '--i': index, left: `${5 + index * 37 % 90}%`, top: `${8 + index * 17 % 80}%`, animationDuration: `${6 + index % 5}s`, '--drift': `${10 + index * 7 % 24}px`, '--spark-size': `${2 + index % 3}px` }} />)}</div>
     <div className="moment-content">
       <p className="moment-chapter">{copy.chapter}</p>
       <div className="moment-pieces" aria-hidden="true"><PlayerPortrait player={people[0]} /><span className="moment-seal"><BrandText text={copy.icon} /></span><PlayerPortrait player={people[1]} /></div>

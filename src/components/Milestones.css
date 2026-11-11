@@ -5,8 +5,8 @@
 .moment-chapter { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: #dabb97; animation: momentRise 1.4s .2s both; }
 .moment-pieces { display: grid; grid-template-columns: 1fr 42px 1fr; align-items: center; width: min(100%, 300px); margin: clamp(14px, 4vh, 32px) auto clamp(10px, 3vh, 24px); }
 .moment-pieces img { width: clamp(72px, 18vw, 96px); max-width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 1px solid #f3d7aa55; box-shadow: 0 16px 60px #0006; }
-.moment-pieces img:first-child { justify-self: end; animation: pieceArriveLeft 3s cubic-bezier(.2,.7,.2,1) both; }
-.moment-pieces img:last-child { animation: pieceArriveRight 3s cubic-bezier(.2,.7,.2,1) both; }
+.moment-pieces > .profile-portrait:first-child { justify-self: end; animation: pieceArriveLeft 3s cubic-bezier(.2,.7,.2,1) both; }
+.moment-pieces > .profile-portrait:last-child { justify-self: start; animation: pieceArriveRight 3s cubic-bezier(.2,.7,.2,1) both; }
 .moment-seal { font-size: 36px; color: #f3d19c; text-shadow: 0 0 30px #e8a462aa; z-index: 1; animation: momentRise 1.8s 2s both; }
 .moment-names { font-family: 'Fraunces', Georgia, serif; font-size: clamp(24px, 6vw, 38px); overflow-wrap: anywhere; animation: momentRise 1.8s 1.5s both; }
 .moment-names span { color: #c9a67c; font-style: italic; }
@@ -19,7 +19,13 @@
 .moment-controls .moment-sound { position: static; display: block; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; font-size: 14px; letter-spacing: 0; text-transform: none; color: #e3cbb0; border: 1px solid #e0bc8a40; background: transparent; }
 .moment-controls button:focus-visible { outline: 3px solid #fff0d4; outline-offset: 4px; }
 .moment-stars { position: absolute; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
-.moment-stars i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #f6d7a3; opacity: .25; animation: momentDrift 6s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -.4s); }
+.moment-stars i { position: absolute; width: var(--spark-size, 3px); height: var(--spark-size, 3px); border-radius: 50%; background: #f6d7a3; opacity: .25; animation: momentDrift 6s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -.4s); }
+.moment-pieces > .profile-portrait { width: clamp(72px, 20vw, 96px); height: clamp(72px, 20vw, 96px); }
+.moment-pieces > .profile-portrait:first-child { justify-self: end; }
+.moment-pieces > .profile-portrait:last-child { justify-self: start; }
+.moment-committed .moment-aurora { position: absolute; z-index: -1; inset: -24%; pointer-events: none; background: conic-gradient(from 25deg at 50% 42%, #d8945a12, #f3d49a30 18%, #9e5e7118 38%, #d7a05b35 58%, #b18eb51c 78%, #d8945a12); filter: blur(48px); opacity: .62; transform: scale(.86); animation: commitmentPrism 16s ease-in-out infinite alternate; }
+.moment-committed .moment-halo { width: min(82vw, 620px); border-color: #f7d69e55; box-shadow: 0 0 120px #e5a36b2b, inset 0 0 100px #efc58916; }
+.moment-committed .moment-stars i { box-shadow: 0 0 10px 2px #f6d7a355; }
 .moment-connected { background: radial-gradient(ellipse at 50% 36%, #42565d, #212636 48%, #0c101b); }
 .moment-night { background: radial-gradient(ellipse at 50% 36%, #4d405e, #252336 48%, #0c101b); }
 .pairing-story { display: grid; gap: 16px; margin: 20px 0; color: var(--app-ink); }
@@ -37,5 +43,6 @@
 @keyframes momentHalo { from { opacity: 0; transform: translate(-50%,-50%) scale(.6); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
 @keyframes momentSweep { from { transform: translateX(-50%); opacity: 0; } 30% { opacity: 1; } to { transform: translateX(50%); opacity: 0; } }
 @keyframes momentDrift { from { transform: translateY(12px); opacity: .15; } to { transform: translateY(-18px); opacity: .65; } }
+@keyframes commitmentPrism { from { transform: translate3d(-2%, 1%, 0) rotate(-8deg) scale(.82); background-position: 0% 45%; opacity: .38; } to { transform: translate3d(2%, -1%, 0) rotate(8deg) scale(1.08); background-position: 100% 55%; opacity: .72; } }
 @media (max-height: 650px) { .moment-pieces { margin: 18px auto; } .moment-pieces img { width: 80px; } .moment-content h2 { font-size: 36px; margin: 12px 0; } .moment-content { padding: 12px 0; } .moment-saved { margin-top: 12px; } }
-@media (prefers-reduced-motion: reduce) { .moment-celebration, .moment-celebration::after, .moment-halo, .moment-stars i, .moment-content *, .moment-pieces img { animation: none !important; filter: none; opacity: 1; transform: none; } .moment-halo { transform: translate(-50%,-50%); } .moment-stars i { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .moment-celebration, .moment-celebration::after, .moment-halo, .moment-aurora, .moment-stars i, .moment-content *, .moment-pieces > .profile-portrait { animation: none !important; filter: none; opacity: 1; transform: none; } .moment-halo { transform: translate(-50%,-50%); } .moment-stars i { opacity: .35; } }
