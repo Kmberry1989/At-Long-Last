@@ -18,6 +18,15 @@
 - **Evidence:** `artifacts/arcade-resume/arcade-my-one-and-only-restored-after-reload.png`, `artifacts/arcade-resume/arcade-catch-my-heart-restored-after-reload.png`, and `artifacts/arcade-resume/arcade-radar-love-restored-after-reload.png`.
 - **Limits:** This emulator pass verifies saved UI state after reload, not concurrent production-device latency, physical camera/video decoding, or sound output.
 
+## 2026-11-11 — Full night on phone and desktop; finale write race
+
+- **Full loop:** Two isolated Auth/Firestore emulator profiles paired, sent and caught opening kisses, chose the first player, completed eight independent rolls each with acknowledgements and space/card landings, finished their private activities and comparisons, caught the closing kisses, and opened the shared finale. The same run used 390px and 1280px viewports; both reached the same 11 comparisons and finale with no browser page errors.
+- **Finale defect:** The first replay exposed a permission-denied update on an append-only scrapbook record when both clients tried to bank the same finale milestone batch. The session host now coordinates that batch; the transaction's per-session marker still makes host retries idempotent. The second full replay completed without the rules error.
+- **Copy cleanup:** Removed the internal-sounding explanatory sentence from the finale, share text, and scrapbook recap. The concise headline and night stats remain.
+- **Test command repair:** `test:rules` and `test:guest` now invoke the local Vitest binary inside `firebase emulators:exec`, where bare `vitest` was not resolving.
+- **Evidence:** `artifacts/night-loop-final/board-ready.png`, `artifacts/night-loop-final/first-turn-result-player-1.png`, and `.playwright-mcp/independent-night/boards-finished.png`.
+- **Limits:** These are emulator/browser checks. Physical device sound, camera encoding, and production account behavior were not exercised.
+
 ## 2026-11-09 — Continued local-emulator night playthrough
 
 - **Environment:** Local Vite app with local Auth/Firestore emulators and disposable test identities. This is not a production or physical-phone test. The test resumed as Rowan at a 450 × 844 browser viewport; an earlier two-profile emulator run is recorded above in the session artifacts.

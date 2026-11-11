@@ -83,7 +83,6 @@ describe('JournalTimeline', () => {
             createdAt: '2026-07-17T00:30:00.000Z',
             id: 'finale-1',
             payload: {
-              coda: 'Enough little wins stacked up to feel like a proper finale instead of a fade-out.',
               dominantVibe: 'playful',
               duelOutcomeLabel: 'Shared finish',
               headline: 'A night with some weight to it.',

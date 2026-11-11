@@ -377,14 +377,15 @@ export function SessionProvider({ children }) {
 
   // When a live night closes out, bank it into the couple's lifetime
   // progress exactly once: hearts, streaks, freeze tokens, trophies, and
-  // milestone journal entries for the scrapbook. The transaction is
-  // idempotent per session, so a retry or a second phone can never
-  // double-bank the night or duplicate the journal entries.
+  // milestone journal entries for the scrapbook. The host alone coordinates
+  // this append-only batch; the transaction's session marker still makes a
+  // host retry safe, while avoiding two phones racing to create the same IDs.
   useEffect(() => {
     if (
       !enabled ||
       !db ||
       !couple ||
+      !isHost ||
       session?.phase !== 'finale' ||
       session.progressRecorded ||
       progressRecordedRef.current
@@ -474,7 +475,7 @@ export function SessionProvider({ children }) {
     return () => {
       cancelled = true
     }
-  }, [couple, db, enabled, session])
+  }, [couple, db, enabled, isHost, session])
 
   useEffect(() => {
     if (!enabled) {

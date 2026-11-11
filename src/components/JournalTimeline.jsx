@@ -545,7 +545,6 @@ function FinaleEntryCard({ entry }) {
       <div className="scrapbook-finale-hero">
         <span>{entry.payload?.tierLabel || 'Scrapbook headliner'}</span>
         <strong>{entry.payload?.headline || entry.title}</strong>
-        <p>{entry.payload?.coda || entry.summary}</p>
       </div>
       <div className="scrapbook-stats-grid">
         <div>

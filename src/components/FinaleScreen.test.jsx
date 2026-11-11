@@ -29,7 +29,6 @@ describe('FinaleScreen', () => {
   }
 
   const mockFinalSummary = {
-    coda: 'Tonight was playful and warm in equal measure.',
     dominantVibe: 'playful',
     headline: 'Spark & Laughter',
     journalCount: 5,
@@ -65,6 +64,7 @@ describe('FinaleScreen', () => {
     expect(screen.getByText('Spark & Laughter')).toBeDefined()
     expect(screen.getByLabelText('Elaine won First Lap Laurel')).toBeInTheDocument()
     expect(screen.getByText('Elaine')).toBeInTheDocument()
+    expect(screen.queryByText('Tonight was playful and warm in equal measure.')).not.toBeInTheDocument()
     expect(screen.getByLabelText('0 of 14 hearts counted')).toBeDefined()
     act(() => { vi.advanceTimersByTime(4000) })
     expect(screen.getByLabelText('14 of 14 hearts counted')).toBeDefined()

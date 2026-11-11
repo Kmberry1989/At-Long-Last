@@ -15,6 +15,15 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Captured evidence in `artifacts/arcade-resume/arcade-my-one-and-only-restored-after-reload.png`, `arcade-catch-my-heart-restored-after-reload.png`, and `arcade-radar-love-restored-after-reload.png`.
 - Full arcade smoke still passes for all five shared games, two charade turns including clip URL restoration, and synchronized Four Ever moves.
 - This proves emulator-backed persistence through reload; real-device media decoding, sound, camera permissions, and production Firestore remain separate checks.
+
+## 2026-11-11 — Full night replay and finale cleanup
+
+- Replayed the entire eight-roll-per-player night loop through opening and closing kisses, first-turn coin choice, independent movement/landings, private activities, comparisons, finale, and scrapbook at 390px and 1280px. Both players reached the finale with matching comparison counts; no browser page errors occurred.
+- The first pass exposed a Firestore `journalEntries` update rejection when both devices tried to bank the finale batch. Restricted that append-only banking effect to the session host; the transaction marker protects a host retry. The second complete replay reached the finale without the permission error.
+- Removed an internal explanatory sentence from the finale, share copy, and scrapbook recap. Changed the rules/guest test scripts to invoke the repository-local Vitest binary from Firebase's emulator shell.
+- Verification: full application suite passed (73 files / 446 tests), focused post-change regressions passed (5 files / 56 tests), lint and production build passed. Firestore rules suite previously passed 59 tests on a separate emulator port; rules themselves did not change in this patch.
+- Screenshots: `artifacts/night-loop-final/board-ready.png`, `artifacts/night-loop-final/first-turn-result-player-1.png`, and `.playwright-mcp/independent-night/boards-finished.png`. Screenshots remain local artifacts and are not included in the source commit.
+- Limits: No physical device, audible output, encoded camera media, or live production Firestore verification was performed.
 - Next: add reload/resume checkpoints for the turn-based card games and Radar Love, then continue the full-game scrapbook/progression audit.
 
 ## 2026-11-01 — Buoyant circular spaces and dice home base

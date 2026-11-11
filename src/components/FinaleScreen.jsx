@@ -143,9 +143,8 @@ export function FinaleScreen({
       (nightPrize ? `🏅 ${prizeWinner || 'A player'} — ${nightPrize.payload?.prize || 'Nightly Prize'}\n` : '') +
       `✨ ${finalSummary?.headline || 'In Harmony'}\n` +
       `💞 ${session?.hearts || 0} Shared Hearts Earned\n` +
-      `🎁 Keepsakes: ${keepsakes}\n` +
-      `"${finalSummary?.coda || ''}"`
-  }, [players, session?.keepsakes, session?.hearts, finalSummary?.headline, finalSummary?.coda, nightPrize, prizeWinner])
+      `🎁 Keepsakes: ${keepsakes}`
+  }, [players, session?.keepsakes, session?.hearts, finalSummary?.headline, nightPrize, prizeWinner])
 
   async function handleShareCapsule() {
     playSuccess?.()
@@ -196,8 +195,6 @@ export function FinaleScreen({
         <div className="finale-folio-body">
           <p className="eyebrow">Night's Coda</p>
           <h2 className="finale-headline">{finalSummary?.headline || 'A Night to Remember'}</h2>
-          <p className="finale-coda">{finalSummary?.coda || 'Every good round leaves a mark worth keeping.'}</p>
-
           {nightPrize && <div className="finale-night-prize" aria-label={`${prizeWinner || 'A player'} won ${nightPrize.payload?.prize || 'tonight’s prize'}`}>
             <BrandIcon name="trophy" />
             <div><span>Tonight’s prize</span><strong>{prizeWinner || 'A player'}</strong><small>{nightPrize.payload?.prize || 'Nightly Prize'}</small></div>

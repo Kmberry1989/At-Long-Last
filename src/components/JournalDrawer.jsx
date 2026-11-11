@@ -46,9 +46,6 @@ export function JournalDrawer({ entries, open, onClose, sessionId }) {
   const duelCount = scopedEntries.filter((entry) => entry.type === 'duel').length
   const keepsakeCount = scopedEntries.filter((entry) => entry.type === 'keepsake').length
   const headline = finaleEntry?.payload?.headline || 'Every good round deserves its own page.'
-  const supportCopy =
-    finaleEntry?.payload?.coda ||
-    'Activities, duels, and keepsakes land here as little artifacts instead of one flat summary feed.'
   const filteredEntries = useMemo(
     () => scopedEntries.filter((entry) => matchesFilter(entry, activeFilter)),
     [activeFilter, scopedEntries],
@@ -86,7 +83,6 @@ export function JournalDrawer({ entries, open, onClose, sessionId }) {
       <div className="scrapbook-overview">
         <div className="scrapbook-overview-copy">
           <strong>Saved for later</strong>
-          <p>{supportCopy}</p>
         </div>
         <div className="scrapbook-overview-stats">
           <div>
