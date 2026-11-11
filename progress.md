@@ -1,5 +1,12 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-11-11 — Shared board-theme vote
+
+- Changed the pre-night theme flow to a shared vote: both partners choose in **Our Story → Collection → Themes**, and a night can begin only after the choices match. **Surprise us** is a valid choice and also requires agreement; an existing saved couple theme remains a backward-compatible prior agreement.
+- Kept each choice on the player's portrait record and only pins `coupleProgress.selectedTheme` after agreement. Updated the lobby to send new or disagreeing couples to Collection and the player manual to document the vote.
+- Fixed first-time and legacy progress initialization: create only the exact default progress document, then apply the requested transaction as an update. This keeps initial writes narrow in Firestore rules while allowing flower, Connect Four, finale, and progress transactions to work when a couple has no progress record yet. Made initialization race-safe with a transaction.
+- Verification: app suite passed (73 files / 447 tests), Firestore rules passed (4 files / 62 tests), lint and production build passed, and the complete phone/desktop two-profile night replay finished with both players ready to reveal and no browser errors. Captures are in `artifacts/night-loop-shared-theme/`.
+
 ## 2026-11-11 — Refresh the player flow manual
 
 - Updated `docs/PLAYER_GAME_FLOW_MANUAL.md` against the current code and the successful two-profile November 11 playthrough.

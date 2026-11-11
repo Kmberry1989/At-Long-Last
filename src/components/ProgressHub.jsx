@@ -1,5 +1,5 @@
 import { BrandText } from './BrandIcon.jsx'
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { useCouple } from '../features/couple/CoupleProvider.jsx'
 import { useFirebaseApp } from '../features/couple/FirebaseAppContext.jsx'
@@ -19,6 +19,7 @@ import {
   resolveKouponLabel,
 } from '../features/couple/progressService.js'
 import { getFlowerSpecies } from '../flower/flowerSpecies.js'
+import { saveThemeVote, subscribePieceStyles } from '../features/couple/portraitService.js'
 
 const FlowerScene = lazy(() => import('../flower/FlowerScene.jsx').then((module) => ({ default: module.FlowerScene })))
 
@@ -126,12 +127,53 @@ function HeartsRow() {
   )
 }
 
-function ThemePicker() {
-  const { progress, selectTheme, unlockTheme } = useCouple()
+function ThemePicker({ locked = false }) {
+  const { couple, progress, unlockTheme } = useCouple()
+  const { db, enabled, userId } = useFirebaseApp()
   const [unlockingId, setUnlockingId] = useState(null)
+  const [votingId, setVotingId] = useState(null)
+  const [profiles, setProfiles] = useState({})
+  const [profilesLoaded, setProfilesLoaded] = useState(false)
+  const [voteError, setVoteError] = useState('')
   const spendable = spendableHearts(progress)
-  const selected = progress?.selectedTheme || null
   const unlocked = progress?.unlockedThemes || []
+  const playerIds = couple?.playerIds || []
+  const partnerUid = playerIds.find(uid => uid !== userId)
+  const legacyVote = progress?.selectedTheme || null
+  const hasExplicitVote = playerIds.some(uid => profiles[uid]?.themeVote)
+  const myVote = profiles[userId]?.themeVote || (!hasExplicitVote ? legacyVote : null)
+  const partnerVote = profiles[partnerUid]?.themeVote || (!hasExplicitVote ? legacyVote : null)
+  const agreement = Boolean(myVote && partnerVote && myVote === partnerVote)
+  const themeLabel = id => id === 'auto' ? 'Surprise us' : [...BASE_THEME_CARDS, ...UNLOCKABLE_THEMES].find(theme => theme.id === id)?.label || id
+
+  useEffect(() => {
+    if (!db || !enabled || !couple?.id) {
+      setProfilesLoaded(true)
+      return undefined
+    }
+    setProfilesLoaded(false)
+    return subscribePieceStyles(db, couple.id, next => {
+      setProfiles(next)
+      setProfilesLoaded(true)
+    }, () => setProfilesLoaded(true))
+  }, [couple?.id, db, enabled])
+
+  async function handleVote(themeId) {
+    if (locked || votingId || !userId) return
+    setVotingId(themeId)
+    setVoteError('')
+    try {
+      if (db && enabled && couple?.id && partnerUid) {
+        await saveThemeVote(db, couple.id, userId, partnerUid, themeId)
+      } else {
+        setProfiles(current => ({ ...current, [userId]: { ...current[userId], themeVote: themeId } }))
+      }
+    } catch (error) {
+      setVoteError(error.message || 'Could not save your vote.')
+    } finally {
+      setVotingId(null)
+    }
+  }
 
   async function handleUnlock(theme) {
     setUnlockingId(theme.id)
@@ -145,27 +187,34 @@ function ThemePicker() {
   return (
     <div className="progress-section">
       <h3>Themes</h3>
+      <p className="theme-vote-status" role="status" aria-live="polite">
+        {locked ? 'Theme locked for this night' : !profilesLoaded ? 'Loading votes…' : agreement ? `Together: ${themeLabel(myVote)}` : myVote ? `Your person: ${partnerVote ? themeLabel(partnerVote) : 'choosing'}` : partnerVote ? `Your person chose ${themeLabel(partnerVote)}` : 'Choose the same theme together'}
+      </p>
 
       <div className="theme-grid">
         <button
-          className={`theme-card${selected === null ? ' selected' : ''}`}
-          onClick={() => selectTheme(null)}
+          className={`theme-card${myVote === 'auto' ? ' selected' : ''}`}
+          aria-pressed={myVote === 'auto'}
+          disabled={locked || votingId !== null}
+          onClick={() => handleVote('auto')}
           type="button"
         >
           <span className="theme-name">Surprise us</span>
 
-          {selected === null && <span className="theme-check"><BrandText text={"✓"} /></span>}
+          {myVote === 'auto' && <span className="theme-check"><BrandText text={"✓"} /></span>}
         </button>
         {BASE_THEME_CARDS.map((theme) => (
           <button
-            className={`theme-card${selected === theme.id ? ' selected' : ''}`}
+            className={`theme-card${myVote === theme.id ? ' selected' : ''}`}
             key={theme.id}
-            onClick={() => selectTheme(theme.id)}
+            aria-pressed={myVote === theme.id}
+            disabled={locked || votingId !== null}
+            onClick={() => handleVote(theme.id)}
             type="button"
           >
             <img alt="" className="theme-art" loading="lazy" src={theme.art} />
             <span className="theme-name">{theme.label}</span>
-            {selected === theme.id && <span className="theme-check"><BrandText text={"✓"} /></span>}
+            {myVote === theme.id && <span className="theme-check"><BrandText text={"✓"} /></span>}
           </button>
         ))}
         {UNLOCKABLE_THEMES.map((theme) => {
@@ -174,7 +223,7 @@ function ThemePicker() {
 
           return (
             <div
-              className={`theme-card unlockable${selected === theme.id ? ' selected' : ''}${isUnlocked ? '' : ' locked'}`}
+              className={`theme-card unlockable${myVote === theme.id ? ' selected' : ''}${isUnlocked ? '' : ' locked'}`}
               key={theme.id}
             >
               <img alt="" className="theme-art" loading="lazy" src={theme.art} />
@@ -183,12 +232,13 @@ function ThemePicker() {
               {isUnlocked ? (
                 <button
                   className="secondary-btn"
-                  aria-label={selected === theme.id ? `Selected: ${theme.label}` : `Use ${theme.label}`}
-                  disabled={selected === theme.id}
-                  onClick={() => selectTheme(theme.id)}
+                  aria-label={myVote === theme.id ? `Your vote: ${theme.label}` : `Vote for ${theme.label}`}
+                  aria-pressed={myVote === theme.id}
+                  disabled={locked || votingId !== null}
+                  onClick={() => handleVote(theme.id)}
                   type="button"
                 >
-                  <BrandText text={selected === theme.id ? '✓' : 'Use'} />
+                  <BrandText text={votingId === theme.id ? '…' : myVote === theme.id ? '✓' : 'Vote'} />
                 </button>
               ) : (
                 <button
@@ -204,6 +254,7 @@ function ThemePicker() {
           )
         })}
       </div>
+      {voteError && <p className="error-copy" role="alert">{voteError}</p>}
     </div>
   )
 }
@@ -486,7 +537,7 @@ function ExportSection() {
   )
 }
 
-export function ProgressHub() {
+export function ProgressHub({ themeLocked = false }) {
   const { progress } = useCouple()
 
   if (!progress) {
@@ -497,7 +548,7 @@ export function ProgressHub() {
     <div className="progress-hub">
       <StreakRow />
       <HeartsRow />
-      <ThemePicker />
+      <ThemePicker locked={themeLocked} />
       <FlowerCard />
       <TrophyCase />
       <PromiseWallet />

@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import { initializeTestEnvironment, assertFails } from '@firebase/rules-unit-testing'
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { deleteDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'vitest'
-import { savePieceStyle, syncGooglePortrait, selectPortraitFrame } from '../src/features/couple/portraitService.js'
-import { buildDefaultProgress } from '../src/features/couple/progressService.js'
+import { savePieceStyle, saveThemeVote, syncGooglePortrait, selectPortraitFrame } from '../src/features/couple/portraitService.js'
+import { buildDefaultProgress, ensureCoupleProgress } from '../src/features/couple/progressService.js'
 let env
 const auth = uid => env.authenticatedContext(uid).firestore()
 beforeAll(async () => {
@@ -55,5 +55,51 @@ describe('Google portraits and heart-purchased frames', () => {
     const ref = doc(a, 'couplePortraits', 'pair', 'players', 'a')
     await assertFails(updateDoc(ref, { pieceColor: 'purple', updatedAt: serverTimestamp() }))
     await assertFails(updateDoc(ref, { pieceMaterial: 'glass', updatedAt: serverTimestamp() }))
+  })
+
+  it('keeps theme votes private to each player and applies the shared theme only after matching votes', async () => {
+    const a = auth('a'), b = auth('b')
+    await syncGooglePortrait(a, 'pair', { uid: 'a' })
+    await syncGooglePortrait(b, 'pair', { uid: 'b' })
+    await saveThemeVote(a, 'pair', 'a', 'b', 'garden')
+    expect((await getDoc(doc(a, 'coupleProgress', 'pair'))).data().selectedTheme).toBeUndefined()
+    expect((await getDoc(doc(b, 'couplePortraits', 'pair', 'players', 'a'))).data().themeVote).toBe('garden')
+
+    const agreement = await saveThemeVote(b, 'pair', 'b', 'a', 'garden')
+    expect(agreement.agreed).toBe(true)
+    expect((await getDoc(doc(b, 'coupleProgress', 'pair'))).data().selectedTheme).toBe('garden')
+    await saveThemeVote(a, 'pair', 'a', 'b', 'auto')
+    expect((await getDoc(doc(b, 'coupleProgress', 'pair'))).data().selectedTheme).toBe('garden')
+    await saveThemeVote(b, 'pair', 'b', 'a', 'auto')
+    expect((await getDoc(doc(b, 'coupleProgress', 'pair'))).data().selectedTheme).toBeUndefined()
+  })
+
+  it('rejects a vote for a locked theme and accepts it after a shared unlock', async () => {
+    const a = auth('a'), b = auth('b')
+    await syncGooglePortrait(a, 'pair', { uid: 'a' })
+    await syncGooglePortrait(b, 'pair', { uid: 'b' })
+    const ref = doc(a, 'couplePortraits', 'pair', 'players', 'a')
+    await assertFails(updateDoc(ref, { themeVote: 'starlit-rooftop', updatedAt: serverTimestamp() }))
+    await env.withSecurityRulesDisabled(async context => {
+      await updateDoc(doc(context.firestore(), 'coupleProgress', 'pair'), { unlockedThemes: ['starlit-rooftop'] })
+    })
+    await saveThemeVote(a, 'pair', 'a', 'b', 'starlit-rooftop')
+    await saveThemeVote(b, 'pair', 'b', 'a', 'starlit-rooftop')
+    expect((await getDoc(doc(b, 'coupleProgress', 'pair'))).data().selectedTheme).toBe('starlit-rooftop')
+  })
+
+  it('creates only the default progress record and permits a narrowly scoped shared-theme update', async () => {
+    const a = auth('a'), b = auth('b')
+    await env.withSecurityRulesDisabled(context => deleteDoc(doc(context.firestore(), 'coupleProgress', 'pair')))
+    const initial = await ensureCoupleProgress(a, 'pair')
+    expect(initial.lifetimeNights).toBe(0)
+    await syncGooglePortrait(a, 'pair', { uid: 'a' })
+    await syncGooglePortrait(b, 'pair', { uid: 'b' })
+    await saveThemeVote(a, 'pair', 'a', 'b', 'city')
+    await saveThemeVote(b, 'pair', 'b', 'a', 'city')
+    expect((await getDoc(doc(b, 'coupleProgress', 'pair'))).data().selectedTheme).toBe('city')
+    await assertFails(updateDoc(doc(a, 'coupleProgress', 'pair'), {
+      selectedTheme: 'city', heartsSpent: 1, updatedAt: serverTimestamp(),
+    }))
   })
 })

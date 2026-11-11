@@ -10,7 +10,7 @@ At Long Last is a two-player, shared-heart board night with an individual lap pr
 
 1. Sign in with Google or email. On the hosted site, a sign-in screen should appear. **Preview / Local play** is an offline fallback and does not sync between devices.
 2. Invite your person by the email they use to sign in. They accept the invitation inside the game. Both accounts must be paired before beginning a shared night. The separate permanent **Commit** step is optional for play.
-3. Before starting, choose the shared board look from **Our Story → Collection → Themes**. The selection belongs to the couple and applies to both players' board.
+3. Before starting, both players choose a board look from **Our Story → Collection → Themes**. The night stays locked until their votes match; once they agree, that theme is saved for both boards. Choosing **Surprise us** is also a vote and must match. Existing couples with a saved shared theme keep that prior agreement.
 4. From the paired lobby, choose **Begin our night**. The current button starts the Long night: eight rounds, or up to eight rolls per player. (Shorter presets remain in the code, but the current lobby starts the longest one.)
 5. Each player records and sends a short voice note for the opening Kiss Courier. Recording pauses the music. Once a note is sent, tap **Begin our night** on that screen to close it and enter the board. Each player can do this independently; you do not have to wait for the other note before taking your first turn.
 

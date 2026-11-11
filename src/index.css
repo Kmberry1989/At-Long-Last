@@ -5205,6 +5205,14 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   font-size: 16px;
 }
 
+.progress-section .theme-vote-status {
+  min-height: 1.25em;
+  margin: 6px 0 10px;
+  color: #f3d59d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

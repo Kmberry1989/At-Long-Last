@@ -34,6 +34,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [noticeError, setNoticeError] = useState(false)
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [pieceStyles, setPieceStyles] = useState({})
+  const [themeVotesLoaded, setThemeVotesLoaded] = useState(false)
   const [storyScreen, setStoryScreen] = useState('')
   const [connectFourOpen, setConnectFourOpen] = useState(false)
   const [connectFourPreview, setConnectFourPreview] = useState(null)
@@ -63,10 +64,21 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const selectedConnectFourToken = connectFourTokenPreferences[user?.uid]
   const partnerConnectFourToken = connectFourTokenPreferences[partner?.uid]
   const connectFourMatchActive = connectFourState.moveCount > 0 && !connectFourState.winnerUid && connectFourState.moveCount < 42
+  const hasThemeVote = (couple?.playerIds || []).some(uid => pieceStyles[uid]?.themeVote)
+  const currentThemeVote = pieceStyles[user?.uid]?.themeVote || (!hasThemeVote ? coupleProgress?.selectedTheme || null : null)
+  const partnerThemeVote = pieceStyles[partner?.uid]?.themeVote || (!hasThemeVote ? coupleProgress?.selectedTheme || null : null)
+  const themeAgreed = Boolean(currentThemeVote && currentThemeVote === partnerThemeVote)
 
   useEffect(() => {
-    if (!db || !couple?.id || !paired) return undefined
-    return subscribePieceStyles(db, couple.id, setPieceStyles, () => {})
+    if (!db || !couple?.id || !paired) {
+      setThemeVotesLoaded(true)
+      return undefined
+    }
+    setThemeVotesLoaded(false)
+    return subscribePieceStyles(db, couple.id, next => {
+      setPieceStyles(next)
+      setThemeVotesLoaded(true)
+    }, () => setThemeVotesLoaded(true))
   }, [db, couple?.id, paired])
 
   useEffect(() => {
@@ -105,6 +117,14 @@ export function PairingHome({ avatar, onAvatarChange }) {
     try { await callback() }
     catch (nextError) { setNoticeError(true); setNotice(nextError.code === 'permission-denied' ? 'This invitation changed or your sign-in expired. Refresh and try again.' : nextError.message || 'Please try again.') }
     finally { setBusy(false) }
+  }
+
+  function beginOrChooseTheme() {
+    if (enabled && (!themeVotesLoaded || !themeAgreed)) {
+      setStoryScreen('collection')
+      return
+    }
+    act(() => beginNight('long'))
   }
 
   async function dropConnectFour(column, tokenId) {
@@ -236,7 +256,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
             <button className="ghost-btn" onClick={() => { setConfirmCommit(false); setAcceptPermanent(false) }} type="button">Not yet</button>
           </form> : <button className="primary-btn" disabled={disabled} onClick={() => setConfirmCommit(true)} type="button">Commit</button>}
         </div>}
-        {hasCurrentNight ? <button className="primary-btn night-start-button" disabled={disabled} onClick={openGame} type="button"><BrandIcon name="moon" /><span>Continue our night</span></button> : <button className="primary-btn night-start-button" disabled={disabled} onClick={() => act(() => beginNight('long'))} type="button"><BrandIcon name="moon" /><span>Begin our night</span></button>}
+        {hasCurrentNight ? <button className="primary-btn night-start-button" disabled={disabled} onClick={openGame} type="button"><BrandIcon name="moon" /><span>Continue our night</span></button> : <button className="primary-btn night-start-button" disabled={disabled} onClick={beginOrChooseTheme} type="button"><BrandIcon name="moon" /><span>{themeAgreed ? 'Begin our night' : 'Choose a theme together'}</span></button>}
         <div className="lobby-game-links">
           <button aria-label="Open Our Arcade" className="secondary-link couple-arcade-lobby-link" onClick={() => setArcadeOpen(true)} type="button"><img alt="" src="/assets/arcade/icons/our-arcade.png" /></button>
         </div>
@@ -252,7 +272,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
       </div>}
       {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
       {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
-      {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} onClose={() => setStoryScreen('')} />}
+      {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} themeLocked={hasCurrentNight} onClose={() => setStoryScreen('')} />}
       {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} onDrop={dropConnectFour} onClose={() => setConnectFourOpen(false)} onNewGame={newConnectFourMatch} onLand={connectFourLanding} />}
       {arcadeOpen && paired && <CoupleArcade db={db} enabled={enabled} coupleId={couple.id} players={connectFourPlayers} currentUid={user?.uid} fourEverDisabled={connectFourBusy} onOpenFourEver={() => { setArcadeOpen(false); setConnectFourError(''); setConnectFourOpen(true) }} onClose={() => setArcadeOpen(false)} />}
       {connectFourError && <p className="error-copy" role="alert">{connectFourError}</p>}

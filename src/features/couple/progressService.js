@@ -2,14 +2,12 @@ import {
   collection,
   deleteField,
   doc,
-  getDoc,
   getDocs,
   limit,
   onSnapshot,
   query,
   runTransaction,
   serverTimestamp,
-  setDoc,
   Timestamp,
   where,
 } from 'firebase/firestore'
@@ -363,15 +361,13 @@ export function buildKouponRecord(entry, random = Math.random) {
 
 export async function ensureCoupleProgress(db, coupleId) {
   const ref = doc(db, 'coupleProgress', coupleId)
-  const snapshot = await getDoc(ref)
-
-  if (snapshot.exists()) {
-    return { id: ref.id, ...snapshot.data() }
-  }
-
-  const payload = buildDefaultProgress(coupleId)
-  await setDoc(ref, payload)
-  return { id: ref.id, ...payload }
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref)
+    if (snapshot.exists()) return { id: ref.id, ...snapshot.data() }
+    const payload = buildDefaultProgress(coupleId)
+    transaction.set(ref, payload)
+    return { id: ref.id, ...payload }
+  })
 }
 
 export function subscribeToCoupleProgress(db, coupleId, onNext, onError) {
@@ -385,6 +381,7 @@ export function subscribeToCoupleProgress(db, coupleId, onNext, onError) {
 }
 
 export async function dropConnectFourMove(db, coupleId, playerUid, moveId, column, tokenId) {
+  await ensureCoupleProgress(db, coupleId)
   const ref = doc(db, 'coupleProgress', coupleId)
   return runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(ref)
@@ -424,6 +421,7 @@ export async function dropConnectFourMove(db, coupleId, playerUid, moveId, colum
 }
 
 export async function selectConnectFourTokenPreference(db, coupleId, playerUid, tokenId) {
+  await ensureCoupleProgress(db, coupleId)
   const ref = doc(db, 'coupleProgress', coupleId)
   return runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(ref)
@@ -454,6 +452,7 @@ export async function selectConnectFourTokenPreference(db, coupleId, playerUid, 
 }
 
 export async function startNewConnectFourMatch(db, coupleId, playerUid) {
+  await ensureCoupleProgress(db, coupleId)
   const ref = doc(db, 'coupleProgress', coupleId)
   return runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(ref)
@@ -476,6 +475,7 @@ export async function startNewConnectFourMatch(db, coupleId, playerUid) {
 }
 
 async function transactProgress(db, coupleId, mutate) {
+  await ensureCoupleProgress(db, coupleId)
   const ref = doc(db, 'coupleProgress', coupleId)
 
   return runTransaction(db, async (transaction) => {
@@ -513,6 +513,7 @@ export async function recordNightComplete(
   coupleId,
   { buildEntries = () => [], dateStr, heartsEarned, sessionId, stats, players = [] },
 ) {
+  await ensureCoupleProgress(db, coupleId)
   const progressRef = doc(db, 'coupleProgress', coupleId)
 
   return runTransaction(db, async (transaction) => {
@@ -760,6 +761,7 @@ export async function setAnniversary(db, coupleId, dateStr) {
 }
 
 export async function sendNudge(db, coupleId, { byName, byUid }) {
+  await ensureCoupleProgress(db, coupleId)
   const ref = doc(db, 'coupleProgress', coupleId)
 
   return runTransaction(db, async (transaction) => {

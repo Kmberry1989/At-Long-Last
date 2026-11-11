@@ -1,6 +1,6 @@
-import { collection, doc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { collection, deleteField, doc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { FREE_FRAME_IDS, framePurchase, googlePhotoURL } from './portraitFrames.js'
-import { spendableHearts } from './progressService.js'
+import { BASE_THEME_CARDS, UNLOCKABLE_THEMES, ensureCoupleProgress, spendableHearts } from './progressService.js'
 
 export function subscribePortraits(db, coupleId, onNext, onError) {
   return onSnapshot(collection(db, 'couplePortraits', coupleId, 'players'), snapshot => {
@@ -13,8 +13,43 @@ export function subscribePieceStyles(db, coupleId, onNext, onError) {
     onNext(Object.fromEntries(snapshot.docs.map(record => [record.id, {
       pieceColor: record.data().pieceColor || null,
       pieceMaterial: record.data().pieceMaterial || 'porcelain',
+      themeVote: record.data().themeVote || null,
     }])))
   }, onError)
+}
+
+export async function saveThemeVote(db, coupleId, uid, partnerUid, themeId) {
+  const validThemeIds = [
+    'auto',
+    ...BASE_THEME_CARDS.map(theme => theme.id),
+    ...UNLOCKABLE_THEMES.map(theme => theme.id),
+  ]
+  if (!validThemeIds.includes(themeId)) throw new Error('Choose a valid board theme.')
+
+  await ensureCoupleProgress(db, coupleId)
+  const playerRef = doc(db, 'couplePortraits', coupleId, 'players', uid)
+  const partnerRef = doc(db, 'couplePortraits', coupleId, 'players', partnerUid)
+  const progressRef = doc(db, 'coupleProgress', coupleId)
+  return runTransaction(db, async transaction => {
+    const [player, partner, progress] = await Promise.all([
+      transaction.get(playerRef), transaction.get(partnerRef), transaction.get(progressRef),
+    ])
+    const playerData = player.exists() ? player.data() : {
+      photoURL: null,
+      selectedFrame: 'ribbon',
+      ownedFrames: FREE_FRAME_IDS,
+    }
+    const partnerVote = partner.data()?.themeVote || progress.data()?.selectedTheme || null
+    transaction.set(playerRef, { ...playerData, themeVote: themeId, updatedAt: serverTimestamp() })
+
+    if (partnerVote === themeId) {
+      transaction.update(progressRef, {
+        selectedTheme: themeId === 'auto' ? deleteField() : themeId,
+        updatedAt: serverTimestamp(),
+      })
+    }
+    return { agreed: partnerVote === themeId, themeId }
+  })
 }
 
 export async function savePieceStyle(db, coupleId, uid, style) {
@@ -46,6 +81,7 @@ export async function syncGooglePortrait(db, coupleId, user) {
 }
 
 export async function selectPortraitFrame(db, coupleId, uid, frameId) {
+  await ensureCoupleProgress(db, coupleId)
   const ref = doc(db, 'couplePortraits', coupleId, 'players', uid)
   const progressRef = doc(db, 'coupleProgress', coupleId)
   return runTransaction(db, async transaction => {

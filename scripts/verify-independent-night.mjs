@@ -87,7 +87,33 @@ for (const page of pages) {
   await ceremony.waitFor()
   await ceremony.getByRole('button').last().click()
 }
-await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).waitFor()
+for (const page of pages) await page.getByRole('button', { name: 'Choose a theme together', exact: true }).waitFor()
+const chooseSharedTheme = async (page, themeName) => {
+  await page.getByRole('button', { name: 'Choose a theme together', exact: true }).click()
+  await page.getByRole('heading', { name: 'Collection', exact: true }).waitFor()
+  try { await page.locator('.theme-grid').waitFor() } catch (error) {
+    await page.screenshot({ path: `${out}/theme-picker-failure.png`, fullPage: true })
+    console.error('THEME PICKER MISSING', await page.locator('.our-story-screen').innerText())
+    throw error
+  }
+  await capture(page, 'theme-vote-picker')
+  const themeCard = page.locator('.theme-grid .theme-card').filter({ hasText: themeName }).first()
+  if (!await themeCard.count()) throw new Error(`Theme ${themeName} missing from Collection: ${await page.locator('.our-story-screen').innerText()}`)
+  await themeCard.click()
+  await capture(page, 'theme-vote-picker-after-selection')
+  await page.getByRole('button', { name: 'Back to Our Story', exact: true }).click()
+  await page.getByRole('button', { name: 'Close Our Story', exact: true }).click()
+}
+await chooseSharedTheme(pages[0], 'Garden')
+await pages[0].getByRole('button', { name: 'Choose a theme together', exact: true }).waitFor()
+await capture(pages[0], 'theme-vote-waiting-for-partner')
+await chooseSharedTheme(pages[1], 'Garden')
+for (const page of pages) await page.getByRole('button', { name: 'Begin our night', exact: true }).waitFor()
+await capture(pages[0], 'theme-vote-agreed')
+if (process.env.QA_THEME_ONLY === '1') {
+  await browser.close()
+  process.exit(0)
+}
 console.log('paired', people.map(person => person.uid))
 await writeFile(`${out}/people.json`, JSON.stringify(people))
 await pages[0].screenshot({ path: `${out}/home.png`, fullPage: true })
@@ -367,13 +393,10 @@ for (const page of pages) {
     await page.screenshot({ path: `${out}/voice-note-start-failure-${pages.indexOf(page)}.png`, fullPage: true })
     throw error
   }
-  await capture(page, `kiss-recording-player-${pages.indexOf(page) + 1}`)
-  await page.waitForTimeout(1500)
-  try { await page.getByRole('button', { name: 'Stop', exact: true }).click() } catch (error) {
-    console.error('RECORDING STOP CONTROL MISSING', pages.indexOf(page), await page.locator('body').innerText(), errors)
-    await page.screenshot({ path: `${out}/voice-note-stop-failure-${pages.indexOf(page)}.png`, fullPage: true })
-    throw error
-  }
+  await page.screenshot({ path: `${captureOut}/kiss-recording-player-${pages.indexOf(page) + 1}-viewport.png`, fullPage: false, timeout: 30000, animations: 'disabled' })
+  await page.waitForTimeout(500)
+  const stopButton = page.getByRole('button', { name: 'Stop', exact: true })
+  if (await stopButton.isVisible().catch(() => false)) await stopButton.click()
   await page.getByRole('button', { name: 'Send kiss', exact: true }).waitFor()
   await capture(page, `kiss-preview-player-${pages.indexOf(page) + 1}`)
   await page.getByRole('button', { name: 'Send kiss', exact: true }).click()

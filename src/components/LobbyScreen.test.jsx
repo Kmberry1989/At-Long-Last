@@ -121,7 +121,7 @@ describe('permanent pairing menus', () => {
     expect(screen.queryByRole('button', { name: 'Commit' })).toBeNull()
   })
   it('starts the longest night from one centered action without lobby editing or length choices', () => {
-    pair(); render(<LobbyScreen />)
+    pair(); state.couple.progress = { selectedTheme: 'garden' }; render(<LobbyScreen />)
     expect(screen.queryByRole('button', { name: /Couple's Vault|Milestones/i })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Scrapbook' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Collection' })).toBeNull()
@@ -132,6 +132,13 @@ describe('permanent pairing menus', () => {
     expect(start.querySelector('.brand-icon')).not.toBeNull()
     fireEvent.click(start)
     expect(state.session.beginNight).toHaveBeenCalledWith('long')
+  })
+  it('routes a new couple with no matching theme vote to Collection before starting', () => {
+    pair(); render(<LobbyScreen />)
+    const chooseTheme = screen.getByRole('button', { name: 'Choose a theme together' })
+    fireEvent.click(chooseTheme)
+    expect(screen.getByRole('heading', { name: 'Collection' })).toBeVisible()
+    expect(state.session.beginNight).not.toHaveBeenCalled()
   })
   it('keeps both real partner portraits over a subtle animated atmosphere', () => {
     pair(); state.couple.couple.commitments = ['a', 'b']

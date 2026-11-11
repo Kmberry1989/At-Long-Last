@@ -27,9 +27,11 @@ vi.mock('firebase/firestore', () => {
     collection: (_db, name) => ({ _coll: name }),
     deleteField: () => ({ _deleteField: true }),
     doc: (...args) => refFor(...args),
-    getDoc: async () => {
-      throw new Error('not used in these tests')
-    },
+    getDoc: async (ref) => ({
+      exists: () => firestoreStore.has(ref._path),
+      id: ref._id,
+      data: () => firestoreStore.get(ref._path),
+    }),
     getDocs: async () => ({ docs: mockQueryDocs.docs }),
     limit: (n) => ({ _limit: n }),
     onSnapshot: () => () => {},

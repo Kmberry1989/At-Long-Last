@@ -13,7 +13,7 @@ const DESTINATIONS = [
   { id: 'collection', label: 'Collection', icon: 'bloom' },
 ]
 
-export function OurStoryScreens({ initialScreen = 'chooser', entries = [], onClose }) {
+export function OurStoryScreens({ initialScreen = 'chooser', entries = [], themeLocked = false, onClose }) {
   const [screen, setScreen] = useState(initialScreen)
   const closeRef = useRef(null)
   useEffect(() => {
@@ -53,6 +53,6 @@ export function OurStoryScreens({ initialScreen = 'chooser', entries = [], onClo
     </nav> : screen === 'scrapbook' ? <div className="our-story-content scrapbook-screen-content">
       <PairingStory />
       <JournalTimeline entries={entries} />
-    </div> : <div className="our-story-content"><ProgressHub /></div>}
+    </div> : <div className="our-story-content"><ProgressHub themeLocked={themeLocked} /></div>}
   </main>, document.body)
 }
