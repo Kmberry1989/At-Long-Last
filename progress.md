@@ -1,5 +1,12 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-11-11 — Refresh the player flow manual
+
+- Updated `docs/PLAYER_GAME_FLOW_MANUAL.md` against the current code and the successful two-profile November 11 playthrough.
+- Added the opening portrait coin, camera move into and back from the dice, couple-wide theme selection location, separate moment coin/card draw, and confirmed the Vibe dial is absent from new-night flow.
+- Corrected the active mini-game list from eight to ten by including Love in the Blanks and Our Next Line; noted that archived Vibe dial and Art Flash records remain readable.
+- Documentation-only update; no runtime behavior changed.
+
 ## 2026-11-11 — Arcade reconnect proof and dialog layering
 
 - Extended `scripts/verify-independent-night.mjs` so the charade guesser reloads after their partner sends a clip, then verifies the saved video data URL and guessing UI restore before completing both turns. Added a phone-viewport screenshot alongside the existing full-page capture.
