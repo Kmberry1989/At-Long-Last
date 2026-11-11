@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
 import { PlayerPortrait } from './PlayerPortrait.jsx'
@@ -464,7 +465,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} audio={audio} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
-  return <ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={onClose}>
+  return createPortal(<ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={onClose}>
     {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button aria-label={game.name} className="arcade-game-tile" disabled={game.id === 'four-ever' ? (!onOpenFourEver || fourEverDisabled) : !COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => game.id === 'four-ever' ? onOpenFourEver?.() : openGame(game.id)} type="button"><img alt="" className="arcade-game-art" src={game.icon} /></button>)}</div> : <>
       <button className="arcade-back" onClick={() => { setSelectedGame(''); setError('') }} type="button">All games</button>
       {state && <div className="arcade-player-rail" aria-label="Players">
@@ -478,5 +479,5 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
       {busy && !state ? <p role="status">Opening…</p> : gameUi}
     </>}
     {error && <p className="arcade-error" role="alert">{error}</p>}
-  </ArcadeModal>
+  </ArcadeModal>, document.body)
 }

@@ -75,6 +75,21 @@ describe('CoupleArcade', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Record clip' })).toBeInTheDocument())
   })
 
+  it('keeps charades recoverable when camera permission is denied', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockRejectedValue(new Error('Permission denied')) },
+    })
+
+    render(<CoupleArcade {...props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Say Without Saying' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open camera' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Allow camera access to act this prompt.')
+    expect(screen.getByRole('button', { name: 'Open camera' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Record clip' })).not.toBeInTheDocument()
+  })
+
   it('lets a player deselect a jigsaw piece before selecting another', () => {
     render(<CoupleArcade {...props} />)
     fireEvent.click(screen.getByRole('button', { name: 'Our Little Pieces' }))

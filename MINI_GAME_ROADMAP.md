@@ -132,6 +132,7 @@ silent six-second clips at low resolution, capped at 190 KB before private coupl
 ## Shared acceptance gates
 
 - Both players can reconnect mid-activity without losing or revealing a hidden response.
+- The charade guesser can reload after a clip is sent, restore that saved clip, and finish the round; camera denial remains retryable.
 - Only the active participant can submit the expected stage.
 - Shared-heart rewards resolve exactly once.
 - The scrapbook output is legible and meaningful after the activity finishes.

@@ -1,5 +1,15 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-11-11 — Arcade reconnect proof and dialog layering
+
+- Extended `scripts/verify-independent-night.mjs` so the charade guesser reloads after their partner sends a clip, then verifies the saved video data URL and guessing UI restore before completing both turns. Added a phone-viewport screenshot alongside the existing full-page capture.
+- Visual inspection found the arcade dialog was trapped inside the transformed/clipped lobby screen; its title overlapped the global sign-out/audio controls. Rendered the modal through a body portal so it centers above the lobby stack.
+- Added a camera-permission-denial UI regression: the player sees a concise error and can retry opening the camera.
+- Verification: local two-profile Auth/Firestore emulator arcade smoke passed for all five shared games, two complete charade turns with the reload checkpoint, and synchronized Four Ever moves. Focused app tests passed (2 files / 13 tests); lint, build, and diff check passed.
+- Reviewed the mobile viewport screenshot at `artifacts/arcade-resume/arcade-say-without-saying-restored-clip-viewport.png`; the dialog title and close control are no longer covered by lobby controls.
+- Limitation: the E2E MediaRecorder is synthetic, so reconnect proves persisted state/source restoration but not real encoded video playback. Physical-device camera/audio and production account checks remain outstanding.
+- Next: add reload/resume checkpoints for the turn-based card games and Radar Love, then continue the full-game scrapbook/progression audit.
+
 ## 2026-11-01 — Buoyant circular spaces and dice home base
 
 - Kept the 20-space path on a true circle. Each space now bobs on a slightly different phase and tempo; a piece standing on or landing on a space eases it downward, and its underglow brightens. Reduced-motion preference holds the bob and pulse still.

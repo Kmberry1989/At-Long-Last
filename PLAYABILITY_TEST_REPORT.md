@@ -1,5 +1,15 @@
 # At Long Last — Two-Player Playability Test Report
 
+## 2026-11-11 — Arcade reconnect and modal-layer regression
+
+- **Environment:** Local Vite app at 390 × 844, isolated Auth and Firestore emulators, and two disposable paired profiles. This verifies the emulator/browser path, not production accounts or physical phones.
+- **Reconnect flow:** Avery recorded and sent a charade; Rowan's browser reloaded before opening the game. After reopening, the saved `guess` phase, prompt choices, and persisted `data:video/` clip source were present. Both players completed their act/guess turns and the match reached its result. The smoke also reopened all five shared arcade games, made representative UNO, Go Fish, Radar Love, and jigsaw moves, and synchronized two Four Ever drops.
+- **Visual defect fixed:** The arcade dialog was rendered inside the transformed and clipped lobby screen. On mobile, the lobby's sign-out and audio controls overlapped the dialog title. It now renders through a body-level portal; the inspected viewport capture shows the full centered title and close button without those controls on top.
+- **Permission recovery:** Added a UI regression confirming camera denial shows a clear message, leaves `Open camera` available for retry, and does not expose recording controls prematurely.
+- **Evidence:** `artifacts/arcade-resume/arcade-say-without-saying-restored-clip-viewport.png` and `artifacts/arcade-resume/arcade-say-without-saying-restored-clip.png`.
+- **Checks:** Arcade smoke passed for all five games and Four Ever synchronization. Focused app tests passed (2 files / 13 tests); lint, production build, and `git diff --check` passed.
+- **Limits:** The smoke's synthetic MediaRecorder yields a placeholder WebM blob, so it proves the clip URL persists and the guess flow resumes, not that a real device's encoded video decodes or plays after reconnect. Physical-device camera, audio, and production Firestore were not tested.
+
 ## 2026-11-09 — Continued local-emulator night playthrough
 
 - **Environment:** Local Vite app with local Auth/Firestore emulators and disposable test identities. This is not a production or physical-phone test. The test resumed as Rowan at a 450 × 844 browser viewport; an earlier two-profile emulator run is recorded above in the session artifacts.
