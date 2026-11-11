@@ -76,7 +76,10 @@ export function createConnectFourState(playerUids = [], starterUid = playerUids[
 
 export function getConnectFourMovePlayer(progress, playerUids, state) {
   if (!playerUids?.length) return null
-  if (state?.moveCount > 0 && !state.winnerUid && state.moveCount < CONNECT_FOUR_CELLS && state.nextPlayerUid && playerUids.includes(state.nextPlayerUid)) return state.nextPlayerUid
+  if (!state?.winnerUid && state?.moveCount < CONNECT_FOUR_CELLS) {
+    const activeUid = state?.nextPlayerUid || state?.starterUid
+    if (activeUid && playerUids.includes(activeUid)) return activeUid
+  }
   return playerUids[Math.max(0, Number(progress?.lifetimeNights) || 0) % playerUids.length]
 }
 

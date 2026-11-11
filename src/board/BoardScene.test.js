@@ -110,6 +110,7 @@ describe('readable dice faces', () => {
       const die = pair.userData.die1
       expect(Object.values(die.userData.pipGroups).every(group => group.visible)).toBe(true)
       expect(Object.values(die.userData.pipGroups).reduce((total, group) => total + group.children.length, 0)).toBe(21)
+      expect(Object.values(die.userData.pipGroups).flatMap(group => group.children).every(pip => Math.max(Math.abs(pip.position.x), Math.abs(pip.position.y), Math.abs(pip.position.z)) > 0.48)).toBe(true)
       const top = new THREE.Vector3(...sideNormals[value]).applyQuaternion(die.quaternion)
       expect(top.y).toBeCloseTo(1)
     }
@@ -234,9 +235,12 @@ describe('cinematic board camera shots', () => {
   it('frames the dice and coin closely enough to read the interaction', () => {
     const focus = new THREE.Vector3(-2, 1, 0.5)
     const dice = getBoardCameraShotPose('dice', focus)
+    const ready = getBoardCameraShotPose('dice-ready', focus)
     const coin = getBoardCameraShotPose('coin', focus)
     expect(dice.target.toArray()).toEqual(focus.toArray())
     expect(dice.position.distanceTo(dice.target)).toBeGreaterThan(9)
+    expect(ready.target.toArray()).toEqual(focus.toArray())
+    expect(ready.position.distanceTo(ready.target)).toBeGreaterThan(dice.position.distanceTo(dice.target))
     expect(coin.position.distanceTo(coin.target)).toBeLessThan(7)
     const close = getBoardCameraShotPose('coin', focus, 1, 0.58)
     expect(close.position.distanceTo(close.target)).toBeLessThan(coin.position.distanceTo(coin.target))

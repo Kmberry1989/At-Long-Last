@@ -4,20 +4,22 @@ const base = process.env.QA_BASE_URL || 'http://127.0.0.1:5173'
 const authEmulator = process.env.QA_AUTH_EMULATOR_URL || 'http://127.0.0.1:9099'
 if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Error('Run this verification only against a local dev server.')
 const out = '.playwright-mcp/independent-night'
-const captureOut = 'artifacts/night-loop'
+const captureOut = process.env.QA_SCREENSHOT_DIR || 'artifacts/night-loop'
+const viewportWidths = process.env.QA_VIEWPORTS?.split(',').map(Number).filter(Number.isFinite) || [390, 393]
 await mkdir(out, { recursive: true })
 await mkdir(captureOut, { recursive: true })
 const safeName = value => String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 72)
-const capture = async (page, name) => page.screenshot({ path: `${captureOut}/${safeName(name)}.png`, fullPage: true })
+const capture = async (page, name) => page.screenshot({ path: `${captureOut}/${safeName(name)}.png`, fullPage: true, timeout: 30000, animations: 'disabled' })
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 browser.on('disconnected', () => console.log('browser closed'))
-const contexts = await Promise.all([390, 393].map(width => browser.newContext({ viewport: { width, height: 844 }, reducedMotion: 'reduce' })))
+const contexts = await Promise.all(viewportWidths.map(width => browser.newContext({ viewport: { width, height: Number(process.env.QA_VIEWPORT_HEIGHT) || 844 }, reducedMotion: 'reduce' })))
 const pages = await Promise.all(contexts.map(context => context.newPage()))
 for (const context of contexts) await context.addInitScript(() => {
   class SyntheticMediaRecorder {
-    static isTypeSupported = type => type.startsWith('audio/webm')
+    static isTypeSupported = type => type.startsWith('audio/webm') || type.startsWith('video/webm')
     state = 'inactive'
-    mimeType = 'audio/webm;codecs=opus'
+    mimeType
+    constructor(_stream, options = {}) { this.mimeType = options.mimeType || 'audio/webm;codecs=opus' }
     start() { this.state = 'recording' }
     stop() {
       this.state = 'inactive'
@@ -26,11 +28,14 @@ for (const context of contexts) await context.addInitScript(() => {
     }
   }
   Object.defineProperty(window, 'MediaRecorder', { configurable: true, value: SyntheticMediaRecorder })
-  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } })
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => new MediaStream() } })
 })
 const errors = []
 for (const page of pages) page.setDefaultTimeout(15000)
-for (const page of pages) page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message) })
+for (const page of pages) {
+  page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message) })
+  page.on('console', message => { if (message.text().includes('[night-selection') || message.text().includes('[night-command-result]') || message.text().includes('[night-step-snapshot-stale]')) console.log('BROWSER', pages.indexOf(page), message.text()) })
+}
 for (const context of contexts) await context.route('https://lh3.googleusercontent.com/a/qa-*', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#d8bb90"/><ellipse cx="60" cy="112" rx="48" ry="40" fill="#24454b"/><ellipse cx="60" cy="49" rx="26" ry="32" fill="#b87954"/><path d="M34 45c-9-45 63-49 54 2L73 26 36 47Z" fill="#3d2924"/></svg>' }))
 await Promise.all(pages.map(page => page.goto(base)))
 await Promise.all(pages.map(async page => {
@@ -87,6 +92,186 @@ console.log('paired', people.map(person => person.uid))
 await writeFile(`${out}/people.json`, JSON.stringify(people))
 await pages[0].screenshot({ path: `${out}/home.png`, fullPage: true })
 await capture(pages[0], 'paired-lobby')
+if (process.env.QA_ARCADE_SMOKE === '1') {
+  await pages[0].getByRole('button', { name: 'Open Our Arcade' }).click()
+  const arcade = pages[0].getByRole('dialog', { name: 'Our Arcade' })
+  await arcade.waitFor()
+  const returnToArcade = async page => {
+    await page.getByRole('button', { name: 'All games', exact: true }).click({ force: true })
+    await page.getByRole('dialog', { name: 'Our Arcade' }).waitFor()
+  }
+  await capture(pages[0], 'arcade-menu')
+  for (const [label, screenshot] of [
+    ['My One and Only!', 'my-one-and-only'],
+    ['Say Without Saying', 'say-without-saying'],
+    ['Catch My Heart', 'catch-my-heart'],
+    ['Radar Love', 'radar-love'],
+    ['Our Little Pieces', 'our-little-pieces'],
+  ]) {
+    await arcade.getByRole('button', { name: label, exact: true }).click()
+    await pages[0].locator('.arcade-game').waitFor()
+    await pages[0].getByRole('dialog').waitFor({ state: 'visible' })
+    await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+    if (await pages[0].getByRole('alert').count()) throw new Error(`${label} failed to open: ${await pages[0].getByRole('alert').innerText()}`)
+    await capture(pages[0], `arcade-${screenshot}`)
+    await returnToArcade(pages[0])
+  }
+
+  // Exercise a valid interaction in each shared arcade game, then verify
+  // the second browser can act on the same saved charade and Battleship state.
+  await arcade.getByRole('button', { name: 'My One and Only!', exact: true }).click()
+  await pages[0].locator('.uno-hand').waitFor()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  const playableUno = pages[0].locator('.uno-card:not(:disabled)').first()
+  if (await playableUno.count()) await playableUno.click()
+  else {
+    await pages[0].getByRole('button', { name: 'Draw a card' }).click()
+    const keep = pages[0].getByRole('button', { name: 'Keep it', exact: true })
+    if (await keep.count()) await keep.click()
+  }
+  const wildChoice = pages[0].getByRole('group', { name: 'Choose a color' })
+  if (await wildChoice.count()) await wildChoice.getByRole('button').first().click()
+  await pages[0].waitForFunction(() => !document.querySelector('.arcade-error'))
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await capture(pages[0], 'arcade-my-one-and-only-played')
+  await returnToArcade(pages[0])
+
+  await arcade.getByRole('button', { name: 'Catch My Heart', exact: true }).click()
+  await pages[0].locator('.fish-ranks button:not(:disabled)').first().waitFor()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].locator('.fish-ranks button:not(:disabled)').first().click()
+  try { await pages[0].locator('.arcade-result').waitFor({ timeout: 10000 }) } catch (error) {
+    await capture(pages[0], 'arcade-catch-my-heart-failure')
+    console.error('CATCH MY HEART ASK FAILED', await pages[0].locator('.arcade-game').innerText(), await pages[0].locator('[role="alert"]').allInnerTexts())
+    throw error
+  }
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await capture(pages[0], 'arcade-catch-my-heart-played')
+  await returnToArcade(pages[0])
+
+  await arcade.getByRole('button', { name: 'Say Without Saying', exact: true }).click()
+  await pages[0].locator('.charade-prompt').waitFor()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  const firstPrompt = await pages[0].locator('.charade-prompt').innerText()
+  await pages[0].getByRole('button', { name: 'Open camera', exact: true }).click()
+  await pages[0].getByRole('button', { name: 'Record clip', exact: true }).waitFor()
+  await pages[0].getByRole('button', { name: 'Record clip', exact: true }).click()
+  await pages[0].getByRole('button', { name: 'Stop & preview', exact: true }).click()
+  await pages[0].getByRole('button', { name: 'Send clip', exact: true }).click()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].getByText('Your person is getting ready to act.').waitFor()
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
+  const charadeArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
+  await charadeArcade.getByRole('button', { name: 'Say Without Saying', exact: true }).click()
+  await pages[1].locator('.charade-choices button').first().waitFor()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[1].getByRole('button', { name: firstPrompt, exact: true }).click()
+  await pages[1].locator('.charade-prompt').waitFor()
+  const secondPrompt = await pages[1].locator('.charade-prompt').innerText()
+  await pages[1].getByRole('button', { name: 'Open camera', exact: true }).click()
+  await pages[1].getByRole('button', { name: 'Record clip', exact: true }).click()
+  await pages[1].getByRole('button', { name: 'Stop & preview', exact: true }).click()
+  await pages[1].getByRole('button', { name: 'Send clip', exact: true }).click()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].locator('.charade-choices button').first().waitFor()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].getByRole('button', { name: secondPrompt, exact: true }).click()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].locator('.arcade-turn').filter({ hasText: /won|tie/ }).waitFor()
+  await capture(pages[0], 'arcade-say-without-saying-played')
+  await returnToArcade(pages[0])
+
+  await arcade.getByRole('button', { name: 'Radar Love', exact: true }).click()
+  await pages[0].getByRole('button', { name: 'Randomize fleet', exact: true }).waitFor()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].getByRole('button', { name: 'Randomize fleet', exact: true }).click()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].getByRole('button', { name: 'Ready', exact: true }).click()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await returnToArcade(pages[1])
+  const radarArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
+  await radarArcade.getByRole('button', { name: 'Radar Love', exact: true }).click()
+  await pages[1].getByRole('button', { name: 'Randomize fleet', exact: true }).waitFor()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[1].getByRole('button', { name: 'Randomize fleet', exact: true }).click()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[1].getByRole('button', { name: 'Ready', exact: true }).click()
+  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await pages[0].locator('.radar-grid button:not(:disabled)').first().waitFor()
+  await pages[0].locator('.radar-grid button:not(:disabled)').first().click()
+  await pages[0].waitForFunction(() => document.querySelectorAll('.radar-hit, .radar-miss').length === 1)
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await capture(pages[0], 'arcade-radar-love-played')
+  await returnToArcade(pages[0])
+
+  await arcade.getByRole('button', { name: 'Our Little Pieces', exact: true }).click()
+  await pages[0].locator('.jigsaw-board').waitFor()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  const firstJigsawPiece = pages[0].locator('.jigsaw-piece').first()
+  const beforeJigsawMove = await firstJigsawPiece.getAttribute('aria-label')
+  await firstJigsawPiece.click()
+  const rotateJigsawPiece = pages[0].getByRole('button', { name: 'Rotate ↷', exact: true })
+  await rotateJigsawPiece.waitFor({ state: 'visible' })
+  await pages[0].waitForFunction(() => {
+    const rotate = [...document.querySelectorAll('.jigsaw-game .arcade-actions button')].find(button => button.textContent.includes('Rotate ↷'))
+    return rotate && !rotate.disabled
+  })
+  await rotateJigsawPiece.click()
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  const afterJigsawMove = await firstJigsawPiece.getAttribute('aria-label')
+  if (beforeJigsawMove === afterJigsawMove) throw new Error('Jigsaw rotate action did not change the selected piece.')
+  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await capture(pages[0], 'arcade-our-little-pieces-played')
+  console.log('arcade interactions passed: UNO, Go Fish, two charade turns, Radar Love shot, jigsaw rotate')
+
+  await returnToArcade(pages[0])
+  await arcade.getByRole('button', { name: 'Four Ever', exact: true }).click()
+  const fourEver = pages[0].getByRole('dialog', { name: 'Four Ever' })
+  await fourEver.waitFor()
+  const firstColumn = pages[0].getByRole('button', { name: 'Drop piece in column 4' })
+  await firstColumn.waitFor({ state: 'visible' })
+  let activeFourEverPage = pages[0]
+  if (!(await firstColumn.isEnabled())) {
+    await returnToArcade(pages[1])
+    const partnerArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
+    await partnerArcade.waitFor()
+    await partnerArcade.getByRole('button', { name: 'Four Ever', exact: true }).click()
+    activeFourEverPage = pages[1]
+  }
+  await activeFourEverPage.getByRole('button', { name: 'Drop piece in column 4' }).click()
+  if (activeFourEverPage === pages[0]) {
+    await returnToArcade(pages[1])
+    const partnerArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
+    await partnerArcade.waitFor()
+    await partnerArcade.getByRole('button', { name: 'Four Ever', exact: true }).click()
+  }
+  try {
+    await Promise.all(pages.map(page => page.locator('.connect-four-cell.has-token').waitFor({ timeout: 5000 })))
+  } catch (error) {
+    for (const [index, page] of pages.entries()) {
+      console.error('FOUR EVER MOVE DID NOT SYNC', index, await page.locator('body').innerText())
+      await page.screenshot({ path: `${out}/four-ever-move-failure-${index}.png`, fullPage: true })
+    }
+    throw error
+  }
+  await capture(pages[0], 'four-ever-first-move')
+  await capture(pages[1], 'four-ever-partner-sync')
+  const secondMover = await pages[1].getByRole('button', { name: 'Drop piece in column 5' }).isEnabled() ? pages[1] : pages[0]
+  await secondMover.getByRole('button', { name: 'Drop piece in column 5' }).click()
+  try { await Promise.all(pages.map(page => page.waitForFunction(() => document.querySelectorAll('.connect-four-cell.has-token').length === 2))) }
+  catch (error) {
+    for (const [index, page] of pages.entries()) {
+      console.error('FOUR EVER SECOND MOVE DID NOT SYNC', index, await page.locator('body').innerText())
+      await page.screenshot({ path: `${out}/four-ever-second-move-failure-${index}.png`, fullPage: true })
+    }
+    throw error
+  }
+  await capture(pages[0], 'four-ever-second-move')
+  if (errors.length) throw new Error(`Arcade browser errors: ${JSON.stringify(errors)}`)
+  console.log('arcade smoke passed: five shared games opened, Four Ever moves synchronized')
+  await browser.close()
+  process.exit(0)
+}
 await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).click()
 try {
   await pages[1].getByRole('button', { name: 'Continue our night', exact: true }).waitFor({ timeout: 5000 })
@@ -174,6 +359,7 @@ async function gameState(page) {
   return state.jsonValue()
 }
 async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
+  await page.bringToFront()
   for (let settle = 0; settle < 8; settle++) {
     await clearOpenPrompt(page, pages.indexOf(page))
     await page.waitForTimeout(160)
@@ -192,9 +378,10 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
   const center = await page.evaluate(() => JSON.parse(window.render_game_to_text()).dice.screenCenters[0])
   let start = { x: bounds.x + center.x, y: bounds.y + center.y }
   const hits = await page.evaluate(({ start, bounds }) => {
-    const candidates = [start]
+    const inside = point => point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height && point.x >= 0 && point.x <= innerWidth && point.y >= 0 && point.y <= innerHeight
+    const candidates = inside(start) ? [start] : []
     for (const y of [.2, .3, .4, .5, .6, .7, .8]) for (const x of [.2, .3, .4, .5, .6, .7, .8]) candidates.push({ x: bounds.x + bounds.width * x, y: bounds.y + bounds.height * y })
-    return candidates.map(point => ({ ...point, hit: window.__atLongLastHitDice?.(point.x, point.y) || false }))
+    return candidates.filter(inside).map(point => ({ ...point, hit: window.__atLongLastHitDice?.(point.x, point.y) || false }))
   }, { start, bounds })
   if (!hits.some(point => point.hit)) throw new Error(`No tested point hit either die: ${JSON.stringify({ start, bounds, hits, board: JSON.parse(await page.evaluate(() => window.render_game_to_text())).dice })}`)
   if (!hits[0].hit) start = hits.find(point => point.hit)
@@ -220,8 +407,9 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
     console.log('ROLL FAILED', blocked, await page.locator('body').innerText(), errors, await page.evaluate(() => ({ board: window.render_game_to_text?.(), read: window.__atLongLastNightRead, steps: window.__atLongLastNightSteps, fixture: window.__atLongLastTestRoll })))
     throw error
   }
-  try { await page.locator('.roll-ack-tray').waitFor() } catch (error) {
-    console.error('DICE RESULT ACK MISSING', await gameState(page), await page.locator('body').innerText(), await page.evaluate(() => window.render_game_to_text?.()))
+  console.log('saved roll stage', pages.indexOf(page), JSON.stringify(await gameState(page)))
+  try { await page.locator('.roll-ack-tray button').waitFor() } catch (error) {
+    console.error('DICE RESULT ACK MISSING', await gameState(page), await page.evaluate(() => window.__atLongLastRollTrace), await page.evaluate(() => window.__atLongLastNightSteps), await page.locator('body').innerText(), await page.evaluate(() => window.render_game_to_text?.()))
     await capture(page, `dice-ack-failure-player-${pages.indexOf(page) + 1}`)
     throw error
   }
@@ -262,6 +450,7 @@ async function sealReflection(page, text, guess) {
   await page.waitForFunction(type => { const state = window.__atLongLastGameState; return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type) }, type)
 }
 async function finishLanding(page, index) {
+  await page.bringToFront()
   if (await page.locator('.landing-ack-tray').count()) {
     await capture(page, `landing-ack-player-${index + 1}`)
     await page.getByRole('button', { name: 'Continue', exact: true }).last().click()
@@ -300,11 +489,37 @@ async function finishLanding(page, index) {
     await page.getByRole('button', { name: 'Continue', exact: true }).last().click()
     await page.locator('.moment-card-draw').waitFor({ state: 'detached' })
   }
+  try {
+    await page.waitForFunction(() => {
+      const state = window.__atLongLastGameState
+      const board = JSON.parse(window.render_game_to_text())
+      return state && !state.rolling && !state.rollStage && board.pieceMovement === null
+    }, { timeout: 30000 })
+  } catch (error) {
+    console.error('LANDING DID NOT SETTLE', JSON.stringify({ state: await gameState(page), trace: await page.evaluate(() => window.__atLongLastRollTrace), steps: await page.evaluate(() => window.__atLongLastNightSteps), board: await page.evaluate(() => JSON.parse(window.render_game_to_text())) }))
+    throw error
+  }
   let state = await gameState(page)
   if (state.phase === 'turn') {
     const landing = state.available.find(step => step.id.startsWith(`roll-${state.ownRolls}-${state.playerIndex}`))
     if (landing?.kind === 'keepsake') {
-      await page.locator('.night-action-list button').filter({ hasText: 'Collect mystery card' }).click()
+      const collectAction = page.locator('.night-action-list button').filter({ hasText: 'Collect mystery card' })
+      await collectAction.waitFor({ state: 'visible' })
+      try { await page.waitForFunction(() => {
+        const action = [...document.querySelectorAll('.night-action-list button')].find(button => button.textContent.includes('Collect mystery card'))
+        return action && !action.disabled
+      }) } catch (error) {
+        console.error('KEEPSAKE ACTION NEVER ENABLED', await gameState(page), await page.locator('.night-action-list').evaluate(element => element.outerHTML), await page.evaluate(() => ({ board: window.render_game_to_text?.(), steps: window.__atLongLastNightSteps })))
+        throw error
+      }
+      await collectAction.click()
+      try {
+        await page.waitForFunction(stepId => window.__atLongLastGameState?.phase === 'keepsake' && window.__atLongLastGameState?.selectedId === stepId, landing.id)
+      } catch (error) {
+        await capture(page, `keepsake-selection-failure-player-${index + 1}`)
+        console.error('KEEPSAKE SELECTION DID NOT STICK', JSON.stringify(await gameState(page)), await page.evaluate(() => window.__atLongLastNightSteps), await page.locator('body').innerText())
+        throw error
+      }
       state = await gameState(page)
     } else if (landing?.kind === 'activity') {
       await page.locator(`[data-night-step="${landing.id}"]`).click()
@@ -316,8 +531,19 @@ async function finishLanding(page, index) {
     await page.locator('.mystery-card-stage').waitFor({ timeout: 5000 }).catch(async () => {
       console.error('KEEPSAKE UI DID NOT OPEN', JSON.stringify(await gameState(page)), await page.locator('body').innerText())
     })
-    if (await page.locator('.mystery-card-stage').count()) await page.locator('.mystery-collect-btn').click()
+    if (await page.locator('.mystery-card-stage').count()) {
+      try { await page.locator('.mystery-collect-btn:not(:disabled)').waitFor({ timeout: 15000 }) } catch (error) {
+        await capture(page, `keepsake-stuck-player-${index + 1}`)
+        console.error('KEEPSAKE REVEAL DID NOT ENABLE COLLECT', await page.locator('body').innerText(), await page.evaluate(() => ({ hidden: document.hidden, card: document.querySelector('.keepsake-card')?.className, stage: document.querySelector('.mystery-card-stage')?.className, button: document.querySelector('.mystery-collect-btn')?.outerHTML, animations: document.querySelector('.keepsake-card')?.getAnimations().map(animation => ({ playState: animation.playState, currentTime: animation.currentTime })) })))
+        throw error
+      }
+      await page.locator('.mystery-collect-btn').click()
+    }
     await page.locator('.mystery-card-stage').waitFor({ state: 'detached' })
+    try { await page.waitForFunction(() => window.__atLongLastGameState?.canRoll === true || window.__atLongLastGameState?.ownRolls >= 8, { timeout: 30000 }) } catch (error) {
+      console.error('KEEPSAKE COLLECTION DID NOT UNBLOCK ROLL', await gameState(page), await page.evaluate(() => window.__atLongLastNightSteps), await page.locator('body').innerText())
+      throw error
+    }
   }
 }
 async function finishDuel(page, type) {
@@ -343,10 +569,24 @@ async function finishDuel(page, type) {
     await page.mouse.move(bounds.x + bounds.width * .65, bounds.y + bounds.height * .35, { steps: 5 })
     await page.mouse.move(bounds.x + bounds.width * .55, bounds.y + bounds.height * .7, { steps: 4 })
     await page.mouse.up()
-    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    // The active-player portrait pulse can subtly transform the full duel card,
+    // which keeps Playwright's stability heuristic waiting even though the
+    // button is visible and tappable. Force this one touch after the drawing.
+    await page.getByRole('button', { name: 'Done', exact: true }).click({ force: true })
   } else if (type === 'letterpress-one-word') {
     await page.locator('#letterpress-words').fill('love grows each day')
     await page.getByRole('button', { name: 'Lock words', exact: true }).click()
+  } else if (type === 'our-next-line') {
+    const words = ['we', 'keep', 'finding', 'little', 'reasons', 'to', 'choose', 'us']
+    for (const word of words) {
+      await page.locator('#next-line-word').fill(word)
+      await page.getByRole('button', { name: 'Add word', exact: true }).click()
+    }
+    await page.getByRole('button', { name: 'Seal line', exact: true }).click()
+  } else if (type === 'love-in-the-blanks') {
+    for (let index = 0; index < 12 && await page.locator('.mad-lib-choice').count(); index++) {
+      await page.locator('.mad-lib-choice').first().click()
+    }
   } else if (type === 'constellation-home') {
     const values = page.locator('[aria-label="Sentimental values"] button')
     for (let index = 0; index < 5; index++) await values.nth(index).click()
@@ -434,8 +674,8 @@ if (process.env.QA_MOVEMENT_SMOKE === '1') {
     const board = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
     return board.players[state.playerIndex].positionIndex
   }))
-  if (movementStates.some(state => state.ownRolls !== 1) || landedPositions[0] !== 3 || landedPositions[1] !== 2) {
-    throw new Error(`Both players should complete their dice-scaled moment moves independently: ${JSON.stringify({ movementStates, landedPositions })}`)
+  if (movementStates.some(state => state.ownRolls !== 1 || !state.canRoll || state.available.length)) {
+    throw new Error(`Both players should independently finish their card effects and return to a roll-ready state: ${JSON.stringify({ movementStates, landedPositions })}`)
   }
   await Promise.all(pages.map((page, index) => page.screenshot({ path: `${out}/movement-player-${index + 1}.png`, fullPage: true })))
   await pages[0].screenshot({ path: `${out}/board-scaled-spaces-and-piles.png`, fullPage: true })

@@ -77,8 +77,8 @@ function playArcadeFeedback(audio, next, move, currentUid) {
   } else if (move.kind === 'guess' && next.guesses?.[currentUid] === next.promptIndex) audio?.playSuccess?.()
 }
 
-function ArcadeModal({ children, title, onClose }) {
-  return <section aria-label={title} aria-modal="true" className="couple-arcade-modal" role="dialog">
+function ArcadeModal({ children, title, onClose, busy = false }) {
+  return <section aria-busy={busy} aria-label={title} aria-modal="true" className="couple-arcade-modal" role="dialog">
     <header><h2>{title}</h2><button aria-label="Close games" className="arcade-close" onClick={onClose} type="button">×</button></header>
     {children}
   </section>
@@ -236,7 +236,6 @@ function OurLittlePieces({ state, onAction, onReset, audio }) {
       {JIGSAW_ART.map(item => <span aria-label={solvedCount >= item.unlockAt ? `${item.title}, collected` : `${item.title}, locked; ${item.unlockAt - solvedCount} solves to unlock`} className={solvedCount >= item.unlockAt ? 'is-collected' : ''} key={item.title} role="img" title={solvedCount >= item.unlockAt ? `${item.title} collected` : `${item.title} · ${item.unlockAt - solvedCount} solves to unlock`} style={{ backgroundImage: `url("${item.src}")` }}><i aria-hidden="true">{solvedCount >= item.unlockAt ? '✓' : '·'}</i></span>)}
     </div>
     <JigsawUnboxing key={`unbox-${state.puzzleNumber || 1}-${art.src}`} image={art.src} title={art.title} audio={audio} />
-    <p className="arcade-small">Tap one piece, then another to swap. Rotate the selected piece in quarter turns.</p>
     <div aria-label="Shared three-dimensional jigsaw puzzle" className="jigsaw-board" role="grid">
       {Array.from({ length: 9 }, (_, slot) => {
         const entry = pieceAt(slot)
@@ -245,8 +244,8 @@ function OurLittlePieces({ state, onAction, onReset, audio }) {
         const classes = ['jigsaw-piece', pieceId === selectedPiece ? 'selected' : '', pieceId && pieceIndex === slot && piece.rotation === 0 ? 'piece-correct' : ''].filter(Boolean).join(' ')
         return <button aria-label={pieceId ? `Piece ${pieceIndex + 1}, rotated ${piece.rotation} degrees, at space ${slot + 1}` : `Empty space ${slot + 1}`} aria-pressed={pieceId === selectedPiece} className={classes} disabled={finish} key={slot} onClick={() => {
           if (!selectedPiece && pieceId) setSelectedPiece(pieceId)
-          else if (selectedPiece && selectedPiece !== pieceId) { onAction({ kind: 'move-piece', pieceId: selectedPiece, slot }); setSelectedPiece('') }
-          else if (pieceId) setSelectedPiece(pieceId)
+          else if (selectedPiece === pieceId) setSelectedPiece('')
+          else if (selectedPiece && pieceId) { onAction({ kind: 'move-piece', pieceId: selectedPiece, slot }); setSelectedPiece('') }
         }} role="gridcell" style={pieceId ? {
           backgroundImage: `url("${art.src}")`,
           backgroundPosition: `${(pieceIndex % 3) * 50}% ${Math.floor(pieceIndex / 3) * 50}%`,
@@ -465,7 +464,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} audio={audio} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
-  return <ArcadeModal title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={onClose}>
+  return <ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={onClose}>
     {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button aria-label={game.name} className="arcade-game-tile" disabled={game.id === 'four-ever' ? (!onOpenFourEver || fourEverDisabled) : !COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => game.id === 'four-ever' ? onOpenFourEver?.() : openGame(game.id)} type="button"><img alt="" className="arcade-game-art" src={game.icon} /></button>)}</div> : <>
       <button className="arcade-back" onClick={() => { setSelectedGame(''); setError('') }} type="button">All games</button>
       {state && <div className="arcade-player-rail" aria-label="Players">

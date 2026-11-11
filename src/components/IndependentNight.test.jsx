@@ -2,9 +2,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { useEffect, useRef } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { buildInitialSession } from '../features/session/sessionLogic.js'
-const mocks = vi.hoisted(() => ({ db: {}, session: null, command: vi.fn(), next: null, kissNext: null, kisses: {}, sendKiss: vi.fn(), catchKiss: vi.fn(), progress: { selectedTheme: 'garden' }, audio: { setStage: vi.fn(), playThemeArrival: vi.fn(), playPhase: vi.fn() } }))
+const mocks = vi.hoisted(() => ({ db: {}, session: null, command: vi.fn(), next: null, kissNext: null, kisses: {}, sendKiss: vi.fn(), catchKiss: vi.fn(), progress: { selectedTheme: 'garden' }, skipDiceSettle: false, audio: { setStage: vi.fn(), playThemeArrival: vi.fn(), playPhase: vi.fn() } }))
 vi.mock('../features/couple/CoupleProvider.jsx', () => ({ useCouple: () => ({ couple: { id: 'pair' }, hasPartner: true, progress: mocks.progress }) }))
 vi.mock('../features/couple/FirebaseAppContext.jsx', () => ({ useFirebaseApp: () => ({ db: mocks.db, enabled: true, userId: 'b' }) }))
+vi.mock('../features/couple/portraitService.js', () => ({ subscribePieceStyles: () => () => {} }))
 vi.mock('../features/session/SessionProvider.jsx', () => ({ useSession: () => ({ session: mocks.session, gameOpen: true, boardState: {}, journalEntries: [], myVibeVote: null, submitVibeVote: vi.fn(), working: false }) }))
 vi.mock('../features/session/independentNightService.js', () => ({ runNightCommand: (...args) => mocks.command(...args), subscribeToNightSteps: (_db, _id, next) => { mocks.next = next; next([]); return () => {} } }))
 vi.mock('../features/session/nightKissService.js', () => ({
@@ -21,11 +22,11 @@ vi.mock('../board/BoardScene.jsx', () => ({ BoardScene: ({ canRoll, canFlipCoin,
   useEffect(() => onReady?.(), [onReady])
   useEffect(() => {
     if (!rolling) { settled.current = false; return }
-    if (!settled.current) { settled.current = true; onDiceSettled?.({ dice: [1, 2] }) }
+    if (!settled.current) { settled.current = true; if (!mocks.skipDiceSettle) onDiceSettled?.({ dice: [1, 2] }) }
   }, [onDiceSettled, rolling])
   useEffect(() => { if (coinFlipKey && flipped.current !== coinFlipKey) { flipped.current = coinFlipKey; onCoinFlipComplete?.(coinFlipKey) } }, [coinFlipKey, onCoinFlipComplete])
   useEffect(() => { if (cardDrawKey && drawn.current !== cardDrawKey) { drawn.current = cardDrawKey; onCardDrawComplete?.(cardDrawKey) } }, [cardDrawKey, onCardDrawComplete])
-  return <div data-testid="board" data-rolling={rolling ? 'true' : 'false'}><button aria-label="Roll dice" data-testid="board-dice" disabled={!canRoll} onClick={() => onRoll({ source: 'touch' })} /><button aria-label="3D coin" data-testid="board-coin" disabled={!canFlipCoin} onClick={() => onCoinFlip({ source: 'touch', power: 0.7 })} /><button aria-label="Movement complete" data-testid="board-movement-complete" onClick={() => onPieceMoveComplete?.({ playerIndex: 1 })} /></div>
+  return <div data-testid="board" data-rolling={rolling ? 'true' : 'false'}><button aria-label="Roll dice" data-testid="board-dice" disabled={!canRoll} onClick={() => onRoll({ source: 'touch' })} /><button aria-label="3D coin" data-testid="board-coin" disabled={!canFlipCoin} onClick={() => onCoinFlip({ source: 'touch', power: 0.7 })} /><button aria-label="Movement complete" data-testid="board-movement-complete" onClick={() => onPieceMoveComplete?.({ playerIndex: 1, moveId: 'roll-0-1' })} /></div>
 } }))
 vi.mock('./JournalDrawer.jsx', () => ({ JournalDrawer: () => null }))
 import { IndependentNight } from './IndependentNight.jsx'
@@ -35,6 +36,7 @@ beforeEach(() => {
   sessionStorage.setItem('at-long-last:first-turn-toss:night:b', 'yes')
   mocks.command.mockResolvedValue(undefined)
   mocks.kisses = {}
+  mocks.skipDiceSettle = false
   mocks.sendKiss.mockResolvedValue(undefined)
   mocks.progress = { selectedTheme: 'garden' }
 })
@@ -81,6 +83,17 @@ it('keeps the moment category hidden until the player flips the coin', async () 
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
   expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
 })
+it('restores the landing coin instead of leaving a stale blank board overlay', async () => {
+  sessionStorage.setItem('at-long-last:selected-night-step:night:b', 'roll-1-1')
+  render(<IndependentNight />)
+  act(() => mocks.next([{
+    id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'oops',
+    state: { momentPending: true, move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: [1, 1] } },
+    ready: true, completed: true, skipped: false,
+  }]))
+  expect(await screen.findByText('Tap the coin')).toBeInTheDocument()
+  expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
+})
 it('flips the board coin, then draws and turns the selected deck card', async () => {
   render(<IndependentNight />)
   const pendingStep = {
@@ -98,6 +111,62 @@ it('flips the board coin, then draws and turns the selected deck card', async ()
   fireEvent.click(screen.getByTestId('board-coin'))
   expect(await screen.findByRole('heading', { name: 'A Warm Mug Left Ready' }, { timeout: 2500 })).toBeInTheDocument()
 })
+it('keeps the revealed card selected while the Firestore listener still shows the pre-flip coin state', async () => {
+  render(<IndependentNight />)
+  const pendingStep = {
+    id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,
+    state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentPending: true },
+  }
+  const revealedStep = {
+    ...pendingStep,
+    state: { ...pendingStep.state, momentPending: false, coinResult: 'treasure', momentCard: { category: 'treasure', id: 'warm-mug', title: 'A Warm Mug Left Ready', scene: 'The kettle is still warm.', effect: 'A small kindness', movement: 2, lowerDie: 1 } },
+  }
+  act(() => mocks.next([pendingStep]))
+  mocks.command.mockResolvedValueOnce(revealedStep)
+  fireEvent.click(await screen.findByTestId('board-coin'))
+  expect(await screen.findByRole('heading', { name: 'A Warm Mug Left Ready' }, { timeout: 2500 })).toBeInTheDocument()
+  expect(window.__atLongLastGameState.selectedId).toBe('roll-1-1')
+  expect(window.__atLongLastGameState.selectedContentReady).toBe(true)
+  expect(screen.queryByText('Tap the coin')).not.toBeInTheDocument()
+})
+it('re-enables the keepsake action when a moment card resolves without moving the piece', async () => {
+  render(<IndependentNight />)
+  const momentStep = {
+    id: 'roll-1-1', kind: 'keepsake', round: 1, ownerIndex: 1, type: 'keepsake',
+    ready: false, completed: false, skipped: false,
+    state: { momentPending: false, keepsake: { id: 'love-note', label: 'Pocket Love Note', perkId: 'free-privilege' },
+      momentCard: { category: 'treasure', id: 'warm-mug', title: 'A Warm Mug Left Ready', scene: 'The kettle is still warm.', effect: 'A small kindness', movement: 0, lowerDie: 1 } },
+  }
+  const resolved = { ...momentStep, state: { ...momentStep.state, momentResolution: { movement: 0, effect: 'A small kindness', lowerDie: 1 }, momentMove: null } }
+  act(() => mocks.next([momentStep]))
+  mocks.command.mockResolvedValueOnce(resolved)
+  const resolve = await screen.findByRole('button', { name: 'Continue' })
+  await waitFor(() => expect(resolve).toBeEnabled())
+  fireEvent.click(resolve)
+  await waitFor(() => expect(mocks.command).toHaveBeenCalledWith(mocks.db, 'night', 'b', expect.objectContaining({ kind: 'submit', input: { resolveMoment: true } })))
+  await waitFor(() => expect(screen.getByRole('button', { name: /collect mystery card/i })).toBeEnabled())
+})
+it('opens, reveals, and collects the keepsake after its landing effect resolves', async () => {
+  render(<IndependentNight />)
+  const keepsakeStep = {
+    id: 'roll-1-1', kind: 'keepsake', round: 1, ownerIndex: 1, type: 'keepsake',
+    ready: false, completed: false, skipped: false,
+    state: {
+      keepsake: { id: 'love-note', label: 'Pocket Love Note', perkId: 'free-privilege', perkLabel: 'Free Privilege' },
+      momentPending: false,
+      momentCard: { category: 'treasure', id: 'warm-mug', title: 'A Warm Mug Left Ready', scene: 'The kettle is still warm.', effect: 'A small kindness', movement: 1, lowerDie: 1 },
+      momentResolution: { movement: 1, effect: 'A small kindness', lowerDie: 1 },
+    },
+  }
+  act(() => mocks.next([keepsakeStep]))
+  mocks.command.mockResolvedValueOnce({ ...keepsakeStep, ready: true, completed: true })
+  fireEvent.click(await screen.findByRole('button', { name: /collect mystery card/i }))
+  const collect = await screen.findByRole('button', { name: 'Collect' })
+  await waitFor(() => expect(collect).toBeEnabled())
+  fireEvent.click(collect)
+  await waitFor(() => expect(mocks.command).toHaveBeenCalledWith(mocks.db, 'night', 'b', expect.objectContaining({ kind: 'submit', stepId: 'roll-1-1', input: { collect: true } })))
+  await waitFor(() => expect(window.__atLongLastGameState.available).toHaveLength(0))
+})
 it('tumbles before calculating and saving the roll result', async () => {
   vi.useFakeTimers()
   let saveRoll
@@ -112,6 +181,36 @@ it('tumbles before calculating and saving the roll result', async () => {
   expect(mocks.command).toHaveBeenCalledTimes(1)
   expect(typeof saveRoll).toBe('function')
   await act(async () => { saveRoll() })
+})
+it('unblocks a saved roll if the board renderer misses its settle callback', async () => {
+  vi.useFakeTimers()
+  mocks.skipDiceSettle = true
+  mocks.command.mockResolvedValueOnce(undefined)
+  render(<IndependentNight />)
+  const roll = screen.getByRole('button', { name: 'Roll dice' })
+  fireEvent.click(roll)
+  await act(async () => { vi.advanceTimersByTime(620) })
+  await act(async () => { vi.advanceTimersByTime(4500) })
+  expect(window.__atLongLastGameState.rollStage).toBe('confirm-roll')
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  expect(window.__atLongLastGameState.rollStage).toBe('moving')
+}, 10000)
+it('ignores a late piece completion from an earlier roll', async () => {
+  mocks.command.mockImplementationOnce(async (_db, _sessionId, _uid, command) => {
+    if (command.kind === 'roll') {
+      act(() => mocks.next([{
+        id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart',
+        state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: command.dice }, momentPending: true },
+        ready: true, completed: true, skipped: false,
+      }]))
+    }
+  })
+  render(<IndependentNight />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Roll dice' }))
+  await waitFor(() => expect(window.__atLongLastGameState.rollStage).toBe('confirm-roll'))
+  fireEvent.click(screen.getByRole('button', { name: 'Movement complete' }))
+  expect(window.__atLongLastGameState.rollStage).toBe('confirm-roll')
 })
 it('surfaces a rejected save instead of silently swallowing it', async () => {
   mocks.command.mockRejectedValueOnce(new Error('Reconnect to save this roll.'))

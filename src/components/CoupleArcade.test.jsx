@@ -74,4 +74,17 @@ describe('CoupleArcade', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Record clip' })).toBeInTheDocument())
   })
+
+  it('lets a player deselect a jigsaw piece before selecting another', () => {
+    render(<CoupleArcade {...props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Our Little Pieces' }))
+    const piece = screen.getAllByRole('gridcell').find(cell => cell.getAttribute('aria-label')?.startsWith('Piece '))
+    const rotate = screen.getByRole('button', { name: 'Rotate ↷' })
+    fireEvent.click(piece)
+    expect(piece).toHaveAttribute('aria-pressed', 'true')
+    expect(rotate).toBeEnabled()
+    fireEvent.click(piece)
+    expect(piece).toHaveAttribute('aria-pressed', 'false')
+    expect(rotate).toBeDisabled()
+  })
 })

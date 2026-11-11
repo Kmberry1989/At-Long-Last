@@ -34,7 +34,7 @@ it('records a short note from the device microphone and sends the captured audio
   vi.spyOn(performance, 'now').mockImplementation(() => now)
   const onSend = vi.fn().mockResolvedValue(undefined)
   render(<KissBookend onSend={onSend} />)
-  expect(screen.getByText(KISS_COURIER_VOICE_PROMPT)).toBeInTheDocument()
+  expect(screen.queryByText(KISS_COURIER_VOICE_PROMPT)).not.toBeInTheDocument()
 
   fireEvent.click(screen.getByRole('button', { name: 'Record a note' }))
   await waitFor(() => expect(getUserMedia).toHaveBeenCalledWith({ audio: true }))

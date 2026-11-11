@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { activityRegistry } from './activityRegistry.jsx'
 import { buildInitialSession } from './sessionLogic.js'
-import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, needsRevealInteraction, resolveNightPrize } from './independentNight.js'
+import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, mergeNightSteps, needsRevealInteraction, resolveNightPrize } from './independentNight.js'
 import { commitChoice } from './choiceCommitment.js'
 
 const players = [{ uid: 'a', displayName: 'A' }, { uid: 'b', displayName: 'B' }]
@@ -17,6 +17,20 @@ async function answer(s, steps, id, playerIndex, input) {
 }
 
 describe('independent night pacing', () => {
+  it('does not let a stale listener snapshot undo a local coin flip, card reveal, or collection', () => {
+    const id = 'roll-1-0'
+    const current = [{ id, kind: 'keepsake', ownerIndex: 0, round: 1, ready: true, completed: true, skipped: false, state: {
+      momentPending: false,
+      momentCard: { id: 'warm-mug', category: 'treasure' },
+      momentResolution: { movement: 2 },
+      momentMove: { id: `${id}:moment` },
+    } }]
+    const stale = [{ id, kind: 'keepsake', ownerIndex: 0, round: 1, ready: false, completed: false, skipped: false, state: { momentPending: true } }]
+    expect(mergeNightSteps(current, stale)[0]).toMatchObject({
+      ready: true, completed: true, state: { momentPending: false, momentCard: current[0].state.momentCard,
+        momentResolution: current[0].state.momentResolution, momentMove: current[0].state.momentMove },
+    })
+  })
   it('starts fresh nights directly on the first turn without tone setup', () => {
     const opening = buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' })
     expect(opening.phase).toBe('turn')
@@ -121,6 +135,7 @@ describe('independent night pacing', () => {
 
   it('keeps a resolved moment from a plain board landing in the end-of-night recap', () => {
     const s = session()
+    s.startingPlayerIndex = 0
     const steps = []
     for (let round = 1; round <= s.totalRounds; round++) for (const ownerIndex of [0, 1]) {
       const id = `roll-${round}-${ownerIndex}`

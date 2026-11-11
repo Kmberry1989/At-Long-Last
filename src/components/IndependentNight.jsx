@@ -9,7 +9,7 @@ import { subscribePieceStyles } from '../features/couple/portraitService.js'
 import { useSession } from '../features/session/SessionProvider.jsx'
 import { activityRegistry } from '../features/session/activityRegistry.jsx'
 import { duelRegistry } from '../features/session/duelRegistry.jsx'
-import { advanceNightStep, changeNightTrade, canAnswerStep, finishIndependentNight, getNightProgress, isIndependentActivity, makeRollSteps } from '../features/session/independentNight.js'
+import { advanceNightStep, changeNightTrade, canAnswerStep, finishIndependentNight, getNightProgress, isIndependentActivity, makeRollSteps, mergeNightSteps } from '../features/session/independentNight.js'
 import { runNightCommand, subscribeToNightSteps } from '../features/session/independentNightService.js'
 import { buildFinalSummary } from '../features/session/sessionLogic.js'
 import { getWavelengthPromptsForSession, isWavelengthCommit, WAVELENGTH_DUEL_ID } from '../features/session/wavelengthDuelData.js'
@@ -26,6 +26,7 @@ import './independent-night.css'
 
 const BoardScene = lazy(() => import('../board/BoardScene.jsx').then(module => ({ default: module.BoardScene })))
 const JournalDrawer = lazy(() => import('./JournalDrawer.jsx').then(module => ({ default: module.JournalDrawer })))
+const DICE_SETTLE_FALLBACK_MS = 4500
 
 export function IndependentNight() {
   const { couple, hasPartner, progress: coupleProgress } = useCouple()
@@ -51,6 +52,8 @@ export function IndependentNight() {
   const [error, setError] = useState('')
   const [rolling, setRolling] = useState(false)
   const [rollingDice, setRollingDice] = useState(null)
+  const [activeMomentMoveKey, setActiveMomentMoveKey] = useState(null)
+  const rollTraceRef = useRef([])
   const [rollPresentation, setRollPresentation] = useState(null)
   const [cardDrawKey, setCardDrawKey] = useState(null)
   const [cardDrawReady, setCardDrawReady] = useState(false)
@@ -71,6 +74,12 @@ export function IndependentNight() {
   const lock = useRef(false)
   const timer = useRef(null)
   const arrivalCueKeyRef = useRef('')
+  const completedCardDrawKeysRef = useRef(new Set())
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    rollTraceRef.current = [...rollTraceRef.current, { stepId: rollPresentation?.stepId || null, stage: rollPresentation?.stage || null, saved: Boolean(rollPresentation?.saved), diceSettled: Boolean(rollPresentation?.diceSettled), rolling, at: Math.round(performance.now()) }].slice(-32)
+    window.__atLongLastRollTrace = rollTraceRef.current
+  }, [rollPresentation, rolling])
   useEffect(() => {
     if (!db || !couple?.id || !enabled) return undefined
     return subscribePieceStyles(db, couple.id, setPieceStyles, () => {})
@@ -131,20 +140,54 @@ export function IndependentNight() {
 
   useEffect(() => {
     if (!enabled || !db) return undefined
-    return subscribeToNightSteps(db, session.id, next => { setSteps(next); setLoaded(true) }, nextError => setError(nextError.message))
+    return subscribeToNightSteps(db, session.id, next => {
+      setSteps(current => mergeNightSteps(current, next))
+      setLoaded(true)
+    }, nextError => setError(nextError.message))
   }, [db, enabled, session.id])
   useEffect(() => {
-    if (!loaded || rollPresentation || session.phase !== 'turn' || playerIndex < 0) return
-    const pending = steps.find(step => step.ownerIndex === playerIndex && (step.state?.momentPending || (step.state?.momentCard && !step.state?.momentResolution)))
-    if (!pending || selectedId === pending.id || cardDrawKey?.startsWith(`${pending.id}:`)) return
-    if (pending.state.momentPending) {
+    if (rollPresentation?.stage !== 'rolling' || !rollPresentation.saved || rollPresentation.diceSettled) return undefined
+    const { stepId } = rollPresentation
+    const timeout = window.setTimeout(() => {
+      setRollPresentation(current => current?.stepId === stepId && current.stage === 'rolling'
+        ? { ...current, diceSettled: true, stage: 'confirm-roll', settleFallback: true }
+        : current)
+    }, DICE_SETTLE_FALLBACK_MS)
+    return () => window.clearTimeout(timeout)
+  }, [rollPresentation])
+  useEffect(() => {
+    if (!loaded || rolling || rollPresentation || session.phase !== 'turn' || playerIndex < 0) return
+    const pending = steps.find(step => step.ownerIndex === playerIndex && (
+      (step.state?.momentPending && !step.state?.momentCard) ||
+      (step.state?.momentCard && !step.state?.momentResolution)
+    ))
+    if (!pending) return
+    if (pending.state.momentPending && !pending.state.momentCard) {
+      // The Firestore listener can briefly lag behind the flip transaction.
+      // Do not reopen the coin while its card is being drawn.
+      if (cardDrawKey?.startsWith(`${pending.id}:`)) return
+      if (selectedId) setSelectedId(null)
       setRollPresentation({ stepId: pending.id, stage: 'confirm-landing', diceSettled: true, saved: true, resumed: true })
       return
     }
+    if (selectedId === pending.id || cardDrawKey?.startsWith(`${pending.id}:`)) return
     setCoinOutcome(pending.state.coinResult || pending.state.momentCard.category)
     setRollPresentation({ stepId: pending.id, stage: 'drawing-card', diceSettled: true, saved: true, resumed: true })
     setCardDrawKey(`${pending.id}:card`)
-  }, [cardDrawKey, loaded, playerIndex, progress.nextRound, rollPresentation, selectedId, session.phase, steps])
+  }, [cardDrawKey, loaded, playerIndex, progress.nextRound, rolling, rollPresentation, selectedId, session.phase, steps])
+  useEffect(() => {
+    if (rollPresentation?.stage !== 'drawing-card') return
+    const step = steps.find(item => item.id === rollPresentation.stepId)
+    if (!step?.state?.momentPending || step.state.momentCard) return
+    // A delayed animation callback may outlive a stale Firestore snapshot.
+    // If the flip has not produced a saved card, restore the coin interaction.
+    setCardDrawKey(null)
+    setCardDrawReady(false)
+    setRolling(false)
+    setRollPresentation(current => current?.stepId === step.id && current.stage === 'drawing-card'
+      ? { ...current, stage: 'confirm-landing' }
+      : current)
+  }, [rollPresentation, steps])
   useEffect(() => {
     setNightKisses({})
     setNightKissesLoaded(!enabled)
@@ -157,6 +200,7 @@ export function IndependentNight() {
   useEffect(() => {
     const exposed = {
       phase: session.phase === 'finale' ? 'finale' : selected ? selected.kind : 'turn',
+      selectedId, selectedContentReady, working, rolling, loaded,
       pacing: 'independent', playerIndex, round: Math.min(progress.nextRound, session.totalRounds),
       canAct: !working && (Boolean(selected) || progress.canRoll || progress.available.length > 0),
       canRoll: !working && !rolling && !rollPresentation && boardReady && loaded && progress.canRoll && (!usesKissBookend || Boolean(ownKiss)),
@@ -171,6 +215,11 @@ export function IndependentNight() {
       id: step.id, kind: step.kind, type: step.type, ready: step.ready,
       completed: step.completed, skipped: step.skipped,
       momentResolved: !step.state.momentPending && (!step.state.momentCard || Boolean(step.state.momentResolution)),
+      momentPending: Boolean(step.state.momentPending), hasMomentCard: Boolean(step.state.momentCard),
+      hasMomentResolution: Boolean(step.state.momentResolution), ownerIndex: step.ownerIndex,
+      momentMovement: step.state.momentResolution?.movement ?? null,
+      momentMove: step.state.momentMove || null,
+      answerableByViewer: canAnswerStep(step, playerIndex, progress.readyToReveal),
       resultCount: Object.keys(step.state.results || {}).length,
       entryCount: (step.state.entries || []).length,
       submittedBy: Object.keys(step.state.results || step.state.entries || {}),
@@ -186,7 +235,12 @@ export function IndependentNight() {
     setError('')
     try {
       let commandResult = true
-      if (enabled) commandResult = await runNightCommand(db, session.id, userId, command) || true
+      if (enabled) {
+        commandResult = await runNightCommand(db, session.id, userId, command) || true
+        if (command.kind === 'submit' && commandResult?.id) {
+          setSteps(current => current.map(step => step.id === commandResult.id ? commandResult : step))
+        }
+      }
       else if (command.kind.startsWith('trade')) applyPreviewNight(changeNightTrade(session, playerIndex, command))
       else if (command.kind === 'roll') {
         const rollResult = makeRollSteps(session, steps, playerIndex, command.dice, journalEntries)
@@ -243,7 +297,14 @@ export function IndependentNight() {
     setRollingDice(dice)
     const ok = await run({ kind: 'roll', round, dice, history: journalEntries, ...(fixture ? { selectionSeed: fixture.selectionSeed } : {}) })
     if (ok) {
-      setRollPresentation(current => current?.stepId === stepId ? { ...current, saved: true, stage: current.diceSettled ? 'confirm-roll' : current.stage } : current)
+      setRollPresentation(current => {
+        if (current?.stepId === stepId) return { ...current, saved: true, stage: current.diceSettled ? 'confirm-roll' : current.stage }
+        if (current) return current
+        // If a concurrent recovery render cleared this presentation while the
+        // transaction was saving, restore this roll and require its normal
+        // settled-dice acknowledgement before movement can begin.
+        return { stepId, stage: 'rolling', diceSettled: false, saved: true, resumed: true }
+      })
     } else {
       setRolling(false)
       setRollingDice(null)
@@ -281,12 +342,18 @@ export function IndependentNight() {
       setRollPresentation(current => current ? { ...current, stage: 'confirm-landing' } : current)
       return
     }
+    setSteps(current => current.map(step => step.id === result.id ? result : step))
     setCoinOutcome(result.state.coinResult)
     setCoinFlipKey(`${rollPresentation.stepId}:coin`)
   }
 
   function beginCardDraw(key) {
-    if (key !== coinFlipKey || !rollPresentation) return
+    if (
+      key !== coinFlipKey ||
+      !rollPresentation ||
+      rollPresentation.stage !== 'flipping-coin' ||
+      key !== `${rollPresentation.stepId}:coin`
+    ) return
     setCardDrawReady(false)
     setCardDrawKey(`${rollPresentation.stepId}:card`)
     setRollPresentation(current => current ? { ...current, stage: 'drawing-card' } : current)
@@ -329,8 +396,11 @@ export function IndependentNight() {
         input = { ...input, excerpt: `h=${sealed.commitment}` }
       }
     }
-    const ok = await run({ kind: 'submit', stepId: selected.id, revealing: progress.readyToReveal, input })
+    const result = await run({ kind: 'submit', stepId: selected.id, revealing: progress.readyToReveal, input })
+    const ok = Boolean(result)
     if (ok) {
+      if (resolvingCard && result?.state?.momentMove) setActiveMomentMoveKey(result.state.momentMove.id)
+      else if (resolvingCard) setRolling(false)
       setSelectedId(null)
     } else if (resolvingCard) {
       setRolling(false)
@@ -345,16 +415,39 @@ export function IndependentNight() {
     <section className={`screen active game-screen independent-night${selected && !rolling ? ' has-gameplay-overlay' : ''}`} data-board-theme={coupleProgress?.selectedTheme || 'cozy'}>
       <div className="board-wrap">
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
-          <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={rolling ? rollingDice : session.lastMove?.dice} lastMove={session.lastMove} moveEvents={steps.flatMap(step => [step.state?.move, step.state?.momentMove]).filter(Boolean)} lastRoll={session.lastRoll}
-            deferPieceMoveKey={deferPieceMoveKey} cardDrawKey={cardDrawKey} onCardDrawComplete={key => { if (key === cardDrawKey) { setCardDrawReady(true); setSelectedId(rollPresentation?.stepId || null); setRollPresentation(null); setRolling(false); setRollGesture(null) } }}
+          <BoardScene activePlayerIndex={playerIndex} boardState={boardState} dice={rolling ? rollingDice : session.lastMove?.dice} lastMove={session.lastMove} moveEvents={steps.flatMap(step => [step.state?.move, step.state?.momentMove]).filter(Boolean)} activeMomentMoveKey={activeMomentMoveKey} lastRoll={session.lastRoll}
+            deferPieceMoveKey={deferPieceMoveKey} pausePieceMovement={Boolean(rollPresentation && ['rolling', 'confirm-roll'].includes(rollPresentation.stage))} cardDrawKey={cardDrawKey} onCardDrawComplete={key => {
+              if (key !== cardDrawKey || completedCardDrawKeysRef.current.has(key)) return
+              if (!rollPresentation || rollPresentation.stage !== 'drawing-card' || `${rollPresentation.stepId}:card` !== key) return
+              const drawnStep = steps.find(step => step.id === rollPresentation.stepId)
+              if (!drawnStep?.state?.momentCard) return
+              completedCardDrawKeysRef.current.add(key)
+              if (completedCardDrawKeysRef.current.size > 24) completedCardDrawKeysRef.current.delete(completedCardDrawKeysRef.current.values().next().value)
+              setCardDrawReady(true)
+              setSelectedId(rollPresentation.stepId)
+              setRollPresentation(null)
+              setRolling(false)
+              setRollGesture(null)
+            }}
             canFlipCoin={rollPresentation?.stage === 'confirm-landing'} onCoinFlip={flipCoin} coinFlipKey={coinFlipKey} coinOutcome={coinOutcome} coinGesture={coinGesture} onCoinFlipComplete={beginCardDraw} momentCardCategory={coinOutcome}
             onDiceSettled={() => setRollPresentation(current => current ? { ...current, diceSettled: true, stage: current.saved ? 'confirm-roll' : current.stage } : current)}
-            onReady={() => setBoardReady(true)} onPieceStep={() => audio?.playPieceStep?.()} onPieceMoveComplete={({ playerIndex: mover }) => {
+            onReady={() => setBoardReady(true)} onPieceStep={() => audio?.playPieceStep?.()} onPieceMoveComplete={({ playerIndex: mover, moveId }) => {
               if (mover !== playerIndex) return
-              if (timer.current) window.clearTimeout(timer.current)
-              timer.current = null
-              if (rollPresentation) setRollPresentation(current => current ? { ...current, stage: 'confirm-landing' } : current)
-              else setRolling(false)
+              const completedStep = steps.find(step => step.ownerIndex === mover && (step.state?.move?.id === moveId || step.state?.momentMove?.id === moveId))
+              if (!completedStep) return
+              if (completedStep.state?.move?.id === moveId) {
+                if (rollPresentation?.stepId !== completedStep.id || rollPresentation.stage !== 'moving') return
+                if (timer.current) window.clearTimeout(timer.current)
+                timer.current = null
+                setRollPresentation(current => current?.stepId === completedStep.id && current.stage === 'moving'
+                  ? { ...current, stage: 'confirm-landing' }
+                  : current)
+              } else if (completedStep.state?.momentMove?.id === moveId && rolling) {
+                if (timer.current) window.clearTimeout(timer.current)
+                timer.current = null
+                setRolling(false)
+                setActiveMomentMoveKey(null)
+              }
             }} pacingMode="freeFlow" phase={phase}
             canRoll={progress.canRoll && !showFirstTurnCoin && (!usesKissBookend || Boolean(ownKiss)) && loaded && boardReady && !working && !rolling} onDiceCast={audio?.playDiceCast} onDiceImpact={audio?.playDiceImpact}
             onDiceRattle={audio?.playDiceRattle} onRoll={roll} rollGesture={rollGesture}

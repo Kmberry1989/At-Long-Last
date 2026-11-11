@@ -21,6 +21,31 @@ export function stepIds(rounds) {
   ]).flat()
 }
 
+/** Keep a briefly stale Firestore snapshot from undoing a locally confirmed
+ * card/effect while the listener catches up with its transaction write. */
+export function mergeNightSteps(previousSteps, incomingSteps) {
+  const previousById = new Map(previousSteps.map(step => [step.id, step]))
+  return incomingSteps.map(incoming => {
+    const previous = previousById.get(incoming.id)
+    if (!previous) return incoming
+    const oldState = previous.state || {}
+    const nextState = incoming.state || {}
+    const state = { ...nextState }
+    if (oldState.momentPending === false && nextState.momentPending === true) state.momentPending = false
+    for (const key of ['momentCard', 'momentResolution', 'momentMove']) {
+      if (oldState[key] && !nextState[key]) state[key] = oldState[key]
+    }
+    if (oldState.race && nextState.race && (oldState.race.progress || 0) > (nextState.race.progress || 0)) state.race = oldState.race
+    return {
+      ...incoming,
+      ready: Boolean(previous.ready || incoming.ready),
+      completed: Boolean(previous.completed || incoming.completed),
+      skipped: Boolean(previous.skipped || incoming.skipped),
+      state,
+    }
+  })
+}
+
 export function isIndependentActivity(type) {
   return activityRegistry[type]?.supportsPrivateFlow || INDEPENDENT_ACTIVITIES.has(type)
 }
@@ -187,7 +212,8 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     const from = session.positions[playerIndex]
     const to = ((from + movement) % 20 + 20) % 20
     const momentResolution = { movement, effect: card.effect, lowerDie: card.lowerDie }
-    const momentStep = { ...step, state: { ...step.state, race, momentResolution, momentMove: { id: `${step.id}:moment`, from, to, playerIndex, steps: movement, cardEffect: true, dice: null } } }
+    const momentMove = movement === 0 ? null : { id: `${step.id}:moment`, from, to, playerIndex, steps: movement, cardEffect: true, dice: null }
+    const momentStep = { ...step, state: { ...step.state, race, momentResolution, momentMove } }
     return {
       session: {
         ...session,

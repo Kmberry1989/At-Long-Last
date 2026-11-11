@@ -22,7 +22,7 @@ it('waits for receipts, queues unseen moments, and stores dismissal per player',
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
   expect(mocks.acknowledge).toHaveBeenCalledWith('db', 'a', moment.id)
   expect(localStorage.getItem('at-long-last:celebration:a:pair_committed')).toBe('seen')
-  await waitFor(() => expect(screen.getByRole('dialog', { name: '10 nights. One story.' })).toBeVisible())
+  await waitFor(() => expect(screen.getByRole('dialog', { name: '10 nights.' })).toBeVisible())
   expect(mocks.play).toHaveBeenLastCalledWith('milestone')
   expect(screen.getByRole('region', { name: 'Our story' })).toHaveTextContent('Alex & Blair')
 })

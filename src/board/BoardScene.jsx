@@ -447,6 +447,10 @@ export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0, shotProg
   let position
   if (kind === 'dice') {
     position = target.clone().add(new THREE.Vector3(0, 7.2, 7.8))
+  } else if (kind === 'dice-ready') {
+    // Keep the whole circular tray and both dice comfortably inside a phone
+    // viewport, even after a player has orbited or zoomed the board.
+    position = target.clone().add(new THREE.Vector3(0, 10.8, 13.6))
   } else if (kind === 'coin') {
     const progress = THREE.MathUtils.clamp(shotProgress, 0, 1)
     // Move in toward the airborne coin early, then hold the close framing all
@@ -502,10 +506,10 @@ function createSingleDie(value, skin, isDie2 = false) {
   }
   // Dark inset wells and a thin bevel make the pips read as cut into the die,
   // rather than gold studs attached to its faces.
-  const pipMaterial = new THREE.MeshStandardMaterial({ color: '#211922', roughness: 0.96, metalness: 0.02 })
+  const pipMaterial = new THREE.MeshStandardMaterial({ color: '#100d13', roughness: 1, metalness: 0 })
   const pipGeometry = new THREE.CircleGeometry(0.092, 24)
-  const pipBevelGeometry = new THREE.TorusGeometry(0.091, 0.008, 5, 24)
-  const pipBevelMaterial = new THREE.MeshStandardMaterial({ color: skin.edge, emissive: skin.edge, emissiveIntensity: 0.035, roughness: 0.82, metalness: 0.06 })
+  const pipBevelGeometry = new THREE.TorusGeometry(0.091, 0.006, 5, 24)
+  const pipBevelMaterial = new THREE.MeshStandardMaterial({ color: '#4b3d49', roughness: 0.9, metalness: 0 })
 
   // A die is marked on every face. Opposites sum to seven, and the resting
   // rotation below turns the rolled value toward the camera-facing top.
@@ -524,9 +528,12 @@ function createSingleDie(value, skin, isDie2 = false) {
           ? new THREE.Vector3(sign, 0, 0)
           : new THREE.Vector3(0, 0, sign)
       const pip = new THREE.Group()
-      if (axis === 'y') pip.position.set(a, sign * 0.472, b)
-      else if (axis === 'x') pip.position.set(sign * 0.472, a, b)
-      else pip.position.set(a, b, sign * 0.472)
+      // RoundedBoxGeometry's flat faces sit at +/-0.48. Put the inset a hair
+      // above that surface so it cannot disappear inside the die body; the
+      // dark well and subdued lip read as carved pips rather than gold studs.
+      if (axis === 'y') pip.position.set(a, sign * 0.489, b)
+      else if (axis === 'x') pip.position.set(sign * 0.489, a, b)
+      else pip.position.set(a, b, sign * 0.489)
       pip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal)
       const well = new THREE.Mesh(pipGeometry, pipMaterial)
       well.position.z = 0.001
@@ -751,6 +758,8 @@ export function BoardScene({
   onPieceMoveComplete = null,
   onDiceSettled = null,
   deferPieceMoveKey = null,
+  activeMomentMoveKey = null,
+  pausePieceMovement = false,
   cardDrawKey = null,
   onCardDrawComplete = null,
   momentCardCategory = null,
@@ -783,6 +792,9 @@ export function BoardScene({
   const onPieceMoveCompleteRef = useRef(onPieceMoveComplete)
   const onDiceSettledRef = useRef(onDiceSettled)
   const deferPieceMoveKeyRef = useRef(deferPieceMoveKey)
+  const activeMomentMoveKeyRef = useRef(activeMomentMoveKey)
+  const activePieceMoveKeyRef = useRef(null)
+  const pausePieceMovementRef = useRef(pausePieceMovement)
   const cardDrawKeyRef = useRef(cardDrawKey)
   const onCardDrawCompleteRef = useRef(onCardDrawComplete)
   const momentCardCategoryRef = useRef(momentCardCategory)
@@ -801,6 +813,7 @@ export function BoardScene({
   const rollGestureRef = useRef(rollGesture)
   const phaseRef = useRef(phase)
   const pieceMoveQueueRef = useRef([])
+  const activePieceMoveRef = useRef(null)
   const seenMoveKeysRef = useRef(new Set())
   const moveEventsInitializedRef = useRef(false)
   const observedMoveKeyRef = useRef(createPieceMovePlan(lastMove, 20)?.key || null)
@@ -850,18 +863,28 @@ export function BoardScene({
         const move = createPieceMovePlan(event, boardPath.length)
         if (!move) return
         seenMoveKeysRef.current.add(move.key)
-        if (move.key === deferPieceMoveKey) pieceMoveQueueRef.current.push(move)
+        if (move.key === deferPieceMoveKey || move.key === activeMomentMoveKey) pieceMoveQueueRef.current.push(move)
       })
       return
     }
     incoming.forEach(event => {
       const move = createPieceMovePlan(event, boardPath.length)
-      if (!move || seenMoveKeysRef.current.has(move.key)) return
+      if (!move) return
+      if (seenMoveKeysRef.current.has(move.key)) {
+        // BoardScene can mount after a card transaction has already saved its
+        // movement. Initialization normally ignores historical events, but
+        // this key is the one live card effect the caller is resolving now.
+        const alreadyQueued = pieceMoveQueueRef.current.some(queued => queued.key === move.key)
+        if (move.key === activeMomentMoveKey && !alreadyQueued && activePieceMoveKeyRef.current !== move.key) {
+          pieceMoveQueueRef.current.push(move)
+        }
+        return
+      }
       seenMoveKeysRef.current.add(move.key)
       observedMoveKeyRef.current = move.key
       pieceMoveQueueRef.current.push(move)
     })
-  }, [boardPath.length, deferPieceMoveKey, lastMove, moveEvents])
+  }, [activeMomentMoveKey, boardPath.length, deferPieceMoveKey, lastMove, moveEvents])
 
   useEffect(() => {
     onPieceStepRef.current = onPieceStep
@@ -874,6 +897,8 @@ export function BoardScene({
   useEffect(() => {
     onDiceSettledRef.current = onDiceSettled
     deferPieceMoveKeyRef.current = deferPieceMoveKey
+    activeMomentMoveKeyRef.current = activeMomentMoveKey
+    pausePieceMovementRef.current = pausePieceMovement
     cardDrawKeyRef.current = cardDrawKey
     onCardDrawCompleteRef.current = onCardDrawComplete
     momentCardCategoryRef.current = momentCardCategory
@@ -883,7 +908,7 @@ export function BoardScene({
     coinGestureRef.current = coinGesture
     onCoinFlipRef.current = onCoinFlip
     onCoinFlipCompleteRef.current = onCoinFlipComplete
-  }, [canFlipCoin, cardDrawKey, coinFlipKey, coinOutcome, coinGesture, deferPieceMoveKey, momentCardCategory, onCardDrawComplete, onCoinFlip, onCoinFlipComplete, onDiceSettled])
+  }, [activeMomentMoveKey, canFlipCoin, cardDrawKey, coinFlipKey, coinOutcome, coinGesture, deferPieceMoveKey, momentCardCategory, onCardDrawComplete, onCoinFlip, onCoinFlipComplete, onDiceSettled, pausePieceMovement])
 
   useEffect(() => {
     onDiceImpactRef.current = onDiceImpact
@@ -1630,7 +1655,9 @@ export function BoardScene({
       scene.add(group)
       return group
     })
-    let activePieceMove = null
+    // Keep an in-flight move if the scene is rebuilt (for example when player
+    // cosmetics or board-state decorations refresh during a saved card effect).
+    let activePieceMove = activePieceMoveRef.current
     let pieceSettleUntil = 0
     let pieceSettlePlayerIndex = null
     let cameraShotMode = 'board'
@@ -1757,10 +1784,12 @@ export function BoardScene({
       const otherPos = tokenGroups[otherIndex]?.position || boardPath[targetIndicesRef.current[otherIndex]]?.position || activePos
       const midpoint = new THREE.Vector3().addVectors(activePos, otherPos).multiplyScalar(0.5)
 
-      if (!dieRoll && !activePieceMove && pieceMoveQueueRef.current.length) {
+      if (!dieRoll && !activePieceMove && !pausePieceMovementRef.current && pieceMoveQueueRef.current.length) {
         const availableMoveIndex = pieceMoveQueueRef.current.findIndex(move => move.key !== deferPieceMoveKeyRef.current)
         if (availableMoveIndex >= 0) {
           activePieceMove = { ...pieceMoveQueueRef.current.splice(availableMoveIndex, 1)[0], travelStartedAt: null, stepIndex: 0 }
+          activePieceMoveRef.current = activePieceMove
+          activePieceMoveKeyRef.current = activePieceMove.key
           pieceSettleUntil = 0
         }
       }
@@ -1779,6 +1808,12 @@ export function BoardScene({
       if (coinInFocus) {
         cameraShotMode = 'coin'
         shotFocus = momentCoin.position
+      } else if (canRollRef.current && !userInteracting) {
+        // A remembered manual orbit can otherwise leave the dice offscreen.
+        // Reframe the tray as soon as this player can roll, then release the
+        // focus to the piece when movement begins.
+        cameraShotMode = 'dice-ready'
+        shotFocus = diceBox.position.clone().add(new THREE.Vector3(0, 0.35, 0))
       } else if (rollingRef.current || dieRoll) {
         cameraShotMode = 'dice'
         shotFocus = new THREE.Vector3().addVectors(dice.userData.die1.position, dice.userData.die2.position).multiplyScalar(0.5)
@@ -2018,7 +2053,11 @@ export function BoardScene({
       }
 
       tokenGroups.forEach((token, index) => {
-        if (activePieceMove?.playerIndex === index && !dieRoll) {
+        if (activePieceMove?.playerIndex === index && !dieRoll && pausePieceMovementRef.current) {
+          if (activePieceMove.travelStartedAt !== null) activePieceMove.travelStartedAt += frameDeltaSeconds * 1000
+          return
+        }
+        if (activePieceMove?.playerIndex === index && !dieRoll && !pausePieceMovementRef.current) {
           if (activePieceMove.travelStartedAt === null) activePieceMove.travelStartedAt = latestSceneTime
           const positionsAtStart = [...targetIndicesRef.current]
           const positionsAtEnd = [...targetIndicesRef.current]
@@ -2042,14 +2081,18 @@ export function BoardScene({
             completedPieceSteps += 1
             activePieceMove.stepIndex += 1
             activePieceMove.travelStartedAt += stepDuration
+            activePieceMoveRef.current = activePieceMove
             if (activePieceMove.stepIndex >= activePieceMove.steps) {
               const completedMove = activePieceMove
               activePieceMove = null
+              activePieceMoveRef.current = null
+              activePieceMoveKeyRef.current = null
               pieceSettlePlayerIndex = completedMove.playerIndex
               pieceSettleUntil = latestSceneTime + 460
               onPieceMoveCompleteRef.current?.({
                 playerIndex: completedMove.playerIndex,
                 steps: completedMove.steps,
+                moveId: completedMove.key,
               })
               break
             }
@@ -2152,6 +2195,12 @@ export function BoardScene({
               nextSpace: activePieceMove.path[activePieceMove.stepIndex + 1] ?? null,
             }
           : null,
+        queuedPieceMoves: pieceMoveQueueRef.current.map(move => ({ key: move.key, playerIndex: move.playerIndex, steps: move.steps, direction: move.direction })),
+        seenPieceMoveKeys: [...seenMoveKeysRef.current],
+        deferredPieceMoveKey: deferPieceMoveKeyRef.current,
+      activeMomentMoveKey: activeMomentMoveKeyRef.current,
+      activePieceMoveKey: activePieceMoveKeyRef.current,
+        pieceMovementPaused: pausePieceMovementRef.current,
         pieceStepsLanded: completedPieceSteps,
         gameplay: gameplay
           ? {
@@ -2190,7 +2239,6 @@ export function BoardScene({
           shape: 'circle',
           radius: BOARD_PATH_RADIUS,
         },
-        toneSelector: window.__atLongLastVibeDialState || null,
         players: players.map((player, index) => {
           const positionIndex = targetIndicesRef.current[index]
           const target = getTokenTargetPosition(

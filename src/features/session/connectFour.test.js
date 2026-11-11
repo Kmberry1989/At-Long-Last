@@ -29,6 +29,12 @@ describe('Connect Four anytime match', () => {
     expect(getConnectFourMovePlayer({ lifetimeNights: 0 }, players, state)).toBe('one')
   })
 
+  it('honors the selected starter before the first move', () => {
+    const players = ['one', 'two']
+    const state = createConnectFourState(players, 'two')
+    expect(getConnectFourMovePlayer({ lifetimeNights: 0 }, players, state)).toBe('two')
+  })
+
   it('rejects duplicate moves, out-of-turn moves, and full columns', () => {
     let state = createConnectFourState(['one', 'two'])
     state = play(state, 0, 'one', 'move-1')

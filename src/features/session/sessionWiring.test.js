@@ -95,7 +95,7 @@ describe('sessionWiring', () => {
   )
 
   it('draws new nights from a compact pool spanning the reviewed play styles', () => {
-    expect(selectableDuelDefinitions).toHaveLength(8)
+    expect(selectableDuelDefinitions).toHaveLength(10)
     expect(new Set(selectableDuelDefinitions.map((entry) => MINI_GAME_FAMILIES[entry.id]))).toEqual(
       new Set(['guess-reveal', 'playful-duel', 'creative-calm']),
     )

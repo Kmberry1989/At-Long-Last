@@ -14,7 +14,9 @@ describe('NightTransitionBanner', () => {
     expect(playPhase).toHaveBeenCalledWith('turn')
 
     rerender(<NightTransitionBanner phase="keepsake" transitionKey="night:keepsake:1" playPhase={playPhase} />)
-    expect(screen.getByRole('status')).toHaveTextContent('A keepsake')
+    // The full-size card already carries its category, so suppress the extra
+    // keepsake banner while still playing the phase transition cue.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(playPhase).toHaveBeenLastCalledWith('keepsake')
     expect(playPhase).toHaveBeenCalledTimes(2)
   })

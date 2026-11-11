@@ -13,7 +13,7 @@ import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/ema
 import { ConnectFourFinale } from './ConnectFourFinale.jsx'
 import { CoupleArcade } from './CoupleArcade.jsx'
 import { createConnectFourState, getConnectFourTokenPreferences, placeConnectFourPiece } from '../features/session/connectFour.js'
-import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectFourMatch } from '../features/couple/progressService.js'
+import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectFourMatch, subscribeToCoupleProgress } from '../features/couple/progressService.js'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
 import { savePieceStyle, subscribePieceStyles } from '../features/couple/portraitService.js'
@@ -37,6 +37,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [storyScreen, setStoryScreen] = useState('')
   const [connectFourOpen, setConnectFourOpen] = useState(false)
   const [connectFourPreview, setConnectFourPreview] = useState(null)
+  const [connectFourLiveState, setConnectFourLiveState] = useState(null)
   const [connectFourBusy, setConnectFourBusy] = useState(false)
   const [connectFourError, setConnectFourError] = useState('')
   const [connectFourTokenPreview, setConnectFourTokenPreview] = useState({})
@@ -54,7 +55,10 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const hasCurrentNight = Boolean(couple?.activeSessionId && (!session || session.status === 'active'))
   const disabled = busy || loading || authWorking || sessionWorking
   const connectFourPlayers = (couple?.playerIds || []).map((uid) => couple.players?.find((player) => player.uid === uid) || { uid, displayName: uid === user?.uid ? name : partner?.displayName || 'Your person' })
-  const connectFourState = coupleProgress?.connectFour || connectFourPreview || createConnectFourState(connectFourPlayers.map((player) => player.uid))
+  const persistedConnectFour = connectFourOpen ? connectFourLiveState || coupleProgress?.connectFour : coupleProgress?.connectFour
+  const connectFourState = connectFourPreview && (!persistedConnectFour || connectFourPreview.moveCount > persistedConnectFour.moveCount)
+    ? connectFourPreview
+    : persistedConnectFour || connectFourPreview || createConnectFourState(connectFourPlayers.map((player) => player.uid))
   const connectFourTokenPreferences = getConnectFourTokenPreferences({ ...coupleProgress, connectFourTokenPreferences: { ...coupleProgress?.connectFourTokenPreferences, ...connectFourTokenPreview } }, couple?.playerIds || [])
   const selectedConnectFourToken = connectFourTokenPreferences[user?.uid]
   const partnerConnectFourToken = connectFourTokenPreferences[partner?.uid]
@@ -64,6 +68,16 @@ export function PairingHome({ avatar, onAvatarChange }) {
     if (!db || !couple?.id || !paired) return undefined
     return subscribePieceStyles(db, couple.id, setPieceStyles, () => {})
   }, [db, couple?.id, paired])
+
+  useEffect(() => {
+    if (!connectFourOpen || !db || !enabled || !couple?.id) return undefined
+    setConnectFourLiveState(null)
+    return subscribeToCoupleProgress(db, couple.id, (progress) => {
+      const state = progress?.connectFour || null
+      setConnectFourLiveState(state)
+      if (state) setConnectFourPreview((current) => current && current.moveCount > state.moveCount ? current : null)
+    }, (nextError) => setConnectFourError(nextError.message || 'Could not sync Four Ever.'))
+  }, [connectFourOpen, couple?.id, db, enabled])
 
   useEffect(() => {
     if (!connectFourOpen || arcadeOpen) return undefined
@@ -98,7 +112,10 @@ export function PairingHome({ avatar, onAvatarChange }) {
     setConnectFourBusy(true); setConnectFourError('')
     try {
       const moveId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
-      if (enabled) await dropConnectFourMove(db, couple.id, user.uid, moveId, column, tokenId)
+      if (enabled) {
+        const result = await dropConnectFourMove(db, couple.id, user.uid, moveId, column, tokenId)
+        setConnectFourPreview(result.state)
+      }
       else setConnectFourPreview(placeConnectFourPiece(connectFourState, { column, playerUid: user.uid, sessionId: moveId, tokenId }).state)
     } catch (nextError) { setConnectFourError(nextError.message || 'Could not place that token.') }
     finally { setConnectFourBusy(false) }
