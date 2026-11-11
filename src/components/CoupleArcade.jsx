@@ -20,10 +20,10 @@ const GAMES = [
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const JIGSAW_ART = [
   { title: 'Lakeside tea', src: '/assets/arcade/our-little-pieces/golden-hour-lakeside.webp', unlockAt: 0 },
-  { title: 'Chose us', src: '/assets/moment-cards/chose-us.jpg', unlockAt: 1 },
-  { title: 'First trip', src: '/assets/moment-cards/first-trip-photo.jpg', unlockAt: 3 },
-  { title: 'A new tradition', src: '/assets/moment-cards/new-tradition.jpg', unlockAt: 5 },
-  { title: 'Ordinary Tuesday', src: '/assets/moment-cards/ordinary-tuesday.jpg', unlockAt: 7 },
+  { title: 'First journey', src: '/assets/arcade/our-little-pieces/first-journey.webp', unlockAt: 1 },
+  { title: 'Our garden ritual', src: '/assets/arcade/our-little-pieces/garden-ritual.webp', unlockAt: 3 },
+  { title: 'A rainy Tuesday', src: '/assets/arcade/our-little-pieces/rainy-tuesday.webp', unlockAt: 5 },
+  { title: 'A shared picnic', src: '/assets/arcade/our-little-pieces/shared-picnic.webp', unlockAt: 7 },
 ]
 const FISH_CARD_BACK = '/assets/arcade/catch-my-heart/card-back.webp'
 const FISH_SUIT_ART = '/assets/arcade/catch-my-heart/suit-emblems.webp'
@@ -102,7 +102,7 @@ function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
   return <div className="arcade-game arcade-uno">
     <div aria-label="Draw and discard piles" className="uno-table">
       <button aria-label="Draw a card" className="uno-draw-pile" disabled={!ownTurn || Boolean(state.drawnCardId)} onClick={() => onAction({ kind: 'draw' })} style={{ backgroundImage: `url("${UNO_CARD_ART.back}")` }} type="button" />
-      <div aria-label={`Top card: ${UNO_CARD_LABELS[top?.value] || top?.value || 'none'}`} className={`uno-discard uno-${top?.color || state.activeColor}`} style={{ backgroundImage: `url("${UNO_CARD_ART[top?.color] || UNO_CARD_ART[state.activeColor]}")` }}><strong>{UNO_CARD_LABELS[top?.value] || top?.value || '?'}</strong></div>
+      <div aria-label={`Top card: ${UNO_CARD_LABELS[top?.value] || top?.value || 'none'}`} className={`uno-discard uno-${top?.color || state.activeColor}`} key={top?.id || 'empty-discard'} style={{ backgroundImage: `url("${UNO_CARD_ART[top?.color] || UNO_CARD_ART[state.activeColor]}")` }}><strong>{UNO_CARD_LABELS[top?.value] || top?.value || '?'}</strong></div>
     </div>
     <p className="arcade-turn" aria-live="polite">{status}</p>
     {state.status === 'finished' ? <button className="arcade-primary" onClick={onReset} type="button">Play again</button> : <>

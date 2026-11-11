@@ -89,6 +89,8 @@ describe('At Long Last couple arcade mechanics', () => {
     expect(solved).toMatchObject({ status: 'finished', solvedCount: 1 })
     expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 1 }).artIndex).toBe(1)
     expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 3 }).artIndex).toBe(2)
+    expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 5 }).artIndex).toBe(3)
+    expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 7 }).artIndex).toBe(4)
   })
 
   it('plays both charades in sequence, scores correct guesses, and awards the better actor', () => {
