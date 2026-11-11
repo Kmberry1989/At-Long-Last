@@ -35,8 +35,8 @@
 .lobby-card:has(.pairing-title) .night-start-button:not(:disabled) { animation: nightButtonGlow 4s ease-in-out infinite; }
 .lobby-card:has(.pairing-title) .night-start-button:active { transform: translateY(2px) scale(.99); }
 .lobby-screen:has(.pairing-title) { padding-top: 68px; }
-.lobby-screen:has(.pairing-title) .title-band { position: absolute; z-index: 12; top: max(8px, env(safe-area-inset-top)); left: 50%; display: grid; width: min(36vw, 148px); height: 44px; padding: 0; transform: translateX(-50%); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
-.lobby-screen:has(.pairing-title) .title-band .brand-logo { width: 100%; height: 44px; margin: 0; }
+.lobby-screen:has(.pairing-title) .title-band { position: absolute; z-index: 12; top: max(2px, env(safe-area-inset-top)); left: 50%; display: grid; width: clamp(60px, 17vw, 86px); height: clamp(68px, 19vw, 96px); padding: 0; transform: translateX(-50%); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.lobby-screen:has(.pairing-title) .title-band .brand-logo { width: 100%; height: 100%; margin: 0; }
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .account-toggle { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); min-height: 40px; padding: 8px 10px; font-size: 9px; letter-spacing: .055em; }
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls { top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); gap: 3px; }
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls .audio-toggle,
@@ -47,8 +47,7 @@
 
 @media (max-width: 460px) {
   .lobby-screen:has(.pairing-title) { padding-top: 68px; }
-  .lobby-screen:has(.pairing-title) .title-band { top: max(8px, env(safe-area-inset-top)); width: min(36vw, 148px); height: 44px; padding: 0; }
-  .lobby-screen:has(.pairing-title) .title-band .brand-logo { height: 44px; }
+  .lobby-screen:has(.pairing-title) .title-band { top: max(2px, env(safe-area-inset-top)); width: clamp(60px, 17vw, 74px); height: clamp(68px, 19vw, 84px); padding: 0; }
   .lobby-card:has(.pairing-title) { gap: 8px; padding: 10px 12px; }
   .lobby-card:has(.pairing-title) .account-strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px; }
   .lobby-card:has(.pairing-title) .profile-portrait { width: 56px; height: 56px; }
