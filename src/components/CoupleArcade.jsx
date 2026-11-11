@@ -14,6 +14,7 @@ const GAMES = [
   { id: 'say-it-without-saying', name: 'Say Without Saying', icon: '/assets/arcade/icons/say-it-without-saying.png' },
   { id: 'catch-my-heart', name: 'Catch My Heart', icon: '/assets/arcade/icons/catch-my-heart.png' },
   { id: 'radar-love', name: 'Radar Love', icon: '/assets/arcade/icons/radar-love.png' },
+  { id: 'four-ever', name: 'Four Ever', icon: '/assets/arcade/icons/four-ever.png' },
   { id: 'our-little-pieces', name: 'Our Little Pieces', icon: '/assets/arcade/icons/our-little-pieces.png' },
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -345,7 +346,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
   </div>
 }
 
-export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClose }) {
+export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClose, onOpenFourEver, fourEverDisabled = false }) {
   const audio = useAudio()
   const [games, setGames] = useState({})
   const [selectedGame, setSelectedGame] = useState('')
@@ -431,7 +432,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
   return <ArcadeModal title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={onClose}>
-    {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button aria-label={game.name} className="arcade-game-tile" disabled={!COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => openGame(game.id)} type="button"><img alt="" className="arcade-game-art" src={game.icon} /></button>)}</div> : <>
+    {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button aria-label={game.name} className="arcade-game-tile" disabled={game.id === 'four-ever' ? (!onOpenFourEver || fourEverDisabled) : !COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => game.id === 'four-ever' ? onOpenFourEver?.() : openGame(game.id)} type="button"><img alt="" className="arcade-game-art" src={game.icon} /></button>)}</div> : <>
       <button className="arcade-back" onClick={() => { setSelectedGame(''); setError('') }} type="button">All games</button>
       {state && <div className="arcade-player-rail" aria-label="Players">
         {players.slice(0, 2).map(player => {

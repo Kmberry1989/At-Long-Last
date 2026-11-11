@@ -298,15 +298,14 @@
   .lobby-card:has(.couple-portrait-stage) { gap: 2px; }
   .lobby-screen.paired-lobby .night-start-button { min-height: 52px; }
 }
-.connect-four-lobby-link { display: block; width: fit-content; margin: 3px auto; }
 @media (prefers-reduced-motion: reduce) {
   .couple-portrait-stage, .couple-portrait-stage::before, .couple-glint,
   .lobby-screen.paired-lobby::before, .lobby-screen.paired-lobby::after,
   .lobby-rise-sparkle { animation: none; }
   .couple-portrait-stage::before { opacity: .65; }
 }
-.connect-four-lobby-link{display:inline-grid;place-items:center;min-height:0;padding:0;border:0;background:transparent;box-shadow:none;line-height:0}
-.connect-four-lobby-link img{display:block;width:clamp(130px,36vw,190px);height:auto;border-radius:14px;filter:drop-shadow(0 8px 14px #39203255);transition:transform .2s ease,filter .2s ease}
-.connect-four-lobby-link:hover img{transform:translateY(-3px) scale(1.025);filter:drop-shadow(0 12px 18px #39203275)}
-.connect-four-lobby-link:focus-visible{outline:3px solid #ffe2a4;outline-offset:5px;border-radius:15px}
-@media(prefers-reduced-motion:reduce){.connect-four-lobby-link img{transition:none}}
+.couple-arcade-lobby-link{display:inline-grid;place-items:center;min-height:0;padding:0;border:0;background:transparent;box-shadow:none;line-height:0}
+.couple-arcade-lobby-link img{display:block;width:clamp(82px,24vw,112px);height:clamp(82px,24vw,112px);object-fit:cover;border-radius:22px;filter:drop-shadow(0 8px 14px #39203255);transition:transform .2s ease,filter .2s ease}
+.couple-arcade-lobby-link:hover img{transform:translateY(-3px) scale(1.025);filter:drop-shadow(0 12px 18px #39203275)}
+.couple-arcade-lobby-link:focus-visible{outline:3px solid #ffe2a4;outline-offset:5px;border-radius:24px}
+@media(prefers-reduced-motion:reduce){.couple-arcade-lobby-link img{transition:none}}
