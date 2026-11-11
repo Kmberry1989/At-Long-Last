@@ -37,6 +37,15 @@ describe('At Long Last couple arcade mechanics', () => {
     expect(() => askCatchMyHeart(game, { playerUid: 'a', targetUid: 'b', rank: 'invalid' })).toThrow()
   })
 
+  it('records a completed Go Fish book for the score reveal', () => {
+    const game = createCatchMyHeart(['a', 'b'])
+    const rankCards = ['hearts', 'diamonds', 'clubs', 'spades'].map(suit => ({ id: `A-${suit}`, rank: 'A', suit }))
+    const ready = { ...game, hands: { a: rankCards.slice(0, 3), b: [rankCards[3]] }, drawPile: [], books: { a: [], b: [] }, turnIndex: 0 }
+    const next = askCatchMyHeart(ready, { playerUid: 'a', targetUid: 'b', rank: 'A' })
+    expect(next.books.a).toContain('A')
+    expect(next.lastAction.bookedRanks).toEqual(['A'])
+  })
+
   it('lets both players place fleets independently before Radar Love starts', () => {
     let game = createRadarLove(['a', 'b'], () => 0.17)
     expect(game.status).toBe('placing')

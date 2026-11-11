@@ -127,6 +127,7 @@ export function askCatchMyHeart(state, { playerUid, targetUid, rank }) {
   const books = Object.fromEntries(Object.entries(state.books).map(([uid, book]) => [uid, [...book]]))
   const recipientUid = state.playerUids[targetIndex]
   const cards = hands[recipientUid].filter(card => card.rank === rank)
+  const bookedRanks = []
   if (cards.length) {
     hands[recipientUid] = hands[recipientUid].filter(card => card.rank !== rank)
     hands[playerUid].push(...cards)
@@ -137,6 +138,7 @@ export function askCatchMyHeart(state, { playerUid, targetUid, rank }) {
     if (hands[playerUid].filter(card => card.rank === candidate).length === 4) {
       hands[playerUid] = hands[playerUid].filter(card => card.rank !== candidate)
       books[playerUid].push(candidate)
+      bookedRanks.push(candidate)
     }
   }
   const drawPile = cards.length ? state.drawPile : state.drawPile.slice(1)
@@ -148,7 +150,7 @@ export function askCatchMyHeart(state, { playerUid, targetUid, rank }) {
   return {
     ...state, hands, books, drawPile, turnIndex: cards.length ? playerIndex : (playerIndex + 1) % 2,
     status: finished ? 'finished' : 'playing', winnerUid: finished && winnerIndex !== null ? state.playerUids[winnerIndex] : null,
-    lastAction: { playerUid, targetUid, rank, found: cards.length > 0, drew: cards.length === 0 && state.drawPile.length > 0 },
+    lastAction: { playerUid, targetUid, rank, found: cards.length > 0, drew: cards.length === 0 && state.drawPile.length > 0, bookedRanks },
   }
 }
 

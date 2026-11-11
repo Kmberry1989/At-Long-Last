@@ -9,6 +9,8 @@
 .uno-card:not(:disabled):hover{transform:translateY(-4px) scale(1.04);box-shadow:0 9px 16px rgba(0,0,0,.4)}
 .uno-discard{transform-style:preserve-3d;animation:uno-discard-turn .46s cubic-bezier(.2,.8,.2,1) both}
 .fish-card{transform-style:preserve-3d;animation:fish-card-deal .38s cubic-bezier(.18,.82,.22,1) both;backface-visibility:hidden}
+.fish-book-score.is-booked{animation:fish-book-stamp .82s cubic-bezier(.18,.82,.22,1) both;transform-origin:center}
 @keyframes uno-discard-turn{0%{opacity:.82;transform:perspective(700px) rotateY(-88deg) rotate(-4deg) scale(.94)}65%{transform:perspective(700px) rotateY(8deg) rotate(-4deg) scale(1.025)}100%{opacity:1;transform:perspective(700px) rotateY(0) rotate(-4deg) scale(1)}}
 @keyframes fish-card-deal{0%{opacity:.2;transform:perspective(650px) translateY(-16px) rotateY(80deg) scale(.92)}72%{opacity:1;transform:perspective(650px) translateY(2px) rotateY(-8deg) scale(1.02)}100%{transform:perspective(650px) translateY(0) rotateY(0) scale(1)}}
-@media(prefers-reduced-motion:reduce){.uno-discard,.fish-card{animation:none}}
+@keyframes fish-book-stamp{0%{filter:brightness(1);transform:scale(1)}35%{filter:brightness(1.75) drop-shadow(0 0 10px #ffd993);transform:scale(1.24)}100%{filter:brightness(1);transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.uno-discard,.fish-card,.fish-book-score.is-booked{animation:none}}
