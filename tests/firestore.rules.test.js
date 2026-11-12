@@ -103,16 +103,30 @@ async function createAndJoinRoom() {
 async function resolvePlayerRoll(db, sessionId, uid, round, ownerIndex) {
   const stepRef = doc(db, 'sessions', sessionId, 'steps', `roll-${round}-${ownerIndex}`)
   let step = (await getDoc(stepRef)).data()
-  if (step.state.momentPending) {
-    await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { flipMoment: true } })
+  let stage = 'start'
+  try {
+    if (step.state.momentPending) {
+      stage = 'flip moment'
+      await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { flipMoment: true } })
+      step = (await getDoc(stepRef)).data()
+    }
+    if (step.state.momentCard) {
+      stage = 'resolve moment'
+      await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { resolveMoment: true } })
+      step = (await getDoc(stepRef)).data()
+    }
+    if (step.kind === 'activity') { stage = 'resolve activity'; await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { skip: true } }) }
+    if (step.kind === 'keepsake') { stage = 'collect keepsake'; await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { collect: true } }) }
     step = (await getDoc(stepRef)).data()
+    if (!step.completed) throw new Error(`Landing step did not complete after resolving it: ${JSON.stringify({ id: stepRef.id, kind: step.kind, ready: step.ready, state: step.state })}`)
+    stage = 'return dice'
+    await runNightCommand(db, sessionId, uid, { kind: 'turn', action: 'return-dice', stepId: stepRef.id })
+    stage = 'end turn'
+    await runNightCommand(db, sessionId, uid, { kind: 'turn', action: 'end-turn', stepId: stepRef.id })
+  } catch (error) {
+    console.error('FAILED TO RESOLVE TURN', { stage, round, ownerIndex, uid, kind: step.kind, state: step.state, error: error.message })
+    throw error
   }
-  if (step.state.momentCard) {
-    await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { resolveMoment: true } })
-    step = (await getDoc(stepRef)).data()
-  }
-  if (step.kind === 'activity') await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { skip: true } })
-  if (step.kind === 'keepsake') await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: stepRef.id, input: { collect: true } })
 }
 
 const testKissRecording = { audioData: `data:audio/webm;base64,${'A'.repeat(64)}`, mimeType: 'audio/webm;codecs=opus', durationMs: 1200 }
@@ -1147,51 +1161,60 @@ describe('independent night two-account transactions', () => {
     expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data()).toMatchObject({ hearts: 6, positions: [((momentCard.movement % 20) + 20) % 20, 0] })
   })
 
-  it('preserves simultaneous rolls, frees either player after sealing, and survives duplicate saves', async () => {
+  it('alternates turns after a landing, requires returning the dice, and survives duplicate saves', async () => {
     const { couple, hostDb, guestDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
-    const step = doc(hostDb, 'sessions', sessionId, 'steps', 'roll-1-0')
+    const sessionRef = doc(hostDb, 'sessions', sessionId)
+    const initial = (await getDoc(sessionRef)).data()
+    const firstIndex = initial.startingPlayerIndex || 0
+    const otherIndex = (firstIndex + 1) % 2
+    const byIndex = [[hostDb, HOST_UID], [guestDb, GUEST_UID]]
+    const [firstDb, firstUid] = byIndex[firstIndex]
+    const [otherDb, otherUid] = byIndex[otherIndex]
+    const step = doc(firstDb, 'sessions', sessionId, 'steps', `roll-1-${firstIndex}`)
     await setDoc(step, {
-      kind: 'activity', type: 'comfort-menu', round: 1, ownerIndex: 0,
-      state: activityRegistry['comfort-menu'].createInitialState(couple.players, { random: () => 0 }),
-      ready: false, completed: false, skipped: false, updatedAt: serverTimestamp(),
+      kind: 'activity', type: 'comfort-menu', round: 1, ownerIndex: firstIndex,
+      state: { ...activityRegistry['comfort-menu'].createInitialState(couple.players, { random: () => 0 }), diceReturned: false, turnEnded: false },
+      ready: true, completed: true, skipped: false, updatedAt: serverTimestamp(),
     })
-    await Promise.all([
-      runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: 'roll-1-0', input: { text: 'Host answer', guess: 'Host guess' } }),
-      runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'submit', stepId: 'roll-1-0', input: { text: 'Guest answer', guess: 'Guest guess' } }),
-    ])
-    await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: 'roll-1-0', input: { text: 'Overwrite' } })
-    expect((await getDoc(step)).data().state.entries.map(row => row.text).sort()).toEqual(['Guest answer', 'Host answer'])
-    expect((await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
-    await Promise.all([
-      runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'roll', round: 2, dice: [1, 2] }),
-      runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'roll', round: 1, dice: [1, 2] }),
-    ])
-    const saved = (await getDoc(doc(hostDb, 'sessions', sessionId))).data()
-    expect(saved.positions).toEqual([3, 3])
-    await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'roll', round: 2, dice: [1, 2] })
-    expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data().positions).toEqual([3, 3])
+    await expect(runNightCommand(otherDb, sessionId, otherUid, { kind: 'roll', round: 1, dice: [1, 2] })).rejects.toThrow('Save your current landing')
+    await assertSucceeds(runNightCommand(firstDb, sessionId, firstUid, { kind: 'turn', action: 'end-turn', stepId: step.id }))
+    expect((await getDoc(step)).data().state).toMatchObject({ turnEndRequested: true, penaltyApplied: true })
+    await assertSucceeds(runNightCommand(firstDb, sessionId, firstUid, { kind: 'submit', stepId: step.id, input: { resolvePenalty: true } }))
+    await runNightCommand(otherDb, sessionId, otherUid, { kind: 'roll', round: 1, dice: [1, 2], selectionSeed: 0.01 })
+    const afterOtherRoll = (await getDoc(sessionRef)).data().positions
+    const expectedPositions = [0, 0]
+    expectedPositions[firstIndex] = 19
+    expectedPositions[otherIndex] = 3
+    expect(afterOtherRoll).toEqual(expectedPositions)
+    await runNightCommand(otherDb, sessionId, otherUid, { kind: 'roll', round: 1, dice: [1, 2], selectionSeed: 0.01 })
+    expect((await getDoc(sessionRef)).data().positions).toEqual(afterOtherRoll)
     await assertFails(getDocs(collection(authedDb(OUTSIDER_UID), 'sessions', sessionId, 'steps')))
     await assertFails(updateDoc(step, { state: { entries: [] }, updatedAt: serverTimestamp() }))
   })
 
-  it('lets the faster player finish every roll and duel input before the partner, then closes once with durable reveals', async () => {
+  it('alternates both players through a night and closes once with durable reveals', async () => {
     const { couple, hostDb, guestDb } = await createAndJoinRoom()
     const sessionId = await ensureActiveSession(hostDb, couple)
-    for (const [db, uid] of [[guestDb, GUEST_UID], [hostDb, HOST_UID]]) {
-      for (let round = 1; round <= 4; round++) {
+    const session = (await getDoc(doc(hostDb, 'sessions', sessionId))).data()
+    const orderedPlayers = session.startingPlayerIndex === 1
+      ? [[guestDb, GUEST_UID, 1], [hostDb, HOST_UID, 0]]
+      : [[hostDb, HOST_UID, 0], [guestDb, GUEST_UID, 1]]
+    for (let round = 1; round <= 4; round++) {
+      for (const [db, uid, ownerIndex] of orderedPlayers) {
         await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: round === 1 ? [1, 2] : [1, 1], selectionSeed: 0.01 })
-        await resolvePlayerRoll(db, sessionId, uid, round, uid === HOST_UID ? 0 : 1)
-        await runNightCommand(db, sessionId, uid, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: uid === HOST_UID ? 1 : 3, won: true } })
-      }
-      if (uid === GUEST_UID) {
-        await sendNightKisses(hostDb, guestDb, sessionId)
-        const positionsBeforeEarlyFinish = (await getDoc(doc(db, 'sessions', sessionId))).data().positions
-        await expect(runNightCommand(db, sessionId, uid, { kind: 'finish' })).rejects.toThrow('still moments')
-        expect((await getDoc(doc(db, 'sessions', sessionId))).data().positions).toEqual(positionsBeforeEarlyFinish)
-        expect((await getDocs(query(collection(db, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
+        await resolvePlayerRoll(db, sessionId, uid, round, ownerIndex)
       }
     }
+    for (let round = 1; round <= 4; round++) {
+      await runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: 1, won: true } })
+      await runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'submit', stepId: `duel-${round}`, input: { highlight: 'Played with care', time: 3, won: true } })
+    }
+    await sendNightKisses(hostDb, guestDb, sessionId)
+    const positionsBeforeEarlyFinish = (await getDoc(doc(hostDb, 'sessions', sessionId))).data().positions
+    await expect(runNightCommand(guestDb, sessionId, GUEST_UID, { kind: 'finish' })).rejects.toThrow('Catch your partner')
+    expect((await getDoc(doc(hostDb, 'sessions', sessionId))).data().positions).toEqual(positionsBeforeEarlyFinish)
+    expect((await getDocs(query(collection(hostDb, 'journalEntries'), where('coupleId', '==', couple.id)))).size).toBe(0)
     await expect(runNightCommand(hostDb, sessionId, HOST_UID, { kind: 'finish' })).rejects.toThrow('Catch your partner')
     await catchNightKisses(hostDb, guestDb, sessionId)
     await Promise.all([
@@ -1317,10 +1340,14 @@ describe('long independent nights', () => {
     const { couple, hostDb, guestDb } = await createAndJoinRoom()
     const sessionId = await beginPairingNight({ db: hostDb, coupleId: couple.id, preset })
     const dice = [[1,2], [1,1], [1,1], [1,1], [2,3], [2,2], [3,3], [2,3]]
-    for (const [db, uid] of [[hostDb, HOST_UID], [guestDb, GUEST_UID]]) {
-      for (let round = 1; round <= rounds; round++) {
+    const session = (await getDoc(doc(hostDb, 'sessions', sessionId))).data()
+    const orderedPlayers = session.startingPlayerIndex === 1
+      ? [[guestDb, GUEST_UID, 1], [hostDb, HOST_UID, 0]]
+      : [[hostDb, HOST_UID, 0], [guestDb, GUEST_UID, 1]]
+    for (let round = 1; round <= rounds; round++) {
+      for (const [db, uid, ownerIndex] of orderedPlayers) {
         await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: dice[round - 1] })
-        await resolvePlayerRoll(db, sessionId, uid, round, uid === HOST_UID ? 0 : 1)
+        await resolvePlayerRoll(db, sessionId, uid, round, ownerIndex)
       }
     }
     for (let round = 1; round <= rounds; round++) {

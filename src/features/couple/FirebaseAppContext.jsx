@@ -46,9 +46,19 @@ function getFirebaseServices(config) {
 
   const hadExistingApp = getApps().length > 0
   const app = hadExistingApp ? getApp() : initializeApp(config)
+  const firestoreEmulatorUrl = import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_URL
+  const firestoreEmulator = firestoreEmulatorUrl
+    ? new URL(firestoreEmulatorUrl)
+    : null
   const db = hadExistingApp
     ? getFirestore(app)
     : initializeFirestore(app, {
+        ...(firestoreEmulator
+          ? {
+              host: `${firestoreEmulator.hostname}${firestoreEmulator.port ? `:${firestoreEmulator.port}` : ''}`,
+              ssl: firestoreEmulator.protocol === 'https:',
+            }
+          : {}),
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager(),
         }),
@@ -60,8 +70,12 @@ function getFirebaseServices(config) {
     const emulatorHost = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || '127.0.0.1'
     const authPort = Number(import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT) || 9099
     const firestorePort = Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT) || 8080
-    connectAuthEmulator(auth, `http://${emulatorHost}:${authPort}`, { disableWarnings: true })
-    connectFirestoreEmulator(db, emulatorHost, firestorePort)
+    const authEmulatorUrl = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL
+      || `http://${emulatorHost}:${authPort}`
+    connectAuthEmulator(auth, authEmulatorUrl, { disableWarnings: true })
+    if (!firestoreEmulator) {
+      connectFirestoreEmulator(db, emulatorHost, firestorePort)
+    }
   }
 
   firebaseSingleton = { app, auth, db }

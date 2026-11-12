@@ -1159,6 +1159,17 @@ service cloud.firestore {
         );
     }
 
+    function isValidActiveSessionTouch() {
+      let after = request.resource.data;
+      let changed = after.diff(resource.data).affectedKeys();
+      return isParticipant(resource.data.coupleId)
+        && resource.data.status == 'active'
+        && after.status == resource.data.status
+        && changed.hasOnly(['lastActionAt', 'updatedAt'])
+        && after.lastActionAt == request.time
+        && after.updatedAt == request.time;
+    }
+
     function isValidActivity(data) {
       return data is map
         && data.keys().hasAll([
@@ -1952,7 +1963,7 @@ service cloud.firestore {
         && isActiveParticipant(resource.data.coupleId)
         && (request.resource.data.status == 'abandoned'
           ? (isValidLegacySessionAbandon(sessionId) || isValidSessionUpdateCompact())
-          : (isValidIndependentCompletion() || isValidActiveSessionMutationBudget() || isValidSessionUpdateCompact()));
+          : (isValidIndependentCompletion() || isValidActiveSessionTouch() || isValidActiveSessionMutationBudget() || isValidSessionUpdateCompact()));
 
       allow delete: if false;
     }
@@ -2019,6 +2030,20 @@ service cloud.firestore {
           : keys.hasAny(['submissions']) ? ownMapOnly('submissions', mine)
           : keys.hasAny(['captions']) ? ownMapOnly('captions', mine) : true;
       }
+      function isTurnMetadataUpdate() {
+        let stateChanges = request.resource.data.state.diff(resource.data.state).affectedKeys();
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'updatedAt'])
+          && stateChanges.hasOnly([
+            'diceReturned', 'turnEnded', 'turnEndRequested', 'penaltyApplied', 'penaltyCard',
+            'penaltyResolution', 'penaltyMove', 'race'
+          ])
+          && resource.data.ownerIndex in [0, 1]
+          && night().players[resource.data.ownerIndex].uid == request.auth.uid
+          && resource.data.completed
+          && (request.resource.data.state.get('diceReturned', false) == true
+            || request.resource.data.state.get('turnEndRequested', false) == true
+            || request.resource.data.state.get('penaltyResolution', null) != null);
+      }
       allow read: if isAuthenticated() && request.auth.uid in [night().players[0].uid, night().players[1].uid];
       allow create: if isActiveParticipant(night().coupleId)
         && night().get('pacingVersion', 0) == 1 && night().status == 'active'
@@ -2031,16 +2056,34 @@ service cloud.firestore {
         && (request.resource.data.kind != 'activity' || request.resource.data.type in activityIds());
       allow update: if isActiveParticipant(night().coupleId)
         && night().status == 'active' && validStep(request.resource.data)
-        && preservesPartnerInput()
+        && (isTurnMetadataUpdate() || preservesPartnerInput())
         && (resource.data.kind != 'keepsake' && resource.data.kind != 'board' || night().players[resource.data.ownerIndex].uid == request.auth.uid)
-        && (!resource.data.completed || (resource.data.kind == 'board'
-          && !resource.data.state.keys().hasAny(['momentResolution'])
+        && (!request.resource.data.state.diff(resource.data.state).affectedKeys().hasAny([
+          'diceReturned', 'turnEnded', 'turnEndRequested', 'penaltyApplied', 'penaltyCard',
+          'penaltyResolution', 'penaltyMove'
+        ]) || night().players[resource.data.ownerIndex].uid == request.auth.uid)
+        && (!resource.data.completed || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'updatedAt'])
+          && (resource.data.kind == 'board'
           && (resource.data.state.keys().hasAny(['momentCard'])
-            || (resource.data.state.get('momentPending', false) == true
+              && !resource.data.state.keys().hasAny(['momentResolution'])
+            || resource.data.state.keys().hasAny(['penaltyCard'])
+              && !resource.data.state.keys().hasAny(['penaltyResolution'])
+            || request.resource.data.state.diff(resource.data.state).affectedKeys().hasOnly([
+              'diceReturned', 'turnEnded', 'turnEndRequested', 'penaltyApplied', 'penaltyCard',
+              'penaltyResolution', 'penaltyMove', 'race'
+            ])
+            || resource.data.state.get('momentPending', false) == true
               && request.resource.data.state.get('momentPending', true) == false
               && request.resource.data.state.keys().hasAll(['coinResult', 'momentCard'])
-              && request.resource.data.state.coinResult in ['trash', 'treasure']))))
-        && !resource.data.skipped
+              && request.resource.data.state.coinResult in ['trash', 'treasure'])
+          || resource.data.kind in ['activity', 'keepsake']
+            && request.resource.data.state.diff(resource.data.state).affectedKeys().hasOnly([
+              'diceReturned', 'turnEnded', 'turnEndRequested', 'penaltyApplied', 'penaltyCard',
+              'penaltyResolution', 'penaltyMove', 'race'
+            ])
+          )))
+        && (!resource.data.skipped || isTurnMetadataUpdate())
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'ready', 'completed', 'skipped', 'updatedAt']);
       allow delete: if false;
     }

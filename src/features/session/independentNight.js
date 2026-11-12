@@ -72,7 +72,7 @@ export function needsRevealInteraction(step) {
 
 export function canAnswerStep(step, playerIndex, revealing = false) {
   if (step.skipped) return false
-  const pendingMoment = (step.state.momentPending || step.state.momentCard) && !step.state.momentResolution
+  const pendingMoment = (step.state.momentPending || step.state.momentCard && !step.state.momentResolution || step.state.penaltyCard && !step.state.penaltyResolution)
   if (step.completed && !(step.ownerIndex === playerIndex && pendingMoment)) return false
   if (step.ownerIndex === playerIndex && pendingMoment) return true
   if (revealing && step.ready && needsRevealInteraction(step)) {
@@ -93,16 +93,43 @@ export function canAnswerStep(step, playerIndex, revealing = false) {
   return isIndependentActivity(step.type) || step.state.turnIndex === playerIndex
 }
 
+function getActiveTurnPlayer(session, steps) {
+  const startingPlayer = session.startingPlayerIndex || 0
+  for (let round = 1; round <= session.totalRounds; round += 1) {
+    const firstPlayer = startingPlayer
+    for (const playerIndex of [firstPlayer, (firstPlayer + 1) % session.players.length]) {
+      const step = steps.find(item => item.id === `roll-${round}-${playerIndex}`)
+      if (!step) return playerIndex
+      const explicitlyEnded = step.state.turnEnded === true
+      // Read existing in-progress nights safely: completed old-style landings
+      // predate the explicit pass-switch state, so treat them as already passed.
+      const legacyEnded = step.state.turnEnded === undefined && step.ready && step.completed
+      if (!explicitlyEnded && !legacyEnded) return playerIndex
+    }
+  }
+  return null
+}
+
 export function getNightProgress(session, steps, playerIndex) {
   const rolls = steps.filter(step => step.id.startsWith('roll-') && step.ownerIndex === playerIndex)
-  // Only a locally actionable unfinished landing holds up this player's next roll.
-  const pendingLanding = rolls.find(step => canAnswerStep(step, playerIndex))
+  const activeTurnPlayer = getActiveTurnPlayer(session, steps)
+  const activeTurnStep = activeTurnPlayer === null ? null : steps.find(step =>
+    step.id.startsWith('roll-') && step.ownerIndex === activeTurnPlayer && !step.state.turnEnded,
+  )
+  const pendingTurnStep = activeTurnPlayer === playerIndex && activeTurnStep &&
+    !activeTurnStep.state.turnEndRequested && !canAnswerStep(activeTurnStep, playerIndex)
+    ? activeTurnStep
+    : null
+  const unresolvedSharedActivity = steps.find(step =>
+    step.kind === 'activity' && !step.ready && !step.completed && canAnswerStep(step, playerIndex),
+  )
+  const pendingLanding = rolls.find(step => !step.state.turnEnded && canAnswerStep(step, playerIndex)) || unresolvedSharedActivity
   const allRolled = [0, 1].every(index =>
     steps.filter(step => step.id.startsWith('roll-') && step.ownerIndex === index).length === session.totalRounds)
   const allDuels = steps.filter(step => step.kind === 'duel').length === session.totalRounds
   const readyToReveal = allRolled && allDuels && steps.every(step => step.ready && !step.state.momentPending && (!step.state.momentCard || step.state.momentResolution))
   return {
-    canRoll: session.phase === 'turn' && rolls.length < session.totalRounds && !pendingLanding,
+    canRoll: session.phase === 'turn' && activeTurnPlayer === playerIndex && rolls.length < session.totalRounds && !pendingLanding && !pendingTurnStep,
     nextRound: rolls.length + 1,
     ownRolls: rolls.length,
     readyToReveal,
@@ -110,7 +137,36 @@ export function getNightProgress(session, steps, playerIndex) {
     // Keep comparisons out of the board tray while either player still has
     // turns to take. They are collected and answered together at night's end.
     available: steps.filter(step => (step.kind !== 'duel' || allRolled) && canAnswerStep(step, playerIndex, readyToReveal)),
+    pendingTurnStep,
+    activeTurnPlayer,
     comparisons: steps.filter(step => step.kind === 'activity' || step.kind === 'duel').length,
+  }
+}
+
+export function updateNightTurn(session, steps, stepId, playerIndex, action) {
+  const step = steps.find(item => item.id === stepId)
+  if (!step || !step.id.startsWith('roll-') || step.ownerIndex !== playerIndex) throw new Error('That turn is not yours.')
+  if (action === 'return-dice') {
+    if (step.state.turnEnded || step.state.turnEndRequested || step.state.diceReturned) return null
+    return { session, step: { ...step, state: { ...step.state, diceReturned: true } }, penalty: false }
+  }
+  if (action !== 'end-turn') throw new Error('Unknown turn action.')
+  if (step.state.turnEnded || step.state.turnEndRequested) return null
+  if (step.state.momentPending || step.state.momentCard && !step.state.momentResolution || step.state.penaltyCard && !step.state.penaltyResolution) {
+    throw new Error('Finish the landing before ending your turn.')
+  }
+  if (step.state.diceReturned) {
+    return { session, step: { ...step, state: { ...step.state, turnEnded: true } }, penalty: false }
+  }
+  const penaltyCard = drawMomentCard('trash', Math.random, [1, 1])
+  penaltyCard.movement = -1
+  penaltyCard.spaces = 1
+  penaltyCard.lowerDie = 1
+  penaltyCard.effect = 'Back one space and return the dice.'
+  return {
+    session,
+    step: { ...step, state: { ...step.state, turnEndRequested: true, penaltyApplied: true, penaltyCard } },
+    penalty: true,
   }
 }
 
@@ -128,7 +184,10 @@ export function makeRollSteps(session, steps, playerIndex, dice, history = [], r
     activityType, dice, keepsakeId: pickKeepsakeId(session.keepsakes, random), roll: dice[0] + dice[1],
   })
   const space = getBoardSpace(landed.positions[playerIndex])
-  const kind = space.type === 'keepsake' ? 'keepsake' : landed.phase === 'activity' ? 'activity' : 'board'
+  // A turn should create a shared moment on nearly every landing. The board
+  // space still applies its own heart/duel/oops effect above; only keepsake
+  // spaces replace the conversation with a collectible.
+  const kind = space.type === 'keepsake' ? 'keepsake' : 'activity'
   const previousRace = steps
     .filter(step => step.id.startsWith('roll-') && step.ownerIndex === playerIndex)
     .sort((a, b) => b.round - a.round)[0]?.state?.race || { progress: 0, laps: 0, crossedAt: null }
@@ -141,9 +200,10 @@ export function makeRollSteps(session, steps, playerIndex, dice, history = [], r
     state: {
       move: landed.lastMove ? { ...landed.lastMove, id: `roll-${round}-${playerIndex}` } : null,
       ...(kind === 'activity'
-        ? activityRegistry[activityType].createInitialState(session.players, { activePlayerIndex: playerIndex, history, random })
+        ? { ...activityRegistry[activityType].createInitialState(session.players, { activePlayerIndex: playerIndex, history, random }), landingSpace: space.id }
         : kind === 'keepsake' ? { keepsake: landed.pendingKeepsake } : {}),
       momentPending: true,
+      turnEnded: false,
       race: {
         progress: raceProgress,
         laps: raceLaps,
@@ -164,7 +224,7 @@ export function makeRollSteps(session, steps, playerIndex, dice, history = [], r
       ...session, hearts: landed.hearts, positions: landed.positions, lastMove: { ...landed.lastMove, ...(session.lastMove?.tradeOffer ? { tradeOffer: session.lastMove.tradeOffer } : {}) },
       lastRoll: landed.lastRoll, usedKeepsakePerks: landed.usedKeepsakePerks,
       momentum: landed.momentum, round: Math.max(session.round, round),
-      actionText: 'Continue at your pace. Comparisons open at the end of the night.',
+      actionText: `${session.players[playerIndex]?.displayName || 'Your partner'} takes a turn.`,
     },
     created,
   }
@@ -191,6 +251,22 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     return {
       session,
       step: { ...step, state: { ...step.state, momentPending: false, coinResult, momentCard } },
+    }
+  }
+  if (step.state.penaltyCard && !step.state.penaltyResolution) {
+    if (!input.resolvePenalty) throw new Error('Resolve the dice reminder first.')
+    const card = step.state.penaltyCard
+    const movement = -1
+    const from = session.positions[playerIndex]
+    const to = ((from + movement) % 20 + 20) % 20
+    const previousProgress = step.state.race?.progress || 0
+    const raceProgress = previousProgress + movement
+    const raceLaps = Math.max(step.state.race?.laps || 0, Math.floor(Math.max(0, raceProgress) / 20))
+    const momentMove = { id: `${step.id}:cup-penalty`, from, to, playerIndex, steps: movement, cardEffect: true, dice: null }
+    const nextStep = { ...step, state: { ...step.state, race: { ...step.state.race, progress: raceProgress, laps: raceLaps }, penaltyResolution: { movement, effect: card.effect }, penaltyMove: momentMove, turnEnded: true } }
+    return {
+      session: { ...session, positions: session.positions.map((position, index) => index === playerIndex ? to : position), lastMove: { ...session.lastMove, cardEffect: true, from, playerIndex, steps: movement, to }, actionText: `${card.title}: back one space.` },
+      step: nextStep,
     }
   }
   if (step.state.momentCard && !step.state.momentResolution) {
@@ -280,6 +356,10 @@ export function finishIndependentNight(session, steps) {
       const { momentCard, momentResolution } = step.state
       const direction = momentResolution.movement < 0 ? 'back' : 'ahead'
       entries.push({ coupleId: session.coupleId, sessionId: session.id, type: `moment-${momentCard.category}`, title: momentCard.title, vibe: momentCard.category === 'treasure' ? 'tender' : 'playful', summary: `${momentCard.effect}: ${Math.abs(momentResolution.movement)} ${Math.abs(momentResolution.movement) === 1 ? 'space' : 'spaces'} ${direction}.`, text: `${momentCard.scene} ${momentCard.effect} moves ${direction} ${Math.abs(momentResolution.movement)} spaces.`, payload: { category: momentCard.category, cardId: momentCard.id, effect: momentCard.effect, movement: momentResolution.movement, lowerDie: momentResolution.lowerDie } })
+    }
+    if (step.state.penaltyCard && step.state.penaltyResolution) {
+      const { penaltyCard, penaltyResolution } = step.state
+      entries.push({ coupleId: session.coupleId, sessionId: session.id, type: 'moment-trash', title: penaltyCard.title, vibe: 'playful', summary: 'Dice left out: moved back one space.', text: `${penaltyCard.scene} ${penaltyResolution.effect}`, payload: { category: 'trash', cardId: penaltyCard.id, effect: penaltyResolution.effect, movement: -1 } })
     }
     if (step.skipped) continue
     if (step.kind === 'board') continue

@@ -12,6 +12,7 @@ export function ActivityCardModal({
   error = null,
   isMinimized = false,
   onSubmit,
+  onRevealComplete,
   onToggleMinimize,
   playerIndex = 0,
   players = [],
@@ -88,11 +89,11 @@ export function ActivityCardModal({
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate([20, 40, 20])
     }
-    onSubmit?.({
-      completed: true,
-      guess: myEntry?.guess || guessText.trim(),
-      text: myEntry?.text || answerText.trim(),
-    })
+    if (onRevealComplete) {
+      onRevealComplete()
+      return
+    }
+    onSubmit?.({ completed: true, guess: myEntry?.guess || guessText.trim(), text: myEntry?.text || answerText.trim() })
   }
 
   // If user chose to peek at the board, render an elegant, non-intrusive floating pill

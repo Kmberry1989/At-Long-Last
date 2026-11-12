@@ -16,8 +16,8 @@ import { createBoardEnvironment } from './boardEnvironment.js'
 export const BOARD_INSET_RADIUS = 8.5
 export const BOARD_PATH_RADIUS = 11.8
 export const BOARD_IDLE_ORBIT_SPEED = 0.2
-export const DICE_HOME_BASE_RADIUS = 1.94
-export const DICE_HOME_BASE_INNER_RADIUS = 1.82
+export const DICE_HOME_BASE_RADIUS = 2.18
+export const DICE_HOME_BASE_INNER_RADIUS = 2.06
 export const DICE_HOME_BASE_HEIGHT = 0.58
 export const DICE_HOME_BASE_FLOOR_THICKNESS = 0.16
 export const DICE_HOME_BASE_FLOAT_HEIGHT = 0.72
@@ -30,11 +30,11 @@ export const BOARD_CARD_PILE_DEPTH = 2.9
 export const BOARD_CARD_PILE_DOT_COUNT = 64
 export const BOARD_CARD_PILE_DOT_SIZE = 0.24
 export const BOARD_CARD_PILE_POSITIONS = {
-  trash: [-2.4, -4.1],
-  treasure: [2.4, -4.1],
-  discard: [1.05, 3.45],
+  trash: [-4.15, -3.55],
+  treasure: [4.15, -3.55],
+  discard: [0, 4.25],
 }
-export const BOARD_MOMENT_COIN_POSITION = [0, -1.55]
+export const BOARD_MOMENT_COIN_POSITION = [0.25, -0.8]
 
 const LANDING_EFFECTS_BY_SPACE = {
   heart: ['heart-glow', 'rose-petals', 'music-notes'],
@@ -270,6 +270,31 @@ function createMomentCoin(theme, position) {
   root.name = 'trash-treasure-coin'
   const restHeight = BOARD_SKIN_SURFACE_Y + 0.075
   root.position.set(position[0], restHeight, position[1])
+  const pedestal = new THREE.Group()
+  pedestal.name = 'trash-treasure-coin-pedestal'
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.92, 1.02, 0.18, 64),
+    new THREE.MeshStandardMaterial({ color: theme.diceSkin.alternate, metalness: 0.62, roughness: 0.34 }),
+  )
+  base.position.y = -0.16
+  base.castShadow = true
+  base.receiveShadow = true
+  pedestal.add(base)
+  const inset = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.76, 0.82, 0.12, 64),
+    new THREE.MeshStandardMaterial({ color: theme.diceSkin.fabric || theme.surfaces.inset.color, metalness: 0.08, roughness: 0.8 }),
+  )
+  inset.position.y = -0.035
+  inset.receiveShadow = true
+  pedestal.add(inset)
+  const piping = new THREE.Mesh(
+    new THREE.TorusGeometry(0.89, 0.045, 8, 64),
+    new THREE.MeshStandardMaterial({ color: theme.diceSkin.edge, metalness: 0.78, roughness: 0.28 }),
+  )
+  piping.rotation.x = Math.PI / 2
+  piping.position.y = -0.055
+  pedestal.add(piping)
+  root.add(pedestal)
   const side = new THREE.MeshStandardMaterial({ color: theme.diceSkin.edge, metalness: 0.9, roughness: 0.22 })
   const treasure = new THREE.MeshStandardMaterial({ map: makeMomentCoinFace('treasure'), metalness: 0.42, roughness: 0.32 })
   const trash = new THREE.MeshStandardMaterial({ map: makeMomentCoinFace('trash'), metalness: 0.42, roughness: 0.32 })
@@ -575,12 +600,12 @@ function createPrimitiveDicePair(initialValues = [1, 1], diceSkin = getBoardThem
   const die1 = createSingleDie(initialValues[0], diceSkin, false)
   const die2 = createSingleDie(initialValues[1], diceSkin, true)
 
-  die1.position.set(-2.0, 0.62, 0.45)
+  die1.position.set(-2.55, 0.62, 0.7)
   die1.userData.displayYaw = 0.32
   die1.rotation.set(0, 0, 0)
   setPrimitiveDieValue(die1, initialValues[0])
 
-  die2.position.set(-3.25, 0.62, 0.82)
+  die2.position.set(-3.8, 0.62, 1.05)
   die2.userData.displayYaw = -0.26
   die2.rotation.set(0, 0, 0)
   setPrimitiveDieValue(die2, initialValues[1])
@@ -774,6 +799,9 @@ export function BoardScene({
   onDiceCast = null,
   onRoll = null,
   canRoll = false,
+  canReturnDice = false,
+  diceReturnKey = null,
+  onReturnDice = null,
   onReady = null,
   rollGesture = null,
   pacingMode = 'freeFlow',
@@ -809,6 +837,9 @@ export function BoardScene({
   const onDiceCastRef = useRef(onDiceCast)
   const onRollRef = useRef(onRoll)
   const canRollRef = useRef(canRoll)
+  const canReturnDiceRef = useRef(canReturnDice)
+  const onReturnDiceRef = useRef(onReturnDice)
+  const previousDiceReturnKeyRef = useRef(null)
   const onReadyRef = useRef(onReady)
   const rollGestureRef = useRef(rollGesture)
   const phaseRef = useRef(phase)
@@ -916,19 +947,27 @@ export function BoardScene({
     onDiceCastRef.current = onDiceCast
     onRollRef.current = onRoll
     canRollRef.current = canRoll
+    canReturnDiceRef.current = canReturnDice
+    onReturnDiceRef.current = onReturnDice
     onReadyRef.current = onReady
     rollGestureRef.current = rollGesture
-  }, [canRoll, onDiceCast, onDiceImpact, onDiceRattle, onReady, onRoll, rollGesture])
+  }, [canReturnDice, canRoll, onDiceCast, onDiceImpact, onDiceRattle, onReady, onReturnDice, onRoll, rollGesture])
+
+  useEffect(() => {
+    if (!diceReturnKey || diceReturnKey === previousDiceReturnKeyRef.current) return
+    previousDiceReturnKeyRef.current = diceReturnKey
+    dieRef.current?.userData.returnToCup?.()
+  }, [diceReturnKey])
 
   useEffect(() => {
     const canvas = mountRef.current?.querySelector('canvas')
     if (!canvas) return
-    const interactive = canRoll || canFlipCoin
+    const interactive = canRoll || canFlipCoin || canReturnDice
     canvas.setAttribute('role', interactive ? 'button' : 'img')
-    canvas.setAttribute('aria-label', canFlipCoin ? 'Flip the Trash or Treasure coin' : canRoll ? 'Roll dice' : 'Game board dice')
+    canvas.setAttribute('aria-label', canFlipCoin ? 'Flip the Trash or Treasure coin' : canReturnDice ? 'Tap dice to return them to the cup' : canRoll ? 'Roll dice' : 'Game board dice')
     canvas.tabIndex = interactive ? 0 : -1
     canvas.style.cursor = interactive ? 'pointer' : 'grab'
-  }, [canFlipCoin, canRoll])
+  }, [canFlipCoin, canReturnDice, canRoll])
 
   useEffect(() => {
     lastRollRef.current = lastRoll
@@ -1111,7 +1150,7 @@ export function BoardScene({
     // A round open box with a velvet floor gives the dice a clear home base.
     const diceBox = new THREE.Group()
     diceBox.name = 'themed-dice-home-base'
-    diceBox.position.set(-2.62, DICE_HOME_BASE_FLOAT_HEIGHT, 0.64)
+    diceBox.position.set(-3.15, DICE_HOME_BASE_FLOAT_HEIGHT, 0.9)
     const boxSide = new THREE.Mesh(
       new THREE.CylinderGeometry(
         DICE_HOME_BASE_RADIUS,
@@ -1203,12 +1242,21 @@ export function BoardScene({
     )
     diceShadow.name = 'dice-home-base-soft-shadow'
     diceShadow.rotation.x = -Math.PI / 2
-    diceShadow.position.set(-2.62, 0.18, 0.64)
+    diceShadow.position.set(-3.15, 0.18, 0.9)
     diceShadow.renderOrder = 1
     scene.add(diceShadow)
 
     const dice = createPrimitiveDicePair(resolveDiceValues(lastRollRef.current || 2, dicePropRef.current), boardTheme.diceSkin)
     let dieRoll = null
+    let diceReturnTween = null
+    dice.userData.returnToCup = () => {
+      if (dieRoll || diceReturnTween) return
+      diceReturnTween = {
+        startedAt: latestSceneTime,
+        from: [dice.userData.die1.position.clone(), dice.userData.die2.position.clone()],
+        rotations: [dice.userData.die1.rotation.clone(), dice.userData.die2.rotation.clone()],
+      }
+    }
     dice.userData.startRoll = (value, explicitDice) => {
       const finalValues = Array.isArray(explicitDice) ? resolveDiceValues(value, explicitDice) : null
       if (dieRoll) {
@@ -1217,8 +1265,8 @@ export function BoardScene({
       }
       const { die1, die2 } = dice.userData
       const homeLift = getDiceHomeBaseMotion((latestSceneTime - startedAt) / 1000, reducedMotion).lift
-      die1.position.set(-2.0, 0.62 + homeLift, 0.45)
-      die2.position.set(-3.25, 0.62 + homeLift, 0.82)
+      die1.position.set(-2.55, 0.62 + homeLift, 0.7)
+      die2.position.set(-3.8, 0.62 + homeLift, 1.05)
       dieRoll = {
         finalValues,
         startedAt: latestSceneTime,
@@ -1282,9 +1330,9 @@ export function BoardScene({
         return
       }
       const hit = hitsDice(event)
-      if (!event.isPrimary || event.button !== 0 || activeDicePointer || activeCoinPointer || !canRollRef.current || !hit) return
+      if (!event.isPrimary || event.button !== 0 || activeDicePointer || activeCoinPointer || !hit || (!canRollRef.current && !canReturnDiceRef.current)) return
       consumePointer(event)
-      activeDicePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() }
+      activeDicePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), returning: canReturnDiceRef.current }
       dice.userData.touch = { startedAt: activeDicePointer.time, x: 0, y: 0 }
       controls.enabled = false
       canvas.style.cursor = 'grabbing'
@@ -1323,7 +1371,7 @@ export function BoardScene({
         return
       }
       if (canFlipCoinRef.current && hitsCoin(event)) canvas.style.cursor = 'pointer'
-      else if (canRollRef.current && hitsDice(event)) canvas.style.cursor = 'pointer'
+      else if ((canRollRef.current || canReturnDiceRef.current) && hitsDice(event)) canvas.style.cursor = 'pointer'
       else canvas.style.cursor = 'grab'
     }
     const handleDicePointerUp = (event) => {
@@ -1352,8 +1400,12 @@ export function BoardScene({
       activeDicePointer = null
       dice.userData.touch = null
       controls.enabled = true
-      canvas.style.cursor = canRollRef.current ? 'pointer' : 'grab'
+      canvas.style.cursor = canRollRef.current || canReturnDiceRef.current ? 'pointer' : 'grab'
       try { canvas.releasePointerCapture(event.pointerId) } catch { /* Already released by the browser. */ }
+      if (start.returning && canReturnDiceRef.current) {
+        onReturnDiceRef.current?.()
+        return
+      }
       if (!canRollRef.current) return
       const gesture = makeDiceRollGesture(deltaX, deltaY, performance.now() - start.time)
       onDiceCastRef.current?.()
@@ -1765,6 +1817,9 @@ export function BoardScene({
       diceBox.position.y = diceHomeMotion.lift
       diceShadow.material.opacity = diceHomeMotion.shadowOpacity
       diceShadow.scale.setScalar(diceHomeMotion.shadowScale)
+      boxRim.material.emissiveIntensity = canRollRef.current && !reducedMotion
+        ? 0.22 + (0.12 + 0.1 * (0.5 + 0.5 * Math.sin(elapsed * 2.4)))
+        : 0.28
       const occupiedSpaceIndices = [...targetIndicesRef.current]
       const movingPlan = activePieceMove || pieceMoveQueueRef.current[0]
       if (movingPlan) {
@@ -1885,7 +1940,7 @@ export function BoardScene({
         const gesture = dieRoll.gesture || {}
         const direction = gesture.direction || { x: 0.55, y: -0.3 }
         const throwPower = 0.78 + Math.max(0, Math.min(1, gesture.power || 0)) * 0.72
-        die1.position.x = THREE.MathUtils.lerp(-2.0, -0.15, progress) + lift1 * (0.35 + direction.x * 0.42) + Math.sin(progress * Math.PI * 2.5) * 0.16
+        die1.position.x = THREE.MathUtils.lerp(-2.55, -0.15, progress) + lift1 * (0.35 + direction.x * 0.42) + Math.sin(progress * Math.PI * 2.5) * 0.16
         die1.position.y = 0.62 + diceHomeMotion.lift + cameraLift + lift1 * 1.08 * throwPower
         die1.position.z = THREE.MathUtils.lerp(0.45, -0.3, progress) + lift1 * (0.18 + direction.y * 0.38) + Math.cos(progress * Math.PI * 2) * 0.12 * lift1
         die1.rotation.x = -0.04 + eased * (Math.PI * (3.5 + throwPower) + (dieRoll.finalValues?.[0] || 0) * 0.18)
@@ -1898,7 +1953,7 @@ export function BoardScene({
         const lift2 = Math.sin(prog2 * Math.PI)
         const tumbleFace2 = 1 + (Math.floor(elapsed * 17 + 2) % 6)
         setPrimitiveDieValue(die2, dieRoll.finalValues && prog2 >= 1 ? dieRoll.finalValues[1] : tumbleFace2)
-        die2.position.x = THREE.MathUtils.lerp(-3.25, 1.0, prog2) + lift2 * (0.42 - direction.x * 0.4) - Math.sin(prog2 * Math.PI * 2.4) * 0.15
+        die2.position.x = THREE.MathUtils.lerp(-3.8, 1.0, prog2) + lift2 * (0.42 - direction.x * 0.4) - Math.sin(prog2 * Math.PI * 2.4) * 0.15
         die2.position.y = 0.62 + diceHomeMotion.lift + cameraLift + lift2 * 1.16 * throwPower
         die2.position.z = THREE.MathUtils.lerp(0.82, 0.25, prog2) + lift2 * (0.14 - direction.y * 0.38) - Math.cos(prog2 * Math.PI * 2) * 0.1 * lift2
         die2.rotation.x = 0.08 + eased2 * (Math.PI * (4.4 + throwPower) + (dieRoll.finalValues?.[1] || 0) * 0.16)
@@ -1922,16 +1977,30 @@ export function BoardScene({
             onDiceSettledRef.current?.({ dice: finalValues })
           }
         }
+      } else if (diceReturnTween) {
+        const amount = Math.min(1, Math.max(0, (latestSceneTime - diceReturnTween.startedAt) / 620))
+        const eased = 1 - (1 - amount) ** 3
+        const homeY = 0.62 + diceHomeMotion.lift
+        const targets = [new THREE.Vector3(-2.55, homeY, 0.7), new THREE.Vector3(-3.8, homeY, 1.05)]
+        const dieParts = [dice.userData.die1, dice.userData.die2]
+        dieParts.forEach((die, index) => {
+          die.position.lerpVectors(diceReturnTween.from[index], targets[index], eased)
+          die.rotation.x = THREE.MathUtils.lerp(diceReturnTween.rotations[index].x, index ? 0.08 : -0.04, eased)
+          die.rotation.y = THREE.MathUtils.lerp(diceReturnTween.rotations[index].y, index ? -0.26 : 0.32, eased)
+          die.rotation.z = THREE.MathUtils.lerp(diceReturnTween.rotations[index].z, index ? 0.12 : -0.06, eased)
+          die.scale.setScalar(1 + Math.sin(amount * Math.PI) * 0.08)
+        })
+        if (amount >= 1) diceReturnTween = null
       } else if (dice.userData.touch) {
         const touch = dice.userData.touch
         const die1 = dice.userData.die1
         const die2 = dice.userData.die2
         const press = Math.min(1, Math.hypot(touch.x, touch.y) / 44)
         const breathe = Math.sin((latestSceneTime - touch.startedAt) / 1000 * 18) * 0.025
-        die1.position.set(-2 + touch.x * 0.004, 0.62 + diceHomeMotion.lift + breathe, 0.45 - touch.y * 0.004)
+        die1.position.set(-2.55 + touch.x * 0.004, 0.62 + diceHomeMotion.lift + breathe, 0.7 - touch.y * 0.004)
         die1.rotation.set(-0.04 - touch.y * 0.004, 0.32, -0.06 + touch.x * 0.005)
         die1.scale.setScalar(1 + press * 0.09)
-        die2.position.set(-3.25 + touch.x * 0.004, 0.62 + diceHomeMotion.lift - breathe, 0.82 - touch.y * 0.004)
+        die2.position.set(-3.8 + touch.x * 0.004, 0.62 + diceHomeMotion.lift - breathe, 1.05 - touch.y * 0.004)
         die2.rotation.set(0.08 - touch.y * 0.004, -0.26, 0.12 + touch.x * 0.005)
         die2.scale.setScalar(1 + press * 0.09)
       }

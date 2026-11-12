@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
-import { BrandIcon } from './BrandIcon.jsx'
+import { PlayerPortrait } from './PlayerPortrait.jsx'
 import { MAX_NIGHT_KISS_DATA_URI_CHARS, MAX_NIGHT_KISS_DURATION_MS } from '../features/session/nightKissService.js'
 
 export const KISS_COURIER_VOICE_PROMPT = 'Tell them what you love—in a movie-trailer voice.'
@@ -23,7 +23,7 @@ function readAudioData(blob) {
   })
 }
 
-export function KissBookend({ mode = 'send', recording, onSend, onCatch, onContinue, voicePrompt = KISS_COURIER_VOICE_PROMPT, working = false }) {
+export function KissBookend({ mode = 'send', recording, featuredPlayer, onSend, onCatch, onContinue, voicePrompt = KISS_COURIER_VOICE_PROMPT, working = false }) {
   const { setMusicPaused } = useAudio() || {}
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
@@ -117,7 +117,10 @@ export function KissBookend({ mode = 'send', recording, onSend, onCatch, onConti
   if (mode === 'catch') {
     return (
       <section className="kiss-bookend" aria-label="Catch your partner’s kiss">
-      <div className={`kiss-bookend-art${caught ? ' is-caught' : ''}`} aria-hidden="true"><BrandIcon name="heart" /></div>
+      <div className="kiss-bookend-art is-kiss-marked">
+        <PlayerPortrait className="kiss-bookend-portrait" player={featuredPlayer} label={`${featuredPlayer?.displayName || 'Your person'}’s portrait`} />
+        <img className="kiss-bookend-stamp" src="/assets/kiss/lipstick-kiss.png" alt="" aria-hidden="true" />
+      </div>
         {!caught ? <>
           <h2>Catch their kiss</h2>
           <p className="kiss-bookend-prompt">{voicePrompt}</p>
@@ -133,7 +136,10 @@ export function KissBookend({ mode = 'send', recording, onSend, onCatch, onConti
 
   return (
     <section className="kiss-bookend" aria-label="Send a kiss with a voice note">
-      <div className={`kiss-bookend-art${recording ? ' is-sent' : ''}`} aria-hidden="true"><BrandIcon name="heart" /></div>
+      <div className="kiss-bookend-art is-kiss-marked">
+        <PlayerPortrait className="kiss-bookend-portrait" player={featuredPlayer} label={`${featuredPlayer?.displayName || 'Your person'}’s portrait`} />
+        <img className="kiss-bookend-stamp" src="/assets/kiss/lipstick-kiss.png" alt="" aria-hidden="true" />
+      </div>
       <h2>{recording ? 'Kiss sent' : 'Send a kiss'}</h2>
       {!recording ? <>
         {!recorded ? <button className={`primary-btn kiss-bookend-action${recordingActive ? ' is-recording' : ''}`} disabled={working} onClick={recordingActive ? stopRecording : startRecording} type="button">{recordingActive ? 'Stop' : 'Record a note'}</button> : <>

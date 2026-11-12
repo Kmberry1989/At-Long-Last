@@ -405,7 +405,7 @@ for (const page of pages) {
   await page.getByRole('button', { name: 'Begin our night', exact: true }).click()
 }
 for (const page of pages) {
-  await page.waitForFunction(() => window.__atLongLastGameState?.pacing === 'independent')
+  await page.waitForFunction(() => window.__atLongLastGameState?.pacing === 'alternating')
   await page.waitForFunction(() => typeof window.render_game_to_text === 'function')
   await page.locator('.first-turn-toss').waitFor()
   await capture(page, `first-turn-toss-player-${pages.indexOf(page) + 1}`)
@@ -413,7 +413,17 @@ for (const page of pages) {
   await page.locator('.first-turn-result').waitFor()
   await capture(page, `first-turn-result-player-${pages.indexOf(page) + 1}`)
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  await page.locator('.board-canvas canvas[role="button"]').waitFor()
+  await page.locator('.board-canvas').waitFor()
+}
+if (process.env.QA_TURN_GATE_ONLY === '1') {
+  const states = await Promise.all(pages.map(gameState))
+  if (states.filter(state => state.canRoll).length !== 1 || states.some(state => state.pacing !== 'alternating')) {
+    throw new Error(`The opening turn must belong to exactly one player: ${JSON.stringify(states)}`)
+  }
+  for (const [index, page] of pages.entries()) await capture(page, `alternating-board-ready-player-${index + 1}`)
+  await writeFile(`${captureOut}/alternating-turn-order.json`, JSON.stringify(states, null, 2))
+  await browser.close()
+  process.exit(0)
 }
 await capture(pages[0], 'board-ready')
 await pages[0].screenshot({ path: `${out}/roll-control-before.png`, fullPage: true })

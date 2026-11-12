@@ -63,9 +63,10 @@ it('lets the second player roll directly on the board dice', async () => {
   expect(mocks.command.mock.calls[0][3].dice.every(value => value >= 1 && value <= 6)).toBe(true)
   expect(roll).toBeDisabled()
 })
-it('keeps only the trade action in the board HUD', async () => {
+it('keeps the flat end-turn switch in the board HUD without trade copy', async () => {
   render(<IndependentNight />)
-  expect(await screen.findByRole('button', { name: 'Trade' })).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'End turn' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Trade' })).not.toBeInTheDocument()
   expect(screen.queryByText('ROLLS')).not.toBeInTheDocument()
   expect(screen.queryByText('MATCHES')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /center the board/i })).not.toBeInTheDocument()
@@ -144,7 +145,7 @@ it('re-enables the keepsake action when a moment card resolves without moving th
   await waitFor(() => expect(resolve).toBeEnabled())
   fireEvent.click(resolve)
   await waitFor(() => expect(mocks.command).toHaveBeenCalledWith(mocks.db, 'night', 'b', expect.objectContaining({ kind: 'submit', input: { resolveMoment: true } })))
-  await waitFor(() => expect(screen.getByRole('button', { name: /collect mystery card/i })).toBeEnabled())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Collect' })).toBeEnabled())
 })
 it('opens, reveals, and collects the keepsake after its landing effect resolves', async () => {
   render(<IndependentNight />)

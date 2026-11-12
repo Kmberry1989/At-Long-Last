@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { activityRegistry } from './activityRegistry.jsx'
 import { buildInitialSession } from './sessionLogic.js'
-import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, mergeNightSteps, needsRevealInteraction, resolveNightPrize } from './independentNight.js'
+import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, mergeNightSteps, needsRevealInteraction, resolveNightPrize, updateNightTurn } from './independentNight.js'
 import { commitChoice } from './choiceCommitment.js'
 
 const players = [{ uid: 'a', displayName: 'A' }, { uid: 'b', displayName: 'B' }]
-function session() { return { ...buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' }), phase: 'turn', vibeWeights: { tender: 0.5, playful: 0.3, spicy: 0.2 }, id: 'night', status: 'active' } }
+function session() { return { ...buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' }, () => 0), phase: 'turn', vibeWeights: { tender: 0.5, playful: 0.3, spicy: 0.2 }, id: 'night', status: 'active' } }
 function duels(s) { return Array.from({ length: s.totalRounds }, (_, i) => ({ id: `duel-${i + 1}`, kind: 'duel', type: 'gratitude-duel', round: i + 1, ownerIndex: -1, ready: true, completed: false, skipped: false, state: { results: { '0': { highlight: 'Played', won: true, time: 1 }, '1': { highlight: 'Played', won: true, time: 2 } } } })) }
 function activity(type = 'comfort-menu', round = 1, ownerIndex = 0) {
   return { id: `roll-${round}-${ownerIndex}`, round, ownerIndex, kind: 'activity', type, ready: false, completed: false, skipped: false,
@@ -32,19 +32,34 @@ describe('independent night pacing', () => {
     })
   })
   it('starts fresh nights directly on the first turn without tone setup', () => {
-    const opening = buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' })
+    const opening = buildInitialSession({ id: 'couple', players, sessionPreset: 'quick' }, () => 0)
     expect(opening.phase).toBe('turn')
     expect(opening.vibeWeights).toEqual({ tender: 0.5, playful: 0.3, spicy: 0.2 })
     expect(getNightProgress(opening, [], 0).canRoll).toBe(true)
   })
 
-  it('lets a player continue rolling after submitting their duel while the partner has not drawn yet', async () => {
+  it('keeps the shared turn order even when a duel response is submitted', async () => {
     const s = session()
     const duel = { id: 'duel-1', kind: 'duel', type: 'gratitude-duel', round: 1, ownerIndex: -1, ready: false, completed: false, skipped: false, state: { results: {} } }
     const submitted = await advanceNightStep(s, [duel], duel.id, 0, { excerpt: 'Three kind words', highlight: 'Finished', time: 80, won: true })
     expect(submitted.step.ready).toBe(false)
     expect(getNightProgress(s, [submitted.step], 0).canRoll).toBe(true)
+    expect(getNightProgress(s, [submitted.step], 1).canRoll).toBe(false)
     expect(canAnswerStep(submitted.step, 1)).toBe(true)
+  })
+
+  it('opens a bonding activity after every non-keepsake landing', () => {
+    const s = session()
+    // A three-space roll lands on Duel Beat, which preserves its board effect
+    // while opening a shared activity for the couple.
+    const landed = makeRollSteps(s, [], 0, [1, 2], [], () => 0)
+    const step = landed.created.find(item => item.id === 'roll-1-0')
+    expect(step.kind).toBe('activity')
+    expect(step.state.landingSpace).toBe('duel-beat')
+
+    // The Mystery Card spaces remain collectible keepsake moments.
+    const keepsake = makeRollSteps(s, [], 0, [2, 2], [], () => 0)
+    expect(keepsake.created.find(item => item.id === 'roll-1-0').kind).toBe('keepsake')
   })
 
   it('holds comparisons until both players finish their turns so the board stays clear for rolling', () => {
@@ -91,17 +106,27 @@ describe('independent night pacing', () => {
     await expect(advanceNightStep(s, [duel], duel.id, 0, { excerpt: 'ok' })).rejects.toThrow('three letters')
   })
 
-  it('lets either phone roll first and advance after its own answer while its partner stays behind', async () => {
+  it('alternates a shared turn and reveals the landing after both partners respond', async () => {
     const s = session()
-    expect(getNightProgress(s, [], 1).canRoll).toBe(true)
+    expect(getNightProgress(s, [], 1).canRoll).toBe(false)
+    expect(getNightProgress(s, [], 0).canRoll).toBe(true)
     let steps = [activity()]
     expect(getNightProgress(s, steps, 0).canRoll).toBe(false)
     steps = await answer(s, steps, steps[0].id, 0, { text: 'My answer', guess: 'My guess' })
-    expect(getNightProgress(s, steps, 0).canRoll).toBe(true)
-    const next = makeRollSteps(s, steps, 0, [1, 1], [], () => 0)
-    expect(next.created[0].round).toBe(2)
-    expect(steps[0].state.entries).toHaveLength(1)
-    expect(getNightProgress(s, steps, 1).ownRolls).toBe(0)
+    expect(getNightProgress(s, steps, 0).canRoll).toBe(false)
+    expect(getNightProgress(s, steps, 0).pendingTurnStep?.id).toBe('roll-1-0')
+    const returned = updateNightTurn(s, steps, 'roll-1-0', 0, 'return-dice')
+    const ended = updateNightTurn(s, [returned.step], 'roll-1-0', 0, 'end-turn')
+    steps = [ended.step]
+    expect(getNightProgress(s, steps, 1).canRoll).toBe(false)
+    expect(getNightProgress(s, steps, 1).available.some(step => step.id === 'roll-1-0')).toBe(true)
+    steps = await answer(s, steps, steps[0].id, 1, { text: 'Their answer', guess: '' })
+    expect(steps[0].ready).toBe(true)
+    expect(getNightProgress(s, steps, 1).canRoll).toBe(true)
+    const next = makeRollSteps(s, steps, 1, [1, 1], [], () => 0)
+    expect(next.created[0].round).toBe(1)
+    expect(steps[0].state.entries).toHaveLength(2)
+    expect(getNightProgress(s, steps, 0).ownRolls).toBe(1)
     expect(getNightProgress(s, steps, 0).readyToReveal).toBe(false)
   })
 
@@ -113,7 +138,7 @@ describe('independent night pacing', () => {
     expect(rollStep.state.momentPending).toBe(true)
     expect(rollStep.state.momentCard).toBeUndefined()
     expect(canAnswerStep(rollStep, 0)).toBe(true)
-    expect(getNightProgress(s, result.created, 1).canRoll).toBe(true)
+    expect(getNightProgress(s, result.created, 1).canRoll).toBe(false)
 
     const random = vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0.1)
@@ -166,7 +191,8 @@ describe('independent night pacing', () => {
     expect(canAnswerStep(independent, 1)).toBe(true)
     const photo = activity('photo-flashback')
     expect(canAnswerStep(photo, 1)).toBe(false)
-    expect(getNightProgress(s, [photo], 1).canRoll).toBe(true)
+    expect(getNightProgress(s, [photo], 1).canRoll).toBe(false)
+    expect(getNightProgress(s, [photo], 1).activeTurnPlayer).toBe(0)
     const updated = await answer(s, [independent], independent.id, 1, { value: 40 })
     expect(updated[0].state.values['1']).toBe(40)
   })

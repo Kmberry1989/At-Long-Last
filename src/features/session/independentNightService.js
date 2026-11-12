@@ -1,5 +1,5 @@
 import { collection, doc, getDoc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore'
-import { advanceNightStep, changeNightTrade, finishIndependentNight, makeRollSteps, stepIds } from './independentNight.js'
+import { advanceNightStep, changeNightTrade, finishIndependentNight, makeRollSteps, stepIds, updateNightTurn } from './independentNight.js'
 import { nightKissesCaughtByBothPlayers } from './nightKissService.js'
 
 export function subscribeToNightSteps(db, sessionId, onNext, onError) {
@@ -39,7 +39,11 @@ export async function runNightCommand(db, sessionId, userId, command) {
         const playerIndex = session.players.findIndex(player => player.uid === userId)
         if (playerIndex < 0 || session.pacingVersion !== 1) throw new Error('This is not your independent night.')
         if (session.status !== 'active') return
-        const ids = command.kind.startsWith('trade') || command.kind === 'finish' ? [] : command.kind === 'submit' && !command.revealing ? [command.stepId] : stepIds(session.totalRounds)
+        const ids = command.kind.startsWith('trade') || command.kind === 'finish'
+          ? []
+          : (command.kind === 'submit' && !command.revealing) || command.kind === 'turn'
+            ? [command.stepId]
+            : stepIds(session.totalRounds)
         const refs = ids.map(id => doc(db, 'sessions', sessionId, 'steps', id))
         const snapshots = []
         for (const ref of refs) {
@@ -63,6 +67,11 @@ export async function runNightCommand(db, sessionId, userId, command) {
           changed = result.created
         } else if (command.kind === 'submit') {
           const result = await advanceNightStep(session, steps, command.stepId, playerIndex, command.input)
+          if (!result) return
+          nextSession = result.session
+          changed = [result.step]
+        } else if (command.kind === 'turn') {
+          const result = updateNightTurn(session, steps, command.stepId, playerIndex, command.action)
           if (!result) return
           nextSession = result.session
           changed = [result.step]
