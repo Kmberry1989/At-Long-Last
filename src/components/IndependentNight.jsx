@@ -529,7 +529,7 @@ export function IndependentNight() {
           {progress.readyToFinish && usesKissBookend && !partnerKissCaught && <button className="primary-btn" type="button" disabled={working || !nightKissesLoaded || !partnerKiss} onClick={() => setCatchKissOpen(true)}>Catch their kiss</button>}
           {progress.readyToFinish && usesKissBookend && partnerKissCaught && !bothKissesCaught && <p className="kiss-bookend-wait">Waiting for their catch</p>}
           {progress.readyToFinish && (!usesKissBookend || bothKissesCaught) && <button className="primary-btn" type="button" disabled={working || (usesKissBookend && !nightKissesLoaded)} onClick={() => run({ kind: 'finish' })}>Open tonight’s reveals</button>}
-          {!progress.canRoll && !progress.available.length && !progress.readyToFinish && loaded && <p className="support-copy">{progress.activeTurnPlayer === playerIndex ? 'Finish this moment, then pass the turn.' : `Waiting for ${session.players[progress.activeTurnPlayer]?.displayName || 'your partner'} to finish their turn.`}</p>}
+          {!progress.canRoll && !progress.available.length && !progress.readyToFinish && loaded && <p className="support-copy turn-status-copy">{progress.activeTurnPlayer === playerIndex ? 'Finish this moment, then pass the turn.' : `Waiting for ${session.players[progress.activeTurnPlayer]?.displayName || 'your partner'} to finish their turn.`}</p>}
           {!enabled && <button className="secondary-link" type="button" onClick={() => setPreviewPlayer(index => 1 - index)}>Preview as {session.players[1 - playerIndex]?.displayName}</button>}
         </div>}
       </div>
