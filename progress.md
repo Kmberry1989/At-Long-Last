@@ -643,3 +643,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Flattened and stabilized the board coin at rest. Its toss now launches with a physical arc,
   slows near the apex, zooms/chases with the camera, and settles into the chosen face with a
   short suspenseful spin and layered impact sounds.
+
+## 2026-11-13 — Wider phone framing while pieces move
+
+- Changed the moving-piece camera shot on phone-sized viewports to pull back while retaining its orbit around and focus on the active piece. Desktop framing is unchanged.
+- Added a camera-pose regression ensuring the phone shot is at least 35% farther from the piece and remains within the board wall. Updated the existing dice-tray radius expectation to match its current 2.18-unit implementation.
+- Verification: all 31 `BoardScene.test.js` tests passed; production build and `git diff --check` passed. A two-profile local Playwright run rolled the dice and captured the active piece-follow frame at `artifacts/phone-piece-follow-2026-11-13/phone-piece-follow-live-player-1.png`; visually reviewed the phone screenshot.

@@ -425,6 +425,16 @@ if (process.env.QA_TURN_GATE_ONLY === '1') {
   await browser.close()
   process.exit(0)
 }
+if (process.env.QA_PHONE_MOVEMENT_ONLY === '1') {
+  const states = await Promise.all(pages.map(gameState))
+  const activeIndex = states.findIndex(state => state.canRoll)
+  if (activeIndex < 0 || states.some(state => state.pacing !== 'alternating')) {
+    throw new Error(`No active alternating turn is available for the phone camera check: ${JSON.stringify(states)}`)
+  }
+  await rollDice(pages[activeIndex], [2, 3], true)
+  await browser.close()
+  process.exit(0)
+}
 await capture(pages[0], 'board-ready')
 await pages[0].screenshot({ path: `${out}/roll-control-before.png`, fullPage: true })
 if (process.env.QA_CAPTURE_BOARD_PILES === '1') {
@@ -467,7 +477,7 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
   const targetPosition = (startPosition + dice[0] + dice[1]) % boardBefore.path.segments
   console.log('roll start', before)
   await page.evaluate(values => { window.__atLongLastTestRoll = { dice: values, selectionSeed: .01 } }, dice)
-  const board = page.locator('.board-canvas canvas[role="button"]')
+  const board = page.locator('.board-canvas canvas')
   await board.waitFor()
   const bounds = await board.boundingBox()
   const center = await page.evaluate(() => JSON.parse(window.render_game_to_text()).dice.screenCenters[0])
@@ -515,6 +525,7 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
       const state = JSON.parse(window.render_game_to_text())
       return state.pieceMovement?.playerIndex === mover || state.players[mover].positionIndex === targetPosition
     }, { mover, targetPosition }, { timeout: 10000 })
+    await capture(page, `phone-piece-follow-live-player-${pages.indexOf(page) + 1}`)
     await page.waitForFunction(({ mover, targetPosition }) => {
       const state = JSON.parse(window.render_game_to_text())
       return state.pieceMovement === null && state.players[mover].positionIndex === targetPosition

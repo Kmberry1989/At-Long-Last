@@ -465,7 +465,7 @@ export function shouldOrbitBoard({
     !interacting && !reducedMotion && idleMs >= 2800
 }
 
-export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0, shotProgress = 0) {
+export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0, shotProgress = 0, phoneViewport = false) {
   const target = focus?.isVector3
     ? focus.clone()
     : new THREE.Vector3(focus?.x || 0, focus?.y || 0, focus?.z || 0)
@@ -493,7 +493,11 @@ export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0, shotProg
     const c = Math.cos(angle)
     const s = Math.sin(angle)
     const orbit = new THREE.Vector3(radial.x * c - radial.z * s, 0, radial.x * s + radial.z * c)
-    position = target.clone().addScaledVector(orbit, 3.6).add(new THREE.Vector3(0, 8.3, 0))
+    // Portrait phone screens need a wider follow shot to keep the next few
+    // spaces visible while the token hops around the ring.
+    position = target.clone()
+      .addScaledVector(orbit, 3.6)
+      .add(new THREE.Vector3(0, phoneViewport ? 12.8 : 8.3, 0))
   }
   return { position, target }
 }
@@ -1890,7 +1894,8 @@ export function BoardScene({
       })
       controls.autoRotate = cameraShotMode === 'board' && idleOrbit
       if (cameraShotMode !== 'board') {
-        const pose = getBoardCameraShotPose(cameraShotMode, shotFocus, elapsed, coinShotProgress)
+        const phoneViewport = Math.min(mount.clientWidth, mount.clientHeight) <= 600
+        const pose = getBoardCameraShotPose(cameraShotMode, shotFocus, elapsed, coinShotProgress, phoneViewport)
         const cameraEase = 1 - Math.exp(-frameDeltaSeconds * (cameraShotMode === 'coin' ? 6.5 : 4.5))
         camera.position.lerp(pose.position, cameraEase)
         controls.target.lerp(pose.target, cameraEase)

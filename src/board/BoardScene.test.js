@@ -87,7 +87,7 @@ describe('dice home base proportions', () => {
     expect(DICE_HOME_BASE_RADIUS).toBeGreaterThan(DICE_HOME_BASE_INNER_RADIUS)
     expect(DICE_HOME_BASE_HEIGHT).toBeGreaterThan(0)
     expect(DICE_HOME_BASE_FLOOR_THICKNESS).toBeGreaterThan(0)
-    expect(DICE_HOME_BASE_RADIUS).toBe(1.94)
+    expect(DICE_HOME_BASE_RADIUS).toBe(2.18)
   })
 
   it('floats above the spaces and keeps a soft shadow visually anchored below', () => {
@@ -249,9 +249,12 @@ describe('cinematic board camera shots', () => {
   it('keeps the piece camera inside the board wall while orbiting the moving token', () => {
     const focus = new THREE.Vector3(0, 0.7, -BOARD_PATH_RADIUS)
     const pose = getBoardCameraShotPose('piece', focus, 2)
+    const phonePose = getBoardCameraShotPose('piece', focus, 2, 0, true)
     expect(pose.target.toArray()).toEqual(focus.toArray())
     expect(Math.hypot(pose.position.x, pose.position.z)).toBeLessThan(15.48)
     expect(pose.position.distanceTo(pose.target)).toBeGreaterThan(9)
+    expect(Math.hypot(phonePose.position.x, phonePose.position.z)).toBeLessThan(15.48)
+    expect(phonePose.position.distanceTo(phonePose.target)).toBeGreaterThan(pose.position.distanceTo(pose.target) * 1.35)
   })
 })
 
