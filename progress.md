@@ -8,6 +8,13 @@ Original prompt: Harden the Firestore rules so participants can make only legiti
 - Visual samples from the local run: `/tmp/at-long-last-night-loop-final/board-ready.jpg`, `card-revealed-player-1.jpg`, and `mini-game-our-next-line-player-1.jpg`. The narrow board view still has tight spacing between the dice tray and pile edges; this run proves the flow but is not a full visual sign-off.
 - Limits: local emulator accounts only; no production Firebase, physical-device sound, microphone capture, or Netlify deployment was tested.
 
+## 2026-11-14 — Wider phone camera follow shot
+
+- Raised the phone-only piece-follow camera to show more of the board while it tracks the moving piece; desktop framing is unchanged. Added a regression assertion for the wider phone shot.
+- Updated the night replay helper to retry briefly if the WebGL canvas is remounting as an activity closes before dice return.
+- Verification: `BoardScene.test.js` passed (31 tests), lint, production build, and diff checks passed. A new full-loop replay reached the final rounds, but a second attempt stopped at its first screenshot with `ENOSPC`; the full replay passed immediately before this camera adjustment, so a post-adjustment end-to-end pass remains unverified. Captured phone follow view: `/tmp/at-long-last-night-loop-framing/phone-piece-follow-live-player-1.jpg`.
+- The filesystem had about 100 MB free after the failed capture. No existing files or unrelated work were removed.
+
 ## 2026-11-11 — Shared board-theme vote
 
 - Changed the pre-night theme flow to a shared vote: both partners choose in **Our Story → Collection → Themes**, and a night can begin only after the choices match. **Surprise us** is a valid choice and also requires agreement; an existing saved couple theme remains a backward-compatible prior agreement.

@@ -493,11 +493,11 @@ export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0, shotProg
     const c = Math.cos(angle)
     const s = Math.sin(angle)
     const orbit = new THREE.Vector3(radial.x * c - radial.z * s, 0, radial.x * s + radial.z * c)
-    // Portrait phone screens need a wider follow shot to keep the next few
-    // spaces visible while the token hops around the ring.
+    // Portrait phone screens need a wider, higher follow shot to keep the
+    // moving token and several neighboring spaces visible while it hops.
     position = target.clone()
       .addScaledVector(orbit, 3.6)
-      .add(new THREE.Vector3(0, phoneViewport ? 12.8 : 8.3, 0))
+      .add(new THREE.Vector3(0, phoneViewport ? 16.2 : 8.3, 0))
   }
   return { position, target }
 }

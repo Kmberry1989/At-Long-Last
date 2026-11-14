@@ -255,6 +255,7 @@ describe('cinematic board camera shots', () => {
     expect(pose.position.distanceTo(pose.target)).toBeGreaterThan(9)
     expect(Math.hypot(phonePose.position.x, phonePose.position.z)).toBeLessThan(15.48)
     expect(phonePose.position.distanceTo(phonePose.target)).toBeGreaterThan(pose.position.distanceTo(pose.target) * 1.35)
+    expect(phonePose.position.y).toBeGreaterThan(pose.position.y)
   })
 })
 

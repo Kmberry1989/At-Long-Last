@@ -583,7 +583,11 @@ async function sealReflection(page, text, guess) {
 }
 async function returnDiceToCup(page, index) {
   const canvas = page.locator('.board-canvas canvas')
-  const bounds = await canvas.boundingBox()
+  let bounds = await canvas.boundingBox()
+  for (let attempt = 0; !bounds && attempt < 8; attempt += 1) {
+    await page.waitForTimeout(100)
+    bounds = await canvas.boundingBox()
+  }
   const board = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
   const hits = await page.evaluate(({ bounds }) => {
     if (!bounds || typeof window.__atLongLastHitDice !== 'function') return []
