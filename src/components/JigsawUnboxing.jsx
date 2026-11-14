@@ -30,7 +30,7 @@ export function JigsawUnboxing({ image, title, audio }) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping
       renderer.toneMappingExposure = 1.08
       renderer.shadowMap.enabled = true
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      renderer.shadowMap.type = THREE.PCFShadowMap
       renderer.domElement.setAttribute('aria-hidden', 'true')
       mount.appendChild(renderer.domElement)
 
@@ -87,7 +87,20 @@ export function JigsawUnboxing({ image, title, audio }) {
       box.add(lid)
       boxMesh(2.5, 0.16, 1.82, wood, lid, [0, 0.04, 0.91])
       boxMesh(2.54, 0.035, 1.86, edge, lid, [0, 0.13, 0.91])
-      const artworkTexture = new THREE.TextureLoader().load(image)
+      const pieceFaceMaterials = []
+      let artworkLoaded = false
+      const artworkTexture = new THREE.TextureLoader().load(image, () => {
+        artworkLoaded = true
+        if (disposed) return
+        pieceFaceMaterials.forEach(({ material, index }) => {
+          const texture = artworkTexture.clone()
+          texture.repeat.set(1 / 3, 1 / 3)
+          texture.offset.set((index % 3) / 3, 1 - (Math.floor(index / 3) + 1) / 3)
+          textures.push(texture)
+          material.map = texture
+          material.needsUpdate = true
+        })
+      })
       artworkTexture.colorSpace = THREE.SRGBColorSpace
       artworkTexture.anisotropy = 4
       textures.push(artworkTexture)
@@ -102,12 +115,17 @@ export function JigsawUnboxing({ image, title, audio }) {
 
       const pieces = []
       for (let index = 0; index < 9; index += 1) {
-        const texture = artworkTexture.clone()
-        texture.needsUpdate = true
-        texture.repeat.set(1 / 3, 1 / 3)
-        texture.offset.set((index % 3) / 3, 1 - (Math.floor(index / 3) + 1) / 3)
-        textures.push(texture)
-        const face = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.46, metalness: 0.02, side: THREE.DoubleSide })
+        const face = new THREE.MeshStandardMaterial({ color: '#d7bda8', roughness: 0.46, metalness: 0.02, side: THREE.DoubleSide })
+        if (artworkLoaded) {
+          const texture = artworkTexture.clone()
+          texture.repeat.set(1 / 3, 1 / 3)
+          texture.offset.set((index % 3) / 3, 1 - (Math.floor(index / 3) + 1) / 3)
+          textures.push(texture)
+          face.map = texture
+          face.needsUpdate = true
+        } else {
+          pieceFaceMaterials.push({ material: face, index })
+        }
         const sides = new THREE.MeshStandardMaterial({ color: '#f0d5bd', roughness: 0.55 })
         materials.push(face, sides)
         const geometry = new THREE.BoxGeometry(0.51, 0.11, 0.51)

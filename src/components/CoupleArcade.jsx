@@ -48,11 +48,11 @@ const RADAR_REWARDS = [
   { id: 'moonlit-fleet', name: 'Moonlit Fleet', wins: 3 },
 ]
 const UNO_CARD_ART = {
-  coral: '/assets/arcade/my-one-and-only/coral.jpg',
-  plum: '/assets/arcade/my-one-and-only/plum.jpg',
-  teal: '/assets/arcade/my-one-and-only/teal.jpg',
-  gold: '/assets/arcade/my-one-and-only/gold.jpg',
-  wild: '/assets/arcade/my-one-and-only/wild.jpg',
+  coral: '/assets/arcade/my-one-and-only/faces-v2/coral.webp',
+  plum: '/assets/arcade/my-one-and-only/faces-v2/plum.webp',
+  teal: '/assets/arcade/my-one-and-only/faces-v2/teal.webp',
+  gold: '/assets/arcade/my-one-and-only/faces-v2/gold.webp',
+  wild: '/assets/arcade/my-one-and-only/faces-v2/wild.webp',
   back: '/assets/arcade/my-one-and-only/back.jpg',
 }
 
@@ -95,6 +95,11 @@ function ArcadeModal({ children, title, onClose, busy = false }) {
   </section>
 }
 
+function unoFaceLabel(value) {
+  const labels = { skip: '⊘', reverse: '↻', 'draw-two': '+2', wild: 'WILD', 'wild-draw-four': '+4' }
+  return labels[value] || value || '?'
+}
+
 function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
   const ownIndex = state.playerUids.indexOf(playerUid)
   const hand = state.hands[playerUid] || []
@@ -113,7 +118,7 @@ function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
   return <div className="arcade-game arcade-uno">
     <div aria-label="Draw and discard piles" className="uno-table">
       <button aria-label="Draw a card" className="uno-draw-pile" disabled={!ownTurn || Boolean(state.drawnCardId)} onClick={() => onAction({ kind: 'draw' })} style={{ backgroundImage: `url("${UNO_CARD_ART.back}")` }} type="button" />
-      <div aria-label={`Top card: ${UNO_CARD_LABELS[top?.value] || top?.value || 'none'}`} className={`uno-discard uno-${top?.color || state.activeColor}`} key={top?.id || 'empty-discard'} style={{ backgroundImage: `url("${UNO_CARD_ART[top?.color] || UNO_CARD_ART[state.activeColor]}")` }}><strong>{UNO_CARD_LABELS[top?.value] || top?.value || '?'}</strong></div>
+      <div aria-label={`Top card: ${UNO_CARD_LABELS[top?.value] || top?.value || 'none'}`} className={`uno-discard uno-${top?.color || state.activeColor}`} key={top?.id || 'empty-discard'} style={{ backgroundImage: `url("${UNO_CARD_ART[top?.color] || UNO_CARD_ART[state.activeColor]}")` }}><strong aria-hidden="true">{unoFaceLabel(top?.value)}</strong></div>
     </div>
     <p className="arcade-turn" aria-live="polite">{status}</p>
     {state.status === 'finished' ? <button className="arcade-primary" onClick={onReset} type="button">Play again</button> : <>
@@ -122,7 +127,7 @@ function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
           const canPlay = card.color === 'wild' || card.color === state.activeColor || card.value === top?.value
           const isRequiredDraw = state.drawnCardId ? card.id === state.drawnCardId : true
           return <button className={`uno-card uno-${card.color}`} disabled={!ownTurn || !canPlay || !isRequiredDraw} key={card.id} onClick={() => play(card)} style={{ backgroundImage: `url("${UNO_CARD_ART[card.color] || UNO_CARD_ART.back}")` }} type="button" aria-label={`${card.color} ${UNO_CARD_LABELS[card.value] || card.value}`}>
-          {UNO_CARD_LABELS[card.value] || card.value}
+          <span aria-hidden="true">{unoFaceLabel(card.value)}</span>
           </button>
         })}
       </div>

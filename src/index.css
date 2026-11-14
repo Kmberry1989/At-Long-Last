@@ -6768,4 +6768,12 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   text-align: center;
 }
 
+/* The linked, square wordmark is a primary lobby anchor, not a tiny header stamp. */
+.lobby-screen:not(.auth-screen) .brand-logo {
+  width: min(42vw, 166px);
+  height: auto;
+  aspect-ratio: 1004 / 1132;
+  object-fit: contain;
+}
+
 
