@@ -472,7 +472,8 @@
   background: transparent;
   animation: none;
 }
-.duel-arena-content { width: min(100%, 580px); margin: auto; }
+.duel-arena-content { display: flex; width: min(100%, 580px); flex-direction: column; align-items: center; gap: 10px; margin: auto; }
+.duel-arena-art { display: block; flex: 0 0 auto; width: clamp(72px, 21vw, 104px); aspect-ratio: 1; object-fit: contain; border: 1px solid rgba(236, 203, 150, .42); border-radius: 16px; box-shadow: 0 8px 24px rgba(18, 12, 26, .24); }
 .duel-arena-content > .duel-card { width: 100%; margin: 0; }
 .doodle-duel-card { display: grid; gap: 10px; text-align: center; }
 .doodle-duel-card h3 { margin: 0; }
