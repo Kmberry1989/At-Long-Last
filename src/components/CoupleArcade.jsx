@@ -30,8 +30,12 @@ const FISH_CARD_BACK = '/assets/arcade/catch-my-heart/card-back.webp'
 const FISH_SUIT_ART = '/assets/arcade/catch-my-heart/suit-emblems.webp'
 const RADAR_FLEET_ART = '/assets/arcade/radar-love/fleet-sprite.webp'
 const RADAR_HIT_ART = '/assets/arcade/radar-love/sonar-hit.webp'
+const RADAR_MISS_ART = '/assets/arcade/radar-love/sonar-miss.webp'
 const RADAR_SINK_ART = '/assets/arcade/radar-love/ship-sinking.webp'
-const CHARADE_PROMPT_ART = '/assets/arcade/say-without-saying/prompt-art.webp'
+const CHARADE_PROMPT_ART = [
+  '/assets/arcade/say-without-saying/prompt-art.webp',
+  '/assets/arcade/say-without-saying/prompt-art-everyday.webp',
+]
 const FISH_SUIT_POSITIONS = { hearts: '0%', diamonds: '33.333%', clubs: '66.667%', spades: '100%' }
 const CHARADE_PROMPT_SPRITES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 2, 10, 13, 12, 11]
 const RADAR_REWARDS = [
@@ -252,6 +256,17 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
           top: `calc(${state.lastShot.row * 12.5}% + 6.25%)`,
         }}
       />}
+      {!isPlacing && state.lastShot && !state.lastShot.hit && <img
+        alt=""
+        aria-hidden="true"
+        className="radar-sonar-miss"
+        key={`sonar-miss-${state.lastShot.row}-${state.lastShot.column}`}
+        src={RADAR_MISS_ART}
+        style={{
+          left: `calc(${state.lastShot.column * 12.5}% + 6.25%)`,
+          top: `calc(${state.lastShot.row * 12.5}% + 6.25%)`,
+        }}
+      />}
     </div>
     {isPlacing && !isReady && <button className="arcade-primary" disabled={!allPlaced} onClick={() => onAction({ kind: 'ready' })} type="button">Ready</button>}
     {isPlacing && isReady && state.fleetReady[state.playerUids[1 - ownIndex]] && <p className="arcade-result">Both fleets ready · starting…</p>}
@@ -313,7 +328,8 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
   const actorUid = state.playerUids[state.actorIndex]
   const isActor = actorUid === playerUid
   const prompt = SAY_IT_WITHOUT_SAYING_PROMPTS[state.promptIndex] || SAY_IT_WITHOUT_SAYING_PROMPTS[0]
-  const promptSprite = CHARADE_PROMPT_SPRITES[state.promptIndex] ?? 0
+  const promptSprite = CHARADE_PROMPT_SPRITES[state.promptIndex % CHARADE_PROMPT_SPRITES.length] ?? 0
+  const promptArt = CHARADE_PROMPT_ART[Math.floor(state.promptIndex / CHARADE_PROMPT_SPRITES.length)] || CHARADE_PROMPT_ART[0]
 
   useEffect(() => () => {
     streamRef.current?.getTracks().forEach(track => track.stop())
@@ -397,7 +413,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
     <p className="arcade-turn" aria-live="polite">{status}</p>
     {state.status === 'finished' ? <button className="arcade-primary" onClick={onReset} type="button">Play again</button> : state.phase === 'act' && isActor ? <>
       <p className="charade-prompt">{prompt}</p>
-      <span aria-hidden="true" className="charade-prompt-art" style={{ backgroundImage: `url("${CHARADE_PROMPT_ART}")`, backgroundPosition: `${(promptSprite % 4) * 33.333}% ${Math.floor(promptSprite / 4) * 33.333}%` }} />
+      <span aria-hidden="true" className="charade-prompt-art" style={{ backgroundImage: `url("${promptArt}")`, backgroundPosition: `${(promptSprite % 4) * 33.333}% ${Math.floor(promptSprite / 4) * 33.333}%` }} />
       <p className="arcade-small">Act it out silently. Record, preview, then send.</p>
       <video autoPlay className="charade-camera" muted playsInline ref={cameraRef} src={clip || undefined} />
       {!clip ? <div className="arcade-actions">

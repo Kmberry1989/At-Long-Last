@@ -15,6 +15,7 @@ import {
   placeRadarLoveShip,
   readyRadarLoveFleet,
   rotateOurLittlePiece,
+  SAY_IT_WITHOUT_SAYING_PROMPTS,
   weaveOurNextLine,
 } from './coupleArcade.js'
 
@@ -113,6 +114,16 @@ describe('At Long Last couple arcade mechanics', () => {
     state = applyCoupleArcadeAction(state, state.game, 'a', { kind: 'guess', guessId: -1 })
     expect(state.status).toBe('finished')
     expect(state.winnerUid).toBe('a')
+  })
+
+  it('selects from the expanded charades prompt library', () => {
+    const prompts = SAY_IT_WITHOUT_SAYING_PROMPTS
+    const state = createCoupleArcadeState('say-it-without-saying', ['a', 'b'], () => 0.99)
+    expect(prompts).toHaveLength(32)
+    expect(state.promptIndex).toBe(31)
+    let next = applyCoupleArcadeAction(state, state.game, 'a', { kind: 'charade', promptIndex: state.promptIndex, clipDataUrl: 'data:video/webm;base64,AAAA' })
+    next = applyCoupleArcadeAction(next, state.game, 'b', { kind: 'guess', guessId: state.promptIndex })
+    expect(next.promptIndex).toBe(0)
   })
 
   it('provides complete Mad Lib blanks and alternating one-word story reveal', () => {

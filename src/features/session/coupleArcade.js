@@ -302,6 +302,10 @@ export const SAY_IT_WITHOUT_SAYING_PROMPTS = [
   'Trying to assemble furniture together', 'A dramatic goodbye at the door', 'Finding the perfect dessert', 'A rainy-day blanket fort',
   'A love note delivered by a very fancy pigeon', 'Getting lost on a scenic walk', 'The world’s slowest dance lesson', 'One person stealing the blankets',
   'A grand proposal to adopt a plant', 'Recreating your favorite movie scene', 'A toast to an ordinary Tuesday', 'Two people meeting in a rom-com',
+  'Carrying breakfast to bed', 'Dancing while dinner cooks', 'Sharing one umbrella', 'Searching for a missing sock',
+  'Planting the first flower of spring', 'Building a blanket fort', 'Taking a very serious selfie', 'Reaching for the last cookie',
+  'Walking a sleepy dog', 'Fixing a squeaky door together', 'Packing for a weekend away', 'Watching a meteor shower',
+  'Making tea for your person', 'Untangling holiday lights', 'Celebrating a tiny victory', 'Falling asleep during a movie',
 ]
 
 export const MAD_LIBS_TEMPLATES = [

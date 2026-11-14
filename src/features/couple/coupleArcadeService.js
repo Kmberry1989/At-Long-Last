@@ -14,6 +14,7 @@ import {
   playMyOneAndOnlyCard,
   readyRadarLoveFleet,
   rotateOurLittlePiece,
+  SAY_IT_WITHOUT_SAYING_PROMPTS,
 } from '../session/coupleArcade.js'
 
 export const COUPLE_ARCADE_IDS = ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying', 'our-little-pieces']
@@ -32,7 +33,7 @@ export function createCoupleArcadeState(gameId, playerUids, random = Math.random
     case 'our-little-pieces': return createOurLittlePieces(playerUids, random, progression.solvedCount, progression.puzzleNumber)
     case 'say-it-without-saying': return {
       game: gameId, playerUids: [...playerUids], actorIndex: 0, phase: 'act',
-      promptIndex: Math.floor(random() * 16), clips: {}, guesses: {}, scores: [0, 0], status: 'playing', winnerUid: null,
+      promptIndex: Math.floor(random() * SAY_IT_WITHOUT_SAYING_PROMPTS.length), clips: {}, guesses: {}, scores: [0, 0], status: 'playing', winnerUid: null,
     }
     default: throw new Error('That game is not in the arcade.')
   }
@@ -68,7 +69,7 @@ export function applyCoupleArcadeAction(state, gameId, playerUid, action) {
     const winningIndex = scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1
     return {
       ...state, phase: finished ? 'guess' : 'act', actorIndex: finished ? state.actorIndex : (state.actorIndex + 1) % 2,
-      promptIndex: finished ? state.promptIndex : (state.promptIndex + 1) % 16,
+      promptIndex: finished ? state.promptIndex : (state.promptIndex + 1) % SAY_IT_WITHOUT_SAYING_PROMPTS.length,
       guesses: { ...state.guesses, [playerUid]: action.guessId }, scores,
       status: finished ? 'finished' : 'playing', winnerUid: finished && winningIndex !== null ? state.playerUids[winningIndex] : null,
     }
