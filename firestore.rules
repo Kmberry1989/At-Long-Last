@@ -1538,7 +1538,7 @@ service cloud.firestore {
               && state.keys().hasAll(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid'])
               && state.keys().hasOnly(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid'])
               && state.game == gameId && state.actorIndex in [0, 1]
-              && state.phase in ['act', 'guess'] && isBoundedInt(state.promptIndex, 0, 15)
+              && state.phase in ['act', 'guess'] && isBoundedInt(state.promptIndex, 0, 47)
               && state.clips is map && state.clips.size() <= 2 && state.clips.keys().hasOnly(allowedPlayers)
               && validCharadeClip(state.clips, allowedPlayers[0])
               && validCharadeClip(state.clips, allowedPlayers[1])

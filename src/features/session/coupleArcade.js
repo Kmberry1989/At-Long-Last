@@ -265,7 +265,7 @@ export function fireRadarLoveShot(state, { playerUid, row, column }) {
 
 export function createOurLittlePieces(playerUids, random = Math.random, solvedCount = 0, puzzleNumber = 1) {
   if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
-  const artIndex = solvedCount >= 7 ? 4 : solvedCount >= 5 ? 3 : solvedCount >= 3 ? 2 : solvedCount >= 1 ? 1 : 0
+  const artIndex = solvedCount >= 14 ? 7 : solvedCount >= 11 ? 6 : solvedCount >= 9 ? 5 : solvedCount >= 7 ? 4 : solvedCount >= 5 ? 3 : solvedCount >= 3 ? 2 : solvedCount >= 1 ? 1 : 0
   const slots = shuffled(Array.from({ length: 9 }, (_, index) => index), random)
   if (slots.every((slot, index) => slot === index)) [slots[0], slots[1]] = [slots[1], slots[0]]
   return {
@@ -306,7 +306,28 @@ export const SAY_IT_WITHOUT_SAYING_PROMPTS = [
   'Planting the first flower of spring', 'Building a blanket fort', 'Taking a very serious selfie', 'Reaching for the last cookie',
   'Walking a sleepy dog', 'Fixing a squeaky door together', 'Packing for a weekend away', 'Watching a meteor shower',
   'Making tea for your person', 'Untangling holiday lights', 'Celebrating a tiny victory', 'Falling asleep during a movie',
+  'Balancing groceries at the doorway', 'Blowing out birthday candles', 'Wrapping a little surprise', 'Chasing a hat in the wind',
+  'Folding a warm blanket', 'Choosing a record to play', 'Cleaning up spilled flour', 'Opening a stubborn jar',
+  'Playing a tabletop game', 'Missing the bus together', 'Taking a photo by the sea', 'Setting the table for two',
+  'Sharing a scarf on a cold walk', 'Decorating a little cake', 'Finding a note in a coat pocket', 'Dancing in the rain',
 ]
+
+export function getSayWithoutSayingGuessOptions(correctIndex) {
+  const count = SAY_IT_WITHOUT_SAYING_PROMPTS.length
+  const answer = Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < count ? correctIndex : 0
+  const options = [answer]
+  for (let step = 1; options.length < Math.min(4, count); step += 1) {
+    const candidate = (answer + step * 11) % count
+    if (!options.includes(candidate)) options.push(candidate)
+  }
+  let seed = ((answer + 1) * 2654435761) >>> 0
+  for (let index = options.length - 1; index > 0; index -= 1) {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    const swapIndex = seed % (index + 1)
+    ;[options[index], options[swapIndex]] = [options[swapIndex], options[index]]
+  }
+  return options
+}
 
 export const MAD_LIBS_TEMPLATES = [
   { title: 'The little detour', text: 'On our way to [place], we found a [adjective] [noun]. It began to [verb], so we [verb2], surrounded by [plural noun], under [weather] skies with [food] to share.' },

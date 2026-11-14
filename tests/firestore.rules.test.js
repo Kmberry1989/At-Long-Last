@@ -1317,11 +1317,16 @@ describe('paired couple arcade games', () => {
     await assertSucceeds(setDoc(gameRef, {
       gameId: state.game,
       playerUids: couple.playerIds,
-      state,
+      state: { ...state, promptIndex: 47 },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }))
     await assertFails(getDoc(doc(authedDb(OUTSIDER_UID), 'coupleArcades', couple.id, 'games', state.game)))
+
+    await assertFails(updateDoc(gameRef, {
+      state: { ...state, promptIndex: 48 },
+      updatedAt: serverTimestamp(),
+    }))
 
     await assertSucceeds(updateDoc(gameRef, {
       state: { ...state, phase: 'guess', clips: { [HOST_UID]: 'data:video/webm;base64,AAAA' } },

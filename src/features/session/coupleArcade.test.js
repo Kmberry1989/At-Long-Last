@@ -8,6 +8,7 @@ import {
   createCatchMyHeart,
   createMyOneAndOnly,
   createOurLittlePieces,
+  getSayWithoutSayingGuessOptions,
   createRadarLove,
   fillLoveInTheBlanks,
   fireRadarLoveShot,
@@ -101,6 +102,9 @@ describe('At Long Last couple arcade mechanics', () => {
     expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 3 }).artIndex).toBe(2)
     expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 5 }).artIndex).toBe(3)
     expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 7 }).artIndex).toBe(4)
+    expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 9 }).artIndex).toBe(5)
+    expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 11 }).artIndex).toBe(6)
+    expect(createCoupleArcadeState('our-little-pieces', ['a', 'b'], Math.random, { solvedCount: 14 }).artIndex).toBe(7)
   })
 
   it('plays both charades in sequence, scores correct guesses, and awards the better actor', () => {
@@ -119,11 +123,21 @@ describe('At Long Last couple arcade mechanics', () => {
   it('selects from the expanded charades prompt library', () => {
     const prompts = SAY_IT_WITHOUT_SAYING_PROMPTS
     const state = createCoupleArcadeState('say-it-without-saying', ['a', 'b'], () => 0.99)
-    expect(prompts).toHaveLength(32)
-    expect(state.promptIndex).toBe(31)
+    expect(prompts).toHaveLength(48)
+    expect(state.promptIndex).toBe(47)
     let next = applyCoupleArcadeAction(state, state.game, 'a', { kind: 'charade', promptIndex: state.promptIndex, clipDataUrl: 'data:video/webm;base64,AAAA' })
     next = applyCoupleArcadeAction(next, state.game, 'b', { kind: 'guess', guessId: state.promptIndex })
     expect(next.promptIndex).toBe(0)
+  })
+
+  it('keeps charades guessing to four choices while including the correct prompt', () => {
+    for (let correctIndex = 0; correctIndex < SAY_IT_WITHOUT_SAYING_PROMPTS.length; correctIndex += 1) {
+      const options = getSayWithoutSayingGuessOptions(correctIndex)
+      expect(options).toHaveLength(4)
+      expect(new Set(options).size).toBe(4)
+      expect(options).toContain(correctIndex)
+      expect(options.every(index => index >= 0 && index < SAY_IT_WITHOUT_SAYING_PROMPTS.length)).toBe(true)
+    }
   })
 
   it('provides complete Mad Lib blanks and alternating one-word story reveal', () => {

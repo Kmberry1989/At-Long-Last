@@ -6,7 +6,7 @@ import { PlayerPortrait } from './PlayerPortrait.jsx'
 import './arcade-turn-portraits.css'
 import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
-import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS } from '../features/session/coupleArcade.js'
+import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS, getSayWithoutSayingGuessOptions } from '../features/session/coupleArcade.js'
 import './couple-arcade.css'
 import './uno-cards.css'
 
@@ -25,6 +25,9 @@ const JIGSAW_ART = [
   { title: 'Our garden ritual', src: '/assets/arcade/our-little-pieces/garden-ritual.webp', unlockAt: 3 },
   { title: 'A rainy Tuesday', src: '/assets/arcade/our-little-pieces/rainy-tuesday.webp', unlockAt: 5 },
   { title: 'A shared picnic', src: '/assets/arcade/our-little-pieces/shared-picnic.webp', unlockAt: 7 },
+  { title: 'Windowlight tea', src: '/assets/arcade/our-little-pieces/windowlight-tea.webp', unlockAt: 9 },
+  { title: 'The last train home', src: '/assets/arcade/our-little-pieces/last-train-home.webp', unlockAt: 11 },
+  { title: 'After-dinner glow', src: '/assets/arcade/our-little-pieces/after-dinner-glow.webp', unlockAt: 14 },
 ]
 const FISH_CARD_BACK = '/assets/arcade/catch-my-heart/card-back.webp'
 const FISH_SUIT_ART = '/assets/arcade/catch-my-heart/suit-emblems.webp'
@@ -35,6 +38,7 @@ const RADAR_SINK_ART = '/assets/arcade/radar-love/ship-sinking.webp'
 const CHARADE_PROMPT_ART = [
   '/assets/arcade/say-without-saying/prompt-art.webp',
   '/assets/arcade/say-without-saying/prompt-art-everyday.webp',
+  '/assets/arcade/say-without-saying/prompt-art-everyday-2.webp',
 ]
 const FISH_SUIT_POSITIONS = { hearts: '0%', diamonds: '33.333%', clubs: '66.667%', spades: '100%' }
 const CHARADE_PROMPT_SPRITES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 2, 10, 13, 12, 11]
@@ -223,6 +227,11 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
           '--ship-rotation': horizontal ? 'rotate(90deg)' : 'none',
         }} />
       })}
+      {!isPlacing && state.lastShot && <span
+        aria-hidden="true"
+        className="radar-scan-sweep"
+        key={`radar-scan-${state.lastShot.row}-${state.lastShot.column}`}
+      />}
       {!isPlacing && typeof state.lastShot?.sunkShipId === 'number' && (() => {
         const ship = targetFleet.find(item => item.id === state.lastShot.sunkShipId)
         if (!ship?.cells?.length) return null
@@ -427,7 +436,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
         ? <video autoPlay className="charade-camera" controls playsInline src={clipUrl} />
         : <p className="arcade-small">Loading the charade…</p>}
       <p className="arcade-small">What are they acting?</p>
-      <div className="charade-choices">{SAY_IT_WITHOUT_SAYING_PROMPTS.map((choice, index) => <button disabled={working} key={choice} onClick={() => guess(index)} type="button">{choice}</button>)}</div>
+      <div className="charade-choices">{getSayWithoutSayingGuessOptions(state.promptIndex).map(index => <button disabled={working} key={index} onClick={() => guess(index)} type="button">{SAY_IT_WITHOUT_SAYING_PROMPTS[index]}</button>)}</div>
     </> : <p className="arcade-small">Your person is getting ready to act.</p>}
   </div>
 }
