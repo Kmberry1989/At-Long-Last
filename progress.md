@@ -1,5 +1,13 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-11-13 — Complete two-player night replay
+
+- Reworked `scripts/verify-independent-night.mjs` to follow the current turn loop: take turns in sequence, return the dice before ending a turn, exercise the forgotten-dice flush/trash penalty, resolve each partner's pending activity before their next roll, and finish both players' eight turns before the finale.
+- Added explicit test-only state markers for dice return and turn completion so the browser replay can wait for saved state instead of inferring it from timing. Added drivers for The Vault and Photo Flashback, and made screenshot output JPEG to keep the full run's evidence compact.
+- Verification: complete local two-profile Firebase-emulator/browser replay passed through eight alternating turns each, landing cards, private activity answers and guesses, the night mini-game rotation, both kiss catches, and finale readiness; no browser errors were recorded. `npm run lint`, `npm run build`, `node --check scripts/verify-independent-night.mjs`, and `git diff --check` passed.
+- Visual samples from the local run: `/tmp/at-long-last-night-loop-final/board-ready.jpg`, `card-revealed-player-1.jpg`, and `mini-game-our-next-line-player-1.jpg`. The narrow board view still has tight spacing between the dice tray and pile edges; this run proves the flow but is not a full visual sign-off.
+- Limits: local emulator accounts only; no production Firebase, physical-device sound, microphone capture, or Netlify deployment was tested.
+
 ## 2026-11-11 — Shared board-theme vote
 
 - Changed the pre-night theme flow to a shared vote: both partners choose in **Our Story → Collection → Themes**, and a night can begin only after the choices match. **Surprise us** is a valid choice and also requires agreement; an existing saved couple theme remains a backward-compatible prior agreement.

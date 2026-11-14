@@ -9,7 +9,7 @@ const viewportWidths = process.env.QA_VIEWPORTS?.split(',').map(Number).filter(N
 await mkdir(out, { recursive: true })
 await mkdir(captureOut, { recursive: true })
 const safeName = value => String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 72)
-const capture = async (page, name) => page.screenshot({ path: `${captureOut}/${safeName(name)}.png`, fullPage: true, timeout: 30000, animations: 'disabled' })
+const capture = async (page, name) => page.screenshot({ path: `${captureOut}/${safeName(name)}.jpg`, type: 'jpeg', quality: 58, fullPage: true, timeout: 30000, animations: 'disabled' })
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 browser.on('disconnected', () => console.log('browser closed'))
 const contexts = await Promise.all(viewportWidths.map(width => browser.newContext({ viewport: { width, height: Number(process.env.QA_VIEWPORT_HEIGHT) || 844 }, reducedMotion: 'reduce' })))
@@ -236,7 +236,7 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
   const restoredClipUrl = await restoredClip.getAttribute('src')
   if (!restoredClipUrl?.startsWith('data:video/')) throw new Error('The saved charade clip did not restore after reload.')
   await capture(pages[1], 'arcade-say-without-saying-restored-clip')
-  await pages[1].screenshot({ path: `${captureOut}/arcade-say-without-saying-restored-clip-viewport.png`, fullPage: false, timeout: 30000, animations: 'disabled' })
+  await pages[1].screenshot({ path: `${captureOut}/arcade-say-without-saying-restored-clip-viewport.jpg`, type: 'jpeg', quality: 58, fullPage: false, timeout: 30000, animations: 'disabled' })
   await pages[1].getByRole('button', { name: firstPrompt, exact: true }).click()
   await pages[1].locator('.charade-prompt').waitFor()
   const secondPrompt = await pages[1].locator('.charade-prompt').innerText()
@@ -393,7 +393,7 @@ for (const page of pages) {
     await page.screenshot({ path: `${out}/voice-note-start-failure-${pages.indexOf(page)}.png`, fullPage: true })
     throw error
   }
-  await page.screenshot({ path: `${captureOut}/kiss-recording-player-${pages.indexOf(page) + 1}-viewport.png`, fullPage: false, timeout: 30000, animations: 'disabled' })
+  await page.screenshot({ path: `${captureOut}/kiss-recording-player-${pages.indexOf(page) + 1}-viewport.jpg`, type: 'jpeg', quality: 58, fullPage: false, timeout: 30000, animations: 'disabled' })
   await page.waitForTimeout(500)
   const stopButton = page.getByRole('button', { name: 'Stop', exact: true })
   if (await stopButton.isVisible().catch(() => false)) await stopButton.click()
@@ -547,6 +547,32 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
 async function sealReflection(page, text, guess) {
   const type = (await gameState(page)).activity.id
   await capture(page, `activity-${type}-player-${pages.indexOf(page) + 1}`)
+  if (type === 'the-vault') {
+    await page.locator('.vault-entry').fill(text)
+    await page.getByRole('button', { name: 'Seal It In The Vault', exact: true }).click()
+    await page.waitForFunction(type => {
+      const state = window.__atLongLastGameState
+      return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type)
+    }, type)
+    return
+  }
+  if (type === 'photo-flashback') {
+    if ((await gameState(page)).activity.stage === 'photo') {
+      await page.locator('.photo-picker input[type="file"]').setInputFiles({
+        name: 'shared-flashback.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0ioAAAAASUVORK5CYII=', 'base64'),
+      })
+      await page.locator('.photo-picker.selected img').waitFor()
+    }
+    await page.getByLabel('Photo caption', { exact: true }).fill(text)
+    await page.getByRole('button', { name: 'Seal My Caption', exact: true }).click()
+    await page.waitForFunction(type => {
+      const state = window.__atLongLastGameState
+      return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type)
+    }, type)
+    return
+  }
   const answer = page.getByLabel('Your Answer', { exact: true })
   console.log('fill answer'); await answer.fill(text); console.log('answer filled')
   await page.getByRole('button', { name: 'NEXT', exact: true }).click(); console.log('flipped')
@@ -555,7 +581,67 @@ async function sealReflection(page, text, guess) {
   await page.getByRole('button', { name: /Seal My Turn|Seal & Reveal/ }).click(); console.log('sealed')
   await page.waitForFunction(type => { const state = window.__atLongLastGameState; return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type) }, type)
 }
-async function finishLanding(page, index) {
+async function returnDiceToCup(page, index) {
+  const canvas = page.locator('.board-canvas canvas')
+  const bounds = await canvas.boundingBox()
+  const board = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
+  const hits = await page.evaluate(({ bounds }) => {
+    if (!bounds || typeof window.__atLongLastHitDice !== 'function') return []
+    const candidates = []
+    for (let y = bounds.y; y < bounds.y + bounds.height; y += 8) for (let x = bounds.x; x < bounds.x + bounds.width; x += 8) {
+      if (x >= 0 && x <= innerWidth && y >= 0 && y <= innerHeight && window.__atLongLastHitDice(x, y)) candidates.push({ x, y })
+    }
+    return candidates
+  }, { bounds })
+  if (!hits.length) throw new Error(`Could not locate the dice to return them to the cup for player ${index + 1}: ${JSON.stringify({ bounds, state: await gameState(page), board: await page.evaluate(() => JSON.parse(window.render_game_to_text())) })}`)
+  const center = board.dice.screenCenters[0]
+  const target = { x: bounds.x + center.x, y: bounds.y + center.y }
+  const hit = hits.sort((a, b) => Math.hypot(a.x - target.x, a.y - target.y) - Math.hypot(b.x - target.x, b.y - target.y))[0]
+  await page.mouse.click(hit.x, hit.y)
+  const stepId = `roll-${(await gameState(page)).ownRolls}-${index}`
+  try {
+    await page.waitForFunction(id => window.__atLongLastNightSteps?.find(step => step.id === id)?.diceReturned === true, stepId)
+  } catch (error) {
+    console.error('DICE RETURN DID NOT SAVE', JSON.stringify({ stepId, hit, state: await gameState(page), steps: await page.evaluate(() => window.__atLongLastNightSteps), dice: board.dice, body: (await page.locator('body').innerText()).slice(-800) }))
+    throw error
+  }
+}
+
+async function finishTurn(page, index, { leaveDiceOut = false } = {}) {
+  const state = await gameState(page)
+  if (state.readyToFinish) return
+  const stepId = `roll-${state.ownRolls}-${index}`
+  if (!leaveDiceOut) await returnDiceToCup(page, index)
+  const endTurn = page.getByRole('button', { name: 'End turn', exact: true })
+  await page.waitForFunction(() => {
+    const button = document.querySelector('.turn-pass-switch')
+    return button && !button.disabled
+  })
+  await endTurn.click()
+  if (leaveDiceOut) {
+    await page.locator('.cup-penalty-overlay').waitFor()
+    await page.locator('.moment-card-draw.is-revealed').waitFor()
+    await capture(page, `dice-left-out-trash-penalty-player-${index + 1}`)
+    await page.getByRole('button', { name: 'Continue', exact: true }).last().click()
+  }
+  try {
+    await page.waitForFunction(({ stepId }) => {
+      const step = window.__atLongLastNightSteps?.find(item => item.id === stepId)
+      const board = JSON.parse(window.render_game_to_text())
+      return step?.turnEnded === true && board.pieceMovement == null
+    }, { stepId }, { timeout: 12000 })
+  } catch (error) {
+    console.error('TURN DID NOT END', JSON.stringify({ stepId, state: await gameState(page), steps: await page.evaluate(() => window.__atLongLastNightSteps), board: await page.evaluate(() => JSON.parse(window.render_game_to_text())), body: (await page.locator('body').innerText()).slice(-1200) }))
+    throw error
+  }
+  if (leaveDiceOut) await capture(page, `dice-flush-resolved-player-${index + 1}`)
+  await page.waitForFunction(playerIndex => {
+    const state = window.__atLongLastGameState
+    return state?.activeTurnPlayer !== playerIndex || state?.readyToReveal
+  }, index, { timeout: 15000 })
+}
+
+async function finishLanding(page, index, options = {}) {
   await page.bringToFront()
   if (await page.locator('.landing-ack-tray').count()) {
     await capture(page, `landing-ack-player-${index + 1}`)
@@ -646,11 +732,8 @@ async function finishLanding(page, index) {
       await page.locator('.mystery-collect-btn').click()
     }
     await page.locator('.mystery-card-stage').waitFor({ state: 'detached' })
-    try { await page.waitForFunction(() => window.__atLongLastGameState?.canRoll === true || window.__atLongLastGameState?.ownRolls >= 8, { timeout: 30000 }) } catch (error) {
-      console.error('KEEPSAKE COLLECTION DID NOT UNBLOCK ROLL', await gameState(page), await page.evaluate(() => window.__atLongLastNightSteps), await page.locator('body').innerText())
-      throw error
-    }
   }
+  await finishTurn(page, index, options)
 }
 async function finishDuel(page, type) {
   await capture(page, `mini-game-${type}-player-${pages.indexOf(page) + 1}`)
@@ -752,12 +835,22 @@ async function clearOpenPrompt(page, index) {
       await page.waitForFunction(() => window.__atLongLastGameState?.phase === 'turn')
       await page.locator('.duel-arena-overlay').waitFor({ state: 'detached' })
       console.log('selected comparison closed', index, type)
-    } else if (state.phase === 'turn' && await page.locator('.duel-arena-overlay').count()) {
-      // Firestore state and the locally selected overlay can settle on
-      // adjacent frames. Wait for the selection to clear before touching the
-      // board so a late render cannot sit above the dice gesture.
-      await page.waitForTimeout(180)
-      continue
+    } else if (state.phase === 'turn') {
+      const pendingActivity = state.available.find(task => task.kind === 'activity')
+      if (pendingActivity) {
+        console.log('answering partner activity before rolling', index, pendingActivity.id, pendingActivity.type)
+        await page.locator(`[data-night-step="${pendingActivity.id}"]`).click()
+        await page.waitForFunction(() => window.__atLongLastGameState?.phase === 'activity')
+        await sealReflection(page, `${people[index].name} private answer`, `${people[index].name} prediction`)
+        continue
+      }
+      if (await page.locator('.duel-arena-overlay').count()) {
+        // Firestore state and the locally selected overlay can settle on
+        // adjacent frames. Wait for the selection to clear before touching the
+        // board so a late render cannot sit above the dice gesture.
+        await page.waitForTimeout(180)
+        continue
+      }
     } else return
   }
   if ((await gameState(page)).phase !== 'turn') throw new Error(`Could not close open prompt: ${JSON.stringify(await gameState(page))}`)
@@ -768,19 +861,16 @@ await rollDice(pages[firstPlayerIndex], [3,1], true)
 console.log('first landing', await gameState(pages[firstPlayerIndex]))
 await pages[firstPlayerIndex].screenshot({ path: `${out}/first-card.png`, fullPage: true })
 if (process.env.QA_MOVEMENT_SMOKE === '1') {
-  await rollDice(pages[1], [2,2], true)
-  // Both players already rolled while the other player's landing was open.
-  // Resolve the follow-up cards sequentially so the smoke measures the
-  // independent turn flow without making two transactions compete to update
-  // the shared session summary at the same instant.
-  for (const [index, page] of pages.entries()) await finishLanding(page, index)
+  await finishLanding(pages[firstPlayerIndex], firstPlayerIndex, { leaveDiceOut: true })
+  await rollDice(pages[secondPlayerIndex], [2,2], true)
+  await finishLanding(pages[secondPlayerIndex], secondPlayerIndex)
   const movementStates = await Promise.all(pages.map(gameState))
   const landedPositions = await Promise.all(pages.map(async page => {
     const state = await gameState(page)
     const board = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
     return board.players[state.playerIndex].positionIndex
   }))
-  if (movementStates.some(state => state.ownRolls !== 1 || !state.canRoll || state.available.length)) {
+  if (movementStates.some(state => state.ownRolls !== 1 || state.activeTurnPlayer !== firstPlayerIndex || state.readyToReveal || state.available.length)) {
     throw new Error(`Both players should independently finish their card effects and return to a roll-ready state: ${JSON.stringify({ movementStates, landedPositions })}`)
   }
   await Promise.all(pages.map((page, index) => page.screenshot({ path: `${out}/movement-player-${index + 1}.png`, fullPage: true })))
@@ -790,26 +880,34 @@ if (process.env.QA_MOVEMENT_SMOKE === '1') {
   await browser.close()
   process.exit(0)
 }
-await finishLanding(pages[firstPlayerIndex], firstPlayerIndex)
-await rollDice(pages[firstPlayerIndex])
-await finishLanding(pages[firstPlayerIndex], firstPlayerIndex)
-if ((await gameState(pages[firstPlayerIndex])).ownRolls !== 2 || (await gameState(pages[secondPlayerIndex])).ownRolls !== 0) throw new Error('One phone could not advance independently')
-await pages[firstPlayerIndex].screenshot({ path: `${out}/ahead.png`, fullPage: true })
+await finishLanding(pages[firstPlayerIndex], firstPlayerIndex, { leaveDiceOut: true })
+await pages[secondPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.canRoll === true)
+await rollDice(pages[secondPlayerIndex], [2,2], true)
+await finishLanding(pages[secondPlayerIndex], secondPlayerIndex)
+if ((await gameState(pages[firstPlayerIndex])).ownRolls !== 1 || (await gameState(pages[secondPlayerIndex])).ownRolls !== 1) throw new Error('The opening turns did not alternate between players')
+await pages[firstPlayerIndex].screenshot({ path: `${out}/both-first-turns-complete.png`, fullPage: true })
 await pages[firstPlayerIndex].reload()
-await pages[firstPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 2)
+await pages[firstPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 1)
 if (await pages[firstPlayerIndex].getByRole('heading', { name: 'Kiss sent', exact: true }).count()) {
   await capture(pages[firstPlayerIndex], 'kiss-resumed-after-reload')
   await pages[firstPlayerIndex].getByRole('button', { name: 'Begin our night', exact: true }).click()
 }
 if ((await pages[secondPlayerIndex].locator('body').innerText()).includes(`${people[firstPlayerIndex].name} private answer`)) throw new Error('A private answer leaked before the finale')
-await pages[secondPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 0)
-await rollDice(pages[secondPlayerIndex])
-await finishLanding(pages[secondPlayerIndex], secondPlayerIndex)
-if ((await gameState(pages[firstPlayerIndex])).ownRolls !== 2 || (await gameState(pages[secondPlayerIndex])).ownRolls !== 1) throw new Error('Both phones could not advance independently')
-for (const [index, count] of [[firstPlayerIndex,6], [secondPlayerIndex,7]]) {
-  for (let turn=0; turn<count; turn++) {
-    await rollDice(pages[index])
-    await finishLanding(pages[index], index)
+await pages[secondPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 1)
+for (let round = 2; round <= 8; round++) {
+  for (const index of [firstPlayerIndex, secondPlayerIndex]) {
+    const page = pages[index]
+    await clearOpenPrompt(page, index)
+    try {
+      await page.waitForFunction(() => window.__atLongLastGameState?.canRoll === true, undefined, { timeout: 30000 })
+    } catch (error) {
+      console.error('NEXT ROLL BLOCKED', JSON.stringify({ round, index, states: await Promise.all(pages.map(gameState)), steps: await Promise.all(pages.map(page => page.evaluate(() => window.__atLongLastNightSteps))), text: await Promise.all(pages.map(page => page.locator('body').innerText())) }))
+      await page.screenshot({ path: `${out}/next-roll-blocked-${round}-player-${index + 1}.png`, fullPage: true })
+      throw error
+    }
+    await rollDice(page)
+    await finishLanding(page, index)
+    console.log('turn finished', round, index, await gameState(page))
   }
 }
 // Finish every player's activity and comparison, in their own browser context.

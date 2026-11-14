@@ -220,6 +220,8 @@ export function IndependentNight() {
       momentResolved: !step.state.momentPending && (!step.state.momentCard || Boolean(step.state.momentResolution)),
       momentPending: Boolean(step.state.momentPending), hasMomentCard: Boolean(step.state.momentCard),
       hasMomentResolution: Boolean(step.state.momentResolution), ownerIndex: step.ownerIndex,
+      diceReturned: Boolean(step.state.diceReturned), turnEnded: Boolean(step.state.turnEnded),
+      turnEndRequested: Boolean(step.state.turnEndRequested),
       momentMovement: step.state.momentResolution?.movement ?? null,
       momentMove: step.state.momentMove || null,
       answerableByViewer: canAnswerStep(step, playerIndex, progress.readyToReveal),
