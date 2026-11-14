@@ -6,7 +6,7 @@ import { PlayerPortrait } from './PlayerPortrait.jsx'
 import './arcade-turn-portraits.css'
 import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
-import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS, getSayWithoutSayingGuessOptions } from '../features/session/coupleArcade.js'
+import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS, getSayWithoutSayingGuessOptions, RADAR_BOARD_SIZE, RADAR_FLEET } from '../features/session/coupleArcade.js'
 import './couple-arcade.css'
 import './uno-cards.css'
 
@@ -31,7 +31,9 @@ const JIGSAW_ART = [
 ]
 const FISH_CARD_BACK = '/assets/arcade/catch-my-heart/card-back.webp'
 const FISH_SUIT_ART = '/assets/arcade/catch-my-heart/suit-emblems.webp'
-const RADAR_FLEET_ART = '/assets/arcade/radar-love/fleet-sprite.webp'
+const RADAR_FLEET_ART = [
+  'carrier', 'battleship', 'cruiser', 'submarine', 'destroyer',
+].map(ship => `/assets/arcade/radar-love/fleet/${ship}.png`)
 const RADAR_HIT_ART = '/assets/arcade/radar-love/sonar-hit.webp'
 const RADAR_MISS_ART = '/assets/arcade/radar-love/sonar-miss.webp'
 const RADAR_SINK_ART = '/assets/arcade/radar-love/ship-sinking.webp'
@@ -169,12 +171,13 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   const shots = new Set(state.shots[playerUid] || [])
   const hits = new Set(state.hits[playerUid] || [])
   const fleet = state.fleets[playerUid] || []
+  const boardSize = state.boardSize || (fleet.length === 3 ? 8 : RADAR_BOARD_SIZE)
   const targetFleet = state.fleets[state.playerUids[1 - ownIndex]] || []
   const isPlacing = state.status === 'placing'
   const visibleShips = isPlacing ? fleet.filter(ship => ship.cells.length) : targetFleet.filter(ship => ship.cells.length && ship.cells.every(cell => hits.has(cell)))
   const placedCells = new Set(fleet.flatMap(ship => ship.cells))
   const isReady = Boolean(state.fleetReady[playerUid])
-  const allPlaced = fleet.length === 3 && fleet.every((ship, index) => ship.cells.length === [3, 2, 2][index])
+  const allPlaced = fleet.length > 0 && fleet.every(ship => ship.cells.length === ship.length)
   const wins = state.wins?.[playerUid] || 0
   const status = isPlacing
     ? isReady ? `Fleet ready · waiting for ${otherName}` : 'Place your fleet'
@@ -188,7 +191,13 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
     </div>
     {isPlacing && !isReady && <>
       <div className="radar-ships" aria-label="Choose ship">
-        {fleet.map(ship => <button aria-pressed={selectedShip === ship.id} className={selectedShip === ship.id ? 'radar-ship-choice selected' : 'radar-ship-choice'} key={ship.id} onClick={() => setSelectedShip(ship.id)} type="button">Ship {ship.id + 1} · {ship.length}{ship.cells.length ? ' ✓' : ''}</button>)}
+        {fleet.map(ship => {
+          const shipName = ship.name || (fleet.length === RADAR_FLEET.length ? RADAR_FLEET[ship.id]?.name : null) || `Ship ${ship.id + 1}`
+          return <button aria-label={`${shipName}, ${ship.length} spaces${ship.cells.length ? ', placed' : ''}`} aria-pressed={selectedShip === ship.id} className={`radar-ship-choice${selectedShip === ship.id ? ' selected' : ''}${ship.cells.length ? ' is-placed' : ''}`} key={ship.id} onClick={() => setSelectedShip(ship.id)} type="button">
+            <img alt="" aria-hidden="true" src={RADAR_FLEET_ART[ship.id] || RADAR_FLEET_ART[4]} />
+            <span aria-hidden="true" className="radar-ship-length">{ship.length}</span>
+          </button>
+        })}
       </div>
       <div className="arcade-actions">
         <button className="arcade-secondary" onClick={() => setVertical(value => !value)} type="button">{vertical ? 'Vertical' : 'Horizontal'}</button>
@@ -196,9 +205,9 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
       </div>
       <p className="arcade-small">Choose a ship, direction, then tap its first space.</p>
     </>}
-    <div aria-label="Radar grid" className="radar-grid" role="grid">
-      {Array.from({ length: 64 }, (_, index) => {
-        const row = Math.floor(index / 8), column = index % 8, key = `${row}:${column}`
+    <div aria-label="Radar grid" className="radar-grid" role="grid" style={{ '--radar-columns': boardSize }}>
+      {Array.from({ length: boardSize * boardSize }, (_, index) => {
+        const row = Math.floor(index / boardSize), column = index % boardSize, key = `${row}:${column}`
         const hit = hits.has(key)
         const miss = shots.has(key) && !hit
         const hasShip = placedCells.has(key)
@@ -215,22 +224,21 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         const [row, column] = origin.split(':').map(Number)
         const next = ship.cells[1]?.split(':').map(Number)
         const horizontal = Boolean(next && next[0] === row)
-        const shipExtent = `calc(${ship.length * 12.5}% + ${ship.length * 0.5 - 4}px)`
-        const cellSize = 'calc(12.5% - 3.5px)'
-        const rowStep = `calc(${row * 12.5}% + ${row * 0.5}px)`
-        const columnStep = `calc(${column * 12.5}% + ${column * 0.5}px)`
+        const cellPercent = 100 / boardSize
+        const gridGap = 3
+        const shipExtent = `calc(${ship.length * cellPercent}% + ${(ship.length - 1) * gridGap}px)`
+        const cellSize = `calc(${cellPercent}% - ${gridGap * (boardSize - 1) / boardSize}px)`
+        const rowStep = `calc(${row * cellPercent}% + ${row * gridGap}px)`
+        const columnStep = `calc(${column * cellPercent}% + ${column * gridGap}px)`
         const offset = `(${shipExtent} - ${cellSize}) / 2`
         const sinking = state.lastShot?.sunkShipId === ship.id
         return <span aria-hidden="true" className={`radar-vessel${horizontal ? ' is-horizontal' : ''}${sinking ? ' is-sinking' : ''}`} key={`ship-${ship.id}`} style={{
-          backgroundImage: `url("${RADAR_FLEET_ART}")`,
-          backgroundPosition: `${ship.id * 50}% center`,
-          backgroundSize: '300% 100%',
           height: shipExtent,
           left: horizontal ? `calc(${columnStep} + ${offset})` : columnStep,
           top: horizontal ? `calc(${rowStep} - ${offset})` : rowStep,
           width: cellSize,
           '--ship-rotation': horizontal ? 'rotate(90deg)' : 'none',
-        }} />
+        }}><img alt="" src={RADAR_FLEET_ART[ship.id] || RADAR_FLEET_ART[4]} /></span>
       })}
       {!isPlacing && state.lastShot && <span
         aria-hidden="true"
@@ -244,7 +252,8 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         const minRow = Math.min(...coordinates.map(([r]) => r)), maxRow = Math.max(...coordinates.map(([r]) => r))
         const minColumn = Math.min(...coordinates.map(([, c]) => c)), maxColumn = Math.max(...coordinates.map(([, c]) => c))
         const horizontal = minRow === maxRow
-        const extent = `calc(${ship.length * 12.5}% + ${ship.length * 0.5 - 4}px)`
+        const cellPercent = 100 / boardSize
+        const extent = `calc(${ship.length * cellPercent}% + ${(ship.length - 1) * 3}px)`
         return <img
           alt=""
           aria-hidden="true"
@@ -252,8 +261,8 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
           key={`radar-sink-${state.lastShot.row}-${state.lastShot.column}-${ship.id}`}
           src={RADAR_SINK_ART}
           style={{
-            left: `calc(${(minColumn + maxColumn) * 6.25}% + 6.25%)`,
-            top: `calc(${(minRow + maxRow) * 6.25}% + 6.25%)`,
+            left: `calc(${(minColumn + maxColumn + 1) * cellPercent / 2}% + ${((minColumn + maxColumn) / 2 - (boardSize - 1) / (2 * boardSize)) * 3}px)`,
+            top: `calc(${(minRow + maxRow + 1) * cellPercent / 2}% + ${((minRow + maxRow) / 2 - (boardSize - 1) / (2 * boardSize)) * 3}px)`,
             width: extent,
             '--sink-rotation': horizontal ? 'translate(-50%,-50%)' : 'translate(-50%,-50%) rotate(90deg)',
           }}
@@ -266,8 +275,8 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         key={`sonar-hit-${state.lastShot.row}-${state.lastShot.column}-${state.lastShot.sunkShipId ?? 'hit'}`}
         src={RADAR_HIT_ART}
         style={{
-          left: `calc(${state.lastShot.column * 12.5}% + 6.25%)`,
-          top: `calc(${state.lastShot.row * 12.5}% + 6.25%)`,
+          left: `calc(${(state.lastShot.column + 0.5) * 100 / boardSize}% + ${(state.lastShot.column - (boardSize - 1) / 2) * 3 / boardSize}px)`,
+          top: `calc(${(state.lastShot.row + 0.5) * 100 / boardSize}% + ${(state.lastShot.row - (boardSize - 1) / 2) * 3 / boardSize}px)`,
         }}
       />}
       {!isPlacing && state.lastShot && !state.lastShot.hit && <img
@@ -277,8 +286,8 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         key={`sonar-miss-${state.lastShot.row}-${state.lastShot.column}`}
         src={RADAR_MISS_ART}
         style={{
-          left: `calc(${state.lastShot.column * 12.5}% + 6.25%)`,
-          top: `calc(${state.lastShot.row * 12.5}% + 6.25%)`,
+          left: `calc(${(state.lastShot.column + 0.5) * 100 / boardSize}% + ${(state.lastShot.column - (boardSize - 1) / 2) * 3 / boardSize}px)`,
+          top: `calc(${(state.lastShot.row + 0.5) * 100 / boardSize}% + ${(state.lastShot.row - (boardSize - 1) / 2) * 3 / boardSize}px)`,
         }}
       />}
     </div>

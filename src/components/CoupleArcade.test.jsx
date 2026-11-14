@@ -55,6 +55,17 @@ describe('CoupleArcade', () => {
         : screen.getByText(screenText)).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'All games' }))
     }
+    fireEvent.click(screen.getByRole('button', { name: 'Radar Love' }))
+    expect(screen.getAllByRole('gridcell')).toHaveLength(100)
+    for (const [ship, length, art] of [
+      ['Carrier', 5, 'carrier'], ['Battleship', 4, 'battleship'], ['Cruiser', 3, 'cruiser'],
+      ['Submarine', 3, 'submarine'], ['Destroyer', 2, 'destroyer'],
+    ]) {
+      const choice = screen.getByRole('button', { name: `${ship}, ${length} spaces` })
+      expect(choice.querySelector('img')).toHaveAttribute('src', `/assets/arcade/radar-love/fleet/${art}.png`)
+      expect(choice).toHaveTextContent(String(length))
+      expect(choice).not.toHaveTextContent(ship)
+    }
   })
 
   it('shows recording controls as soon as the camera stream opens', async () => {

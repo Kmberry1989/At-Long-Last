@@ -342,11 +342,23 @@ export function createAudioEngine(suppliedContext = null) {
         softNote(note.frequency * 2.76, when + note.at + .01, note.length * .5, level * .14, arcadeBus, 'sine')
       } else if (style === 'sonar') {
         softNote(note.frequency, when + note.at, note.length * 1.35, level * .72, arcadeBus, 'sine')
+      } else if (style === 'radar') {
+        // Rounded mallet-like notes stay warm; a faint octave reflection
+        // gives the melody a subtle sonar-return shimmer.
+        softNote(note.frequency, when + note.at, note.length * .78, level * .72, arcadeBus, 'triangle')
+        softNote(note.frequency * 2, when + note.at + .025, note.length * .32, level * .14, arcadeBus, 'sine')
       } else {
         softNote(note.frequency, when + note.at, note.length, level, arcadeBus, 'triangle')
         softNote(note.frequency * 2, when + note.at + .012, note.length * .55, level * .16, arcadeBus, 'sine')
       }
     })
+    if (style === 'radar') {
+      // Gentle alternating hull knocks establish a search rhythm; a high
+      // glass ping marks each phrase without turning the score alarmist.
+      softNote(bar.bass * 2, when, .16, .022, arcadeBus, 'sine')
+      if (barIndex % 2 === 1) softNote(bar.bass * 3, when + barDuration * .5, .12, .011, arcadeBus, 'triangle')
+      if (barIndex % 4 === 3) softNote(bar.chord[2] * 3, when + barDuration * .74, .32, .015, arcadeBus, 'sine')
+    }
     if (barIndex % 4 === 3) {
       softNote(bar.chord[2] * 2, when + barDuration * .72, barDuration * .18, .018, arcadeBus, 'sine')
     }

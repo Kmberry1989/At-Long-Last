@@ -29,11 +29,13 @@ const THEME_BLUEPRINTS = {
     ],
   },
   'radar-love': {
-    name: 'Radar Love', bpm: 92, root: 64, mode: 'minor', voice: 'sonar', seed: 4729,
-    progression: [0, 5, 3, 6, 0, 2, 5, 6],
+    // A measured 6/8-like sway inside the shared score engine: low navigation
+    // pulse, rising search phrases, then a warm homeward cadence.
+    name: 'Radar Love', bpm: 96, root: 64, mode: 'minor', voice: 'radar', seed: 4729,
+    progression: [0, 5, 3, 6, 0, 2, 5, 4],
     motif: [
-      [0, -1, -1, 3, -1, 4, -1, 2], [1, -1, 4, -1, 5, -1, 3, -1],
-      [2, -1, 5, 4, -1, 3, -1, 1], [4, -1, 2, -1, 1, -1, 0, -1],
+      [0, -1, 2, 3, -1, 4, 2, -1], [1, -1, 4, 5, -1, 3, 2, -1],
+      [2, 4, 5, -1, 4, 3, -1, 1], [4, -1, 2, 1, -1, 2, 0, -1],
     ],
   },
   'our-little-pieces': {

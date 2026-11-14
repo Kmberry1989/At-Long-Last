@@ -1,6 +1,15 @@
 const UNO_COLORS = ['coral', 'plum', 'teal', 'gold']
 const UNO_VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', 'reverse', 'draw-two']
 
+export const RADAR_BOARD_SIZE = 10
+export const RADAR_FLEET = [
+  { name: 'Carrier', length: 5 },
+  { name: 'Battleship', length: 4 },
+  { name: 'Cruiser', length: 3 },
+  { name: 'Submarine', length: 3 },
+  { name: 'Destroyer', length: 2 },
+]
+
 export const UNO_COLORS_LIST = UNO_COLORS
 export const UNO_CARD_LABELS = { skip: 'Skip', reverse: 'Reverse', 'draw-two': 'Draw 2', wild: 'Wild', 'wild-draw-four': 'Wild Draw 4' }
 
@@ -154,12 +163,12 @@ export function askCatchMyHeart(state, { playerUid, targetUid, rank }) {
   }
 }
 
-function randomFleet(random, blocked = new Set()) {
-  const placements = [3, 2, 2].map(length => {
+function randomFleet(random, lengths, boardSize, blocked = new Set()) {
+  const placements = lengths.map(length => {
     const candidates = []
-    for (let row = 0; row < 8; row += 1) for (let column = 0; column < 8; column += 1) {
+    for (let row = 0; row < boardSize; row += 1) for (let column = 0; column < boardSize; column += 1) {
       for (const [dr, dc] of [[0, 1], [1, 0]]) {
-        if (row + dr * (length - 1) >= 8 || column + dc * (length - 1) >= 8) continue
+        if (row + dr * (length - 1) >= boardSize || column + dc * (length - 1) >= boardSize) continue
         candidates.push(Array.from({ length }, (_, i) => `${row + dr * i}:${column + dc * i}`))
       }
     }
@@ -185,17 +194,17 @@ export function createRadarLove(playerUids, previousWins = {}) {
   if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
   return {
     game: 'radar-love', playerUids: [...playerUids],
-    fleets: Object.fromEntries(playerUids.map(uid => [uid, [3, 2, 2].map((length, id) => ({ id, length, cells: [] }))])),
+    fleets: Object.fromEntries(playerUids.map(uid => [uid, RADAR_FLEET.map((ship, id) => ({ id, ...ship, cells: [] }))])),
     fleetReady: Object.fromEntries(playerUids.map(uid => [uid, false])),
     shots: Object.fromEntries(playerUids.map(uid => [uid, []])),
     hits: Object.fromEntries(playerUids.map(uid => [uid, []])),
     wins: Object.fromEntries(playerUids.map(uid => [uid, Math.max(0, Number(previousWins[uid]) || 0)])),
-    turnIndex: 0, status: 'placing', winnerUid: null, lastShot: null, boardSize: 8,
+    turnIndex: 0, status: 'placing', winnerUid: null, lastShot: null, boardSize: RADAR_BOARD_SIZE,
   }
 }
 
 function completeRadarFleet(fleet) {
-  return fleet?.length === 3 && fleet.every((ship, index) => ship.cells.length === [3, 2, 2][index])
+  return Boolean(fleet?.length) && fleet.every(ship => ship.cells.length === ship.length)
 }
 
 function startRadarWhenReady(state, fleetReady) {
@@ -205,22 +214,23 @@ function startRadarWhenReady(state, fleetReady) {
 
 export function placeRadarLoveShip(state, { playerUid, shipId, cells }) {
   if (state.status !== 'placing' || state.fleetReady[playerUid]) throw new Error('Your fleet is already ready.')
-  if (!Number.isInteger(shipId) || shipId < 0 || shipId > 2 || !Array.isArray(cells)) throw new Error('Choose a ship and a spot on the board.')
-  const expectedLength = [3, 2, 2][shipId]
+  const currentFleet = state.fleets[playerUid]
+  if (!Number.isInteger(shipId) || shipId < 0 || shipId >= currentFleet.length || !Array.isArray(cells)) throw new Error('Choose a ship and a spot on the board.')
+  const boardSize = state.boardSize || 8
+  const expectedLength = currentFleet[shipId].length
   if (cells.length !== expectedLength || new Set(cells).size !== expectedLength) throw new Error('That ship needs a straight line of open spaces.')
   const points = cells.map(cell => {
-    const match = /^(\d):([0-7])$/.exec(cell)
+    const match = /^(\d+):(\d+)$/.exec(cell)
     if (!match) throw new Error('Keep your ship inside the radar board.')
     return [Number(match[1]), Number(match[2])]
   })
-  if (points.some(([row]) => row > 7)) throw new Error('Keep your ship inside the radar board.')
+  if (points.some(([row, column]) => row >= boardSize || column >= boardSize)) throw new Error('Keep your ship inside the radar board.')
   const sameRow = points.every(([row]) => row === points[0][0])
   const sameColumn = points.every(([, column]) => column === points[0][1])
   const axis = sameRow ? 1 : 0
   if ((!sameRow && !sameColumn) || points.some((point, index) => index > 0 && Math.abs(point[axis] - points[index - 1][axis]) !== 1)) {
     throw new Error('Ships must sit in one straight line.')
   }
-  const currentFleet = state.fleets[playerUid]
   const occupied = new Set(currentFleet.filter(ship => ship.id !== shipId).flatMap(ship => ship.cells))
   if (cells.some(cell => occupied.has(cell))) throw new Error('Ships cannot overlap.')
   const nextFleet = currentFleet.map(ship => ship.id === shipId ? { ...ship, cells: [...cells] } : ship)
@@ -229,20 +239,22 @@ export function placeRadarLoveShip(state, { playerUid, shipId, cells }) {
 
 export function autoPlaceRadarLoveFleet(state, playerUid, random = Math.random) {
   if (state.status !== 'placing' || state.fleetReady[playerUid]) throw new Error('Your fleet is already ready.')
-  const ships = randomFleet(random).map((cells, id) => ({ id, length: [3, 2, 2][id], cells }))
+  const fleet = state.fleets[playerUid]
+  const ships = randomFleet(random, fleet.map(ship => ship.length), state.boardSize || 8).map((cells, id) => ({ ...fleet[id], cells }))
   return { ...state, fleets: { ...state.fleets, [playerUid]: ships } }
 }
 
 export function readyRadarLoveFleet(state, playerUid) {
   if (state.status !== 'placing' || state.fleetReady[playerUid]) throw new Error('Your fleet is already ready.')
-  if (!completeRadarFleet(state.fleets[playerUid])) throw new Error('Place all three ships first.')
+  if (!completeRadarFleet(state.fleets[playerUid])) throw new Error(`Place all ${state.fleets[playerUid].length} ships first.`)
   return startRadarWhenReady(state, { ...state.fleetReady, [playerUid]: true })
 }
 
 export function fireRadarLoveShot(state, { playerUid, row, column }) {
   const playerIndex = state.playerUids.indexOf(playerUid)
   if (state.status !== 'playing' || playerIndex !== state.turnIndex) throw new Error('Wait for your turn.')
-  if (!Number.isInteger(row) || row < 0 || row >= 8 || !Number.isInteger(column) || column < 0 || column >= 8) throw new Error('Choose a spot on the radar.')
+  const boardSize = state.boardSize || 8
+  if (!Number.isInteger(row) || row < 0 || row >= boardSize || !Number.isInteger(column) || column < 0 || column >= boardSize) throw new Error('Choose a spot on the radar.')
   const key = `${row}:${column}`
   if (state.shots[playerUid].includes(key)) throw new Error('You already scanned that spot.')
   const targetIndex = (playerIndex + 1) % 2
