@@ -218,6 +218,12 @@ function makeTileMarkTexture(label, type) {
   ctx.strokeStyle = '#f1cf91'
   drawBrandIcon(ctx, icon, canvas.width / 2, 105, 108)
 
+  // Keep the title readable over the new illustrated space faces without
+  // covering the artwork or its central motif.
+  ctx.fillStyle = 'rgba(38, 25, 39, 0.68)'
+  ctx.beginPath()
+  ctx.roundRect(20, 156, 280, 144, 22)
+  ctx.fill()
   ctx.strokeStyle = 'rgba(54, 20, 40, 0.78)'
   ctx.lineWidth = 7
   ctx.fillStyle = '#fff5df'
@@ -1674,6 +1680,23 @@ export function BoardScene({
       panel.castShadow = true
       tile.add(panel)
 
+      const artworkTexture = textureLoader.load(`/assets/board/spaces/${space.id}.png`)
+      artworkTexture.colorSpace = THREE.SRGBColorSpace
+      artworkTexture.anisotropy = 8
+      const artwork = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.48, 2.48),
+        new THREE.MeshStandardMaterial({
+          map: artworkTexture,
+          roughness: 0.88,
+          metalness: 0.015,
+        }),
+      )
+      artwork.position.y = 0.291
+      artwork.rotation.x = -Math.PI / 2
+      artwork.receiveShadow = true
+      artwork.userData.boardSpaceArtwork = space.id
+      tile.add(artwork)
+
       const mark = new THREE.Mesh(
         new THREE.PlaneGeometry(1.76, 1.76),
         new THREE.MeshBasicMaterial({
@@ -1682,7 +1705,7 @@ export function BoardScene({
           transparent: true,
         }),
       )
-      mark.position.y = 0.291
+      mark.position.y = 0.3
       mark.rotation.x = -Math.PI / 2
       tile.add(mark)
 
