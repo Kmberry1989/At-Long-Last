@@ -130,14 +130,20 @@ export function PairingHome({ avatar, onAvatarChange }) {
   async function dropConnectFour(column, tokenId) {
     if (connectFourBusy || !user?.uid || !couple?.id) return
     setConnectFourBusy(true); setConnectFourError('')
+    let moveId = ''
     try {
-      const moveId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      moveId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const optimistic = placeConnectFourPiece(connectFourState, { column, playerUid: user.uid, sessionId: moveId, tokenId }).state
+      setConnectFourPreview(optimistic)
       if (enabled) {
         const result = await dropConnectFourMove(db, couple.id, user.uid, moveId, column, tokenId)
         setConnectFourPreview(result.state)
       }
-      else setConnectFourPreview(placeConnectFourPiece(connectFourState, { column, playerUid: user.uid, sessionId: moveId, tokenId }).state)
-    } catch (nextError) { setConnectFourError(nextError.message || 'Could not place that token.') }
+    } catch (nextError) {
+      setConnectFourPreview(current => current?.lastMove?.sessionId === moveId ? null : current)
+      audio?.playError?.()
+      setConnectFourError(nextError.message || 'Could not place that token.')
+    }
     finally { setConnectFourBusy(false) }
   }
 
@@ -150,7 +156,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
         const previousStarter = connectFourState.starterUid || connectFourPlayers[0]?.uid
         setConnectFourPreview(createConnectFourState(connectFourPlayers.map((player) => player.uid), connectFourPlayers.find((player) => player.uid !== previousStarter)?.uid))
       }
-    } catch (nextError) { setConnectFourError(nextError.message || 'Could not start another match.') }
+    } catch (nextError) { audio?.playError?.(); setConnectFourError(nextError.message || 'Could not start another match.') }
     finally { setConnectFourBusy(false) }
   }
 
@@ -258,7 +264,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </div>}
         {hasCurrentNight ? <button className="primary-btn night-start-button" disabled={disabled} onClick={openGame} type="button"><BrandIcon name="moon" /><span>Continue our night</span></button> : <button className="primary-btn night-start-button" disabled={disabled} onClick={beginOrChooseTheme} type="button"><BrandIcon name="moon" /><span>{themeAgreed ? 'Begin our night' : 'Choose a theme together'}</span></button>}
         <div className="lobby-game-links">
-          <button aria-label="Open Our Arcade" className="secondary-link couple-arcade-lobby-link" onClick={() => setArcadeOpen(true)} type="button"><img alt="" src="/assets/arcade/icons/our-arcade.png" /></button>
+          <button aria-label="Open Our Arcade" className="secondary-link couple-arcade-lobby-link" onClick={() => { audio?.playArcadeSfx?.('four-ever', 'open'); setArcadeOpen(true) }} type="button"><img alt="" src="/assets/arcade/icons/our-arcade.png" /></button>
         </div>
         {sessionError && !gameOpen && <p className="error-copy" role="alert">{hasCurrentNight ? 'Saved game unavailable. Try Continue again.' : 'Couldn’t start. Try again.'}</p>}
           <button aria-label="Our Story" className="story-open-button" onClick={() => setStoryScreen('chooser')} type="button"><BrandIcon name="more" /></button>
@@ -273,9 +279,8 @@ export function PairingHome({ avatar, onAvatarChange }) {
       {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
       {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
       {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} themeLocked={hasCurrentNight} onClose={() => setStoryScreen('')} />}
-      {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} onDrop={dropConnectFour} onClose={() => setConnectFourOpen(false)} onNewGame={newConnectFourMatch} onLand={connectFourLanding} />}
-      {arcadeOpen && paired && <CoupleArcade db={db} enabled={enabled} coupleId={couple.id} players={connectFourPlayers} currentUid={user?.uid} fourEverDisabled={connectFourBusy} onOpenFourEver={() => { setArcadeOpen(false); setConnectFourError(''); setConnectFourOpen(true) }} onClose={() => setArcadeOpen(false)} />}
-      {connectFourError && <p className="error-copy" role="alert">{connectFourError}</p>}
+      {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} error={connectFourError} onDrop={dropConnectFour} onClose={() => { audio?.playArcadeSfx?.('four-ever', 'tap'); setConnectFourOpen(false) }} onNewGame={() => { audio?.playArcadeSfx?.('four-ever', 'new-match'); return newConnectFourMatch() }} onLand={connectFourLanding} />}
+      {arcadeOpen && paired && <CoupleArcade db={db} enabled={enabled} coupleId={couple.id} players={connectFourPlayers} currentUid={user?.uid} fourEverDisabled={connectFourBusy} onOpenFourEver={() => { audio?.playArcadeSfx?.('four-ever', 'open'); setArcadeOpen(false); setConnectFourError(''); setConnectFourOpen(true) }} onClose={() => setArcadeOpen(false)} />}
     </>
   )
 }

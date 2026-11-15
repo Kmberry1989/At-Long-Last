@@ -543,6 +543,14 @@ export function createAudioEngine(suppliedContext = null) {
       case 'record':
         note(first, 0, { type: 'sine', volume: 0.02, duration: 0.16, release: 0.2 })
         break
+      case 'preview':
+        note(second, 0, { type: 'sine', volume: 0.018, duration: 0.08 })
+        note(first, 65, { type: 'triangle', volume: 0.014, duration: 0.065 })
+        break
+      case 'new-match':
+        note(profile.low, 0, { type: 'sine', volume: 0.016, duration: 0.07 })
+        note(first, 65, { type: 'triangle', volume: 0.016, duration: 0.08 })
+        break
       case 'send':
       case 'correct':
         note(second, 0, { type: 'sine', volume: 0.022, duration: 0.08 })

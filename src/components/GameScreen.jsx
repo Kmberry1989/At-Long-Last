@@ -96,6 +96,7 @@ function LegacyGameScreen() {
   })
 
   const togglePacingMode = () => {
+    playAction?.()
     setPacingMode((current) => {
       const next = current === 'freeFlow' ? 'sharedSpotlight' : 'freeFlow'
       try {
@@ -473,7 +474,7 @@ function LegacyGameScreen() {
           <button
             type="button"
             className="trade-hud-btn control-badge"
-            onClick={() => setTradeModalOpen(true)}
+            onClick={() => { playAction?.(); setTradeModalOpen(true) }}
             aria-label="Open Keepsake Trade"
             title="Open Keepsake Trade and Truce"
           >
@@ -489,7 +490,7 @@ function LegacyGameScreen() {
             <button
               type="button"
               className="truce-hud-notification-pill"
-              onClick={() => setTradeModalOpen(true)}
+              onClick={() => { playAction?.(); setTradeModalOpen(true) }}
               aria-label={`Trade offer from ${session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'Partner'}. Tap to review.`}
             ><BrandText text={"🕊️ Trade Offer from "} />{session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'Partner'} • Review
             </button>

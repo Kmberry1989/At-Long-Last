@@ -38,4 +38,12 @@ describe('Four Ever board input', () => {
     expect(occupiedCells).toHaveLength(1)
     expect(occupiedCells[0].querySelector('.connect-four-token-art').getAttribute('style')).toContain('token-atlas')
   })
+
+  it('keeps failed move feedback inside the Four Ever board overlay', () => {
+    render(<ConnectFourFinale state={createConnectFourState(['avery', 'rowan'], 'avery')} players={players} playerUid="avery" error="Could not place that token." onDrop={() => {}} onClose={() => {}} />)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Could not place that token.')
+    expect(alert.closest('[role="dialog"]')).not.toBeNull()
+  })
 })

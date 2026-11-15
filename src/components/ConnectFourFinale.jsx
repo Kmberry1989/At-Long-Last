@@ -28,7 +28,7 @@ function getWinningCells(board) {
   return new Set()
 }
 
-export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 0, tokenPreferences = {}, disabled, onDrop, onClose, onNewGame, onLand }) {
+export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 0, tokenPreferences = {}, disabled, error = '', onDrop, onClose, onNewGame, onLand }) {
   const [animatingKey, setAnimatingKey] = useState(null)
   const playerTokenIds = useMemo(() => getConnectFourPlayerTokenIds(state), [state])
   const playerIndex = Math.max(0, state.playerUids?.indexOf(playerUid) ?? players.findIndex((player) => player.uid === playerUid))
@@ -105,6 +105,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
 
       {draw && <p className="connect-four-result">Every space found its place.</p>}
       {winnerName && <p className="connect-four-result">Four in a row, kept in your story.</p>}
+      {error && <p className="connect-four-error" role="alert">{error}</p>}
       {nextGame ? <button className="connect-four-done" type="button" onClick={onNewGame}>Play again <span>↻</span></button>
         : isYourMove && <p className="connect-four-hint">Drop a piece</p>}
       <button className="connect-four-close-match" type="button" onClick={onClose}>Done for now</button>

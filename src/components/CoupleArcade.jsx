@@ -380,9 +380,11 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
       if (cameraRef.current) cameraRef.current.srcObject = stream
       setCameraReady(true)
       setCameraError('')
+      audio?.playArcadeSfx?.('say-it-without-saying', 'open')
     } catch {
       setCameraReady(false)
       setCameraError('Allow camera access to act this prompt.')
+      audio?.playError?.()
     }
   }
 
@@ -446,7 +448,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
       {!clip ? <div className="arcade-actions">
         {!cameraReady && <button className="arcade-secondary" onClick={startCamera} type="button">Open camera</button>}
         {cameraReady && !recording && <button className="arcade-primary" onClick={startRecording} type="button">Record clip</button>}
-        {recording && <button className="arcade-primary recording" onClick={() => recorderRef.current?.stop()} type="button">Stop &amp; preview</button>}
+      {recording && <button className="arcade-primary recording" onClick={() => { audio?.playArcadeSfx?.('say-it-without-saying', 'preview'); recorderRef.current?.stop() }} type="button">Stop &amp; preview</button>}
       </div> : <button className="arcade-primary" disabled={working} onClick={submitClip} type="button">{working ? 'Sending…' : 'Send clip'}</button>}
       {cameraError && <p className="arcade-error" role="alert">{cameraError}</p>}
     </> : state.phase === 'guess' && !isActor ? <>
@@ -491,7 +493,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
     audio?.playArcadeSfx?.(gameId, 'open')
     setBusy(true)
     try { await prepareCoupleArcade(db, coupleId, gameId, playerUids) }
-    catch (nextError) { setError(nextError.message || 'Could not open this game.') }
+    catch (nextError) { audio?.playError?.(); setError(nextError.message || 'Could not open this game.') }
     finally { setBusy(false) }
   }
 
@@ -502,7 +504,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
       const next = applyCoupleArcadeAction(games[selectedGame].state, selectedGame, currentUid, move)
         setGames(current => ({ ...current, [selectedGame]: { state: next } }))
         playArcadeFeedback(audio, selectedGame, next, move, currentUid)
-      } catch (nextError) { setError(nextError.message || 'That move could not be saved.') }
+      } catch (nextError) { audio?.playError?.(); setError(nextError.message || 'That move could not be saved.') }
       return
     }
     setBusy(true)
@@ -510,7 +512,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
       const next = await runCoupleArcadeAction(db, coupleId, selectedGame, currentUid, move)
       playArcadeFeedback(audio, selectedGame, next, move, currentUid)
     }
-    catch (nextError) { setError(nextError.message || 'That move could not be saved.') }
+    catch (nextError) { audio?.playError?.(); setError(nextError.message || 'That move could not be saved.') }
     finally { setBusy(false) }
   }
 
@@ -526,12 +528,13 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
         })
         return { ...current, [selectedGame]: { state } }
       })
+      audio?.playArcadeSfx?.(selectedGame, 'new-match')
       return
     }
     setBusy(true)
     audio?.playPhase?.('board')
-    try { await resetCoupleArcade(db, coupleId, selectedGame, playerUids) }
-    catch (nextError) { setError(nextError.message || 'Could not start a new match.') }
+    try { await resetCoupleArcade(db, coupleId, selectedGame, playerUids); audio?.playArcadeSfx?.(selectedGame, 'new-match') }
+    catch (nextError) { audio?.playError?.(); setError(nextError.message || 'Could not start a new match.') }
     finally { setBusy(false) }
   }
 
@@ -543,9 +546,9 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} audio={audio} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
-  return createPortal(<ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={onClose}>
+  return createPortal(<ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={() => { audio?.playArcadeSfx?.(selectedGame || 'four-ever', 'tap'); onClose() }}>
     {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button aria-label={game.name} className="arcade-game-tile" disabled={game.id === 'four-ever' ? (!onOpenFourEver || fourEverDisabled) : !COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => game.id === 'four-ever' ? onOpenFourEver?.() : openGame(game.id)} type="button"><img alt="" className="arcade-game-art" src={game.icon} /></button>)}</div> : <>
-      <button className="arcade-back" onClick={() => { setSelectedGame(''); setError('') }} type="button">All games</button>
+      <button className="arcade-back" onClick={() => { audio?.playArcadeSfx?.(selectedGame, 'tap'); setSelectedGame(''); setError('') }} type="button">All games</button>
       {state && <div className="arcade-player-rail" aria-label="Players">
         {players.slice(0, 2).map(player => {
           const active = player.uid === activeArcadePlayerUid
