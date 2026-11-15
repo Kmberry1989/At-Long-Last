@@ -31,6 +31,7 @@ describe('CoupleArcade', () => {
   })
 
   it('shows all five branded games and opens each playable local preview', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     render(<CoupleArcade {...props} />)
     for (const [name, icon] of [
       ['My One and Only!', '/assets/arcade/icons/my-one-and-only.png'],
@@ -69,6 +70,7 @@ describe('CoupleArcade', () => {
   })
 
   it('shows recording controls as soon as the camera stream opens', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     const stream = { getTracks: () => [{ readyState: 'live', stop: vi.fn() }] }
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -87,6 +89,7 @@ describe('CoupleArcade', () => {
   })
 
   it('keeps charades recoverable when camera permission is denied', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: { getUserMedia: vi.fn().mockRejectedValue(new Error('Permission denied')) },

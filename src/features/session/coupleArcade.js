@@ -209,7 +209,7 @@ function completeRadarFleet(fleet) {
 
 function startRadarWhenReady(state, fleetReady) {
   const ready = state.playerUids.every(uid => fleetReady[uid])
-  return { ...state, fleetReady, status: ready ? 'playing' : 'placing', turnIndex: 0 }
+  return { ...state, fleetReady, status: ready ? 'playing' : 'placing' }
 }
 
 export function placeRadarLoveShip(state, { playerUid, shipId, cells }) {

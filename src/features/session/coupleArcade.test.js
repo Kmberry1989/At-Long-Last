@@ -90,7 +90,7 @@ describe('At Long Last couple arcade mechanics', () => {
   })
 
   it('tracks Radar Love keepsakes and preserves them when a new match starts', () => {
-    const started = createCoupleArcadeState('radar-love', ['a', 'b'])
+    const started = createCoupleArcadeState('radar-love', ['a', 'b'], () => 0)
     const inPlay = { ...started, status: 'playing', fleets: { ...started.fleets, b: started.fleets.b.map((ship, index) => ({ ...ship, cells: index === 0 ? ['0:0'] : [] })) } }
     const won = applyCoupleArcadeAction(inPlay, 'radar-love', 'a', { kind: 'shot', row: 0, column: 0 })
     expect(won.wins).toEqual({ a: 1, b: 0 })
@@ -129,9 +129,34 @@ describe('At Long Last couple arcade mechanics', () => {
     const state = createCoupleArcadeState('say-it-without-saying', ['a', 'b'], () => 0.99)
     expect(prompts).toHaveLength(48)
     expect(state.promptIndex).toBe(47)
-    let next = applyCoupleArcadeAction(state, state.game, 'a', { kind: 'charade', promptIndex: state.promptIndex, clipDataUrl: 'data:video/webm;base64,AAAA' })
-    next = applyCoupleArcadeAction(next, state.game, 'b', { kind: 'guess', guessId: state.promptIndex })
+    const actor = state.playerUids[state.actorIndex]
+    const guesser = state.playerUids[(state.actorIndex + 1) % 2]
+    let next = applyCoupleArcadeAction(state, state.game, actor, { kind: 'charade', promptIndex: state.promptIndex, clipDataUrl: 'data:video/webm;base64,AAAA' })
+    next = applyCoupleArcadeAction(next, state.game, guesser, { kind: 'guess', guessId: state.promptIndex })
     expect(next.promptIndex).toBe(0)
+  })
+
+  it('randomizes the opening turn and preserves it through Radar fleet setup', () => {
+    for (const gameId of ['my-one-and-only', 'catch-my-heart', 'radar-love']) {
+      expect(createCoupleArcadeState(gameId, ['a', 'b'], () => 0).turnIndex).toBe(0)
+      expect(createCoupleArcadeState(gameId, ['a', 'b'], () => 0.99).turnIndex).toBe(1)
+    }
+    let radar = createCoupleArcadeState('radar-love', ['a', 'b'], () => 0.99)
+    radar = readyRadarLoveFleet(autoPlaceRadarLoveFleet(radar, 'a'), 'a')
+    radar = readyRadarLoveFleet(autoPlaceRadarLoveFleet(radar, 'b'), 'b')
+    expect(radar.status).toBe('playing')
+    expect(radar.turnIndex).toBe(1)
+  })
+
+  it('gives each charades player one acting turn whichever player starts', () => {
+    let state = createCoupleArcadeState('say-it-without-saying', ['a', 'b'], () => 0.99)
+    for (let round = 0; round < 2; round += 1) {
+      const actor = state.playerUids[state.actorIndex]
+      const guesser = state.playerUids[(state.actorIndex + 1) % 2]
+      state = applyCoupleArcadeAction(state, state.game, actor, { kind: 'charade', promptIndex: state.promptIndex, clipDataUrl: 'data:video/webm;base64,AAAA' })
+      state = applyCoupleArcadeAction(state, state.game, guesser, { kind: 'guess', guessId: state.promptIndex })
+      expect(state.status).toBe(round === 0 ? 'playing' : 'finished')
+    }
   })
 
   it('keeps charades guessing to four choices while including the correct prompt', () => {

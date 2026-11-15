@@ -1506,17 +1506,23 @@ service cloud.firestore {
               && state.fleets.keys().hasAll(allowedPlayers) && state.fleets.keys().hasOnly(allowedPlayers)
               && state.fleetReady is map && state.fleetReady.keys().hasAll(allowedPlayers) && state.fleetReady.keys().hasOnly(allowedPlayers)
               && state.fleetReady[allowedPlayers[0]] is bool && state.fleetReady[allowedPlayers[1]] is bool
-              && state.fleets[allowedPlayers[0]] is list && state.fleets[allowedPlayers[0]].size() == 3
-              && state.fleets[allowedPlayers[1]] is list && state.fleets[allowedPlayers[1]].size() == 3
+              && state.fleets[allowedPlayers[0]] is list && state.fleets[allowedPlayers[0]].size() in [3, 5]
+              && state.fleets[allowedPlayers[1]] is list && state.fleets[allowedPlayers[1]].size() == state.fleets[allowedPlayers[0]].size()
               && state.shots is map && state.shots.keys().hasAll(allowedPlayers) && state.shots.keys().hasOnly(allowedPlayers)
-              && state.shots[allowedPlayers[0]] is list && state.shots[allowedPlayers[0]].size() <= 64
-              && state.shots[allowedPlayers[1]] is list && state.shots[allowedPlayers[1]].size() <= 64
+              && state.shots[allowedPlayers[0]] is list && state.shots[allowedPlayers[0]].size() <= 100
+              && state.shots[allowedPlayers[1]] is list && state.shots[allowedPlayers[1]].size() <= 100
               && state.hits is map && state.hits.keys().hasAll(allowedPlayers) && state.hits.keys().hasOnly(allowedPlayers)
-              && state.hits[allowedPlayers[0]] is list && state.hits[allowedPlayers[0]].size() <= 14
-              && state.hits[allowedPlayers[1]] is list && state.hits[allowedPlayers[1]].size() <= 14
+              && state.hits[allowedPlayers[0]] is list && state.hits[allowedPlayers[0]].size() <= 17
+              && state.hits[allowedPlayers[1]] is list && state.hits[allowedPlayers[1]].size() <= 17
               && (!state.keys().hasAny(['wins']) || (state.wins is map && state.wins.keys().hasAll(allowedPlayers) && state.wins.keys().hasOnly(allowedPlayers)
                 && isBoundedInt(state.wins[allowedPlayers[0]], 0, 10000) && isBoundedInt(state.wins[allowedPlayers[1]], 0, 10000)))
-              && state.turnIndex in [0, 1] && state.boardSize == 8
+              && state.turnIndex in [0, 1]
+              && ((state.boardSize == 8 && state.fleets[allowedPlayers[0]].size() == 3
+                    && state.shots[allowedPlayers[0]].size() <= 64 && state.shots[allowedPlayers[1]].size() <= 64
+                    && state.hits[allowedPlayers[0]].size() <= 14 && state.hits[allowedPlayers[1]].size() <= 14)
+                || (state.boardSize == 10 && state.fleets[allowedPlayers[0]].size() == 5
+                    && state.shots[allowedPlayers[0]].size() <= 100 && state.shots[allowedPlayers[1]].size() <= 100
+                    && state.hits[allowedPlayers[0]].size() <= 17 && state.hits[allowedPlayers[1]].size() <= 17))
               && state.status in ['placing', 'playing', 'finished']
               && (state.status == 'placing' || (state.fleetReady[allowedPlayers[0]] && state.fleetReady[allowedPlayers[1]]))
               && (state.winnerUid == null || state.winnerUid in allowedPlayers))

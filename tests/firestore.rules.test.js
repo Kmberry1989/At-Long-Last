@@ -1246,15 +1246,15 @@ describe('paired couple arcade games', () => {
       expect(record.state.game).toBe(gameId)
 
       if (gameId === 'my-one-and-only') {
-        const uid = couple.playerIds[0]
         const state = record.state
+        const uid = state.playerUids[state.turnIndex]
         const top = state.discardPile.at(-1)
         const card = state.hands[uid].find(item => item.color === state.activeColor || item.value === top.value)
         await assertSucceeds(runCoupleArcadeAction(hostDb, couple.id, gameId, uid, card
           ? { kind: 'play', cardId: card.id }
           : { kind: 'draw' }))
       } else if (gameId === 'catch-my-heart') {
-        const uid = couple.playerIds[0]
+        const uid = record.state.playerUids[record.state.turnIndex]
         await assertSucceeds(runCoupleArcadeAction(hostDb, couple.id, gameId, uid, { kind: 'ask', rank: record.state.hands[uid][0].rank }))
       } else if (gameId === 'radar-love') {
         const [first, second] = couple.playerIds
@@ -1262,7 +1262,8 @@ describe('paired couple arcade games', () => {
           await assertSucceeds(runCoupleArcadeAction(hostDb, couple.id, gameId, uid, { kind: 'auto-place' }))
           await assertSucceeds(runCoupleArcadeAction(hostDb, couple.id, gameId, uid, { kind: 'ready' }))
         }
-        await assertSucceeds(runCoupleArcadeAction(hostDb, couple.id, gameId, first, { kind: 'shot', row: 0, column: 0 }))
+        const starter = record.state.playerUids[record.state.turnIndex]
+        await assertSucceeds(runCoupleArcadeAction(hostDb, couple.id, gameId, starter, { kind: 'shot', row: 0, column: 0 }))
       } else if (gameId === 'our-little-pieces') {
         await assertSucceeds(runCoupleArcadeAction(hostDb, couple.id, gameId, couple.playerIds[0], { kind: 'rotate-piece', pieceId: 'p0', direction: 1 }))
       }
@@ -1281,7 +1282,7 @@ describe('paired couple arcade games', () => {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }))
-      const actorUid = couple.playerIds[0]
+      const actorUid = state.playerUids[state.turnIndex ?? state.actorIndex ?? 0]
       let nextState
       if (gameId === 'my-one-and-only') {
         const topCard = state.discardPile.at(-1)
@@ -1308,6 +1309,21 @@ describe('paired couple arcade games', () => {
         updatedAt: serverTimestamp(),
       }))
     }
+
+  })
+
+  it('keeps legacy 8x8 Radar Love saves valid while the new fleet uses 10x10', async () => {
+    const { couple, hostDb } = await createAndJoinRoom()
+    const legacyRadarState = createCoupleArcadeState('radar-love', couple.playerIds, () => 0)
+    legacyRadarState.boardSize = 8
+    legacyRadarState.fleets = Object.fromEntries(couple.playerIds.map(uid => [uid, legacyRadarState.fleets[uid].slice(0, 3)]))
+    await assertSucceeds(setDoc(doc(hostDb, 'coupleArcades', couple.id, 'games', 'radar-love'), {
+      gameId: 'radar-love',
+      playerUids: couple.playerIds,
+      state: legacyRadarState,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }))
   })
 
   it('allows paired play and bounds private charade clips in Firestore', async () => {

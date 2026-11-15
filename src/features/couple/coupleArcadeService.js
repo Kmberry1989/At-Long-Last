@@ -26,17 +26,22 @@ export function subscribeCoupleArcades(db, coupleId, onNext, onError) {
 }
 
 export function createCoupleArcadeState(gameId, playerUids, random = Math.random, progression = {}) {
+  let state
   switch (gameId) {
-    case 'my-one-and-only': return createMyOneAndOnly(playerUids)
-    case 'catch-my-heart': return createCatchMyHeart(playerUids)
-    case 'radar-love': return createRadarLove(playerUids, progression.wins)
+    case 'my-one-and-only': state = createMyOneAndOnly(playerUids, random); break
+    case 'catch-my-heart': state = createCatchMyHeart(playerUids, random); break
+    case 'radar-love': state = createRadarLove(playerUids, progression.wins); break
     case 'our-little-pieces': return createOurLittlePieces(playerUids, random, progression.solvedCount, progression.puzzleNumber)
-    case 'say-it-without-saying': return {
+    case 'say-it-without-saying': state = {
       game: gameId, playerUids: [...playerUids], actorIndex: 0, phase: 'act',
       promptIndex: Math.floor(random() * SAY_IT_WITHOUT_SAYING_PROMPTS.length), clips: {}, guesses: {}, scores: [0, 0], status: 'playing', winnerUid: null,
-    }
+    }; break
     default: throw new Error('That game is not in the arcade.')
   }
+  const firstPlayerIndex = random() < 0.5 ? 0 : 1
+  if ('actorIndex' in state) state.actorIndex = firstPlayerIndex
+  else state.turnIndex = firstPlayerIndex
+  return state
 }
 
 export function applyCoupleArcadeAction(state, gameId, playerUid, action) {
@@ -65,7 +70,8 @@ export function applyCoupleArcadeAction(state, gameId, playerUid, action) {
     if (state.phase !== 'guess' || state.playerUids[state.actorIndex] === playerUid) throw new Error('Wait for your person to act.')
     const correct = Number(action.guessId) === state.promptIndex
     const scores = state.scores.map((score, index) => index === state.actorIndex && correct ? score + 1 : score)
-    const finished = state.actorIndex === 1
+    const clips = { ...state.clips }
+    const finished = state.playerUids.every(uid => Boolean(clips[uid]))
     const winningIndex = scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1
     return {
       ...state, phase: finished ? 'guess' : 'act', actorIndex: finished ? state.actorIndex : (state.actorIndex + 1) % 2,

@@ -671,3 +671,11 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Added brief motion cues to drawn/revealed cards, completed Go Fish sets, sonar results, selected puzzle pieces, and the charades recording state. Reduced-motion users get static alternatives.
 - The existing component tests still cover each arcade entry screen and major interaction controls. Focused arcade/state tests passed (15), lint passed, production build passed, and `git diff --check` passed.
 - Browser inspection reached local sign-in; this pass did not authenticate into a paired arcade session or validate sound on physical speakers. Existing UI and state tests provide the interaction coverage for this change.
+
+## 2026-11-14 — Arcade turn fairness and Radar Love rule compatibility
+
+- Randomized the opening player in My One and Only, Catch My Heart, Radar Love, and Say It Without Saying. Radar Love now retains that opener after both fleets are marked ready; charades gives both players an acting turn regardless of who starts.
+- Updated emulator coverage to act as the saved opener instead of assuming player one starts.
+- Aligned Firestore validation with Radar Love's current 10×10 board, five-ship fleet, 100-shot limit, and 17-cell fleet total. Kept legacy 8×8 three-ship saves valid so an in-progress older match can still be resumed.
+- Verification: full app suite passed (74 files / 453 tests), Firestore emulator suite passed (4 files / 63 tests), lint, production build, and `git diff --check` passed.
+- Remote two-player production play, physical-device audio/video, and Netlify release were not part of this pass.
