@@ -1817,6 +1817,10 @@ export function BoardScene({
       previousFrameAt = latestSceneTime
       const elapsed = (latestSceneTime - startedAt) / 1000
       environment.update(elapsed, reducedMotion)
+      // A transparent renderer reveals the page backdrop wherever the sky
+      // sphere falls beyond the camera's far clip plane. Keep the sky centered
+      // on the camera so every view ray hits the environment as the board pans.
+      environment.sky.position.copy(camera.position)
       const diceHomeMotion = getDiceHomeBaseMotion(elapsed, reducedMotion)
       diceBox.position.y = diceHomeMotion.lift
       diceShadow.material.opacity = diceHomeMotion.shadowOpacity
