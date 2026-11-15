@@ -2,10 +2,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CoupleArcade } from './CoupleArcade.jsx'
 
+const { playArcadeSfx } = vi.hoisted(() => ({ playArcadeSfx: vi.fn() }))
+
 vi.mock('../audio/AudioProvider.jsx', () => ({
   useAudio: () => ({
     playChoiceTap: vi.fn(), playCardSlide: vi.fn(), playSuccess: vi.fn(), playCardFlip: vi.fn(),
-    playDuelPulse: vi.fn(), playConnectFourWin: vi.fn(), playPhase: vi.fn(),
+    playDuelPulse: vi.fn(), playConnectFourWin: vi.fn(), playPhase: vi.fn(), playArcadeSfx,
   }),
 }))
 
@@ -115,5 +117,6 @@ describe('CoupleArcade', () => {
     fireEvent.click(piece)
     expect(piece).toHaveAttribute('aria-pressed', 'false')
     expect(rotate).toBeDisabled()
+    expect(playArcadeSfx).toHaveBeenCalledWith('our-little-pieces', 'tap')
   })
 })

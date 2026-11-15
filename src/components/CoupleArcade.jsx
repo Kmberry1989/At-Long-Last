@@ -104,6 +104,7 @@ function unoFaceLabel(value) {
 }
 
 function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
+  const audio = useAudio()
   const ownIndex = state.playerUids.indexOf(playerUid)
   const hand = state.hands[playerUid] || []
   const top = state.discardPile.at(-1)
@@ -114,7 +115,11 @@ function UnoGame({ state, playerUid, otherName, onAction, onReset }) {
     : ownTurn ? 'Your turn' : `${otherName} is playing`
 
   async function play(card) {
-    if (card.color === 'wild') { setWildId(card.id); return }
+    if (card.color === 'wild') {
+      setWildId(card.id)
+      audio?.playArcadeSfx?.('my-one-and-only', 'tap')
+      return
+    }
     await onAction({ kind: 'play', cardId: card.id })
   }
 
@@ -320,8 +325,14 @@ function OurLittlePieces({ state, onAction, onReset, audio }) {
         const pieceIndex = Number(pieceId.slice(1))
         const classes = ['jigsaw-piece', pieceId === selectedPiece ? 'selected' : '', pieceId && pieceIndex === slot && piece.rotation === 0 ? 'piece-correct' : ''].filter(Boolean).join(' ')
         return <button aria-label={pieceId ? `Piece ${pieceIndex + 1}, rotated ${piece.rotation} degrees, at space ${slot + 1}` : `Empty space ${slot + 1}`} aria-pressed={pieceId === selectedPiece} className={classes} disabled={finish} key={slot} onClick={() => {
-          if (!selectedPiece && pieceId) setSelectedPiece(pieceId)
-          else if (selectedPiece === pieceId) setSelectedPiece('')
+          if (!selectedPiece && pieceId) {
+            setSelectedPiece(pieceId)
+            audio?.playArcadeSfx?.('our-little-pieces', 'tap')
+          }
+          else if (selectedPiece === pieceId) {
+            setSelectedPiece('')
+            audio?.playArcadeSfx?.('our-little-pieces', 'tap')
+          }
           else if (selectedPiece && pieceId) { onAction({ kind: 'move-piece', pieceId: selectedPiece, slot }); setSelectedPiece('') }
         }} role="gridcell" style={pieceId ? {
           backgroundImage: `url("${art.src}")`,
