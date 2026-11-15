@@ -61,7 +61,7 @@ describe('ActivityCardModal', () => {
     expect(screen.queryByText('tender reflection')).toBeNull()
     expect(screen.queryByText(/Need a spark/i)).toBeNull()
 
-    const flipBtn = screen.getByRole('button', { name: 'NEXT' })
+    const flipBtn = screen.getByRole('button', { name: 'Seal My Turn' })
     expect(flipBtn.hasAttribute('disabled')).toBe(true)
   })
 
@@ -71,7 +71,7 @@ describe('ActivityCardModal', () => {
     expect(screen.getByLabelText(/Your Answer/i)).not.toHaveAttribute('placeholder')
   })
 
-  it('flips 3D card to Face 2 when flip button is clicked', () => {
+  it('keeps the response flow to one private answer with no partner prediction', () => {
     render(
       <ActivityCardModal
         activity={mockActivity}
@@ -84,22 +84,12 @@ describe('ActivityCardModal', () => {
     const textarea = screen.getByLabelText(/Your Answer/i)
     fireEvent.change(textarea, { target: { value: 'Drinking hot tea by the window.' } })
 
-    const flipBtn = screen.getByRole('button', { name: 'NEXT' })
-    expect(flipBtn.hasAttribute('disabled')).toBe(false)
-
-    fireEvent.click(flipBtn)
-    expect(audioMocks.playCardFlip).toHaveBeenCalledTimes(1)
-
-    // Back face header should now be active
-    expect(screen.getByText('Guess for Morgan')).toBeDefined()
-
-    // Flip back
-    const backBtn = screen.getByRole('button', { name: /My Answer/i })
-    fireEvent.click(backBtn)
-    expect(audioMocks.playCardFlip).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText('Guess for Morgan')).toBeNull()
+    expect(screen.queryByLabelText(/Your guess for Morgan/i)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Seal My Turn' }).hasAttribute('disabled')).toBe(false)
   })
 
-  it('submits sealed response with audio on Face 2', () => {
+  it('submits only the player answer', () => {
     const onSubmit = vi.fn()
     render(
       <ActivityCardModal
@@ -115,20 +105,10 @@ describe('ActivityCardModal', () => {
     const textarea = screen.getByLabelText(/Your Answer/i)
     fireEvent.change(textarea, { target: { value: 'Hot tea and quiet.' } })
 
-    // Flip
-    fireEvent.click(screen.getByRole('button', { name: 'NEXT' }))
-
-    // Enter guess
-    const guessTextarea = screen.getByLabelText(/Your guess for Morgan/i)
-    fireEvent.change(guessTextarea, { target: { value: 'A warm bath and reading.' } })
-
-    // Seal
-    const sealBtn = screen.getByRole('button', { name: /Seal My Turn/i })
-    fireEvent.click(sealBtn)
+    fireEvent.click(screen.getByRole('button', { name: 'Seal My Turn' }))
 
     expect(audioMocks.playCardSeal).toHaveBeenCalledTimes(1)
     expect(onSubmit).toHaveBeenCalledWith({
-      guess: 'A warm bath and reading.',
       text: 'Hot tea and quiet.',
     })
   })
@@ -155,7 +135,7 @@ describe('ActivityCardModal', () => {
     )
 
     expect(screen.getByText('Sealed with Care')).toBeDefined()
-    expect(screen.getByText(/Your reflection and guess are locked in wax/i)).toBeDefined()
+    expect(screen.getByText(/Your answer is saved/i)).toBeDefined()
     expect(screen.getByText(/^You$/i)).toBeDefined()
     expect(screen.getAllByText(/^Morgan$/i).length).toBeGreaterThan(0)
   })
@@ -187,8 +167,8 @@ describe('ActivityCardModal', () => {
     expect(screen.getByText('Revealed Together')).toBeDefined()
     expect(screen.getByText('Tea and book')).toBeDefined()
     expect(screen.getByText('Long bath')).toBeDefined()
-    expect(screen.getByText(/Morgan guessed:/i)).toBeDefined()
-    expect(screen.getByText(/"Hot tea"/i)).toBeDefined()
+    expect(screen.queryByText(/guessed:/i)).toBeNull()
+    expect(screen.queryByText(/"Hot tea"/i)).toBeNull()
     expect(screen.getByText(/\+3 Hearts Added to Your Bloom/i)).toBeDefined()
 
     const doneBtn = screen.getByRole('button', { name: /Keep This Memory & Return to Board/i })
@@ -196,7 +176,6 @@ describe('ActivityCardModal', () => {
     expect(audioMocks.playSuccess).toHaveBeenCalledTimes(1)
     expect(onSubmit).toHaveBeenCalledWith({
       completed: true,
-      guess: 'Long walk',
       text: 'Tea and book',
     })
   })

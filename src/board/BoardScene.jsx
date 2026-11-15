@@ -34,7 +34,7 @@ export const BOARD_CARD_PILE_POSITIONS = {
   treasure: [4.15, -3.55],
   discard: [0, 4.25],
 }
-export const BOARD_MOMENT_COIN_POSITION = [0.25, -0.8]
+export const BOARD_MOMENT_COIN_POSITION = [5.85, 0.2]
 
 const LANDING_EFFECTS_BY_SPACE = {
   heart: ['heart-glow', 'rose-petals', 'music-notes'],
@@ -54,6 +54,39 @@ const PLAYER_PBR_FINISHES = {
   satin: { metalness: 0.28, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3 },
   gold: { metalness: 0.82, roughness: 0.24, clearcoat: 0.48, clearcoatRoughness: 0.22 },
   velvet: { metalness: 0.03, roughness: 0.88, clearcoat: 0.04, clearcoatRoughness: 0.8 },
+}
+
+export const PLAYER_PIECE_TEXTURES = ['smooth', 'silk', 'brocade', 'starlight']
+
+function createPlayerPieceBumpMap(textureId = 'smooth') {
+  if (!PLAYER_PIECE_TEXTURES.includes(textureId) || textureId === 'smooth') return null
+  const size = 64
+  const pixels = new Uint8Array(size * size * 3)
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = (y * size + x) * 3
+      const diagonal = (x + y) / size
+      const wave = Math.sin(x * 0.78) * Math.sin(y * 0.78)
+      const hash = Math.abs(Math.sin(x * 127.1 + y * 311.7) * 43758.5453) % 1
+      let value = 128
+      if (textureId === 'silk') value += Math.sin(diagonal * Math.PI * 18) * 19 + wave * 4
+      if (textureId === 'brocade') value += (Math.sin(x * Math.PI / 8) * Math.sin(y * Math.PI / 8) + wave * 0.42) * 22
+      if (textureId === 'starlight') value += hash > 0.975 ? 50 : Math.sin(diagonal * Math.PI * 12) * 3
+      const shade = Math.max(0, Math.min(255, Math.round(value)))
+      pixels[index] = shade
+      pixels[index + 1] = shade
+      pixels[index + 2] = shade
+    }
+  }
+  const texture = new THREE.DataTexture(pixels, size, size, THREE.RGBFormat)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.magFilter = THREE.LinearFilter
+  texture.minFilter = THREE.LinearMipmapLinearFilter
+  texture.generateMipmaps = true
+  texture.needsUpdate = true
+  texture.name = `player-piece-${textureId}-procedural-bump`
+  return texture
 }
 
 export function getPlayerPbrFinish(id = 'porcelain') {
@@ -273,27 +306,51 @@ function createMomentCoin(theme, position) {
   const pedestal = new THREE.Group()
   pedestal.name = 'trash-treasure-coin-pedestal'
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.92, 1.02, 0.18, 64),
+    new THREE.CylinderGeometry(1.02, 1.16, 0.2, 64),
     new THREE.MeshStandardMaterial({ color: theme.diceSkin.alternate, metalness: 0.62, roughness: 0.34 }),
   )
-  base.position.y = -0.16
+  base.position.y = -0.27
   base.castShadow = true
   base.receiveShadow = true
   pedestal.add(base)
+  const column = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.36, 0.48, 0.2, 48),
+    new THREE.MeshStandardMaterial({ color: theme.diceSkin.edge, metalness: 0.82, roughness: 0.28 }),
+  )
+  column.position.y = -0.08
+  column.castShadow = true
+  column.receiveShadow = true
+  pedestal.add(column)
   const inset = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.76, 0.82, 0.12, 64),
+    new THREE.CylinderGeometry(0.82, 0.9, 0.08, 64),
     new THREE.MeshStandardMaterial({ color: theme.diceSkin.fabric || theme.surfaces.inset.color, metalness: 0.08, roughness: 0.8 }),
   )
   inset.position.y = -0.035
   inset.receiveShadow = true
   pedestal.add(inset)
   const piping = new THREE.Mesh(
-    new THREE.TorusGeometry(0.89, 0.045, 8, 64),
+    new THREE.TorusGeometry(0.9, 0.05, 8, 64),
     new THREE.MeshStandardMaterial({ color: theme.diceSkin.edge, metalness: 0.78, roughness: 0.28 }),
   )
   piping.rotation.x = Math.PI / 2
   piping.position.y = -0.055
   pedestal.add(piping)
+  const readyRingMaterial = new THREE.MeshStandardMaterial({
+    color: theme.diceSkin.edge,
+    emissive: theme.accent || theme.diceSkin.edge,
+    emissiveIntensity: 0,
+    metalness: 0.58,
+    roughness: 0.32,
+    transparent: true,
+    opacity: 0.72,
+  })
+  const readyRing = new THREE.Mesh(new THREE.TorusGeometry(1.24, 0.045, 8, 72), readyRingMaterial)
+  readyRing.rotation.x = Math.PI / 2
+  readyRing.position.y = -0.37
+  pedestal.add(readyRing)
+  const readyLight = new THREE.PointLight(theme.accent || theme.diceSkin.edge, 0, 4.2, 2)
+  readyLight.position.y = -0.06
+  pedestal.add(readyLight)
   root.add(pedestal)
   const side = new THREE.MeshStandardMaterial({ color: theme.diceSkin.edge, metalness: 0.9, roughness: 0.22 })
   const treasure = new THREE.MeshStandardMaterial({ map: makeMomentCoinFace('treasure'), metalness: 0.42, roughness: 0.32 })
@@ -310,6 +367,8 @@ function createMomentCoin(theme, position) {
   hitTarget.name = 'trash-treasure-coin-touch-area'
   root.add(hitTarget)
   root.userData.disc = coin
+  root.userData.readyRing = readyRing
+  root.userData.readyLight = readyLight
   root.userData.baseHeight = restHeight
   return root
 }
@@ -459,10 +518,11 @@ export function shouldOrbitBoard({
   queuedMoves = 0,
   interacting = false,
   reducedMotion = false,
+  turnInProgress = false,
   idleMs = 0,
 }) {
   return phase === 'turn' && !rolling && !movingPiece && queuedMoves === 0 &&
-    !interacting && !reducedMotion && idleMs >= 2800
+    !interacting && !reducedMotion && !turnInProgress && idleMs >= 2800
 }
 
 export function getBoardCameraShotPose(kind, focus, elapsedSeconds = 0, shotProgress = 0, phoneViewport = false) {
@@ -660,12 +720,12 @@ export function settlePrimitiveDie(die, value) {
   }
 }
 
-function createFallbackPawn(color, finish = 'porcelain') {
+function createFallbackPawn(color, finish = 'porcelain', bumpMap = null) {
   const pbr = getPlayerPbrFinish(finish)
   const group = new THREE.Group()
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(0.42, 0.42, 0.28, 18),
-    new THREE.MeshPhysicalMaterial({ color: '#ffffff', ...pbr }),
+    new THREE.MeshPhysicalMaterial({ color: '#ffffff', bumpMap, bumpScale: bumpMap ? 0.035 : 0, ...pbr }),
   )
   base.position.y = 0.14
   base.castShadow = true
@@ -673,7 +733,7 @@ function createFallbackPawn(color, finish = 'porcelain') {
 
   const body = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.36, 0.8, 8, 16),
-    new THREE.MeshPhysicalMaterial({ color, ...pbr }),
+    new THREE.MeshPhysicalMaterial({ color, bumpMap, bumpScale: bumpMap ? 0.055 : 0, ...pbr }),
   )
   body.position.y = 0.96
   body.castShadow = true
@@ -730,7 +790,7 @@ function disposeObject3D(root) {
   geometries.forEach((geometry) => geometry.dispose())
 }
 
-function tintModel(model, color, finish = 'porcelain') {
+function tintModel(model, color, finish = 'porcelain', bumpMap = null) {
   const playerColor = new THREE.Color(color)
   const pbr = getPlayerPbrFinish(finish)
   model.traverse((child) => {
@@ -746,6 +806,10 @@ function tintModel(model, color, finish = 'porcelain') {
     const tintedMaterials = materials.map((material) => {
       const tinted = material.clone()
       tinted.color?.lerp(playerColor, 0.32)
+      if (bumpMap) {
+        tinted.bumpMap = bumpMap
+        tinted.bumpScale = finish === 'velvet' ? 0.025 : 0.04
+      }
       if ('metalness' in tinted) tinted.metalness = pbr.metalness
       if ('roughness' in tinted) tinted.roughness = pbr.roughness
       if ('clearcoat' in tinted) tinted.clearcoat = pbr.clearcoat
@@ -804,6 +868,7 @@ export function BoardScene({
   onRoll = null,
   canRoll = false,
   canReturnDice = false,
+  turnInProgress = false,
   diceReturnKey = null,
   onReturnDice = null,
   onReady = null,
@@ -842,6 +907,7 @@ export function BoardScene({
   const onRollRef = useRef(onRoll)
   const canRollRef = useRef(canRoll)
   const canReturnDiceRef = useRef(canReturnDice)
+  const turnInProgressRef = useRef(turnInProgress)
   const onReturnDiceRef = useRef(onReturnDice)
   const previousDiceReturnKeyRef = useRef(null)
   const onReadyRef = useRef(onReady)
@@ -952,10 +1018,11 @@ export function BoardScene({
     onRollRef.current = onRoll
     canRollRef.current = canRoll
     canReturnDiceRef.current = canReturnDice
+    turnInProgressRef.current = turnInProgress
     onReturnDiceRef.current = onReturnDice
     onReadyRef.current = onReady
     rollGestureRef.current = rollGesture
-  }, [canReturnDice, canRoll, onDiceCast, onDiceImpact, onDiceRattle, onReady, onReturnDice, onRoll, rollGesture])
+  }, [canReturnDice, canRoll, onDiceCast, onDiceImpact, onDiceRattle, onReady, onReturnDice, onRoll, rollGesture, turnInProgress])
 
   useEffect(() => {
     if (!diceReturnKey || diceReturnKey === previousDiceReturnKeyRef.current) return
@@ -1697,8 +1764,9 @@ export function BoardScene({
     const tokenGroups = players.map((player, index) => {
       const group = new THREE.Group()
       const pieceColor = player.pieceColor || player.color
+      const pieceTexture = createPlayerPieceBumpMap(player.pieceTexture)
       const positionRing = createPlayerPositionRing(pieceColor)
-      const fallback = createFallbackPawn(player.pieceColor || player.color, player.pieceMaterial)
+      const fallback = createFallbackPawn(player.pieceColor || player.color, player.pieceMaterial, pieceTexture)
       group.add(positionRing)
       group.add(fallback)
       group.position.copy(
@@ -1707,6 +1775,7 @@ export function BoardScene({
       group.position.y = 0.7
       group.userData.avatar = resolvePlayerAvatar(player.avatar)
       group.userData.fallback = fallback
+      group.userData.pieceTexture = pieceTexture
       group.userData.positionRing = positionRing
       scene.add(group)
       return group
@@ -1784,7 +1853,7 @@ export function BoardScene({
 
           const model = gltf.scene
           fitModel(model, 1.22)
-          tintModel(model, player.pieceColor || player.color, player.pieceMaterial)
+          tintModel(model, player.pieceColor || player.color, player.pieceMaterial, tokenGroups[index].userData.pieceTexture)
           const fallback = tokenGroups[index].userData.fallback
           tokenGroups[index].remove(fallback)
           disposeObject3D(fallback)
@@ -1828,6 +1897,11 @@ export function BoardScene({
       boxRim.material.emissiveIntensity = canRollRef.current && !reducedMotion
         ? 0.22 + (0.12 + 0.1 * (0.5 + 0.5 * Math.sin(elapsed * 2.4)))
         : 0.28
+      const coinReady = canFlipCoinRef.current && !coinFlip
+      const coinPulse = 0.5 + 0.5 * Math.sin(elapsed * 2.2)
+      momentCoin.userData.readyRing.material.emissiveIntensity = coinReady ? 0.42 + coinPulse * 0.5 : 0
+      momentCoin.userData.readyRing.scale.setScalar(coinReady ? 1 + coinPulse * 0.06 : 1)
+      momentCoin.userData.readyLight.intensity = coinReady ? 0.8 + coinPulse * 1.15 : 0
       const occupiedSpaceIndices = [...targetIndicesRef.current]
       const movingPlan = activePieceMove || pieceMoveQueueRef.current[0]
       if (movingPlan) {
@@ -1894,6 +1968,7 @@ export function BoardScene({
         queuedMoves: pieceMoveQueueRef.current.length,
         interacting: userInteracting,
         reducedMotion,
+        turnInProgress: turnInProgressRef.current,
         idleMs: latestSceneTime - lastViewInputAt,
       })
       controls.autoRotate = cameraShotMode === 'board' && idleOrbit
@@ -2045,7 +2120,7 @@ export function BoardScene({
           outcome: coinOutcomeRef.current,
           gesture: coinGestureRef.current,
           startedAt: latestSceneTime,
-          duration: 2.8,
+          duration: 4.8,
           lastImpact: -1,
           start: momentCoin.position.clone(),
         }
@@ -2061,7 +2136,7 @@ export function BoardScene({
         const turns = Math.round(3.5 + Math.min(2.5, Math.max(0, (gesture.power || 0.55) * 2.5)))
         const resultHalfTurn = coinFlip.outcome === 'trash' ? Math.PI : 0
         const landingWobble = progress > 0.84 ? Math.sin((progress - 0.84) / 0.16 * Math.PI * 4) * (1 - progress) * 1.1 : 0
-        const arcHeight = 4.1 + Math.min(1.25, (gesture.power || 0.55) * 1.2)
+        const arcHeight = 7.1 + Math.min(1.5, (gesture.power || 0.55) * 1.4)
         momentCoin.position.set(
           coinFlip.start.x + (gesture.direction?.x || 0) * 1.2 * Math.sin(motionProgress * Math.PI),
           coinFlip.start.y + 4 * arcHeight * motionProgress * (1 - motionProgress) + (progress > 0.93 ? 0.055 * Math.sin((progress - 0.93) / 0.07 * Math.PI) : 0),
@@ -2070,8 +2145,8 @@ export function BoardScene({
         const disc = momentCoin.userData.disc
         disc.rotation.x = turns * Math.PI * 2 * eased + resultHalfTurn * eased + landingWobble
         disc.rotation.z = Math.sin(progress * Math.PI * 5) * (1 - progress) * 0.11
-        const impact = Math.min(3, Math.floor(progress * 4))
-        if (impact > coinFlip.lastImpact && impact < 3) {
+        const impact = Math.min(5, Math.floor(progress * 6))
+        if (impact > coinFlip.lastImpact && impact < 5) {
           coinFlip.lastImpact = impact
           onDiceImpactRef.current?.({ step: impact, energy: 0.3 + Math.sin(impact * 1.7) * 0.1, side: impact % 2 })
         }
@@ -2337,6 +2412,7 @@ export function BoardScene({
             color: player.pieceColor || player.color,
             displayName: player.displayName,
             material: player.pieceMaterial || 'porcelain',
+            texture: player.pieceTexture || 'smooth',
             positionIndex,
             positionMarker: 'player-colored illuminated ring',
           }

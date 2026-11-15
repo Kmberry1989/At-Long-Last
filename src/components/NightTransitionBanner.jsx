@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BrandIcon } from './BrandIcon.jsx'
 import './night-transition-banner.css'
 
@@ -12,8 +12,11 @@ const phaseContent = {
   finale: { title: 'Tonight, remembered', icon: 'book', cue: 'finale' },
 }
 
-export function NightTransitionBanner({ phase, transitionKey, playPhase }) {
+export function NightTransitionBanner({ phase, transitionKey, playPhase, onComplete }) {
   const [visible, setVisible] = useState(false)
+  const onCompleteRef = useRef(onComplete)
+
+  useEffect(() => { onCompleteRef.current = onComplete }, [onComplete])
 
   useEffect(() => {
     const content = phaseContent[phase]
@@ -23,7 +26,11 @@ export function NightTransitionBanner({ phase, transitionKey, playPhase }) {
     }
     setVisible(true)
     playPhase?.(content.cue)
-    const timeout = window.setTimeout(() => setVisible(false), 2450)
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const timeout = window.setTimeout(() => {
+      setVisible(false)
+      onCompleteRef.current?.(transitionKey)
+    }, reducedMotion ? 120 : 3900)
     return () => window.clearTimeout(timeout)
   }, [phase, transitionKey, playPhase])
 

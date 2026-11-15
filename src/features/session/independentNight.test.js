@@ -48,6 +48,16 @@ describe('independent night pacing', () => {
     expect(canAnswerStep(submitted.step, 1)).toBe(true)
   })
 
+  it('treats resolved turns from earlier rounds as closed in older async saves', () => {
+    const s = { ...session(), round: 8, totalRounds: 8 }
+    const oldTurns = [
+      { id: 'roll-1-0', kind: 'board', type: 'heart', round: 1, ownerIndex: 0, ready: true, completed: true, skipped: false, state: { turnEnded: true } },
+      { id: 'roll-1-1', kind: 'board', type: 'oops', round: 1, ownerIndex: 1, ready: true, completed: true, skipped: false, state: { turnEnded: false, momentCard: { category: 'trash' }, momentResolution: { movement: -1 } } },
+    ]
+    expect(getNightProgress(s, oldTurns, 1).pendingTurnStep).toBeNull()
+    expect(updateNightTurn(s, oldTurns, 'roll-1-1', 1, 'end-turn')).toBeNull()
+  })
+
   it('opens a bonding activity after every non-keepsake landing', () => {
     const s = session()
     // A three-space roll lands on Duel Beat, which preserves its board effect

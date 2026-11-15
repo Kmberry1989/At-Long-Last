@@ -11,6 +11,7 @@ it('lets each player choose a spectrum color and PBR finish', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Piece' }))
   fireEvent.change(screen.getByLabelText('Piece color'), { target: { value: '#8050c8' } })
   fireEvent.click(screen.getByRole('radio', { name: 'Satin' }))
+  fireEvent.click(screen.getByRole('radio', { name: /Brocade/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Save piece style' }))
-  await waitFor(() => expect(onSavePieceStyle).toHaveBeenCalledWith({ color: '#8050c8', material: 'satin' }))
+  await waitFor(() => expect(onSavePieceStyle).toHaveBeenCalledWith({ color: '#8050c8', material: 'satin', texture: 'brocade' }))
 })

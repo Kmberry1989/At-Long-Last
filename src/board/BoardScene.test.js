@@ -218,6 +218,11 @@ describe('shouldOrbitBoard', () => {
 
   it('orbits when a turn is idle or waiting for the other player', () => {
     expect(shouldOrbitBoard(idleTurn)).toBe(true)
+    expect(shouldOrbitBoard({ ...idleTurn, turnInProgress: false })).toBe(true)
+  })
+
+  it('holds a stable centered view while the local player is acting', () => {
+    expect(shouldOrbitBoard({ ...idleTurn, turnInProgress: true })).toBe(false)
   })
 
   it('holds the view during input, motion, non-turn screens, or reduced motion', () => {

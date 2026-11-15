@@ -65,12 +65,25 @@ it('lets the second player roll directly on the board dice', async () => {
 })
 it('keeps the flat end-turn switch in the board HUD without trade copy', async () => {
   render(<IndependentNight />)
-  expect(await screen.findByRole('button', { name: 'End turn' })).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Pass turn to A' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Trade' })).not.toBeInTheDocument()
   expect(screen.queryByText('ROLLS')).not.toBeInTheDocument()
   expect(screen.queryByText('MATCHES')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /center the board/i })).not.toBeInTheDocument()
   expect(screen.queryByLabelText(/shared hearts/i)).not.toBeInTheDocument()
+})
+it('points the lit switch to the receiving player and prompts only to pass the turn', async () => {
+  render(<IndependentNight />)
+  act(() => mocks.next([{
+    id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart',
+    state: { turnEnded: false }, ready: true, completed: true, skipped: false,
+  }]))
+  const passSwitch = await screen.findByRole('button', { name: 'Pass turn to A' })
+  expect(passSwitch.className).toContain('is-ready')
+  expect(passSwitch).toHaveTextContent('PASS')
+  expect(await screen.findByText('Flip the switch to pass your turn.')).toBeInTheDocument()
+  expect(screen.queryByText('Finish this moment, then pass the turn.')).not.toBeInTheDocument()
+  expect(screen.queryByText(/return the dice|dice back|cup/i)).not.toBeInTheDocument()
 })
 it('keeps the moment category hidden until the player flips the coin', async () => {
   render(<IndependentNight />)
@@ -79,7 +92,7 @@ it('keeps the moment category hidden until the player flips the coin', async () 
     state: { momentPending: true, move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: [1, 1] } },
     ready: true, completed: true, skipped: false,
   }]))
-  expect(await screen.findByText('Tap the coin')).toBeInTheDocument()
+  expect(await screen.findByText('Tap the coin to reveal your card.')).toBeInTheDocument()
   expect(screen.queryByText(/trash|treasure/i)).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
   expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
@@ -92,7 +105,7 @@ it('restores the landing coin instead of leaving a stale blank board overlay', a
     state: { momentPending: true, move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: [1, 1] } },
     ready: true, completed: true, skipped: false,
   }]))
-  expect(await screen.findByText('Tap the coin')).toBeInTheDocument()
+  expect(await screen.findByText('Tap the coin to reveal your card.')).toBeInTheDocument()
   expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
 })
 it('flips the board coin, then draws and turns the selected deck card', async () => {
@@ -102,7 +115,7 @@ it('flips the board coin, then draws and turns the selected deck card', async ()
     state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentPending: true },
   }
   act(() => mocks.next([pendingStep]))
-  expect(await screen.findByText('Tap the coin')).toBeInTheDocument()
+  expect(await screen.findByText('Tap the coin to reveal your card.')).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
   const cardStep = {
     id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,

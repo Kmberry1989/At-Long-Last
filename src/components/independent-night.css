@@ -116,9 +116,9 @@
   gap: 0;
 }
 .turn-pass-switch {
-  width: 76px;
+  width: 92px;
   height: 40px;
-  min-width: 76px;
+  min-width: 92px;
   padding: 5px;
   border: 1px solid rgba(245, 221, 181, .58);
   border-radius: 999px;
@@ -133,21 +133,25 @@
   box-shadow: 0 0 24px rgba(246, 196, 107, .36), 0 6px 20px rgba(10, 8, 18, .34), inset 0 1px rgba(255,255,255,.28);
   animation: pass-switch-ready 1.8s ease-in-out infinite;
 }
-.turn-pass-rail { display: block; position: relative; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, rgba(102, 65, 75, .8), rgba(99, 80, 58, .82)); }
-.turn-pass-knob { position: absolute; left: 3px; top: 50%; width: 28px; height: 28px; border-radius: 50%; transform: translateY(-50%); display: grid; place-items: center; background: linear-gradient(150deg, #fff0d1, #dcb56e); box-shadow: 0 2px 8px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.86); transition: left .32s cubic-bezier(.2,.78,.2,1); }
-.turn-pass-knob span { width: 9px; height: 9px; border-right: 2px solid #553646; border-top: 2px solid #553646; transform: rotate(45deg); margin-left: -3px; }
-.turn-pass-switch.is-ready .turn-pass-knob { left: calc(100% - 31px); }
+.turn-pass-rail { display: block; position: relative; width: 100%; height: 100%; border-radius: inherit; overflow: hidden; background: linear-gradient(90deg, rgba(102, 65, 75, .8), rgba(99, 80, 58, .82)); }
+.turn-pass-hint { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #ffe7b8; font: 800 8px/1 system-ui, sans-serif; letter-spacing: .11em; opacity: 0; transition: opacity .2s ease; }
+.turn-pass-knob { position: absolute; left: 3px; top: 50%; width: 28px; height: 28px; border-radius: 50%; transform: translateY(-50%); display: grid; place-items: center; background: linear-gradient(150deg, #fff0d1, #dcb56e); box-shadow: 0 2px 8px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.86); transition: left .32s cubic-bezier(.2,.78,.2,1), box-shadow .32s ease; }
+.turn-pass-knob span { color: #553646; font: 700 22px/1 Georgia, serif; transform: translateY(-1px); }
+.turn-pass-switch.is-ready .turn-pass-hint { opacity: 1; }
+.turn-pass-switch.is-ready .turn-pass-knob { left: calc(100% - 31px); box-shadow: 0 0 12px rgba(255, 229, 178, .8), 0 2px 8px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.94); }
+.turn-pass-switch.is-ready .turn-pass-rail::after { content: ''; position: absolute; inset: -50% auto -50% -45%; width: 28%; transform: skewX(-22deg); background: linear-gradient(90deg, transparent, rgba(255, 235, 196, .42), transparent); animation: pass-switch-glint 2.4s ease-in-out infinite; }
 .cup-penalty-banner { width: min(480px, 94vw); margin: 0 auto 8px; border: 1px solid rgba(255, 224, 176, .64); border-radius: 14px; padding: 9px 14px; color: #fff0cf; background: rgba(105, 38, 50, .92); text-align: center; font-weight: 800; letter-spacing: .04em; box-shadow: 0 0 28px rgba(246, 95, 102, .38); animation: cup-penalty-flash .52s ease-out both; }
 .dice-return-chip { position: fixed; z-index: 110; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid rgba(244, 216, 168, .7); border-radius: 50%; background: rgba(37, 27, 42, .94); color: #ffe7b8; box-shadow: 0 8px 24px rgba(0,0,0,.36), 0 0 18px rgba(238, 194, 116, .22); }
 .dice-return-chip .brand-icon { width: 25px; height: 25px; }
 @keyframes pass-switch-ready { 50% { box-shadow: 0 0 30px rgba(246, 196, 107, .56), 0 6px 20px rgba(10, 8, 18, .34), inset 0 1px rgba(255,255,255,.3); } }
+@keyframes pass-switch-glint { 0%, 38% { left: -45%; } 78%, 100% { left: 125%; } }
 @keyframes cup-penalty-flash { 0% { opacity: 0; transform: scale(.88); filter: brightness(1.8); } 45% { opacity: 1; transform: scale(1.03); } 100% { opacity: 1; transform: scale(1); filter: brightness(1); } }
 .independent-night .hud.players { top: 100px; }
 
 @media (max-width: 460px) {
   .independent-night .hud.players { top: 100px; right: 10px; }
 }
-@media (prefers-reduced-motion: reduce) { .turn-pass-switch.is-ready, .cup-penalty-banner { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .turn-pass-switch.is-ready, .turn-pass-switch.is-ready .turn-pass-rail::after, .cup-penalty-banner { animation: none; } }
 
 /* Desktop gets a landscape table surface instead of a phone-sized game shell. */
 @media (min-width: 900px) {

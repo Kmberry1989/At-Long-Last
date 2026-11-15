@@ -45,16 +45,18 @@ describe('Google portraits and heart-purchased frames', () => {
     expect((await getDoc(doc(a, 'coupleProgress', 'pair'))).data().heartsSpent).toBe(80)
   })
 
-  it('shares validated player color and PBR finish with the couple', async () => {
+  it('shares validated player color, PBR finish, and texture with the couple', async () => {
     const a = auth('a'), b = auth('b')
     await syncGooglePortrait(a, 'pair', { uid: 'a' })
-    await savePieceStyle(a, 'pair', 'a', { color: '#8050c8', material: 'gold' })
+    await savePieceStyle(a, 'pair', 'a', { color: '#8050c8', material: 'gold', texture: 'brocade' })
     const saved = (await getDoc(doc(b, 'couplePortraits', 'pair', 'players', 'a'))).data()
     expect(saved.pieceColor).toBe('#8050c8')
     expect(saved.pieceMaterial).toBe('gold')
+    expect(saved.pieceTexture).toBe('brocade')
     const ref = doc(a, 'couplePortraits', 'pair', 'players', 'a')
     await assertFails(updateDoc(ref, { pieceColor: 'purple', updatedAt: serverTimestamp() }))
     await assertFails(updateDoc(ref, { pieceMaterial: 'glass', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(ref, { pieceTexture: 'plastic', updatedAt: serverTimestamp() }))
   })
 
   it('keeps theme votes private to each player and applies the shared theme only after matching votes', async () => {

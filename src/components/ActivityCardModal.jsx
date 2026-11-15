@@ -1,4 +1,4 @@
-import { BrandIcon, BrandText } from './BrandIcon.jsx'
+import { BrandText } from './BrandIcon.jsx'
 import { useState } from 'react'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { PLAYER_THEMES } from '../features/couple/playerAvatar.js'
@@ -18,11 +18,9 @@ export function ActivityCardModal({
   players = [],
 }) {
   const audio = useAudio() || {}
-  const { playCardFlip, playCardSeal, playSuccess } = audio
+  const { playCardSeal, playSuccess } = audio
 
-  const [flipped, setFlipped] = useState(false)
   const [answerText, setAnswerText] = useState('')
-  const [guessText, setGuessText] = useState('')
   const [revealedLocally, setRevealedLocally] = useState(false)
 
   const partnerIndex = playerIndex === 0 ? 1 : 0
@@ -47,25 +45,6 @@ export function ActivityCardModal({
 
 
 
-  const handleFlipToGuess = () => {
-    if (!hasThreeLetters(answerText) && !myEntry) return
-    playCardFlip?.()
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([15, 25, 15])
-    }
-    setFlipped(true)
-  }
-
-  const handleFlipToAnswer = () => {
-    playCardFlip?.()
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(15)
-    }
-    setFlipped(false)
-  }
-
-
-
   const handleSealAndSubmit = () => {
     if (!hasThreeLetters(answerText) && !myEntry) return
     playCardSeal?.()
@@ -78,10 +57,7 @@ export function ActivityCardModal({
       setRevealedLocally(true)
     }
 
-    onSubmit?.({
-      guess: guessText.trim(),
-      text: answerText.trim(),
-    })
+    onSubmit?.({ text: answerText.trim() })
   }
 
   const handleCompleteReveal = () => {
@@ -93,7 +69,7 @@ export function ActivityCardModal({
       onRevealComplete()
       return
     }
-    onSubmit?.({ completed: true, guess: myEntry?.guess || guessText.trim(), text: myEntry?.text || answerText.trim() })
+    onSubmit?.({ completed: true, text: myEntry?.text || answerText.trim() })
   }
 
   // If user chose to peek at the board, render an elegant, non-intrusive floating pill
@@ -160,38 +136,22 @@ export function ActivityCardModal({
             <div className="reveal-entry-block" style={{ '--border-accent': currentTheme.color }}>
               <div className="entry-head">
                 <strong>{currentPlayer.displayName}</strong>
-                <span className="entry-role-tag">Answer & Guess</span>
+                <span className="entry-role-tag">Answer</span>
               </div>
               <p className="entry-answer-text">
                 {myEntry?.text || answerText || '(No response recorded)'}
               </p>
-              {(partnerEntry?.guess || guessText) && (
-                <div className="entry-guess-preview">
-                  <span className="guess-label">{partnerPlayer.displayName} guessed:</span>
-                  <p className="guess-content">
-                    "{partnerEntry?.guess || '(No guess provided)'}"
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Partner Player Card */}
             <div className="reveal-entry-block" style={{ '--border-accent': partnerTheme.color }}>
               <div className="entry-head">
                 <strong>{partnerPlayer.displayName}</strong>
-                <span className="entry-role-tag">Answer & Guess</span>
+                <span className="entry-role-tag">Answer</span>
               </div>
               <p className="entry-answer-text">
                 {partnerEntry?.text || '(Waiting for entry)'}
               </p>
-              {(myEntry?.guess || guessText) && (
-                <div className="entry-guess-preview">
-                  <span className="guess-label">You guessed:</span>
-                  <p className="guess-content">
-                    "{myEntry?.guess || guessText || '(No guess provided)'}"
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -222,7 +182,7 @@ export function ActivityCardModal({
 
           <h3>Sealed with Care</h3>
           <p className="support-copy">
-            Your reflection and guess are locked in wax. When {partnerPlayer.displayName} seals their turn, both answers will reveal together.
+            Your answer is saved. When {partnerPlayer.displayName} finishes, you’ll see both responses together.
           </p>
 
           <div className="sealed-progress-pill">
@@ -234,10 +194,9 @@ export function ActivityCardModal({
           {error && <p className="error-copy">{error}</p>}
         </div>
       ) : (
-        /* 3D Perspective Flip Container (Face 1: Your Answer, Face 2: Guess for Partner) */
+        /* One private answer per player; prediction lives in its dedicated game. */
         <div className="activity-perspective-wrapper">
-          <div className={`activity-flip-container ${flipped ? 'is-flipped' : ''}`}>
-            {/* Front Face: Your Answer */}
+          <div className="activity-flip-container">
             <div className="activity-card-face face-front">
               <div className="face-header">
                 <h3 className="activity-modal-title">{definition?.label || 'Shared Moment'}</h3>
@@ -262,62 +221,12 @@ export function ActivityCardModal({
                 <button
                   className="primary-btn activity-flip-btn"
                   disabled={disabled || !hasThreeLetters(answerText)}
-                  onClick={handleFlipToGuess}
-                  type="button"
-                >
-                  NEXT
-                </button>
-              </div>
-            </div>
-
-            {/* Back Face: Guess for Partner */}
-            <div className="activity-card-face face-back">
-              <div className="face-header">
-                <h3 className="activity-modal-title">
-                  Guess for {partnerPlayer.displayName}
-                </h3>
-              </div>
-
-              <div className="activity-input-area">
-                <label htmlFor="activity-guess-input" className="visually-hidden">
-                  Your guess for {partnerPlayer.displayName}
-                </label>
-                <textarea
-                  id="activity-guess-input"
-                  className="text-entry activity-textarea"
-                  disabled={disabled}
-                  onChange={(e) => setGuessText(e.target.value)}
-                  rows={3}
-                  value={guessText}
-                />
-              </div>
-
-              <div className="face-actions-split">
-                <button
-                  className="secondary-btn back-flip-btn"
-                  disabled={disabled}
-                  onClick={handleFlipToAnswer}
-                  type="button"
-                >
-                  <BrandIcon name="back" /> My Answer
-                </button>
-                <button
-                  className="primary-btn seal-btn"
-                  disabled={disabled || !hasThreeLetters(answerText)}
                   onClick={handleSealAndSubmit}
                   type="button"
                 >
-                  <BrandText text={!deferReveal && isPartnerAnswerSubmitted
-                    ? '✨ Seal & Reveal'
-                    : 'Seal My Turn ✉️'} />
+                  Seal My Turn
                 </button>
               </div>
-
-              <span className="private-hint-copy">
-                <BrandText text={deferReveal ? 'Seal your answer, then continue. Compare at the end of the night.' : isPartnerAnswerSubmitted
-                  ? `💛 ${partnerPlayer.displayName} has sealed their response! Ready to reveal.`
-                  : `✉️ Stamped in wax until ${partnerPlayer.displayName} answers.`} />
-              </span>
             </div>
           </div>
         </div>

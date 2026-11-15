@@ -13,6 +13,7 @@ export function subscribePieceStyles(db, coupleId, onNext, onError) {
     onNext(Object.fromEntries(snapshot.docs.map(record => [record.id, {
       pieceColor: record.data().pieceColor || null,
       pieceMaterial: record.data().pieceMaterial || 'porcelain',
+      pieceTexture: record.data().pieceTexture || 'smooth',
       themeVote: record.data().themeVote || null,
     }])))
   }, onError)
@@ -53,6 +54,11 @@ export async function saveThemeVote(db, coupleId, uid, partnerUid, themeId) {
 }
 
 export async function savePieceStyle(db, coupleId, uid, style) {
+  const materials = ['porcelain', 'satin', 'gold', 'velvet']
+  const textures = ['smooth', 'silk', 'brocade', 'starlight']
+  if (!/^#[\da-f]{6}$/i.test(style?.color || '')) throw new Error('Choose a valid piece color.')
+  if (!materials.includes(style?.material)) throw new Error('Choose a valid piece finish.')
+  if (!textures.includes(style?.texture || 'smooth')) throw new Error('Choose a valid piece texture.')
   const ref = doc(db, 'couplePortraits', coupleId, 'players', uid)
   return runTransaction(db, async transaction => {
     const saved = await transaction.get(ref)
@@ -65,6 +71,7 @@ export async function savePieceStyle(db, coupleId, uid, style) {
       ...existing,
       pieceColor: style.color,
       pieceMaterial: style.material,
+      pieceTexture: style.texture || 'smooth',
       updatedAt: serverTimestamp(),
     })
   })

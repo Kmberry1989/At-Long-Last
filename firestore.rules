@@ -1421,7 +1421,7 @@ service cloud.firestore {
     match /couplePortraits/{coupleId}/players/{userId} {
       function validPortrait(data) {
         return data.keys().hasAll(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt'])
-          && data.keys().hasOnly(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt', 'pieceColor', 'pieceMaterial', 'themeVote'])
+          && data.keys().hasOnly(['photoURL', 'selectedFrame', 'ownedFrames', 'updatedAt', 'pieceColor', 'pieceMaterial', 'pieceTexture', 'themeVote'])
           && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1800
             && data.photoURL.matches('^https://([a-zA-Z0-9-]+[.])?googleusercontent[.]com/.+$')))
           && data.ownedFrames is list && data.ownedFrames.size() <= 6
@@ -1431,6 +1431,7 @@ service cloud.firestore {
           && data.selectedFrame in data.ownedFrames
           && (!('pieceColor' in data) || isValidColor(data.pieceColor))
           && (!('pieceMaterial' in data) || data.pieceMaterial in ['porcelain', 'satin', 'gold', 'velvet'])
+          && (!('pieceTexture' in data) || data.pieceTexture in ['smooth', 'silk', 'brocade', 'starlight'])
           && (!('themeVote' in data) || data.themeVote in ['auto', 'cozy', 'garden', 'beach', 'city', 'holiday']
             || (data.themeVote in ['starlit-rooftop', 'autumn-embers', 'cherry-blossom', 'aurora-veil']
               && data.themeVote in get(/databases/$(database)/documents/coupleProgress/$(coupleId)).data.unlockedThemes))

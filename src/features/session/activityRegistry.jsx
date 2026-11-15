@@ -22,11 +22,6 @@ function buildEntryText(entries, players) {
     .map((entry) => {
       const playerName = players[entry.playerIndex]?.displayName || `Player ${entry.playerIndex + 1}`
       let line = `${playerName}: ${entry.text}`
-      if (entry.guess) {
-        const partnerIndex = entry.playerIndex === 0 ? 1 : 0
-        const partnerName = players[partnerIndex]?.displayName || 'Partner'
-        line += `\n  (Guessed for ${partnerName}: "${entry.guess}")`
-      }
       return line
     })
     .join('\n')
@@ -62,7 +57,6 @@ function createRegistryEntry(definition) {
         {
           playerIndex,
           text: (input?.text || '').trim(),
-          ...(input?.guess ? { guess: input.guess.trim() } : {}),
         },
       ]
 

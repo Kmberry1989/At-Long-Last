@@ -17,7 +17,7 @@ export function ProfileSheet({ streak, pieceStyle = { color: '#ff7a97', material
   const [activeTab, setActiveTab] = useState(initialTab)
   const [savingToken, setSavingToken] = useState(false)
   const [tokenError, setTokenError] = useState('')
-  const [pieceDraft, setPieceDraft] = useState(pieceStyle)
+  const [pieceDraft, setPieceDraft] = useState({ texture: 'smooth', ...pieceStyle })
   const [savingPiece, setSavingPiece] = useState(false)
   const [pieceError, setPieceError] = useState('')
   const streakDays = streak?.dayCount || 0
@@ -75,6 +75,9 @@ export function ProfileSheet({ streak, pieceStyle = { color: '#ff7a97', material
         <label className="piece-color-picker">Color <input aria-label="Piece color" type="color" value={pieceDraft.color} onChange={event => setPieceDraft(current => ({ ...current, color: event.target.value }))} /></label>
         <div className="piece-material-options" role="radiogroup" aria-label="PBR finish">
           {[['porcelain', 'Porcelain'], ['satin', 'Satin'], ['gold', 'Gold'], ['velvet', 'Velvet']].map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={pieceDraft.material === id} className={`piece-material-choice finish-${id}${pieceDraft.material === id ? ' is-selected' : ''}`} onClick={() => setPieceDraft(current => ({ ...current, material: id }))}>{label}</button>)}
+        </div>
+        <div className="piece-texture-options" role="radiogroup" aria-label="Piece texture">
+          {[['smooth', 'Polished'], ['silk', 'Silk'], ['brocade', 'Brocade'], ['starlight', 'Starlight']].map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={(pieceDraft.texture || 'smooth') === id} className={`piece-texture-choice texture-${id}${(pieceDraft.texture || 'smooth') === id ? ' is-selected' : ''}`} onClick={() => setPieceDraft(current => ({ ...current, texture: id }))}><span aria-hidden="true" className="piece-texture-sample" />{label}</button>)}
         </div>
         <button className="piece-style-save" type="button" disabled={savingPiece} onClick={savePiece}>{savingPiece ? 'Saving…' : 'Save piece style'}</button>
         {pieceError && <p className="error-copy" role="alert">{pieceError}</p>}

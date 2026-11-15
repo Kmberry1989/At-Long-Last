@@ -103,7 +103,15 @@ function getActiveTurnPlayer(session, steps) {
       const explicitlyEnded = step.state.turnEnded === true
       // Read existing in-progress nights safely: completed old-style landings
       // predate the explicit pass-switch state, so treat them as already passed.
-      const legacyEnded = step.state.turnEnded === undefined && step.ready && step.completed
+      // Older independent nights allowed the players to progress at different
+      // rates. Once a later round exists, a resolved earlier landing is closed
+      // even if its saved turnEnded flag was explicitly false.
+      const hasPendingMoment = step.state.momentPending ||
+        (step.state.momentCard && !step.state.momentResolution) ||
+        (step.state.penaltyCard && !step.state.penaltyResolution)
+      const legacyEnded = step.ready && step.completed && !hasPendingMoment && (
+        step.state.turnEnded === undefined || step.round < session.round
+      )
       if (!explicitlyEnded && !legacyEnded) return playerIndex
     }
   }
@@ -146,6 +154,10 @@ export function getNightProgress(session, steps, playerIndex) {
 export function updateNightTurn(session, steps, stepId, playerIndex, action) {
   const step = steps.find(item => item.id === stepId)
   if (!step || !step.id.startsWith('roll-') || step.ownerIndex !== playerIndex) throw new Error('That turn is not yours.')
+  const hasPendingMoment = step.state.momentPending ||
+    (step.state.momentCard && !step.state.momentResolution) ||
+    (step.state.penaltyCard && !step.state.penaltyResolution)
+  if (step.round < session.round && step.ready && step.completed && !hasPendingMoment) return null
   if (action === 'return-dice') {
     if (step.state.turnEnded || step.state.turnEndRequested || step.state.diceReturned) return null
     return { session, step: { ...step, state: { ...step.state, diceReturned: true } }, penalty: false }

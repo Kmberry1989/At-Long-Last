@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { NightTransitionBanner } from './NightTransitionBanner.jsx'
 
 afterEach(cleanup)
@@ -26,5 +26,18 @@ describe('NightTransitionBanner', () => {
     render(<NightTransitionBanner phase="" transitionKey="night:none" playPhase={playPhase} />)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(playPhase).not.toHaveBeenCalled()
+  })
+
+  it('signals completion only after the slower transition has cleared', async () => {
+    vi.useFakeTimers()
+    const onComplete = vi.fn()
+    render(<NightTransitionBanner phase="activity" transitionKey="night:activity:1" onComplete={onComplete} />)
+    expect(screen.getByRole('status')).toHaveTextContent('A moment together')
+    await act(async () => vi.advanceTimersByTimeAsync(3899))
+    expect(onComplete).not.toHaveBeenCalled()
+    await act(async () => vi.advanceTimersByTimeAsync(1))
+    expect(onComplete).toHaveBeenCalledWith('night:activity:1')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    vi.useRealTimers()
   })
 })

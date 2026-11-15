@@ -6087,7 +6087,7 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   display: flex;
   flex-direction: column;
   gap: 14px;
-  animation: tileRise 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: tileRise 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
   padding-bottom: 24px;
 }
@@ -6284,16 +6284,13 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 
 /* 3D Perspective Flip Container */
 .activity-perspective-wrapper {
-  perspective: 1200px;
   width: 100%;
 }
 
 .activity-flip-container {
   position: relative;
   width: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.65s cubic-bezier(0.25, 0.8, 0.25, 1);
-  min-height: 420px;
+  min-height: 0;
 }
 
 .activity-flip-container.is-flipped {
@@ -6302,8 +6299,6 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 
 .activity-card-face {
   width: 100%;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   border-radius: 20px;
   background: rgba(28, 22, 29, 0.9);
   backdrop-filter: blur(14px);
@@ -6317,14 +6312,7 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
 }
 
 .activity-card-face.face-front {
-  transform: rotateY(0deg);
-}
-
-.activity-card-face.face-back {
-  position: absolute;
-  inset: 0;
-  transform: rotateY(180deg);
-  overflow-y: auto;
+  transform: none;
 }
 
 .activity-modal-title {
