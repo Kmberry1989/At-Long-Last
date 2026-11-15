@@ -71,23 +71,24 @@ function getActiveArcadePlayerUid(gameId, state, currentUid) {
   return Number.isInteger(state.turnIndex) ? state.playerUids?.[state.turnIndex] || null : null
 }
 
-function playArcadeFeedback(audio, next, move, currentUid) {
-  if (move.kind === 'play' || move.kind === 'draw' || move.kind === 'charade') audio?.playCardSlide?.()
-  if (move.kind === 'place-ship' || move.kind === 'auto-place' || move.kind === 'move-piece') audio?.playCardSlide?.()
-  if (move.kind === 'rotate-piece') audio?.playCardFlip?.()
-  if (move.kind === 'ask') {
-    if (next.lastAction?.found) audio?.playSuccess?.()
-    else audio?.playCardFlip?.()
+function playArcadeFeedback(audio, gameId, next, move, currentUid) {
+  let event = 'tap'
+  if (gameId === 'my-one-and-only') event = move.kind === 'draw' || move.kind === 'keep' ? 'draw' : 'card-play'
+  if (gameId === 'catch-my-heart' && move.kind === 'ask') {
+    event = next.lastAction?.bookedRanks?.length ? 'book' : next.lastAction?.found ? 'correct' : 'miss'
   }
-  if (move.kind === 'shot') {
-    if (typeof next.lastShot?.sunkShipId === 'number') audio?.playCardSeal?.()
-    else if (next.lastShot?.hit) audio?.playSuccess?.()
-    else audio?.playDuelPulse?.(1)
+  if (gameId === 'radar-love') {
+    if (move.kind === 'place-ship' || move.kind === 'auto-place') event = 'place'
+    else if (move.kind === 'shot') event = typeof next.lastShot?.sunkShipId === 'number' ? 'sink' : next.lastShot?.hit ? 'hit' : 'miss'
+    else if (move.kind === 'ready') event = 'send'
   }
-  if (next.status === 'finished') {
-    if (next.winnerUid) audio?.playConnectFourWin?.()
-    else audio?.playSuccess?.()
-  } else if (move.kind === 'guess' && next.guesses?.[currentUid] === next.promptIndex) audio?.playSuccess?.()
+  if (gameId === 'our-little-pieces') event = move.kind === 'rotate-piece' ? 'rotate' : move.kind === 'move-piece' ? 'move' : 'tap'
+  if (gameId === 'say-it-without-saying') {
+    if (move.kind === 'charade') event = 'send'
+    if (move.kind === 'guess') event = next.guesses?.[currentUid] === next.promptIndex ? 'correct' : 'miss'
+  }
+  audio?.playArcadeSfx?.(gameId, event)
+  if (next.status === 'finished') audio?.playArcadeSfx?.(gameId, next.winnerUid ? 'win' : 'solved')
 }
 
 function ArcadeModal({ children, title, onClose, busy = false }) {
@@ -164,6 +165,7 @@ function FishGame({ state, playerUid, otherName, onAction, onReset }) {
 }
 
 function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
+  const audio = useAudio()
   const ownIndex = state.playerUids.indexOf(playerUid)
   const ownTurn = state.turnIndex === ownIndex
   const [selectedShip, setSelectedShip] = useState(0)
@@ -193,14 +195,14 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
       <div className="radar-ships" aria-label="Choose ship">
         {fleet.map(ship => {
           const shipName = ship.name || (fleet.length === RADAR_FLEET.length ? RADAR_FLEET[ship.id]?.name : null) || `Ship ${ship.id + 1}`
-          return <button aria-label={`${shipName}, ${ship.length} spaces${ship.cells.length ? ', placed' : ''}`} aria-pressed={selectedShip === ship.id} className={`radar-ship-choice${selectedShip === ship.id ? ' selected' : ''}${ship.cells.length ? ' is-placed' : ''}`} key={ship.id} onClick={() => setSelectedShip(ship.id)} type="button">
+          return <button aria-label={`${shipName}, ${ship.length} spaces${ship.cells.length ? ', placed' : ''}`} aria-pressed={selectedShip === ship.id} className={`radar-ship-choice${selectedShip === ship.id ? ' selected' : ''}${ship.cells.length ? ' is-placed' : ''}`} key={ship.id} onClick={() => { setSelectedShip(ship.id); audio?.playArcadeSfx?.('radar-love', 'tap') }} type="button">
             <img alt="" aria-hidden="true" src={RADAR_FLEET_ART[ship.id] || RADAR_FLEET_ART[4]} />
             <span aria-hidden="true" className="radar-ship-length">{ship.length}</span>
           </button>
         })}
       </div>
       <div className="arcade-actions">
-        <button className="arcade-secondary" onClick={() => setVertical(value => !value)} type="button">{vertical ? 'Vertical' : 'Horizontal'}</button>
+        <button className="arcade-secondary" onClick={() => { setVertical(value => !value); audio?.playArcadeSfx?.('radar-love', 'rotate') }} type="button">{vertical ? 'Vertical' : 'Horizontal'}</button>
         <button className="arcade-secondary" onClick={() => onAction({ kind: 'auto-place' })} type="button">Randomize fleet</button>
       </div>
       <p className="arcade-small">Choose a ship, direction, then tap its first space.</p>
@@ -337,6 +339,7 @@ function OurLittlePieces({ state, onAction, onReset, audio }) {
 }
 
 function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
+  const audio = useAudio()
   const cameraRef = useRef(null)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
@@ -402,6 +405,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
     recorder.start(1000)
     recordingTimeoutRef.current = window.setTimeout(() => { if (recorder.state === 'recording') recorder.stop() }, 6000)
     setRecording(true)
+    audio?.playArcadeSfx?.('say-it-without-saying', 'record')
   }
 
   async function submitClip() {
@@ -484,7 +488,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
       setGames(current => current[gameId] ? current : { ...current, [gameId]: { state: createCoupleArcadeState(gameId, playerUids) } })
       return
     }
-    audio?.playCardSlide?.()
+    audio?.playArcadeSfx?.(gameId, 'open')
     setBusy(true)
     try { await prepareCoupleArcade(db, coupleId, gameId, playerUids) }
     catch (nextError) { setError(nextError.message || 'Could not open this game.') }
@@ -493,19 +497,18 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
 
   async function action(move) {
     if (busy) return
-    audio?.playChoiceTap?.()
     if (!enabled || !db) {
       try {
       const next = applyCoupleArcadeAction(games[selectedGame].state, selectedGame, currentUid, move)
         setGames(current => ({ ...current, [selectedGame]: { state: next } }))
-        playArcadeFeedback(audio, next, move, currentUid)
+        playArcadeFeedback(audio, selectedGame, next, move, currentUid)
       } catch (nextError) { setError(nextError.message || 'That move could not be saved.') }
       return
     }
     setBusy(true)
     try {
       const next = await runCoupleArcadeAction(db, coupleId, selectedGame, currentUid, move)
-      playArcadeFeedback(audio, next, move, currentUid)
+      playArcadeFeedback(audio, selectedGame, next, move, currentUid)
     }
     catch (nextError) { setError(nextError.message || 'That move could not be saved.') }
     finally { setBusy(false) }

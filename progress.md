@@ -664,3 +664,10 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Changed the moving-piece camera shot on phone-sized viewports to pull back while retaining its orbit around and focus on the active piece. Desktop framing is unchanged.
 - Added a camera-pose regression ensuring the phone shot is at least 35% farther from the piece and remains within the board wall. Updated the existing dice-tray radius expectation to match its current 2.18-unit implementation.
 - Verification: all 31 `BoardScene.test.js` tests passed; production build and `git diff --check` passed. A two-profile local Playwright run rolled the dice and captured the active piece-follow frame at `artifacts/phone-piece-follow-2026-11-13/phone-piece-follow-live-player-1.png`; visually reviewed the phone screenshot.
+
+## 2026-11-14 — Arcade game feedback pass
+
+- Added distinct procedural Web Audio cues for card draw/play, keepsake collection, charade recording and correct guesses, Radar Love ship placement/hit/miss/sinking, and jigsaw move/rotation/solves. Effects use synthesized oscillators, small musical motifs, and per-game pitch/timbre profiles so no sound asset is required as a fallback.
+- Added brief motion cues to drawn/revealed cards, completed Go Fish sets, sonar results, selected puzzle pieces, and the charades recording state. Reduced-motion users get static alternatives.
+- The existing component tests still cover each arcade entry screen and major interaction controls. Focused arcade/state tests passed (15), lint passed, production build passed, and `git diff --check` passed.
+- Browser inspection reached local sign-in; this pass did not authenticate into a paired arcade session or validate sound on physical speakers. Existing UI and state tests provide the interaction coverage for this change.

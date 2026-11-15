@@ -490,6 +490,69 @@ export function createAudioEngine(suppliedContext = null) {
     thud.stop(now + 0.16)
   }
 
+  function playArcadeSfx(gameId, event = 'tap') {
+    if (muted) return
+    const profile = {
+      'my-one-and-only': { type: 'triangle', notes: [523.25, 659.25, 783.99], low: 392 },
+      'say-it-without-saying': { type: 'sine', notes: [659.25, 880, 987.77], low: 440 },
+      'catch-my-heart': { type: 'sine', notes: [587.33, 739.99, 880], low: 349.23 },
+      'radar-love': { type: 'square', notes: [440, 587.33, 698.46], low: 293.66 },
+      'our-little-pieces': { type: 'triangle', notes: [523.25, 698.46, 880], low: 329.63 },
+      'four-ever': { type: 'sine', notes: [392, 523.25, 659.25], low: 261.63 },
+    }[gameId] || { type: 'triangle', notes: [523.25, 659.25, 783.99], low: 392 }
+    const [first, second, third] = profile.notes
+    const note = (frequency, delay = 0, options = {}) => {
+      const play = () => playTone({ frequency, type: options.type || profile.type, volume: options.volume || 0.023, duration: options.duration || 0.07, release: options.release || 0.12 })
+      if (delay) setTimeout(play, delay)
+      else play()
+    }
+    switch (event) {
+      case 'draw':
+      case 'card-play':
+        note(first, 0, { type: 'triangle', volume: 0.018, duration: 0.045 })
+        note(second, 48, { type: 'sine', volume: 0.015, duration: 0.055 })
+        break
+      case 'book':
+      case 'win':
+      case 'solved':
+      case 'sink':
+        note(profile.low, 0, { type: 'sine', volume: 0.018, duration: 0.12, release: 0.22 })
+        note(first, 75, { volume: 0.022 })
+        note(second, 145, { volume: 0.021 })
+        note(third, 220, { type: 'sine', volume: 0.019, duration: 0.1, release: 0.2 })
+        break
+      case 'hit':
+        note(profile.low, 0, { type: 'sine', volume: 0.045, duration: 0.045, release: 0.22 })
+        note(second, 70, { type: 'sine', volume: 0.025, duration: 0.16, release: 0.28 })
+        note(third, 175, { type: 'triangle', volume: 0.016, duration: 0.09 })
+        break
+      case 'miss':
+        note(second, 0, { type: 'sine', volume: 0.023, duration: 0.12, release: 0.24 })
+        note(first * 0.75, 95, { type: 'sine', volume: 0.015, duration: 0.13, release: 0.22 })
+        break
+      case 'place':
+      case 'move':
+        note(profile.low, 0, { type: 'sine', volume: 0.028, duration: 0.055, release: 0.16 })
+        note(first, 20, { type: 'triangle', volume: 0.015, duration: 0.045 })
+        break
+      case 'rotate':
+      case 'flip':
+        note(first, 0, { type: 'triangle', volume: 0.017, duration: 0.045 })
+        note(second, 32, { type: 'sine', volume: 0.016, duration: 0.05 })
+        break
+      case 'record':
+        note(first, 0, { type: 'sine', volume: 0.02, duration: 0.16, release: 0.2 })
+        break
+      case 'send':
+      case 'correct':
+        note(second, 0, { type: 'sine', volume: 0.022, duration: 0.08 })
+        note(third, 80, { type: 'triangle', volume: 0.017, duration: 0.12 })
+        break
+      default:
+        note(first, 0, { volume: 0.014, duration: 0.035 })
+    }
+  }
+
   return {
     ensureReady,
     get context() { return context },
@@ -583,6 +646,9 @@ export function createAudioEngine(suppliedContext = null) {
       ;[523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
         setTimeout(() => playTone({ frequency, type: index === 3 ? 'sine' : 'triangle', volume: index === 3 ? 0.025 : 0.021, duration: 0.13, release: 0.32 }), index * 82)
       })
+    },
+    playArcadeSfx(gameId, event) {
+      playArcadeSfx(gameId, event)
     },
     playHeartTick(step = 1) {
       if (muted) return
@@ -817,6 +883,7 @@ export function AudioProvider({ children }) {
       playSuccess: () => getExistingEngine()?.playSuccess(),
       playConnectFourDrop: () => getExistingEngine()?.playConnectFourDrop(),
       playConnectFourWin: () => getExistingEngine()?.playConnectFourWin(),
+      playArcadeSfx: (gameId, event) => getExistingEngine()?.playArcadeSfx(gameId, event),
       playHeartTick: (step) => getExistingEngine()?.playHeartTick(step),
       playDuelPulse: (step) => getExistingEngine()?.playDuelPulse(step),
       playThemeArrival: (themeId) => getExistingEngine()?.playThemeArrival(themeId),

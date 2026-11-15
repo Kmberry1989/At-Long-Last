@@ -34,6 +34,28 @@
 @media(max-width:390px){.arcade-game-list{gap:8px}.arcade-game-art{border-radius:13px}.couple-arcade-modal{padding:16px 12px}}
 @media(prefers-reduced-motion:reduce){.arcade-game-tile,.arcade-game-tile:hover,.arcade-game-tile:active{transition:none;transform:none}}
 
+/* Tactile confirmations for the shared physical-game surfaces. */
+.uno-draw-pile{transition:transform .2s ease,filter .2s ease}
+.uno-draw-pile:not(:disabled):active{transform:translateY(5px) rotate(-2deg) scale(.96);filter:brightness(1.25)}
+.uno-card{animation:arcade-card-arrive .34s cubic-bezier(.2,.8,.25,1) both;transition:transform .18s ease,filter .18s ease}
+.uno-card:not(:disabled):hover{transform:translateY(-7px) rotate(-2deg);filter:brightness(1.12)}
+.uno-discard{animation:arcade-card-reveal .42s cubic-bezier(.2,.85,.25,1) both}
+.fish-book-score.is-booked{animation:arcade-keepsake-pop .58s cubic-bezier(.16,.8,.24,1) both}
+.fish-ranks button{transition:transform .16s ease,background-color .16s ease,box-shadow .16s ease}
+.fish-ranks button:not(:disabled):hover{transform:translateY(-3px);background:rgba(255,231,182,.22);box-shadow:0 0 18px #f4ca7855}
+.radar-grid button.radar-hit{animation:arcade-sonar-hit .52s ease-out both}
+.radar-grid button.radar-miss{animation:arcade-sonar-miss .4s ease-out both}
+.jigsaw-piece{transition:transform .28s cubic-bezier(.2,.8,.2,1),filter .2s ease,box-shadow .2s ease}
+.jigsaw-piece.selected{filter:brightness(1.25);box-shadow:0 0 0 3px #ffe2a4,0 0 24px #f4c877aa;transform:translateY(-4px) scale(1.04)}
+.charades-game .recording{animation:arcade-recording-pulse 1.05s ease-in-out infinite alternate}
+@keyframes arcade-card-arrive{from{opacity:.25;transform:translateY(14px) rotate(5deg) scale(.9)}to{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+@keyframes arcade-card-reveal{from{opacity:.4;transform:translateY(-9px) rotateY(70deg) rotate(-6deg)}to{opacity:1;transform:translateY(0) rotateY(0) rotate(-4deg)}}
+@keyframes arcade-keepsake-pop{0%{transform:scale(.8);filter:brightness(1)}45%{transform:scale(1.24);filter:brightness(1.65)}100%{transform:scale(1);filter:brightness(1.15)}}
+@keyframes arcade-sonar-hit{0%{transform:scale(.7);box-shadow:0 0 0 #ffb77800}45%{transform:scale(1.12);box-shadow:0 0 24px #ffb778aa}100%{transform:scale(1);box-shadow:0 0 18px #ff9a7885}}
+@keyframes arcade-sonar-miss{0%{transform:scale(.75);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}
+@keyframes arcade-recording-pulse{to{box-shadow:0 0 24px #e54f7088;filter:brightness(1.15)}}
+@media(prefers-reduced-motion:reduce){.uno-card,.uno-discard,.fish-book-score.is-booked,.radar-grid button.radar-hit,.radar-grid button.radar-miss,.charades-game .recording{animation:none}.uno-card,.fish-ranks button,.jigsaw-piece,.uno-draw-pile{transition:none}}
+
 /* Keep the five branded game covers visible together on short phone screens. */
 @media(max-width:480px){
   .couple-arcade-modal{max-height:calc(100dvh - 24px);padding:12px 10px;background:linear-gradient(150deg,rgba(55,26,44,.995),rgba(21,22,39,.995))}
