@@ -153,25 +153,32 @@
 }
 @media (prefers-reduced-motion: reduce) { .turn-pass-switch.is-ready, .turn-pass-switch.is-ready .turn-pass-rail::after, .cup-penalty-banner { animation: none; } }
 
-/* Desktop gets a landscape table surface instead of a phone-sized game shell. */
+/* Desktop gets a landscape table surface instead of a phone-sized game shell.
+   Scope the surface to any active board game so older saved turn-flow sessions
+   receive the same desktop layout as IndependentNight sessions. */
 @media (min-width: 900px) {
-  .app-shell:has(.independent-night) {
+  .app-shell:has(.game-screen.active) {
     width: 100vw;
     max-width: none;
     height: 100dvh;
     margin: 0;
     border-radius: 0;
   }
-  .game-screen.independent-night { width: 100%; min-width: 0; }
-  .game-screen.independent-night .board-wrap { inset: 0; }
+  .game-screen.active { width: 100%; min-width: 0; }
+  .game-screen.active .board-wrap { inset: 0; }
+  .game-screen.active .hud.players {
+    top: max(26px, env(safe-area-inset-top));
+    left: clamp(26px, 3.2vw, 64px);
+    right: clamp(26px, 3.2vw, 64px);
+  }
+  .game-screen.active .player-strip .profile-portrait { width: clamp(84px, 7vw, 116px); height: clamp(84px, 7vw, 116px); }
+  .game-screen.active .hud.top,
+  .game-screen.active .board-view-controls { top: max(34px, env(safe-area-inset-top)); }
   .game-screen.independent-night .hud.players {
     top: max(26px, env(safe-area-inset-top));
     left: clamp(26px, 3.2vw, 64px);
     right: clamp(26px, 3.2vw, 64px);
   }
-  .game-screen.independent-night .player-strip .profile-portrait { width: clamp(84px, 7vw, 116px); height: clamp(84px, 7vw, 116px); }
-  .game-screen.independent-night .hud.top { top: max(34px, env(safe-area-inset-top)); }
-  .game-screen.independent-night .board-view-controls { top: max(34px, env(safe-area-inset-top)); }
   .game-screen.independent-night .independent-tray { max-width: 760px; left: 50%; transform: translateX(-50%); }
   .game-screen.independent-night .independent-overlay { justify-content: center; padding-top: 24px; }
   .game-screen.independent-night.has-gameplay-overlay .overlay-screen { padding-top: 24px; }

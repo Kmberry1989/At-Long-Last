@@ -25,8 +25,8 @@ export const DICE_ROLL_DURATION_SECONDS = 2.05
 export const BOARD_SKIN_SURFACE_Y = 0.126
 export const BOARD_CARD_PILE_LABEL_Y = BOARD_SKIN_SURFACE_Y + 0.018
 export const BOARD_CARD_PILE_RADIUS = 2.05
-export const BOARD_CARD_PILE_WIDTH = 3.35
-export const BOARD_CARD_PILE_DEPTH = 2.9
+export const BOARD_CARD_PILE_WIDTH = 4.25
+export const BOARD_CARD_PILE_DEPTH = 3
 export const BOARD_CARD_PILE_DOT_COUNT = 64
 export const BOARD_CARD_PILE_DOT_SIZE = 0.24
 export const BOARD_CARD_PILE_POSITIONS = {
@@ -599,12 +599,18 @@ function createSingleDie(value, skin, isDie2 = false) {
     5: [[-0.23, -0.23], [0.23, -0.23], [0, 0], [-0.23, 0.23], [0.23, 0.23]],
     6: [[-0.23, -0.26], [-0.23, 0], [-0.23, 0.26], [0.23, -0.26], [0.23, 0], [0.23, 0.26]],
   }
-  // Dark inset wells and a thin bevel make the pips read as cut into the die,
-  // rather than gold studs attached to its faces.
-  const pipMaterial = new THREE.MeshStandardMaterial({ color: '#100d13', roughness: 1, metalness: 0 })
+  // Light inset wells keep each result readable while the shallow lip still
+  // makes the pips feel carved into the die instead of attached on top.
+  const pipMaterial = new THREE.MeshStandardMaterial({
+    color: '#fff3dc',
+    emissive: '#8f7049',
+    emissiveIntensity: 0.06,
+    roughness: 0.82,
+    metalness: 0.02,
+  })
   const pipGeometry = new THREE.CircleGeometry(0.092, 24)
   const pipBevelGeometry = new THREE.TorusGeometry(0.091, 0.006, 5, 24)
-  const pipBevelMaterial = new THREE.MeshStandardMaterial({ color: '#4b3d49', roughness: 0.9, metalness: 0 })
+  const pipBevelMaterial = new THREE.MeshStandardMaterial({ color: '#d9c49d', roughness: 0.88, metalness: 0.02 })
 
   // A die is marked on every face. Opposites sum to seven, and the resting
   // rotation below turns the rolled value toward the camera-facing top.
@@ -625,7 +631,7 @@ function createSingleDie(value, skin, isDie2 = false) {
       const pip = new THREE.Group()
       // RoundedBoxGeometry's flat faces sit at +/-0.48. Put the inset a hair
       // above that surface so it cannot disappear inside the die body; the
-      // dark well and subdued lip read as carved pips rather than gold studs.
+      // pale well and fine lip read as carved pips rather than raised studs.
       if (axis === 'y') pip.position.set(a, sign * 0.489, b)
       else if (axis === 'x') pip.position.set(sign * 0.489, a, b)
       else pip.position.set(a, b, sign * 0.489)
@@ -1077,7 +1083,9 @@ export function BoardScene({
       0.1,
       100,
     )
-    camera.position.set(0, 18, 24)
+    const landscapeDesktop = mount.clientWidth >= 900
+    const openingCameraDistance = landscapeDesktop ? 39 : 30
+    camera.position.set(0, openingCameraDistance * 0.6, openingCameraDistance * 0.8)
     camera.lookAt(0, 0, 0)
 
     const renderer = new THREE.WebGLRenderer({
