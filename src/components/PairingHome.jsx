@@ -25,6 +25,9 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const { session, gameOpen, readyToPlay, error: sessionError, beginNight, openGame, closeGame, working: sessionWorking, journalEntries = [] } = useSession()
   const audio = useAudio()
   const name = profile?.displayName || user?.displayName || 'Player'
+  const displayedError = error === 'Missing or insufficient permissions.'
+    ? 'Shared progress could not sync. Refresh the page to reconnect.'
+    : error
   const [partnerEmail, setPartnerEmail] = useState('')
   const [confirmUnpair, setConfirmUnpair] = useState(false)
   const [confirmCommit, setConfirmCommit] = useState(false)
@@ -208,11 +211,11 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </div>
       </div>}
 
-      {loading && !couple ? <p role="status">Loading your connection…</p> : gameOpen && paired && !readyToPlay ? <>
+      {loading && !couple ? <p role="status">Loading your connection…</p> : gameOpen && paired && !readyToPlay ? <div className="game-loading-state">
         <h2>{sessionError ? 'Game unavailable' : 'Loading game…'}</h2>
         <p role={sessionError ? 'alert' : 'status'}>{sessionError ? 'Your saved game could not be opened.' : 'Connecting to your game.'}</p>
         <button className="ghost-btn" onClick={closeGame} type="button">Home</button>
-      </> : !paired ? <>
+      </div> : !paired ? <>
         {!user?.emailVerified ? <div className="email-onboarding">
           <h2>Verify your email</h2>
           <p>Confirm <strong>{user?.email}</strong> before inviting or accepting your person.</p>
@@ -277,7 +280,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
           <div className="button-row"><button className="ghost-btn" disabled={disabled} onClick={() => act(unpair)} type="button">{paired ? 'Confirm disconnect' : 'Confirm cancel'}</button><button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(false)} type="button">Cancel</button></div>
         </> : <button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(true)} type="button">{paired ? 'Cancel connection' : 'Cancel invite'}</button>}
       </div>}
-      {(notice || error) && <p className={noticeError || (!notice && error) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && error) ? 'alert' : 'status'}>{notice || error}</p>}
+      {(notice || (!gameOpen && displayedError)) && <p className={noticeError || (!notice && displayedError) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && displayedError) ? 'alert' : 'status'}>{notice || displayedError}</p>}
       {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial, texture: ownPieceStyle.pieceTexture }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
       {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} themeLocked={hasCurrentNight} onClose={() => setStoryScreen('')} />}
       {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} error={connectFourError} onDrop={dropConnectFour} onClose={() => { audio?.playArcadeSfx?.('four-ever', 'tap'); setConnectFourOpen(false) }} onNewGame={() => { audio?.playArcadeSfx?.('four-ever', 'new-match'); return newConnectFourMatch() }} onLand={connectFourLanding} />}

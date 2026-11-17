@@ -34,8 +34,8 @@
 .lobby-card:has(.pairing-title) .night-start-button .brand-icon { width: 25px; height: 25px; }
 .lobby-card:has(.pairing-title) .night-start-button:not(:disabled) { animation: nightButtonGlow 4s ease-in-out infinite; }
 .lobby-card:has(.pairing-title) .night-start-button:active { transform: translateY(2px) scale(.99); }
-.lobby-screen:has(.pairing-title) { padding-top: 68px; }
-.lobby-screen:has(.pairing-title) .title-band { position: absolute; z-index: 12; top: max(2px, env(safe-area-inset-top)); left: 50%; display: grid; width: clamp(132px, 13vw, 168px); height: clamp(148px, 14vw, 180px); padding: 0; transform: translateX(-50%); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.lobby-screen:has(.pairing-title) { padding-top: 116px; }
+.lobby-screen:has(.pairing-title) .title-band { position: absolute; z-index: 12; top: max(2px, env(safe-area-inset-top)); left: 50%; display: grid; width: clamp(92px, 24vw, 130px); height: clamp(104px, 27vw, 146px); padding: 0; transform: translateX(-50%); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
 .lobby-screen:has(.pairing-title) .title-band .brand-logo { width: 100%; height: 100%; margin: 0; }
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .account-toggle { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); min-height: 40px; padding: 8px 10px; font-size: 9px; letter-spacing: .055em; }
 .app-shell:has(.lobby-screen:has(.pairing-title)) > .audio-controls { top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); gap: 3px; }
@@ -46,8 +46,8 @@
 @media (prefers-reduced-motion: reduce) { .lobby-card:has(.pairing-title) .night-start-button:not(:disabled) { animation: none; } }
 
 @media (max-width: 460px) {
-  .lobby-screen:has(.pairing-title) { padding-top: 68px; }
-  .lobby-screen:has(.pairing-title) .title-band { top: max(2px, env(safe-area-inset-top)); width: clamp(132px, 36vw, 156px); height: clamp(148px, 40vw, 172px); padding: 0; }
+  .lobby-screen:has(.pairing-title) { padding-top: 116px; }
+  .lobby-screen:has(.pairing-title) .title-band { top: max(2px, env(safe-area-inset-top)); width: clamp(92px, 24vw, 112px); height: clamp(104px, 27vw, 126px); padding: 0; }
   .lobby-card:has(.pairing-title) { gap: 8px; padding: 10px 12px; }
   .lobby-card:has(.pairing-title) .account-strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px; }
   .lobby-card:has(.pairing-title) .profile-portrait { width: 56px; height: 56px; }
@@ -200,8 +200,8 @@
   top: 50%;
   display: grid;
   place-items: center;
-  width: min(30vw, 112px);
-  height: min(30vw, 112px);
+  width: min(34vw, 130px);
+  height: min(34vw, 130px);
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -292,7 +292,7 @@
 
 @media (max-height: 680px) {
   .couple-portrait-stage { width: min(92vw, 360px); height: clamp(120px, 34vw, 150px); }
-  .couple-portrait-button { width: min(29vw, 104px); height: min(29vw, 104px); }
+  .couple-portrait-button { width: min(32vw, 120px); height: min(32vw, 120px); }
   .lobby-screen.paired-lobby .lobby-content { padding-top: 8px; padding-bottom: 12px; }
   .lobby-card:has(.couple-portrait-stage) { gap: 2px; }
   .lobby-screen.paired-lobby .night-start-button { min-height: 52px; }
@@ -304,6 +304,35 @@
   .couple-portrait-stage::before { opacity: .65; }
 }
 .couple-arcade-lobby-link{display:inline-grid;place-items:center;min-height:0;padding:0;border:0;background:transparent;box-shadow:none;line-height:0}
+
+/* Keep the paired wordmark compact while a saved night reconnects. */
+.lobby-screen:has(.game-loading-state) { padding-top: 116px; }
+.lobby-screen:has(.game-loading-state) .title-band {
+  position: absolute;
+  z-index: 12;
+  top: max(2px, env(safe-area-inset-top));
+  left: 50%;
+  display: grid;
+  width: clamp(92px, 24vw, 130px);
+  height: clamp(104px, 27vw, 146px);
+  padding: 0;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+}
+.lobby-screen:has(.game-loading-state) .title-band .brand-logo { width: 100%; height: 100%; margin: 0; }
+.game-loading-state { display: grid; justify-items: center; align-content: center; gap: 12px; width: 100%; min-height: min(48dvh, 360px); margin: auto; text-align: center; }
+.game-loading-state h2 { margin: 0; text-align: center; }
+.game-loading-state p { max-width: 34ch; text-align: center; }
+.game-loading-state .ghost-btn { width: min(100%, 340px); }
+@media (max-width: 460px) {
+  .lobby-screen:has(.game-loading-state) .title-band { width: clamp(92px, 24vw, 112px); height: clamp(104px, 27vw, 126px); }
+}
 .couple-arcade-lobby-link img{display:block;width:clamp(82px,24vw,112px);height:clamp(82px,24vw,112px);object-fit:cover;border-radius:22px;filter:drop-shadow(0 8px 14px #39203255);transition:transform .2s ease,filter .2s ease}
 .couple-arcade-lobby-link:hover img{transform:translateY(-3px) scale(1.025);filter:drop-shadow(0 12px 18px #39203275)}
 .couple-arcade-lobby-link:focus-visible{outline:3px solid #ffe2a4;outline-offset:5px;border-radius:24px}

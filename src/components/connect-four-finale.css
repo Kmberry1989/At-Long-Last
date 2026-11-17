@@ -31,10 +31,10 @@
 .connect-four-player.player-0 { left: 0; }
 .connect-four-player.player-1 { right: 0; }
 .connect-four-player.is-turn-active { z-index: 5; color: #ffe4ae; }
-.connect-four-player-portrait { width: clamp(36px, 10vw, 52px) !important; height: clamp(36px, 10vw, 52px) !important; }
+.connect-four-player-portrait { width: clamp(46px, 11vw, 62px) !important; height: clamp(46px, 11vw, 62px) !important; }
 .connect-four-player-token { width: clamp(26px, 7vw, 38px); height: clamp(26px, 7vw, 38px); padding: 2px; border: 2px solid var(--player-token-ring); border-radius: 50%; background: rgba(21,17,29,.68); box-shadow: 0 0 12px color-mix(in srgb, var(--player-token-ring) 42%, transparent); }
 .connect-four-token-art { display: block; width: 100%; height: 100%; border-radius: 50%; background-repeat: no-repeat; background-size: 300% 300%; }
-.connect-four-token-frame { position: relative; z-index: 2; display: block; width: 91%; height: 91%; padding: 2px; box-sizing: border-box; border: 2px solid var(--player-token-ring); border-radius: 50%; background: rgba(23,17,28,.7); box-shadow: 0 2px 5px rgba(14,8,18,.68), 0 0 10px color-mix(in srgb, var(--player-token-ring) 35%, transparent); }
+.connect-four-token-frame { position: relative; z-index: 2; display: grid; place-items: center; width: 86%; height: auto; aspect-ratio: 1; padding: 2px; box-sizing: border-box; border: 2px solid var(--player-token-ring); border-radius: 50%; background: rgba(23,17,28,.7); box-shadow: 0 2px 5px rgba(14,8,18,.68), 0 0 10px color-mix(in srgb, var(--player-token-ring) 35%, transparent); }
 .player-token-0 { --player-token-ring: #ed9b9f; }
 .player-token-1 { --player-token-ring: #8ccac7; }
 .connect-four-player.player-1 { color: #d3e5e5; }
@@ -65,8 +65,8 @@
 .connect-four-done span { font-size: 19px; transition: transform .2s ease; }
 .connect-four-done:hover span { transform: translateX(4px); }
 .connect-four-close-match { margin: 2px auto 0; padding: 5px 12px; border: 0; color: rgba(255,237,206,.68); background: transparent; font: 600 11px 'DM Sans',Arial,sans-serif; cursor: pointer; }
-.connect-four-token-frame.is-dropping { transform-origin: center; animation: connect-four-token-drop .82s cubic-bezier(.2,.72,.24,1.03) both; }
-@keyframes connect-four-token-drop { 0% { opacity: .15; transform: translateY(-680%) scale(.84); } 69% { opacity: 1; transform: translateY(9%) scale(1.04); } 84% { transform: translateY(-5%) scale(.98); } 100% { transform: translateY(0) scale(1); } }
+.connect-four-token-frame.is-dropping { transform-origin: center; animation: connect-four-token-drop 1.35s cubic-bezier(.2,.6,.25,1) both; }
+@keyframes connect-four-token-drop { 0% { opacity: .1; transform: translateY(calc(0px - var(--drop-from, 100cqh))) scale(.9); } 78% { opacity: 1; transform: translateY(3%) scale(1.035); } 91% { transform: translateY(-1.2%) scale(.995); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes connect-four-result-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes connect-four-win-glow { from { opacity: .45; transform: scale(.94); } to { opacity: 1; transform: scale(1.06); } }
 @media (max-width: 400px) { .connect-four-card { padding-inline: 8px; } .connect-four-header { min-height: 52px; } .connect-four-close { width: 30px; height: 30px; font-size: 23px; } }

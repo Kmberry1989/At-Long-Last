@@ -48,8 +48,8 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
     if (!moveKey || seenMove.current === moveKey) return
     seenMove.current = moveKey
     setAnimatingKey(moveKey)
-    const landTimer = window.setTimeout(() => onLand?.(state?.winnerUid), 720)
-    const timer = window.setTimeout(() => setAnimatingKey(null), 900)
+    const landTimer = window.setTimeout(() => onLand?.(state?.winnerUid), 1260)
+    const timer = window.setTimeout(() => setAnimatingKey(null), 1450)
     return () => { window.clearTimeout(timer); window.clearTimeout(landTimer) }
   }, [moveKey, state?.winnerUid, onLand])
 
@@ -66,7 +66,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
       const shouldAnimate = move?.column === column && move?.row === row && animatingKey === moveKey
       const isWinningPiece = winningCells.has(index)
       return <span className={`connect-four-cell${owner >= 0 ? ' has-token' : ''}${isWinningPiece ? ' is-winning' : ''}`} key={index}>
-        {owner >= 0 && <span className={`connect-four-token-frame player-token-${owner}${shouldAnimate ? ' is-dropping' : ''}`}>
+        {owner >= 0 && <span className={`connect-four-token-frame player-token-${owner}${shouldAnimate ? ' is-dropping' : ''}`} style={{ '--drop-from': `${(visualRow + 0.5) * (71.3 / CONNECT_FOUR_ROWS)}cqh` }}>
           <span aria-hidden="true" className="connect-four-token-art" style={tokenStyle(tokenId)} />
         </span>}
       </span>
