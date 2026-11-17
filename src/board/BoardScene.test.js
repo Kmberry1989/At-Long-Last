@@ -32,6 +32,7 @@ import {
   getTokenTargetPosition,
   makeDiceRollGesture,
   resolveDiceValues,
+  settlePrimitiveDie,
 } from './BoardScene.jsx'
 
 const boardPath = [
@@ -103,14 +104,18 @@ describe('dice home base proportions', () => {
 })
 
 describe('readable dice faces', () => {
-  it('marks every side and settles the rolled face upward', () => {
+  it('marks every side, keeps the landing position, and settles the rolled face upward', () => {
     const sideNormals = { 1: [0, 1, 0], 2: [1, 0, 0], 3: [0, 0, 1], 4: [0, 0, -1], 5: [-1, 0, 0], 6: [0, -1, 0] }
     for (let value = 1; value <= 6; value += 1) {
       const pair = createPrimitiveDie([value, 1])
       const die = pair.userData.die1
+      die.position.set(-0.4 + value / 10, 0.62, 0.2)
+      const landedAt = die.position.clone()
+      settlePrimitiveDie(pair, [value, 1])
       expect(Object.values(die.userData.pipGroups).every(group => group.visible)).toBe(true)
       expect(Object.values(die.userData.pipGroups).reduce((total, group) => total + group.children.length, 0)).toBe(21)
       expect(Object.values(die.userData.pipGroups).flatMap(group => group.children).every(pip => Math.max(Math.abs(pip.position.x), Math.abs(pip.position.y), Math.abs(pip.position.z)) > 0.48)).toBe(true)
+      expect(die.position.distanceTo(landedAt)).toBe(0)
       const top = new THREE.Vector3(...sideNormals[value]).applyQuaternion(die.quaternion)
       expect(top.y).toBeCloseTo(1)
     }

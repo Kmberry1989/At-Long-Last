@@ -755,6 +755,7 @@ export function AudioProvider({ children }) {
   const scrapbookOpenRef = useRef(false)
   const mutedRef = useRef(false)
   const musicPausedRef = useRef(false)
+  const pageHiddenRef = useRef(typeof document !== 'undefined' && document.visibilityState === 'hidden')
   const firstEngineRef = useRef(null)
   const archiveStageRef = useRef({})
   const [musicTheme, setMusicThemeState] = useState(() => savedMusicChoice('at-long-last:music-theme', ['continuous', 'original', 'first'], 'continuous'))
@@ -771,7 +772,7 @@ export function AudioProvider({ children }) {
     if (!main?.unlocked) return
     const arcadeActive = isArcadeStage(desiredStageRef.current)
     const activeTheme = arcadeActive ? 'continuous' : scrapbookOpenRef.current ? 'original' : themeRef.current
-    const mainMuted = musicPausedRef.current || celebratingRef.current || mutedRef.current || activeTheme !== 'continuous'
+    const mainMuted = pageHiddenRef.current || musicPausedRef.current || celebratingRef.current || mutedRef.current || activeTheme !== 'continuous'
     if (main.muted !== mainMuted) main.setMuted(mainMuted)
     if (activeTheme === 'original' && !mutedRef.current && !keepsakeEngineRef.current) {
       keepsakeEngineRef.current = createKeepsakeAudioEngine()
@@ -790,11 +791,35 @@ export function AudioProvider({ children }) {
         engine.setStage(nextStage)
         archiveStageRef.current[name] = nextStage
       }
-      const shouldMute = musicPausedRef.current || celebratingRef.current || mutedRef.current || activeTheme !== name
+      const shouldMute = pageHiddenRef.current || musicPausedRef.current || celebratingRef.current || mutedRef.current || activeTheme !== name
       if (engine.muted !== shouldMute) engine.setMuted(shouldMute)
     }
     if (import.meta.env.DEV) window.__atLongLastSoundtrack = activeTheme
   }, [])
+
+  useEffect(() => {
+    const syncPageAudio = () => {
+      pageHiddenRef.current = document.visibilityState === 'hidden'
+      syncTracks()
+    }
+    const pauseForPageHide = () => {
+      pageHiddenRef.current = true
+      syncTracks()
+    }
+    const resumeForPageShow = () => {
+      pageHiddenRef.current = document.visibilityState === 'hidden'
+      syncTracks()
+    }
+
+    document.addEventListener('visibilitychange', syncPageAudio)
+    window.addEventListener('pagehide', pauseForPageHide)
+    window.addEventListener('pageshow', resumeForPageShow)
+    return () => {
+      document.removeEventListener('visibilitychange', syncPageAudio)
+      window.removeEventListener('pagehide', pauseForPageHide)
+      window.removeEventListener('pageshow', resumeForPageShow)
+    }
+  }, [syncTracks])
 
   const setMusicTheme = useCallback((theme) => {
     if (!['continuous', 'original', 'first'].includes(theme)) return

@@ -709,14 +709,7 @@ function setPrimitiveDiceValues(dicePair, values) {
 function settlePrimitiveDice(dicePair, values) {
   setPrimitiveDiceValues(dicePair, values)
   const { die1, die2 } = dicePair.userData
-  die1.position.set(-0.35, 0.62, -0.25)
-  die1.userData.displayYaw = 0.32
-  setPrimitiveDieValue(die1, values[0])
   die1.scale.setScalar(1)
-
-  die2.position.set(0.72, 0.62, 0.35)
-  die2.userData.displayYaw = -0.26
-  setPrimitiveDieValue(die2, values[1])
   die2.scale.setScalar(1)
 }
 

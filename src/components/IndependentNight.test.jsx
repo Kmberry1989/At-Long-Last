@@ -85,19 +85,25 @@ it('points the lit switch to the receiving player and prompts only to pass the t
   expect(screen.queryByText('Finish this moment, then pass the turn.')).not.toBeInTheDocument()
   expect(screen.queryByText(/return the dice|dice back|cup/i)).not.toBeInTheDocument()
 })
-it('keeps the moment category hidden until the player flips the coin', async () => {
+it('starts the landing coin automatically without asking the player to tap it', async () => {
+  vi.useFakeTimers()
   render(<IndependentNight />)
   act(() => mocks.next([{
     id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart',
     state: { momentPending: true, move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: [1, 1] } },
     ready: true, completed: true, skipped: false,
   }]))
-  expect(await screen.findByText('Tap the coin to reveal your card.')).toBeInTheDocument()
+  expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
+  expect(screen.getByTestId('board-coin')).toBeDisabled()
+  expect(screen.queryByText(/tap the coin/i)).not.toBeInTheDocument()
   expect(screen.queryByText(/trash|treasure/i)).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
-  expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
+  await act(async () => { await vi.advanceTimersByTimeAsync(1050) })
+  expect(mocks.command).toHaveBeenCalledTimes(1)
+  expect(mocks.command.mock.calls[0][3]).toMatchObject({ kind: 'submit', stepId: 'roll-1-1', input: { flipMoment: true } })
 })
-it('restores the landing coin instead of leaving a stale blank board overlay', async () => {
+it('resumes the automatic landing reveal instead of leaving a stale blank board overlay', async () => {
+  vi.useFakeTimers()
   sessionStorage.setItem('at-long-last:selected-night-step:night:b', 'roll-1-1')
   render(<IndependentNight />)
   act(() => mocks.next([{
@@ -105,27 +111,30 @@ it('restores the landing coin instead of leaving a stale blank board overlay', a
     state: { momentPending: true, move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 2, steps: 2, dice: [1, 1] } },
     ready: true, completed: true, skipped: false,
   }]))
-  expect(await screen.findByText('Tap the coin to reveal your card.')).toBeInTheDocument()
   expect(window.__atLongLastGameState.rollStage).toBe('confirm-landing')
+  await act(async () => { await vi.advanceTimersByTimeAsync(1050) })
+  expect(mocks.command).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText(/tap the coin/i)).not.toBeInTheDocument()
 })
-it('flips the board coin, then draws and turns the selected deck card', async () => {
+it('automatically flips the coin, then draws and reveals the selected deck card', async () => {
+  vi.useFakeTimers()
   render(<IndependentNight />)
   const pendingStep = {
     id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,
     state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentPending: true },
   }
   act(() => mocks.next([pendingStep]))
-  expect(await screen.findByText('Tap the coin to reveal your card.')).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'A Warm Mug Left Ready' })).not.toBeInTheDocument()
   const cardStep = {
     id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,
     state: { move: { id: 'roll-1-1', playerIndex: 1, from: 0, to: 3, steps: 3, dice: [1, 2] }, momentPending: false, coinResult: 'treasure', momentCard: { category: 'treasure', id: 'warm-mug', title: 'A Warm Mug Left Ready', scene: 'The kettle is still warm.', effect: 'A small kindness', movement: 2, lowerDie: 1 } },
   }
   mocks.command.mockImplementationOnce(async () => { act(() => mocks.next([cardStep])); return cardStep })
-  fireEvent.click(screen.getByTestId('board-coin'))
-  expect(await screen.findByRole('heading', { name: 'A Warm Mug Left Ready' }, { timeout: 2500 })).toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(1750) })
+  expect(screen.getByRole('heading', { name: 'A Warm Mug Left Ready' })).toBeInTheDocument()
 })
-it('keeps the revealed card selected while the Firestore listener still shows the pre-flip coin state', async () => {
+it('keeps the automatically revealed card selected while the Firestore listener still shows the pre-flip state', async () => {
+  vi.useFakeTimers()
   render(<IndependentNight />)
   const pendingStep = {
     id: 'roll-1-1', kind: 'board', round: 1, ownerIndex: 1, type: 'heart', ready: true, completed: true, skipped: false,
@@ -137,8 +146,8 @@ it('keeps the revealed card selected while the Firestore listener still shows th
   }
   act(() => mocks.next([pendingStep]))
   mocks.command.mockResolvedValueOnce(revealedStep)
-  fireEvent.click(await screen.findByTestId('board-coin'))
-  expect(await screen.findByRole('heading', { name: 'A Warm Mug Left Ready' }, { timeout: 2500 })).toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(1750) })
+  expect(screen.getByRole('heading', { name: 'A Warm Mug Left Ready' })).toBeInTheDocument()
   expect(window.__atLongLastGameState.selectedId).toBe('roll-1-1')
   expect(window.__atLongLastGameState.selectedContentReady).toBe(true)
   expect(screen.queryByText('Tap the coin')).not.toBeInTheDocument()

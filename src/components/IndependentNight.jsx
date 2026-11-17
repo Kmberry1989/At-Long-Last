@@ -33,6 +33,7 @@ function nightErrorMessage(error) {
 const BoardScene = lazy(() => import('../board/BoardScene.jsx').then(module => ({ default: module.BoardScene })))
 const JournalDrawer = lazy(() => import('./JournalDrawer.jsx').then(module => ({ default: module.JournalDrawer })))
 const DICE_SETTLE_FALLBACK_MS = 4500
+const MOMENT_COIN_AUTO_DELAY_MS = 1050
 
 export function IndependentNight() {
   const { couple, hasPartner, progress: coupleProgress } = useCouple()
@@ -57,6 +58,7 @@ export function IndependentNight() {
   const [previewPlayer, setPreviewPlayer] = useState(0)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
+  const [momentFlipFailed, setMomentFlipFailed] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [rollingDice, setRollingDice] = useState(null)
   const [activeMomentMoveKey, setActiveMomentMoveKey] = useState(null)
@@ -81,6 +83,8 @@ export function IndependentNight() {
   const timer = useRef(null)
   const arrivalCueKeyRef = useRef('')
   const completedCardDrawKeysRef = useRef(new Set())
+  const automaticMomentFlipStepRef = useRef(null)
+  const flipMomentRef = useRef(null)
   useEffect(() => {
     if (!import.meta.env.DEV) return
     rollTraceRef.current = [...rollTraceRef.current, { stepId: rollPresentation?.stepId || null, stage: rollPresentation?.stage || null, saved: Boolean(rollPresentation?.saved), diceSettled: Boolean(rollPresentation?.diceSettled), rolling, at: Math.round(performance.now()) }].slice(-32)
@@ -353,6 +357,7 @@ export function IndependentNight() {
     if (lock.current || rollPresentation?.stage !== 'confirm-landing' || !rollStep?.state?.momentPending) return
     audio?.playAction?.()
     if (gesture?.source === 'button') audio?.playDiceCast?.()
+    setMomentFlipFailed(false)
     setCardDrawReady(false)
     setCoinGesture(gesture || { direction: { x: 0.1, y: -0.6 }, power: 0.55 })
     setRolling(true)
@@ -360,6 +365,7 @@ export function IndependentNight() {
     const result = await run({ kind: 'submit', stepId: rollPresentation.stepId, revealing: false, input: { flipMoment: true, gesture } })
     if (!result?.state?.momentCard) {
       setRolling(false)
+      setMomentFlipFailed(true)
       setRollPresentation(current => current ? { ...current, stage: 'confirm-landing' } : current)
       return
     }
@@ -367,6 +373,32 @@ export function IndependentNight() {
     setCoinOutcome(result.state.coinResult)
     setCoinFlipKey(`${rollPresentation.stepId}:coin`)
   }
+
+  flipMomentRef.current = flipCoin
+
+  useEffect(() => {
+    if (
+      rollPresentation?.stage !== 'confirm-landing' ||
+      !rollPresentation.saved ||
+      !rollStep?.state?.momentPending
+    ) return undefined
+
+    const stepId = rollPresentation.stepId
+    if (automaticMomentFlipStepRef.current === stepId) return undefined
+    automaticMomentFlipStepRef.current = stepId
+    let fired = false
+
+    const timeout = window.setTimeout(() => {
+      if (automaticMomentFlipStepRef.current !== stepId) return
+      fired = true
+      flipMomentRef.current?.({ source: 'automatic', direction: { x: 0.1, y: -0.6 }, power: 0.65 })
+    }, MOMENT_COIN_AUTO_DELAY_MS)
+
+    return () => {
+      window.clearTimeout(timeout)
+      if (!fired && automaticMomentFlipStepRef.current === stepId) automaticMomentFlipStepRef.current = null
+    }
+  }, [rollPresentation?.saved, rollPresentation?.stage, rollPresentation?.stepId, rollStep?.state?.momentPending])
 
   function beginCardDraw(key) {
     if (
@@ -440,7 +472,7 @@ export function IndependentNight() {
   const turnStatusText = progress.activeTurnPlayer !== playerIndex
     ? `Waiting for ${session.players[progress.activeTurnPlayer]?.displayName || 'your partner'} to finish their turn.`
     : progress.pendingLanding?.state?.momentPending
-      ? 'Tap the coin to reveal your card.'
+      ? 'Your card is on its way.'
       : pendingTurnStep
         ? 'Flip the switch to pass your turn.'
         : 'Open your moment to continue.'
@@ -481,7 +513,7 @@ export function IndependentNight() {
               setRolling(false)
               setRollGesture(null)
             }}
-            canFlipCoin={rollPresentation?.stage === 'confirm-landing'} onCoinFlip={flipCoin} coinFlipKey={coinFlipKey} coinOutcome={coinOutcome} coinGesture={coinGesture} onCoinFlipComplete={beginCardDraw} momentCardCategory={coinOutcome}
+            canFlipCoin={false} onCoinFlip={flipCoin} coinFlipKey={coinFlipKey} coinOutcome={coinOutcome} coinGesture={coinGesture} onCoinFlipComplete={beginCardDraw} momentCardCategory={coinOutcome}
             onDiceSettled={() => setRollPresentation(current => current ? { ...current, diceSettled: true, stage: current.saved ? 'confirm-roll' : current.stage } : current)}
             onReady={() => setBoardReady(true)} onPieceStep={() => audio?.playPieceStep?.()} onPieceMoveComplete={({ playerIndex: mover, moveId }) => {
               if (mover !== playerIndex) return
@@ -529,7 +561,7 @@ export function IndependentNight() {
           </div>
         </div>}
         {rollPresentation?.stage === 'confirm-roll' && <div className="roll-ack-tray"><span>{rollingDice?.join(' · ') || rollStep?.state?.move?.dice?.join(' · ')}</span><button className="primary-btn" type="button" onClick={acknowledgeDice}>Continue</button></div>}
-        {rollPresentation?.stage === 'confirm-landing' && rollStep?.state?.momentPending && <div className="roll-ack-tray coin-touch-hint" role="status">Tap the coin to reveal your card.</div>}
+        {rollPresentation?.stage === 'confirm-landing' && rollStep?.state?.momentPending && momentFlipFailed && <div className="roll-ack-tray moment-retry-tray"><button className="primary-btn" type="button" onClick={() => flipMomentRef.current?.({ source: 'automatic', direction: { x: 0.1, y: -0.6 }, power: 0.65 })}>Try again</button></div>}
         {rollPresentation?.stage === 'confirm-landing' && !rollStep?.state?.momentPending && <div className="roll-ack-tray landing-ack-tray"><span>Piece landed</span><button className="primary-btn" type="button" onClick={acknowledgeLanding}>Continue</button></div>}
         {(!selected || activityMinimized) && !rollPresentation && session.phase !== 'finale' && (progress.available.length > 0 || progress.readyToFinish || (!progress.canRoll && loaded)) && <div className="bottom-tray independent-tray">
           <div className="night-action-list" aria-label={progress.readyToReveal ? 'End of night reveals' : 'Your next moments'}>

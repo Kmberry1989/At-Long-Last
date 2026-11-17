@@ -1,5 +1,12 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-11-16 — Dice cleanup, automatic card reveal, and background audio
+
+- Kept each die at its settled landing transform until the player manually returns the pair to the cup; the existing turn-end penalty can now detect genuinely unreturned dice. Added a position-preservation assertion to the existing board test.
+- Replaced the confusing “tap the coin” instruction with an automatic coin flip and card draw after a short landing pause. The coin is no longer an interaction target; a concise retry action appears only if the saved reveal fails.
+- Paused soundtrack playback while the page is hidden or backgrounded and resynchronized on visibility/page restoration, while preserving the player’s music preference.
+- Verification: `npm run lint`, `npm run build`, and `git diff --check` passed. Automated tests were not run in this pass.
+
 ## 2026-11-13 — Complete two-player night replay
 
 - Reworked `scripts/verify-independent-night.mjs` to follow the current turn loop: take turns in sequence, return the dice before ending a turn, exercise the forgotten-dice flush/trash penalty, resolve each partner's pending activity before their next roll, and finish both players' eight turns before the finale.
