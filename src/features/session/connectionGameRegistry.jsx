@@ -6,6 +6,7 @@ import {
   VAULT_PROMPTS,
 } from './connectionGameData.js'
 import { commitChoice } from './choiceCommitment.js'
+import { getBankEntriesForActivity, mergeBank } from '../../expandedContentIntegration.js'
 
 import { pickFreshPrompt as pickPrompt } from './promptRotation.js'
 function getOption(options, answerId) {
@@ -313,7 +314,7 @@ function createMindMeldEntry(definition) {
     createInitialState(_players, options = {}) {
       return {
         ...createChoiceState(
-          MIND_MELD_PROMPTS,
+          getBankEntriesForActivity('mind-meld', MIND_MELD_PROMPTS),
           options.activePlayerIndex ?? 0,
           options.random,
           options.history,
@@ -395,7 +396,7 @@ function createPredictionBoxEntry(definition) {
     ...definition,
     createInitialState(_players, options = {}) {
       const activePlayerIndex = options.activePlayerIndex ?? 0
-      const selected = pickPrompt(PREDICTION_BOX_PROMPTS, options.random, options.history)
+      const selected = pickPrompt(getBankEntriesForActivity('prediction-box', PREDICTION_BOX_PROMPTS), options.random, options.history)
       return {
         activityId: definition.id,
         actualId: null,
@@ -497,7 +498,7 @@ function createVaultEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickPrompt(VAULT_PROMPTS, options.random, options.history)
+      const selected = pickPrompt(mergeBank(getBankEntriesForActivity('the-vault', VAULT_PROMPTS), 'vault-additional'), options.random, options.history)
       return {
         activityId: definition.id,
         entries: [],

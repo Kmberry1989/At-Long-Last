@@ -1,4 +1,6 @@
-export const LETTERPRESS_PROMPTS = [
+import { getBankExpansion } from '../../../at-long-last-content-pack-v2/expanded/index.js'
+
+const LETTERPRESS_BASE_PROMPTS = [
   'A small ritual we should keep is…',
   'The coziest ordinary evening includes…',
   'A place that feels like ours is…',
@@ -42,6 +44,13 @@ export const LETTERPRESS_PROMPTS = [
   'Something we should make time to enjoy…',
   'A kindness I hope becomes our habit…',
   'The next chapter could include…',
+]
+
+// Expanded Edition: 12 more prompts, appended with dedup. The pack's
+// letterpress entries are { prompt } objects; the base pool is strings.
+export const LETTERPRESS_PROMPTS = [
+  ...LETTERPRESS_BASE_PROMPTS,
+  ...getBankExpansion('letterpress').map((entry) => entry.prompt).filter((prompt) => !LETTERPRESS_BASE_PROMPTS.includes(prompt)),
 ]
 
 export function getLetterpressPrompt(sessionId = '', round = 1) {

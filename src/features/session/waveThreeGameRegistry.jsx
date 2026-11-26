@@ -9,6 +9,7 @@ import {
 } from './waveThreeGameData.js'
 
 import { pickFreshPrompt as pickItem } from './promptRotation.js'
+import { getBankEntriesForActivity } from '../../expandedContentIntegration.js'
 function getPlayerName(players, playerIndex) {
   return players[playerIndex]?.displayName || `Player ${playerIndex + 1}`
 }
@@ -435,7 +436,7 @@ function createMazeEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(DUAL_AXIS_MAZES, options.random, options.history)
+      const selected = pickItem(getBankEntriesForActivity('dual-axis-maze', DUAL_AXIS_MAZES), options.random, options.history)
       const horizontalPlayerIndex = options.activePlayerIndex ?? 0
       return {
         activityId: definition.id,
@@ -529,7 +530,7 @@ function createCanvasEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(BLIND_CANVAS_PROMPTS, options.random, options.history)
+      const selected = pickItem(getBankEntriesForActivity('blind-canvas', BLIND_CANVAS_PROMPTS), options.random, options.history)
       const leftPlayerIndex = options.activePlayerIndex ?? 0
       return {
         activityId: definition.id,
@@ -605,7 +606,7 @@ function createHarmonicEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(HARMONIC_LOCK_ROUNDS, options.random, options.history)
+      const selected = pickItem(getBankEntriesForActivity('harmonic-lock', HARMONIC_LOCK_ROUNDS), options.random, options.history)
       return {
         activityId: definition.id,
         mode: 'harmonic-lock',

@@ -135,9 +135,14 @@ export const ACTIVITY_PROMPT_VARIANTS = Object.fromEntries(
 )
 
 export function pickActivityPrompt(definition, random = Math.random, history = []) {
+  // definition.prompts carries the Expanded Edition prompts: 4 expansion
+  // prompts per base activity (merged in contentPackData) and the 12
+  // prompts of each new activity. definition.prompt is the single base
+  // prompt; new activities have none, so filter out the empty slot.
   const prompts = [
     definition.prompt,
     ...(ACTIVITY_PROMPT_VARIANTS[definition.id] || []),
-  ]
+    ...(definition.prompts || []),
+  ].filter(Boolean)
   return pickFreshPrompt(prompts, random, history)
 }

@@ -1,4 +1,5 @@
 import { ACTIVITIES as RAW_ACTIVITIES } from '../../../at-long-last-content-pack-v2/activityRegistry.ts'
+import { mergeWithBaseRegistry } from '../../../at-long-last-content-pack-v2/expanded/index.js'
 import { withActivityArt } from '../../activityTileArt.js'
 import { DUELS as RAW_DUELS } from '../../../at-long-last-content-pack-v2/duelRegistry.ts'
 import { CONNECTION_ACTIVITY_DEFINITIONS } from './connectionGameData.js'
@@ -8,18 +9,28 @@ import { WAVE_THREE_ACTIVITY_DEFINITIONS } from './waveThreeGameData.js'
 import { WAVE_FOUR_ACTIVITY_DEFINITIONS } from './waveFourGameData.js'
 import { WAVELENGTH_DUEL_DEFINITION } from './wavelengthDuelData.js'
 
-export const activityDefinitions = withActivityArt([
-  ...RAW_ACTIVITIES.map((activity) => ({
+// Expanded Edition: merge the 12 new activities + 4 expansion prompts per
+// base activity on top of the existing 76, then attach tile art to the 12
+// new ids. mergeWithBaseRegistry only appends — no base prompt is rewritten.
+export const activityDefinitions = withActivityArt(
+  mergeWithBaseRegistry([
+    ...RAW_ACTIVITIES.map((activity) => ({
+      ...activity,
+      label: activity.title,
+      savesToJournal: true,
+    })),
+    ...CONNECTION_ACTIVITY_DEFINITIONS,
+    ...WAVE_TWO_ACTIVITY_DEFINITIONS,
+    ...WAVE_THREE_ACTIVITY_DEFINITIONS,
+    ...WAVE_FOUR_ACTIVITY_DEFINITIONS,
+    ...SEALED_ACTIVITY_DEFINITIONS,
+  ]).map((activity) => ({
     ...activity,
-    label: activity.title,
-    savesToJournal: true,
+    label: activity.label ?? activity.title,
+    savesToJournal: activity.savesToJournal ?? true,
+    skippable: activity.skippable ?? true,
   })),
-  ...CONNECTION_ACTIVITY_DEFINITIONS,
-  ...WAVE_TWO_ACTIVITY_DEFINITIONS,
-  ...WAVE_THREE_ACTIVITY_DEFINITIONS,
-  ...WAVE_FOUR_ACTIVITY_DEFINITIONS,
-  ...SEALED_ACTIVITY_DEFINITIONS,
-])
+)
 
 export const NIGHT_WRITING_DUELS = [
   {

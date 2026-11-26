@@ -6,6 +6,7 @@ import {
 } from './waveFourGameData.js'
 
 import { pickFreshPrompt as pickItem } from './promptRotation.js'
+import { getBankEntriesForActivity } from '../../expandedContentIntegration.js'
 function getPlayerName(players, playerIndex) {
   return players[playerIndex]?.displayName || `Player ${playerIndex + 1}`
 }
@@ -323,7 +324,7 @@ function createBluffEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(BLUFF_BIDDING_TOPICS, options.random, options.history)
+      const selected = pickItem(getBankEntriesForActivity('bluff-bidding', BLUFF_BIDDING_TOPICS), options.random, options.history)
       const bidderIndex = options.activePlayerIndex ?? 0
       return {
         activityId: definition.id,
@@ -435,7 +436,7 @@ function createPhotoEntry(definition) {
   return {
     ...definition,
     createInitialState(_players, options = {}) {
-      const selected = pickItem(PHOTO_FLASHBACK_PROMPTS, options.random, options.history)
+      const selected = pickItem(getBankEntriesForActivity('photo-flashback', PHOTO_FLASHBACK_PROMPTS), options.random, options.history)
       const photoOwnerIndex = options.activePlayerIndex ?? 0
       return {
         activityId: definition.id,

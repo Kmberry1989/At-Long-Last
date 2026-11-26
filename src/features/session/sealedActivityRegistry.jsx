@@ -7,6 +7,7 @@ import {
   MUTUAL_YES_PROMPTS,
   pickSealedPrompt,
 } from './sealedActivityData.js'
+import { getBankEntriesForActivity } from '../../expandedContentIntegration.js'
 import {
   createSalt,
   deriveSealedKey,
@@ -525,7 +526,7 @@ function createMindMeldEntry(definition) {
         activityId: definition.id,
         answers: {},
         matched: null,
-        prompt: pickSealedPrompt(MIND_MELD_PROMPTS, random, history),
+        prompt: pickSealedPrompt(getBankEntriesForActivity('same-wavelength', MIND_MELD_PROMPTS), random, history),
         revealAcks: [],
         turnIndex: activePlayerIndex,
       }
@@ -656,7 +657,7 @@ function createMutualYesEntry(definition) {
       return {
         activityId: definition.id,
         outcome: null,
-        prompt: pickSealedPrompt(MUTUAL_YES_PROMPTS, random, history),
+        prompt: pickSealedPrompt(getBankEntriesForActivity('mutual-yes', MUTUAL_YES_PROMPTS), random, history),
         revealAcks: [],
         salts: {},
         sealed: {},

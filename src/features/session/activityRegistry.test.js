@@ -7,13 +7,13 @@ const players = [
 ]
 
 describe('activityRegistry', () => {
-  it('contains the full 76-item activity pack with balanced vibes and unique content', () => {
-    expect(activityIds).toHaveLength(76)
-    expect(new Set(activityIds).size).toBe(76)
+  it('contains the full 88-item activity pack with balanced vibes and unique content', () => {
+    expect(activityIds).toHaveLength(88)
+    expect(new Set(activityIds).size).toBe(88)
     const entries = Object.values(activityRegistry)
-    expect(entries.filter((entry) => entry.vibe === 'tender')).toHaveLength(24)
-    expect(entries.filter((entry) => entry.vibe === 'playful')).toHaveLength(30)
-    expect(entries.filter((entry) => entry.vibe === 'spicy')).toHaveLength(22)
+    expect(entries.filter((entry) => entry.vibe === 'tender')).toHaveLength(28)
+    expect(entries.filter((entry) => entry.vibe === 'playful')).toHaveLength(34)
+    expect(entries.filter((entry) => entry.vibe === 'spicy')).toHaveLength(26)
     expect(new Set(entries.map((entry) => entry.prompt).filter(Boolean)).size).toBe(74)
 
   })
@@ -81,7 +81,7 @@ describe('activityRegistry', () => {
 
   it('keeps all spicy activities skippable', () => {
     const spicyEntries = Object.values(activityRegistry).filter((entry) => entry.vibe === 'spicy')
-    expect(spicyEntries).toHaveLength(22)
+    expect(spicyEntries).toHaveLength(26)
 
     expect(spicyEntries.every((entry) => entry.skippable)).toBe(true)
   })
