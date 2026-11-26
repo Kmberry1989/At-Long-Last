@@ -1,4 +1,5 @@
 import { ACTIVITIES as RAW_ACTIVITIES } from '../../../at-long-last-content-pack-v2/activityRegistry.ts'
+import { withActivityArt } from '../../activityTileArt.js'
 import { DUELS as RAW_DUELS } from '../../../at-long-last-content-pack-v2/duelRegistry.ts'
 import { CONNECTION_ACTIVITY_DEFINITIONS } from './connectionGameData.js'
 import { SEALED_ACTIVITY_DEFINITIONS } from './sealedActivityData.js'
@@ -7,7 +8,7 @@ import { WAVE_THREE_ACTIVITY_DEFINITIONS } from './waveThreeGameData.js'
 import { WAVE_FOUR_ACTIVITY_DEFINITIONS } from './waveFourGameData.js'
 import { WAVELENGTH_DUEL_DEFINITION } from './wavelengthDuelData.js'
 
-export const activityDefinitions = [
+export const activityDefinitions = withActivityArt([
   ...RAW_ACTIVITIES.map((activity) => ({
     ...activity,
     label: activity.title,
@@ -18,7 +19,7 @@ export const activityDefinitions = [
   ...WAVE_THREE_ACTIVITY_DEFINITIONS,
   ...WAVE_FOUR_ACTIVITY_DEFINITIONS,
   ...SEALED_ACTIVITY_DEFINITIONS,
-]
+])
 
 export const NIGHT_WRITING_DUELS = [
   {

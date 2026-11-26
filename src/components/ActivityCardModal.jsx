@@ -42,6 +42,7 @@ export function ActivityCardModal({
 
   const vibe = definition?.vibe || activity?.vibe || 'tender'
   const prompt = activity?.state?.prompt || definition?.description || 'Share a memory together.'
+  const artSrc = definition?.image ?? definition?.tileImage ?? definition?.art
 
 
 
@@ -198,6 +199,7 @@ export function ActivityCardModal({
         <div className="activity-perspective-wrapper">
           <div className="activity-flip-container">
             <div className="activity-card-face face-front">
+              {artSrc ? <img src={artSrc} alt="" aria-hidden="true" className="activity-tile__art" loading="lazy" /> : null}
               <div className="face-header">
                 <h3 className="activity-modal-title">{definition?.label || 'Shared Moment'}</h3>
                 <p className="activity-prompt-text">{prompt}</p>

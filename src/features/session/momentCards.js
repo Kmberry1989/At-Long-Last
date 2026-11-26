@@ -1,4 +1,16 @@
-const trashMoments = [
+import { mergeMomentCards } from '../../../at-long-last-content-pack-v2/expanded/expandedMomentCards.js'
+
+// Expanded Edition pack cards use description/ritual/image; deck entries use
+// scene/effect (+ image when the card ships art). Base cards keep their shape.
+const toDeckCard = (card) => ({
+  id: card.id,
+  title: card.title,
+  scene: card.scene ?? card.description,
+  effect: card.effect ?? card.ritual,
+  ...(card.image ? { image: card.image } : {}),
+})
+
+const baseTrashMoments = [
   { id: 'cold-coffee', title: 'Cold Coffee Again', scene: 'The cup cooled while the morning rushed by.', effect: 'Coffee detour' },
   { id: 'laundry-mountain', title: 'The Laundry Mountain', scene: 'The chair has disappeared under the laundry.', effect: 'Laundry pile-up' },
   { id: 'missing-keys', title: 'The Missing Keys', scene: 'You are ready to leave, but the keys are not.', effect: 'Retrace the route' },
@@ -13,7 +25,7 @@ const trashMoments = [
   { id: 'tiny-home-repair', title: 'The Tiny Home Repair', scene: 'A small home repair needs one more trip to the toolbox.', effect: 'Toolbox detour' },
 ]
 
-const treasureMoments = [
+const baseTreasureMoments = [
   { id: 'warm-mug', title: 'A Warm Mug Left Ready', scene: 'Someone remembered just how you take it.', effect: 'A warm start' },
   { id: 'lunch-note', title: 'A Note in the Lunch Bag', scene: 'A kind note appears in the middle of an ordinary day.', effect: 'A little encouragement' },
   { id: 'first-shared-key', title: 'The First Shared Key', scene: 'A small key marks a new chapter together.', effect: 'An open door' },
@@ -27,6 +39,16 @@ const treasureMoments = [
   { id: 'new-tradition', title: 'A New Little Tradition', scene: 'A small ritual has quietly become yours.', effect: 'Tradition takes you further' },
   { id: 'ordinary-tuesday', title: 'An Ordinary Tuesday, Together', scene: 'Nothing big happened, and it was a lovely day.', effect: 'An ordinary-day glow' },
 ]
+
+// Merge the 12 Expanded Edition cards (6 Trash + 6 Treasure, with art) into
+// their decks. Base cards have no `kind`, so the filter only drops the
+// opposite side's pack cards. mergeMomentCards dedups by id.
+const trashMoments = mergeMomentCards(baseTrashMoments)
+  .filter((card) => card.kind !== 'treasure')
+  .map(toDeckCard)
+const treasureMoments = mergeMomentCards(baseTreasureMoments)
+  .filter((card) => card.kind !== 'trash')
+  .map(toDeckCard)
 
 export const MOMENT_DECKS = Object.freeze({ trash: trashMoments, treasure: treasureMoments })
 
@@ -51,7 +73,7 @@ export function drawMomentCard(categoryOrRandom, randomOrDice = Math.random, dic
     title: card.title,
     scene: card.scene,
     effect: card.effect,
-    image: `/assets/moment-cards/${card.id}.jpg`,
+    image: card.image ?? `/assets/moment-cards/${card.id}.jpg`,
     lowerDie,
     spaces,
     movement: category === 'trash' ? -spaces : spaces,
