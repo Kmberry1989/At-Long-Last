@@ -310,7 +310,6 @@ function WordWeaverCard({
   players,
 }) {
   const state = activity.state
-  const [draft, setDraft] = useState('')
   const [feedback, setFeedback] = useState('')
   const [remaining, setRemaining] = useState(state.timeLimitSec)
   const [words, setWords] = useState([])
@@ -318,9 +317,9 @@ function WordWeaverCard({
   const activeName = getPlayerName(players, state.turnIndex)
   const ownSubmission = state.submissions?.[String(playerIndex)]
   const allowedWords = useMemo(() => new Set(state.allowedWords), [state.allowedWords])
+  const choiceWords = state.allowedWords.slice(0, 12)
 
   useEffect(() => {
-    setDraft('')
     setFeedback('')
     setRemaining(state.timeLimitSec)
     setWords([])
@@ -345,33 +344,25 @@ function WordWeaverCard({
   useActivityUiState(useMemo(() => ({
     acceptedWords: words,
     control: 'letter-tray',
-    draft,
     letters: state.letters,
     remainingSeconds: remaining,
     wordCount: words.length,
-  }), [draft, remaining, state.letters, words]))
+  }), [remaining, state.letters, words]))
 
-  function addWord(event) {
-    event.preventDefault()
+  function toggleWord(normalized) {
     if (remaining <= 0) {
       setFeedback('Time is up—finish this turn.')
       return
     }
-
-    const normalized = draft.trim().toLowerCase()
     if (!allowedWords.has(normalized)) {
       setFeedback('That word is not hiding in this tray.')
       return
     }
-    if (words.includes(normalized)) {
-      setFeedback('Already woven.')
-      return
-    }
-
-    const nextWords = [...words, normalized]
+    const nextWords = words.includes(normalized)
+      ? words.filter((word) => word !== normalized)
+      : words.length < 20 ? [...words, normalized] : words
     setWords(nextWords)
-    setDraft('')
-    setFeedback(`${normalized.toUpperCase()} added`)
+    setFeedback(words.includes(normalized) ? `${normalized.toUpperCase()} removed` : `${normalized.toUpperCase()} added`)
   }
 
   return (
@@ -416,18 +407,10 @@ function WordWeaverCard({
             <span><strong>{remaining}</strong> seconds</span>
             <span><strong>{words.length}</strong> words found</span>
           </div>
-          <form className="word-weaver-form" onSubmit={addWord}>
-            <input
-              aria-label="Word from the letter tray"
-              autoComplete="off"
-              disabled={remaining <= 0}
-              maxLength={state.letters.length}
-              onChange={(event) => setDraft(event.target.value.replace(/[^a-z]/gi, ''))}
-              value={draft}
-            />
-            <button disabled={!draft.trim() || remaining <= 0} type="submit">Add</button>
-          </form>
-          <p className="word-weaver-feedback" aria-live="polite">{feedback || 'Three letters minimum.'}</p>
+          <div className="connection-choice-grid word-weaver-options" role="group" aria-label="Choose words from the tray">
+            {choiceWords.map((word) => <button aria-pressed={words.includes(word)} className={`connection-choice${words.includes(word) ? ' active' : ''}`} disabled={remaining <= 0} key={word} onClick={() => toggleWord(word)} type="button">{word}</button>)}
+          </div>
+          <p className="word-weaver-feedback" aria-live="polite">{feedback || 'Choose every word you can find.'}</p>
           <div className="woven-words">
             {words.length > 0
               ? words.map((word) => <span key={word}>{word}</span>)

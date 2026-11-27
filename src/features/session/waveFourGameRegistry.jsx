@@ -36,13 +36,18 @@ function ActivityHeader({ definition, eyebrow }) {
   )
 }
 
-function normalizeAnswers(text) {
-  return Array.from(new Set(
-    text
-      .split(/[,\n]/)
-      .map((answer) => answer.trim())
-      .filter(Boolean),
-  )).slice(0, 12)
+const BLUFF_PROOF_BANKS = [
+  { match: /movie|fictional couple|fictional place|film/i, options: ['Pride and Prejudice', 'When Harry Met Sally', 'The Princess Bride', 'La La Land', 'Notting Hill', 'Moonrise Kingdom', 'About Time', 'Sleepless in Seattle', 'The Holiday', 'Roman Holiday', 'Before Sunrise', '10 Things I Hate About You'] },
+  { match: /song|playlist|soundtrack/i, options: ['Lover', 'All You Need Is Love', 'At Last', 'You Make My Dreams', 'This Will Be', 'Come Away with Me', 'Home', 'I Choose You', 'Better Together', 'Can’t Help Falling in Love', 'You Are the Best Thing', 'Dream a Little Dream'] },
+  { match: /place|trip|destination|road|neighborhood|explore/i, options: ['A lakeside town', 'A quiet beach', 'A nearby garden', 'A mountain overlook', 'A favorite café', 'A little museum', 'A forest trail', 'A bookstore district', 'A scenic train ride', 'A farmers market', 'A cozy cabin', 'A familiar neighborhood'] },
+  { match: /food|snack|meal|dessert|picnic|cook/i, options: ['Fresh fruit', 'Warm bread', 'Chocolate', 'A favorite soup', 'Cheese and crackers', 'Homemade cookies', 'A shared pizza', 'Tea and pastries', 'A picnic sandwich', 'Berry pie', 'Roasted vegetables', 'A favorite takeout dish'] },
+  { match: /animal|pet|roommate/i, options: ['Otter', 'Capybara', 'Raccoon', 'Golden retriever', 'Crow', 'Penguin', 'Cat', 'Hedgehog', 'Duck', 'Fox', 'Rabbit', 'Turtle'] },
+  { match: /rainy|date|adventure|celebrat|spend|afternoon|ways|ideas/i, options: ['Take a slow walk', 'Make a snack together', 'Start a tiny project', 'Visit somewhere nearby', 'Put on a favorite playlist', 'Make a blanket fort', 'Try a new recipe', 'Watch a comfort movie', 'Play a quick game', 'Look through old photos', 'Plan a small surprise', 'Do absolutely nothing'] },
+  { match: /blanket|home|time capsule|object|thing|reason|tuesday|garden|spaceship|museum/i, options: ['A handwritten note', 'A favorite photo', 'A cozy blanket', 'A small plant', 'A favorite mug', 'A silly souvenir', 'A shared playlist', 'A book we love', 'A pressed flower', 'A tiny keepsake', 'A recipe card', 'A ticket stub'] },
+]
+
+function getBluffProofOptions(topic) {
+  return BLUFF_PROOF_BANKS.find(({ match }) => match.test(topic))?.options || BLUFF_PROOF_BANKS.at(-1).options
 }
 
 function BluffBiddingCard({
@@ -53,13 +58,12 @@ function BluffBiddingCard({
   players,
 }) {
   const state = activity.state
-  const [proofText, setProofText] = useState('')
-  const answers = normalizeAnswers(proofText)
+  const [answers, setAnswers] = useState([])
   const activeName = getPlayerName(players, state.turnIndex)
   const bidderName = getPlayerName(players, state.bidderIndex)
 
   useEffect(() => {
-    setProofText('')
+    setAnswers([])
   }, [activity.id, state.phase, state.turnIndex])
 
   useActivityUiState(useMemo(() => ({
@@ -121,21 +125,16 @@ function BluffBiddingCard({
       ) : (
         <>
           <div className="bluff-proof-meta">
-            <span>{bidderName} must name {state.currentBid}</span>
+            <span>{bidderName} must choose {state.currentBid}</span>
             <strong>{answers.length}/{state.currentBid}</strong>
           </div>
-          <textarea
-            aria-label="Proof answers"
-            className="text-entry bluff-proof"
-            maxLength={500}
-            onChange={(event) => setProofText(event.target.value)}
-            rows={5}
-            value={proofText}
-          />
-          <p className="bluff-honor-note">Honor system: the challenger gets final bragging rights.</p>
+          <div className="connection-choice-grid bluff-proof-options" role="group" aria-label={`Choose ${state.currentBid} answers for ${state.topic}`}>
+            {(state.proofOptions || getBluffProofOptions(state.topic)).map((answer) => <button aria-pressed={answers.includes(answer)} className={`connection-choice${answers.includes(answer) ? ' active' : ''}`} disabled={!answers.includes(answer) && answers.length >= state.currentBid} key={answer} onClick={() => setAnswers((current) => current.includes(answer) ? current.filter((entry) => entry !== answer) : [...current, answer])} type="button">{answer}</button>)}
+          </div>
+          <p className="bluff-honor-note">Choose exactly {state.currentBid} possible answers. The list is shared with your partner.</p>
           <button
             className="primary-btn"
-            disabled={answers.length < 1}
+            disabled={answers.length !== state.currentBid}
             onClick={() => onSubmit({ answers })}
             type="button"
           >
@@ -196,8 +195,14 @@ function PhotoFlashbackCard({
   playerIndex,
   players,
 }) {
+  const CAPTION_CHOICES = [
+    { id: 'keep', label: 'I want to keep this ordinary moment close.' },
+    { id: 'smile', label: 'This detail still makes me smile.' },
+    { id: 'feeling', label: 'I want to remember how this felt.' },
+    { id: 'together', label: 'You made this moment special.' },
+  ]
   const state = activity.state
-  const [caption, setCaption] = useState('')
+  const [captionId, setCaptionId] = useState('')
   const [error, setError] = useState('')
   const [imageDataUrl, setImageDataUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -207,18 +212,17 @@ function PhotoFlashbackCard({
   const visiblePhoto = choosingPhoto ? imageDataUrl : state.imageDataUrl
 
   useEffect(() => {
-    setCaption('')
+    setCaptionId('')
     setError('')
     setImageDataUrl('')
     setLoading(false)
   }, [activity.id, state.phase, state.turnIndex])
 
   useActivityUiState(useMemo(() => ({
-    captionLength: caption.length,
-    control: choosingPhoto ? 'photo-picker-and-caption' : 'caption',
+    control: choosingPhoto ? 'photo-picker-and-caption-choice' : 'caption-choice',
     phase: state.phase,
     photoSelected: Boolean(visiblePhoto),
-  }), [caption.length, choosingPhoto, state.phase, visiblePhoto]))
+  }), [choosingPhoto, state.phase, visiblePhoto]))
 
   async function choosePhoto(event) {
     const file = event.target.files?.[0]
@@ -238,6 +242,8 @@ function PhotoFlashbackCard({
   }
 
   function submitCaption() {
+    const caption = CAPTION_CHOICES.find((choice) => choice.id === captionId)?.label
+    if (!caption) return
     onSubmit({
       caption,
       ...(choosingPhoto ? { imageDataUrl } : {}),
@@ -259,7 +265,7 @@ function PhotoFlashbackCard({
       <div className="turn-badge connection-turn-badge">
         <div>
           <strong>{activeName}</strong>
-          <span>{choosingPhoto ? ' chooses and captions' : ' writes a second caption'}</span>
+          <span>{choosingPhoto ? ' chooses a photo and caption' : ' chooses a second caption'}</span>
         </div>
         <span className="sealed-chip">{Object.keys(state.captions || {}).length}/2 captioned</span>
       </div>
@@ -294,21 +300,17 @@ function PhotoFlashbackCard({
           {!choosingPhoto && state.imageDataUrl && (
             <img alt="Shared flashback" className="photo-flashback-preview" src={state.imageDataUrl} />
           )}
-          <textarea
-            aria-label="Photo caption"
-            className="text-entry photo-caption-entry"
-            maxLength={240}
-            onChange={(event) => setCaption(event.target.value)}
-            rows={4}
-            value={caption}
-          />
-          <div className="photo-caption-meta">
-            <span>{error || 'Your partner will not see this caption yet.'}</span>
-            <strong>{caption.length}/240</strong>
+          <div className="connection-choice-grid" role="radiogroup" aria-label="Choose a caption">
+            {CAPTION_CHOICES.map((choice) => (
+              <button aria-checked={captionId === choice.id} className={`connection-choice${captionId === choice.id ? ' active' : ''}`} key={choice.id} onClick={() => setCaptionId(choice.id)} role="radio" type="button">
+                {choice.label}
+              </button>
+            ))}
           </div>
+          <div className="photo-caption-meta"><span>{error || 'Your partner will not see this caption yet.'}</span></div>
           <button
             className="primary-btn"
-            disabled={!caption.trim() || loading || (choosingPhoto && !imageDataUrl)}
+            disabled={!captionId || loading || (choosingPhoto && !imageDataUrl)}
             onClick={submitCaption}
             type="button"
           >
@@ -334,6 +336,7 @@ function createBluffEntry(definition) {
         maxBid: 8,
         mode: 'bluff-bidding',
         phase: 'bidding',
+        proofOptions: getBluffProofOptions(selected.prompt),
         topic: selected.prompt,
         topicId: selected.id,
         turnIndex: getNextPlayerIndex(bidderIndex),
@@ -375,10 +378,10 @@ function createBluffEntry(definition) {
           ? Array.from(new Set(
               input.answers
                 .map((answer) => String(answer).trim())
-                .filter(Boolean),
+                .filter((answer) => (state.proofOptions || getBluffProofOptions(state.topic)).includes(answer)),
             )).slice(0, 12)
           : []
-        if (!answers.length) {
+        if (answers.length !== state.currentBid) {
           return { completed: false, state }
         }
         return {

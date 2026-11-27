@@ -125,6 +125,13 @@ function SealedRevealMoment({ children }) {
   )
 }
 
+const SAME_WAVELENGTH_CHOICES = [
+  { id: 'cozy', label: 'Something cozy and unhurried' },
+  { id: 'playful', label: 'Something playful that makes us laugh' },
+  { id: 'adventurous', label: 'A small adventure or change of scene' },
+  { id: 'thoughtful', label: 'A thoughtful moment or familiar favorite' },
+]
+
 function MindMeldCard({
   activity,
   definition,
@@ -133,7 +140,6 @@ function MindMeldCard({
   playerIndex,
   players,
 }) {
-  const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const {
     answers = {},
@@ -143,7 +149,8 @@ function MindMeldCard({
   } = activity.state
   const answerCount = Object.keys(answers).length
   const revealed = answerCount >= 2
-  const decided = matched !== null
+  const didMatch = typeof matched === 'boolean' ? matched : Boolean(answers['0'] && answers['1'] && answers['0'] === answers['1'])
+  const decided = typeof matched === 'boolean' || revealed
   const myAnswer = answers[String(playerIndex)]
   const acked = revealAcks.includes(playerIndex)
   const partnerName = getPlayerName(players, nextPlayerIndex(playerIndex))
@@ -175,22 +182,14 @@ function MindMeldCard({
             <strong>{getPlayerName(players, playerIndex)}</strong>
             <span>answer sealed — your partner cannot peek</span>
           </div>
-          <textarea
-            className="text-entry"
-            disabled={disabled}
-            onChange={(event) => setDraft(event.target.value)}
-            rows={3}
-            value={draft}
-          />
-          <button
-            className="primary-btn"
-            disabled={disabled || !draft.trim()}
-            onClick={() => {
-              onSubmit({ text: draft.trim() })
-              setDraft('')
-            }}
-            type="button"
-          ><BrandText text={"Seal It ✉️ "} /></button>
+          <p className="support-copy">Choose the closest fit. Your partner’s answer stays sealed.</p>
+          <div className="connection-choice-grid" role="radiogroup" aria-label={prompt}>
+            {SAME_WAVELENGTH_CHOICES.map((choice) => (
+              <button className="connection-choice" disabled={disabled} key={choice.id} onClick={() => onSubmit({ choiceId: choice.id })} role="radio" type="button">
+                {choice.label}
+              </button>
+            ))}
+          </div>
         </>
       )}
 
@@ -207,8 +206,8 @@ function MindMeldCard({
           <p className="eyebrow"><BrandText text={"✨ revealed together"} /></p>
           {[0, 1].map((index) => (
             <div className="activity-log-card" key={index}>
-              <strong>{getPlayerName(players, index)}</strong>
-              <p>{answers[String(index)]}</p>
+                <strong>{getPlayerName(players, index)}</strong>
+                <p>{SAME_WAVELENGTH_CHOICES.find((choice) => choice.id === answers[String(index)])?.label || answers[String(index)]}</p>
             </div>
           ))}
           {!disabled ? (
@@ -247,11 +246,11 @@ function MindMeldCard({
           {[0, 1].map((index) => (
             <div className="activity-log-card" key={index}>
               <strong>{getPlayerName(players, index)}</strong>
-              <p>{answers[String(index)]}</p>
+              <p>{SAME_WAVELENGTH_CHOICES.find((choice) => choice.id === answers[String(index)])?.label || answers[String(index)]}</p>
             </div>
           ))}
           <p className="support-copy">
-            {matched
+            {didMatch
               ? 'Same wavelength. Beautiful.'
               : 'Different answers — still a win for honesty.'}
           </p>
@@ -498,17 +497,17 @@ function createMindMeldEntry(definition) {
       }
 
       const answers = state.answers || {}
-      const text = input.text?.trim()
+      const choice = SAME_WAVELENGTH_CHOICES.find((option) => option.id === input.choiceId)
 
       if (
         playerIndex !== state.turnIndex ||
         answers[String(playerIndex)] ||
-        !text
+        !choice
       ) {
         return { completed: false, state }
       }
 
-      const nextAnswers = { ...answers, [String(playerIndex)]: text }
+      const nextAnswers = { ...answers, [String(playerIndex)]: choice.id }
       const bothIn = Object.keys(nextAnswers).length >= 2
 
       return {
@@ -516,6 +515,7 @@ function createMindMeldEntry(definition) {
         state: {
           ...state,
           answers: nextAnswers,
+          ...(bothIn ? { matched: nextAnswers['0'] === nextAnswers['1'], revealAcks: [] } : {}),
           // Whoever seals the second answer calls the verdict.
           turnIndex: bothIn ? playerIndex : nextPlayerIndex(playerIndex),
         },
@@ -526,6 +526,7 @@ function createMindMeldEntry(definition) {
         activityId: definition.id,
         answers: {},
         matched: null,
+        options: SAME_WAVELENGTH_CHOICES,
         prompt: pickSealedPrompt(getBankEntriesForActivity('same-wavelength', MIND_MELD_PROMPTS), random, history),
         revealAcks: [],
         turnIndex: activePlayerIndex,
@@ -536,14 +537,16 @@ function createMindMeldEntry(definition) {
     },
     resolve(state, players) {
       const names = [getPlayerName(players, 0), getPlayerName(players, 1)]
-      const matched = state.matched === true
-      const text = `${names[0]}: ${state.answers['0']}\n${names[1]}: ${state.answers['1']}`
+      const answers = state.answers || {}
+      const matched = typeof state.matched === 'boolean' ? state.matched : Boolean(answers['0'] && answers['1'] && answers['0'] === answers['1'])
+      const text = `${names[0]}: ${SAME_WAVELENGTH_CHOICES.find((choice) => choice.id === answers['0'])?.label || ''}\n${names[1]}: ${SAME_WAVELENGTH_CHOICES.find((choice) => choice.id === answers['1'])?.label || ''}`
 
       return {
         heartBonus: matched ? 6 : 3,
         label: definition.label,
         payload: {
-          answers: state.answers,
+          answers,
+          options: SAME_WAVELENGTH_CHOICES,
           matched,
           prompt: state.prompt,
           sealedMatch: matched,

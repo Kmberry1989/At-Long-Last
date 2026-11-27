@@ -10,7 +10,7 @@ At Long Last is a cooperative date-night game for two connected players. The goa
 
 Board turns alternate. The active player rolls two dice, adds their values, and advances their own piece around the 20-space board, then resolves the landing and moment card before passing. A landing can create a personal activity, a keepsake to collect, or no additional action. The night also creates a paired duel for a round. Each player's comparison answers can still be prepared separately.
 
-Answers and guesses can remain private while each player progresses. Comparison moments are collected for the end of the night, when both players have time to look at them together. Each player can open and acknowledge the finale at their own pace. The final scrapbook entry is shared. Hearts are a shared resource and rewards belong to the night; never award or remove hearts for being right, choosing the same answer, sharing a personal detail, or accepting affection.
+Answers and guesses can remain private while each player progresses. Comparison moments are collected for the end of the night, when both players have time to look at them together. Each player can open and acknowledge the finale at their own pace. The final scrapbook entry is shared. Hearts are a shared resource: give a small bonus for a correct partner prediction or a same-answer reveal when the activity compares independent choices. Never remove hearts for a mismatch, sharing a personal detail, or declining affection.
 
 The current lobby starts Long with eight roll rounds. Quick and Standard are defined for four and six rounds but are not offered in the current lobby. Each round has a roll slot for each player and one paired duel slot. The game is ready for its end-of-night reveal when both players have completed their roll slots and every paired duel is ready. Author content against the session and registry data rather than hard-coding eight.
 
@@ -42,9 +42,9 @@ Before adding a new family, decide whether the moment is an activity or a duel. 
 
 ## Multiple choice for prediction and comparison
 
-Open text is valuable when someone is sharing their own thought. It is a poor default for a partner-prediction task. Asking one person to guess the exact free-text answer their partner will type makes a tender game feel like a test: the guesser can feel exposed, and the answerer can feel misunderstood when wording differs.
+All prompt responses use fixed answer choices or true/false. Do not ask players to type an answer, caption, note, or explanation. This keeps each response easy to answer on a phone and lets partners make fair predictions or compare the same answer. Activities that depend on an expressive non-text mechanic, such as drawing, tapping, or choosing a photo, may keep that mechanic, but any accompanying prompt answer must still be a choice.
 
-For prompts such as Mind Meld, The Prediction Box, and Same Wavelength, use a short list of answer choices. Both players should see the same prompt and the same choices, but the UI should not reveal the other person's selection before the reveal. Store a stable choice ID, not only the displayed label. On reveal, show the choices side by side and describe overlap neutrally. Never use "wrong," "missed," "you should know," or a compatibility percentage.
+For prompts such as Mind Meld, The Prediction Box, and Same Wavelength, use a short list of answer choices. Both players should see the same prompt and the same choices, but the UI should not reveal the other person's selection before the reveal. Store a stable choice ID, not only the displayed label. On reveal, show the choices side by side and describe overlap neutrally. A correct prediction can earn the activity's small accuracy bonus; matching independent answers can earn the same small bonus. Never use "wrong," "missed," "you should know," or a compatibility percentage.
 
 Recommended choice design:
 
@@ -63,7 +63,7 @@ For a two-person guess activity, the answerer first chooses privately. The guess
 
 For a Mind Meld style activity, both players choose privately from the same list. The result can be "same choice" or "different choices," but the game should emphasize the reveal itself rather than awarding a winner. If the choice set is nuanced, showing the actual labels matters more than a binary match badge.
 
-Open-text prompts can remain for personal reflections, letters, captions, and creative play. Make them optional, bounded, or scaffolded. A player can answer in a phrase, choose a starter, or pass. Do not ask a partner to predict an exact open-text response.
+Use a balanced set of four choices for personal reflections, letters, captions, and creative play. A player can always pass a skippable activity. Do not ask a partner to predict a response outside the listed choices.
 
 ## Adapting the couples journal prompt library
 
@@ -72,8 +72,8 @@ The [AI Journal App couples prompt library](https://www.aijournalapp.ai/prompt-l
 Current adaptations are spread across the mini-games:
 
 - **Wavelength:** concrete choices about receiving support, feeling heard, shared rituals and goals, everyday affection, asking for a pause, and small adventures. Each player answers for themselves and guesses their partner from the same four plausible choices; differences are saved for the reveal without a penalty.
-- **Gratitude Duel:** more specific appreciation cues about listening, teamwork, boundaries, encouragement, and ordinary effort. Each player writes their own short appreciation, so nobody has to predict exact wording.
-- **Letterpress:** sentence starters about rituals, small celebrations, learning together, reconnecting after a busy day, kindness, and future memories. The creative task remains open-ended because players build their own shared sentence.
+- **Gratitude Duel:** more specific appreciation cues about listening, teamwork, boundaries, encouragement, and ordinary effort. Each player chooses the appreciation that fits best.
+- **Letterpress:** sentence starters about rituals, small celebrations, learning together, reconnecting after a busy day, kindness, and future memories. Keep the word-building interaction bounded to fixed choices.
 - **Star Map:** keep the existing private ranking of sentimental values as the values-alignment format. Avoid adding a long planning worksheet or requiring couples to agree on a ranking.
 
 Do not import conflict debriefs, sexual disclosures, finances, caregiving, or precise schedules as required prompts. If a future activity explores sensitive topics, make it optional, consent-led, and answerable privately without a partner guessing or judging. All wording in the game should be original and adapted to its interaction; preserve the source themes, not its exact phrasing.
@@ -360,7 +360,7 @@ Each moment card has its own square, painterly still-life illustration in `publi
 
 The individual nightly prize goes to the first player to complete a full circuit of the 20-space board. If neither completes a circuit, the player with the most net progress wins. A perfect progress tie goes to the round's starting player. Keep this race separate from cooperative hearts and shared activity rewards.
 
-Start with low-stakes effects that reward participation rather than correctness: a small shared-heart bonus for completing the turn, a keepsake reroll/pass that never removes an earned item, or a gentle prompt swap that preserves the same activity type. Avoid penalties, forced disclosure, take-that effects, streak loss, or rules that make one player's progress depend on the other's availability. Keep variants behind a small experimental deck so their pacing can be compared before making one permanent.
+Start with low-stakes rewards: a shared-heart bonus for completing the turn, plus a small optional bonus when a partner prediction is correct or independently chosen answers match. A keepsake reroll/pass must never remove an earned item. Avoid penalties, forced disclosure, take-that effects, streak loss, or rules that make one player's progress depend on the other's availability. Keep variants behind a small experimental deck so their pacing can be compared before making one permanent.
 
 ## Current screen review checklist
 
@@ -387,7 +387,7 @@ This section gathers the cross-screen requests that shape future work. It is a d
 
 ### Activity and content quality
 
-- Prefer multiple choice for prediction and comparison. Reserve open text for personal reflection or creative work where the player is expressing their own answer.
+- Use multiple choice or true/false for every prompt response, including reflection and creative prompts. Preserve expression through meaningful, distinct options and non-text game mechanics such as drawing or tapping.
 - Make answer sets varied and specific to the prompt. Do not reuse a generic pool of answers where some options do not fit the question.
 - Never turn a different answer, a missed prediction, a pass, or a declined affectionate option into a penalty or compatibility score.
 - Keep the on-screen copy sparse: one clear action and only the context a player needs to complete it. Do not add explanatory paragraphs to activity screens when the interaction can teach itself.

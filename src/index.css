@@ -6332,6 +6332,49 @@ body:has(.our-story-screen) .app-shell > .account-toggle { opacity: 0; pointer-e
   margin: 6px 0 0 0;
 }
 
+.activity-choice-role {
+  margin: 0;
+  color: #f1d7a2;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.activity-choice-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+  width: 100%;
+}
+
+.activity-choice-option {
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(245, 199, 104, 0.38);
+  border-radius: 12px;
+  background: rgba(245, 199, 104, 0.1);
+  color: #fff5ea;
+  font: inherit;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.activity-choice-option:hover:not(:disabled),
+.activity-choice-option:focus-visible {
+  background: rgba(245, 199, 104, 0.2);
+  border-color: #f5c768;
+}
+
+.activity-choice-option:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.activity-choice-option:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
 .activity-guess-subtitle {
   font-size: 13px;
   line-height: 1.45;

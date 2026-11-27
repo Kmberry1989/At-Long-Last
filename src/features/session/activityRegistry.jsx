@@ -5,27 +5,8 @@ import { createWaveTwoGameEntry } from './waveTwoGameRegistry.jsx'
 import { createWaveThreeGameEntry } from './waveThreeGameRegistry.jsx'
 import { createWaveFourGameEntry } from './waveFourGameRegistry.jsx'
 import { pickActivityPrompt } from './expandedPromptData.js'
+import { getActivityChoiceConfig, getChoiceLabel } from './activityChoiceData.js'
 import { ActivityCardModal } from '../../components/ActivityCardModal.jsx'
-
-function buildEntrySummary(definition, entries, players) {
-  if (entries.length < 2) {
-    return `${definition.label} started.`
-  }
-
-  const p1 = players[0]?.displayName || 'Player 1'
-  const p2 = players[1]?.displayName || 'Player 2'
-  return `${p1} and ${p2} left a ${definition.vibe} ${definition.type} beat together.`
-}
-
-function buildEntryText(entries, players) {
-  return entries
-    .map((entry) => {
-      const playerName = players[entry.playerIndex]?.displayName || `Player ${entry.playerIndex + 1}`
-      let line = `${playerName}: ${entry.text}`
-      return line
-    })
-    .join('\n')
-}
 
 function buildOpenAt(definition) {
   if (definition.id !== 'postcard-next-year') {
@@ -41,31 +22,51 @@ function createRegistryEntry(definition) {
   return {
     ...definition,
     supportsPrivateFlow: true,
-    createInitialState(_players, { random = Math.random, history = [] } = {}) {
+    createInitialState(_players, { activePlayerIndex = 0, random = Math.random, history = [] } = {}) {
+      const { mode, options } = getActivityChoiceConfig(definition)
       return {
         activityId: definition.id,
-        entries: [],
+        answerId: null,
+        answererIndex: activePlayerIndex,
+        answers: {},
+        options,
         prompt: pickActivityPrompt(definition, random, history),
-        turnIndex: 0,
+        predictionId: null,
+        responseMode: mode,
+        turnIndex: activePlayerIndex,
       }
     },
     advance(state, { input, playerIndex }) {
-      const existing = state.entries || []
-      const filtered = existing.filter((e) => e.playerIndex !== playerIndex)
-      const nextEntries = [
-        ...filtered,
-        {
-          playerIndex,
-          text: (input?.text || '').trim(),
-        },
-      ]
-
+      const choiceId = input?.choiceId
+      const { mode, options } = getActivityChoiceConfig(definition)
+      const activeOptions = state.options || options
+      const responseMode = state.responseMode || mode
+      if (!activeOptions.some(option => option.id === choiceId)) return { completed: false, state }
+      if (responseMode === 'match') {
+        if (state.answers?.[String(playerIndex)] || state.turnIndex !== playerIndex) return { completed: false, state }
+        const answers = { ...state.answers, [String(playerIndex)]: choiceId }
+        const completed = Object.keys(answers).length === 2
+        return { completed, state: { ...state, answers, options: activeOptions, responseMode, turnIndex: completed ? -1 : 1 - playerIndex } }
+      }
+      if (state.turnIndex !== playerIndex) return { completed: false, state }
+      if (playerIndex === state.answererIndex) {
+        if (state.answerId) return { completed: false, state }
+        return { completed: false, state: { ...state, answerId: choiceId, options: activeOptions, responseMode, turnIndex: 1 - playerIndex } }
+      }
+      if (!state.answerId || state.predictionId) return { completed: false, state }
+      const predictionId = choiceId
+      const predictionCorrect = predictionId === state.answerId
+      const answers = { ...state.answers, [String(state.answererIndex)]: state.answerId, [String(playerIndex)]: predictionId }
       return {
-        completed: nextEntries.length >= 2,
+        completed: true,
         state: {
           ...state,
-          entries: nextEntries,
-          turnIndex: nextEntries.length >= 2 ? -1 : (playerIndex === 0 ? 1 : 0),
+          answers,
+          options: activeOptions,
+          responseMode,
+          predictionCorrect,
+          predictionId,
+          turnIndex: -1,
         },
       }
     },
@@ -74,18 +75,38 @@ function createRegistryEntry(definition) {
     },
     resolve(state, players) {
       const openAt = buildOpenAt(definition)
+      const answererIndex = state.answererIndex ?? 0
+      const predictorIndex = 1 - answererIndex
+      const { mode, options } = getActivityChoiceConfig(definition)
+      const activeOptions = state.options || options
+      const responseMode = state.responseMode || mode
+      const matched = responseMode === 'match' && Boolean(state.answers?.['0']) && Boolean(state.answers?.['1']) && state.answers['0'] === state.answers['1']
+      const predictionCorrect = responseMode !== 'match' && Boolean(state.predictionId) && Boolean(state.answerId) && state.predictionId === state.answerId
+      const answers = responseMode === 'match'
+        ? state.answers || {}
+        : { [String(answererIndex)]: state.answerId, [String(predictorIndex)]: state.predictionId }
+      const responseLines = Object.entries(answers).map(([index, id]) => `${players[Number(index)]?.displayName || `Player ${Number(index) + 1}`}: ${getChoiceLabel(activeOptions, id)}`)
+      const outcome = responseMode === 'match'
+        ? matched ? 'They chose the same answer.' : 'They chose different answers.'
+        : predictionCorrect ? `${players[predictorIndex]?.displayName || 'Your partner'} predicted correctly.` : `${players[predictorIndex]?.displayName || 'Your partner'} made a different guess.`
       return {
-        heartBonus: 2 + definition.intensity,
+        heartBonus: 2 + (definition.intensity || 1) + (predictionCorrect || matched ? 2 : 0),
         label: definition.label,
         payload: {
-          ...state,
+          answererIndex,
+          answers,
           imageDataUrl: null,
+          matched,
           openAt,
+          options: activeOptions,
+          predictionCorrect,
+          prompt: state.prompt,
+          responseMode,
         },
         openAt,
         savesToJournal: definition.savesToJournal,
-        summary: buildEntrySummary(definition, state.entries, players),
-        text: buildEntryText(state.entries, players),
+        summary: `${outcome} +${2 + definition.intensity + (predictionCorrect || matched ? 2 : 0)} shared hearts.`,
+        text: `${state.prompt || definition.description}\n${responseLines.join('\n')}\n${outcome}`,
         title: definition.label,
         type: definition.type,
         vibe: definition.vibe,

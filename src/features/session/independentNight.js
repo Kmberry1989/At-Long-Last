@@ -54,6 +54,9 @@ export function hasSubmitted(step, playerIndex) {
   if (step.kind === 'duel') return Boolean(step.state.results?.[String(playerIndex)])
   if (step.kind !== 'activity') return step.ownerIndex !== playerIndex || step.ready
   const state = step.state
+  if (state.responseMode === 'prediction') {
+    return playerIndex === state.answererIndex ? Boolean(state.answerId) : Boolean(state.predictionId)
+  }
   if (state.commitments) return Boolean(state.commitments[String(playerIndex)])
   return Boolean(
     state.entries?.some(entry => entry.playerIndex === playerIndex) ||
@@ -328,7 +331,7 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     return { session, step: { ...step, state, ready } }
   }
   const entry = activityRegistry[step.type]
-  if (entry.supportsPrivateFlow && !input.text?.trim()) return null
+  if (entry.supportsPrivateFlow && !input.choiceId && !input.text?.trim()) return null
   if (step.state.phase === 'opening' && step.state.commitments &&
       !await verifyChoice(input, step.state.commitments[String(playerIndex)])) throw new Error('That sealed choice could not be verified.')
   const state = isIndependentActivity(step.type) ? { ...step.state, turnIndex: playerIndex } : step.state

@@ -5,9 +5,8 @@ import { PortraitPanicDuel } from '../../components/PortraitPanicDuel.jsx'
 import { KissCourier } from '../../components/KissCourier.jsx'
 import { duelDefinitions } from './contentPackData.js'
 import { STAR_MAP_VALUES, encodeStarMapRanking } from './starMapData.js'
-import { getLetterpressPrompt, getLetterpressWords } from './letterpressData.js'
+import { getLetterpressPrompt } from './letterpressData.js'
 import { getGratitudePrompt } from './gratitudeData.js'
-import { hasThreeLetters } from './responseValidation.js'
 import { MAD_LIBS_BLANKS, MAD_LIBS_TEMPLATES, fillLoveInTheBlanks } from './coupleArcade.js'
 import {
   WAVELENGTH_DUEL_ID,
@@ -358,20 +357,36 @@ function CalmPauseDuel({ disabled, duel, onComplete }) {
 }
 
 function TextSprintDuel({ disabled, duel, onComplete }) {
-  const [text, setText] = useState('')
   const startedAtRef = useRef(performance.now())
+  const choicesById = {
+    'emoji-court': [
+      'Guilty: borrowed the blankets for extra closeness.',
+      'Not guilty: the blankets simply chose me.',
+      'Requesting a cuddle-based retrial.',
+      'The court finds us both adorable.',
+    ],
+    'fever-dream-date': [
+      'A cozy dinner, a slow walk, and nowhere else to be.',
+      'Dress up, find a new place, and make a night of it.',
+      'Stay in with favorite snacks, a film, and soft light.',
+      'Take a small spontaneous trip and follow the evening.',
+    ],
+    'voice-note-trailer': [
+      'I am thinking of you and sending a little warmth.',
+      'I cannot wait for our next ordinary moment together.',
+      'You made my day better just by being in it.',
+      'Save me a little time for us when you can.',
+    ],
+  }
+  const choices = choicesById[duel.id] || choicesById['fever-dream-date']
 
-  function finish() {
-    if (disabled || !text.trim()) {
-      return
-    }
-
+  function finish(text) {
+    if (disabled) return
     const time = (performance.now() - startedAtRef.current) / 1000
-    const wordCount = text.trim().split(/\s+/).filter(Boolean).length
     onComplete({
-      excerpt: text.trim().slice(0, 80),
-      highlight: `shared ${wordCount} ${wordCount === 1 ? 'word' : 'words'} in ${time.toFixed(2)}s`,
-      score: wordCount,
+      excerpt: text,
+      highlight: `locked a choice in ${time.toFixed(2)}s`,
+      score: 1,
       time,
       won: true,
     })
@@ -379,29 +394,29 @@ function TextSprintDuel({ disabled, duel, onComplete }) {
 
   return (
     <DuelShell duel={duel} >
-      <textarea
-        className="text-entry"
-        disabled={disabled}
-        onChange={(event) => setText(event.target.value)}
-        rows={4}
-        value={text}
-      />
-      <button className="primary-btn" disabled={disabled || !text.trim()} onClick={finish} type="button">
-        Lock Answer
-      </button>
+      <p className="support-copy">Choose the response that fits you best.</p>
+      <div className="connection-choice-grid" role="radiogroup" aria-label={duel.prompt}>
+        {choices.map((choice) => <button className="connection-choice" disabled={disabled} key={choice} onClick={() => finish(choice)} role="radio" type="button">{choice}</button>)}
+      </div>
     </DuelShell>
   )
 }
 
 function GratitudeDuel({ disabled, duel, onComplete, promptSeed = '', round = 1 }) {
-  const [text, setText] = useState('')
+  const [choiceId, setChoiceId] = useState('')
   const prompt = getGratitudePrompt(duel.prompts, promptSeed, round)
+  const choices = [
+    { id: 'noticed', label: 'You noticed a small detail that mattered to me.' },
+    { id: 'helped', label: 'You made an ordinary task feel easier.' },
+    { id: 'encouraged', label: 'You gave me encouragement at the right time.' },
+    { id: 'laughed', label: 'You helped me laugh when I needed it.' },
+  ]
 
   function finish() {
-    const response = text.trim()
-    if (disabled || !hasThreeLetters(response)) return
+    const response = choices.find((choice) => choice.id === choiceId)?.label
+    if (disabled || !response) return
     onComplete({
-      excerpt: response.slice(0, 100),
+      excerpt: response,
       highlight: 'saved an appreciation',
       score: 0,
       time: 0,
@@ -413,20 +428,24 @@ function GratitudeDuel({ disabled, duel, onComplete, promptSeed = '', round = 1 
     <div className="overlay-card duel-card vibe-tender letterpress-duel-card">
       <h3>{duel.label}</h3>
       <p className="letterpress-prompt">{prompt}</p>
-      <label className="sr-only" htmlFor="gratitude-response">Your appreciation</label>
-      <textarea className="text-entry" id="gratitude-response" maxLength={300} onChange={(event) => setText(event.target.value)} rows={3} value={text} />
-      <button className="primary-btn" disabled={disabled || !hasThreeLetters(text)} onClick={finish} type="button">Save</button>
+      <div className="connection-choice-grid" role="radiogroup" aria-label="Choose what you appreciate">
+        {choices.map((choice) => <button aria-checked={choiceId === choice.id} className={`connection-choice${choiceId === choice.id ? ' active' : ''}`} key={choice.id} onClick={() => setChoiceId(choice.id)} role="radio" type="button">{choice.label}</button>)}
+      </div>
+      <button className="primary-btn" disabled={disabled || !choiceId} onClick={finish} type="button">Save</button>
     </div>
   )
 }
 
 function LetterpressDuel({ disabled, promptSeed = '', round = 1, onComplete }) {
-  const [text, setText] = useState('')
-  const words = getLetterpressWords(text)
+  const [words, setWords] = useState([])
   const prompt = getLetterpressPrompt(promptSeed, round)
+  const wordChoices = ['we', 'laugh', 'make', 'room', 'for', 'small', 'bright', 'moments']
 
-  function updateText(value) {
-    if (value.trim().split(/\s+/).filter(Boolean).length <= 4) setText(value)
+  function toggleWord(word) {
+    if (disabled) return
+    setWords((current) => current.includes(word)
+      ? current.filter((entry) => entry !== word)
+      : current.length < 4 ? [...current, word] : current)
   }
 
   function finish() {
@@ -444,8 +463,10 @@ function LetterpressDuel({ disabled, promptSeed = '', round = 1, onComplete }) {
     <div className="overlay-card duel-card vibe-tender letterpress-duel-card">
       <h3>Letterpress</h3>
       <p className="letterpress-prompt">{prompt}</p>
-      <label className="sr-only" htmlFor="letterpress-words">Four words</label>
-      <input className="text-entry" id="letterpress-words" maxLength={80} onChange={(event) => updateText(event.target.value)} value={text} />
+      <p className="support-copy">Choose four words to complete the thought.</p>
+      <div className="connection-choice-grid letterpress-word-choices" role="group" aria-label="Choose four words">
+        {wordChoices.map((word) => <button aria-pressed={words.includes(word)} className={`connection-choice${words.includes(word) ? ' active' : ''}`} disabled={disabled || (!words.includes(word) && words.length >= 4)} key={word} onClick={() => toggleWord(word)} type="button">{word}</button>)}
+      </div>
       <span aria-live="polite" className="letterpress-count">{words.length}/4</span>
       <button className="primary-btn" disabled={disabled || words.length !== 4} onClick={finish} type="button">Lock words</button>
     </div>
@@ -467,35 +488,22 @@ function getNextLineSeed(seed, round) {
 }
 
 function OurNextLineDuel({ disabled, promptSeed = '', round = 1, onComplete }) {
-  const [words, setWords] = useState([])
-  const [word, setWord] = useState('')
   const seed = getNextLineSeed(promptSeed, round)
-  const normalized = word.trim().replace(/\s+/g, '')
-
-  function addWord() {
-    if (disabled || !normalized || words.length >= 8) return
-    setWords(current => [...current, normalized.slice(0, 24)])
-    setWord('')
-  }
-
-  function seal() {
-    if (disabled || words.length !== 8) return
-    onComplete({ excerpt: words.join(' '), highlight: `wrote an ${seed.mode} in eight words`, score: 0, time: 0, won: true })
-  }
+  const choices = [
+    'We found a quiet place and stayed until the stars came out.',
+    'The map led us home, but we took the scenic way.',
+    'Our little song turned an ordinary night into a story.',
+    'We laughed, got lost, and called it the perfect plan.',
+  ]
 
   return (
     <div className="overlay-card duel-card vibe-tender letterpress-duel-card our-next-line-card">
       <h3>Our Next Line</h3>
       <p className="letterpress-prompt">{seed.line}</p>
-      <div aria-label="Your words so far" className="next-line-words" aria-live="polite">
-        {words.map((entry, index) => <span key={`${index}-${entry}`}>{entry}</span>)}
+      <p className="support-copy">Choose the line you would add next.</p>
+      <div className="connection-choice-grid" role="radiogroup" aria-label="Choose the next line">
+        {choices.map((choice) => <button className="connection-choice" disabled={disabled} key={choice} onClick={() => onComplete({ excerpt: choice, highlight: `chose the next ${seed.mode} line`, score: 0, time: 0, won: true })} role="radio" type="button">{choice}</button>)}
       </div>
-      {words.length < 8 ? <div className="next-line-input">
-        <label className="sr-only" htmlFor="next-line-word">One word</label>
-        <input autoComplete="off" className="text-entry" id="next-line-word" maxLength={32} onChange={event => setWord(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addWord() } }} value={word} />
-        <button className="primary-btn" disabled={disabled || !normalized} onClick={addWord} type="button">Add word</button>
-      </div> : <button className="primary-btn" disabled={disabled} onClick={seal} type="button">Seal line</button>}
-      <span className="letterpress-count">{words.length}/8</span>
     </div>
   )
 }

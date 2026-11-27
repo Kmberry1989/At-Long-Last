@@ -187,6 +187,13 @@ function ChoiceGameCard({
   )
 }
 
+const VAULT_NOTE_CHOICES = [
+  { id: 'compliment', label: 'A compliment about a small thing you do' },
+  { id: 'wish', label: 'A wish for something simple we can enjoy soon' },
+  { id: 'memory', label: 'A favorite shared memory I want to keep close' },
+  { id: 'thanks', label: 'A thank-you for the way you show up for us' },
+]
+
 function VaultCard({
   activity,
   definition,
@@ -195,13 +202,13 @@ function VaultCard({
   playerIndex,
   players,
 }) {
-  const [text, setText] = useState('')
+  const [choiceId, setChoiceId] = useState('')
   const state = activity.state
   const activeName = getPlayerName(players, state.turnIndex)
   const ownEntry = state.entries.find((entry) => entry.playerIndex === playerIndex)
 
   useEffect(() => {
-    setText('')
+    setChoiceId('')
   }, [activity.id, state.turnIndex])
 
   return (
@@ -234,23 +241,27 @@ function VaultCard({
         <>
           <div className="turn-badge">
             <strong>{activeName}</strong>
-            <span>writes privately now</span>
+            <span>chooses a private note now</span>
           </div>
-          <textarea
-            className="text-entry vault-entry"
-            maxLength={400}
-            onChange={(event) => setText(event.target.value)}
-            rows={5}
-            value={text}
-          />
-          <div className="vault-entry-meta">
-            <span>Hidden from your partner until the finale</span>
-            <strong>{text.length}/400</strong>
+          <div className="connection-choice-grid" role="radiogroup" aria-label={state.prompt}>
+            {VAULT_NOTE_CHOICES.map((choice) => (
+              <button
+                aria-checked={choiceId === choice.id}
+                className={`connection-choice${choiceId === choice.id ? ' active' : ''}`}
+                key={choice.id}
+                onClick={() => setChoiceId(choice.id)}
+                role="radio"
+                type="button"
+              >
+                {choice.label}
+              </button>
+            ))}
           </div>
+          <p className="sealed-note">Hidden from your partner until the finale</p>
           <button
             className="primary-btn"
-            disabled={!text.trim()}
-            onClick={() => onSubmit({ text })}
+            disabled={!choiceId}
+            onClick={() => onSubmit({ text: VAULT_NOTE_CHOICES.find((choice) => choice.id === choiceId)?.label })}
             type="button"
           >
             Seal It In The Vault
@@ -503,6 +514,7 @@ function createVaultEntry(definition) {
         activityId: definition.id,
         entries: [],
         mode: 'vault',
+        options: VAULT_NOTE_CHOICES,
         prompt: selected.prompt,
         promptId: selected.id,
         revealAt: 'finale',

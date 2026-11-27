@@ -2,6 +2,8 @@
 
 **Snapshot:** November 27, 2026. This catalog reflects the prompt and activity data currently wired into the game. It includes board activities, all registered duels (including legacy/non-selectable duels), and the full user-facing prompt banks for those experiences. Repeated shared questions are shown under each bank that uses them. Static UI copy, tutorial instructions, generated player answers, and word-dictionary validation lists are excluded.
 
+**Response format:** Prompt wording below is the question text only. Prompt activities now answer through fixed multiple-choice selections: the first player chooses and the partner predicts, or both players choose privately when the prompt is a preference or consent check. Typed prose is not accepted as a prompt answer. Correct predictions and matching independent choices receive the small applicable heart bonus; mismatches still receive the shared base reward.
+
 ## At a glance
 
 - **76 catalogued board activities:** 75 in the active cycle, with one archived below.
