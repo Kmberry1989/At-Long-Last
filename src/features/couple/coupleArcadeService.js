@@ -33,7 +33,7 @@ export function createCoupleArcadeState(gameId, playerUids, random = Math.random
     case 'radar-love': state = createRadarLove(playerUids, progression.wins); break
     case 'our-little-pieces': return createOurLittlePieces(playerUids, random, progression.solvedCount, progression.puzzleNumber)
     case 'say-it-without-saying': state = {
-      game: gameId, playerUids: [...playerUids], actorIndex: 0, phase: 'act',
+      game: gameId, playerUids: [...playerUids], actorIndex: 0, phase: 'act', lastActionBy: null,
       promptIndex: Math.floor(random() * SAY_IT_WITHOUT_SAYING_PROMPTS.length), clips: {}, guesses: {}, scores: [0, 0], status: 'playing', winnerUid: null,
     }; break
     default: throw new Error('That game is not in the arcade.')
@@ -64,7 +64,7 @@ export function applyCoupleArcadeAction(state, gameId, playerUid, action) {
     const actorUid = state.playerUids[state.actorIndex]
     if (actorUid !== playerUid || state.phase !== 'act') throw new Error('It is not your turn to act.')
     if (typeof action.clipDataUrl !== 'string' || !action.clipDataUrl.startsWith('data:video/') || action.clipDataUrl.length > 260000) throw new Error('Record a short charade clip before sending it.')
-    return { ...state, phase: 'guess', promptIndex: action.promptIndex, clips: { ...state.clips, [playerUid]: action.clipDataUrl } }
+    return { ...state, phase: 'guess', promptIndex: action.promptIndex, clips: { ...state.clips, [playerUid]: action.clipDataUrl }, lastActionBy: playerUid }
   }
   if (gameId === 'say-it-without-saying' && action.kind === 'guess') {
     if (state.phase !== 'guess' || state.playerUids[state.actorIndex] === playerUid) throw new Error('Wait for your person to act.')
@@ -76,7 +76,7 @@ export function applyCoupleArcadeAction(state, gameId, playerUid, action) {
     return {
       ...state, phase: finished ? 'guess' : 'act', actorIndex: finished ? state.actorIndex : (state.actorIndex + 1) % 2,
       promptIndex: finished ? state.promptIndex : (state.promptIndex + 1) % SAY_IT_WITHOUT_SAYING_PROMPTS.length,
-      guesses: { ...state.guesses, [playerUid]: action.guessId }, scores,
+      guesses: { ...state.guesses, [playerUid]: action.guessId }, scores, lastActionBy: playerUid,
       status: finished ? 'finished' : 'playing', winnerUid: finished && winningIndex !== null ? state.playerUids[winningIndex] : null,
     }
   }

@@ -96,3 +96,7 @@
 /* Keep the game title and back control visible when a tall board is scrolled. */
 .couple-arcade-modal>header{position:sticky;top:calc(-1 * clamp(18px,4vw,30px));z-index:3;padding:8px 0 12px;background:linear-gradient(150deg,rgba(55,26,44,.99),rgba(21,22,39,.99))}
 .couple-arcade-modal>.arcade-back{position:sticky;top:calc(42px - clamp(18px,4vw,30px));z-index:3;padding:5px 14px;background:rgba(28,20,37,.96);border-radius:999px}
+
+.arcade-game-tile{position:relative}
+.arcade-notification-badge{position:absolute;top:8px;right:8px;z-index:2;display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:5px 9px;border:1px solid #ffe4a7;border-radius:999px;background:linear-gradient(120deg,#ffe5ab,#e7b969);box-shadow:0 3px 10px #100916a8;color:#352031;font:800 9px/1 'DM Sans',Arial,sans-serif;letter-spacing:.08em;white-space:nowrap;pointer-events:none}
+.arcade-notification-badge::before{width:5px;height:5px;border-radius:50%;background:#8e4656;box-shadow:0 0 0 2px #8e465626;content:""}

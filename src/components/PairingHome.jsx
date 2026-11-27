@@ -12,7 +12,7 @@ import { BrandIcon } from './BrandIcon.jsx'
 import { normalizePartnerEmail, validPartnerEmail } from '../features/couple/emailInvitationService.js'
 import { ConnectFourFinale } from './ConnectFourFinale.jsx'
 import { CoupleArcade } from './CoupleArcade.jsx'
-import { createConnectFourState, getConnectFourTokenPreferences, placeConnectFourPiece } from '../features/session/connectFour.js'
+import { createConnectFourState, getConnectFourMovePlayer, getConnectFourTokenPreferences, placeConnectFourPiece } from '../features/session/connectFour.js'
 import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectFourMatch, subscribeToCoupleProgress } from '../features/couple/progressService.js'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
@@ -68,6 +68,11 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const selectedConnectFourToken = connectFourTokenPreferences[user?.uid]
   const partnerConnectFourToken = connectFourTokenPreferences[partner?.uid]
   const connectFourMatchActive = connectFourState.moveCount > 0 && !connectFourState.winnerUid && connectFourState.moveCount < 42
+  const fourEverYourTurn = Boolean(
+    user?.uid && connectFourState?.moveCount > 0 && !connectFourState.winnerUid && connectFourState.moveCount < 42 &&
+    connectFourState.lastMove?.playerUid && connectFourState.lastMove.playerUid !== user.uid &&
+    getConnectFourMovePlayer({ lifetimeNights: coupleProgress?.lifetimeNights || 0 }, connectFourPlayers.map(player => player.uid), connectFourState) === user.uid
+  )
   const hasThemeVote = (couple?.playerIds || []).some(uid => pieceStyles[uid]?.themeVote)
   const currentThemeVote = pieceStyles[user?.uid]?.themeVote || (!hasThemeVote ? coupleProgress?.selectedTheme || null : null)
   const partnerThemeVote = pieceStyles[partner?.uid]?.themeVote || (!hasThemeVote ? coupleProgress?.selectedTheme || null : null)
@@ -284,7 +289,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
       {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial, texture: ownPieceStyle.pieceTexture }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
       {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} themeLocked={hasCurrentNight} onClose={() => setStoryScreen('')} />}
       {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} error={connectFourError} onDrop={dropConnectFour} onClose={() => { audio?.playArcadeSfx?.('four-ever', 'tap'); setConnectFourOpen(false) }} onNewGame={() => { audio?.playArcadeSfx?.('four-ever', 'new-match'); return newConnectFourMatch() }} onLand={connectFourLanding} />}
-      {arcadeOpen && paired && <CoupleArcade db={db} enabled={enabled} coupleId={couple.id} players={connectFourPlayers} currentUid={user?.uid} fourEverDisabled={connectFourBusy} onOpenFourEver={() => { audio?.playArcadeSfx?.('four-ever', 'open'); setArcadeOpen(false); setConnectFourError(''); setConnectFourOpen(true) }} onClose={() => setArcadeOpen(false)} />}
+      {arcadeOpen && paired && <CoupleArcade db={db} enabled={enabled} coupleId={couple.id} players={connectFourPlayers} currentUid={user?.uid} fourEverDisabled={connectFourBusy} fourEverYourTurn={fourEverYourTurn} onOpenFourEver={() => { audio?.playArcadeSfx?.('four-ever', 'open'); setArcadeOpen(false); setConnectFourError(''); setConnectFourOpen(true) }} onClose={() => setArcadeOpen(false)} />}
     </>
   )
 }

@@ -61,7 +61,9 @@ export function JigsawUnboxing({ image, title, audio }) {
       const wood = new THREE.MeshStandardMaterial({ color: '#79464b', roughness: 0.3, metalness: 0.28 })
       const edge = new THREE.MeshStandardMaterial({ color: '#e0b975', roughness: 0.24, metalness: 0.78 })
       const velvet = new THREE.MeshStandardMaterial({ color: '#37263b', roughness: 0.94 })
-      materials.push(wood, edge, velvet)
+      const rosewood = new THREE.MeshStandardMaterial({ color: '#9b6060', roughness: 0.36, metalness: 0.12 })
+      const clasp = new THREE.MeshStandardMaterial({ color: '#f2d38f', roughness: 0.2, metalness: 0.82 })
+      materials.push(wood, edge, velvet, rosewood, clasp)
       function boxMesh(width, height, depth, material, parent, position) {
         const geometry = new THREE.BoxGeometry(width, height, depth)
         geometries.push(geometry)
@@ -81,6 +83,58 @@ export function JigsawUnboxing({ image, title, audio }) {
       boxMesh(0.11, 0.52, 1.62, wood, box, [1.155, 0.61, 0])
       boxMesh(2.46, 0.035, 0.035, edge, box, [0, 0.88, 0.87])
       boxMesh(2.46, 0.035, 0.035, edge, box, [0, 0.88, -0.87])
+
+      // Give the keepsake chest a finished face: inset panels, corner guards,
+      // brass rivets, and a small heart clasp that remain legible at phone size.
+      boxMesh(2.24, 0.035, 0.045, rosewood, box, [0, 0.4, 0.925])
+      boxMesh(2.24, 0.035, 0.045, rosewood, box, [0, 0.82, 0.925])
+      for (const x of [-1.04, 1.04]) {
+        boxMesh(0.07, 0.36, 0.045, edge, box, [x, 0.61, 0.925])
+        for (const y of [0.44, 0.78]) {
+          const rivetGeometry = new THREE.SphereGeometry(0.032, 12, 8)
+          geometries.push(rivetGeometry)
+          const rivet = new THREE.Mesh(rivetGeometry, clasp)
+          rivet.position.set(x, y, 0.965)
+          rivet.scale.set(1, 1, 0.35)
+          rivet.castShadow = true
+          box.add(rivet)
+        }
+      }
+      boxMesh(0.78, 0.2, 0.04, edge, box, [0, 0.61, 0.94])
+      boxMesh(0.66, 0.14, 0.04, velvet, box, [0, 0.61, 0.97])
+      const claspGeometry = new THREE.CylinderGeometry(0.105, 0.105, 0.028, 24)
+      geometries.push(claspGeometry)
+      const claspPlate = new THREE.Mesh(claspGeometry, clasp)
+      claspPlate.rotation.x = Math.PI / 2
+      claspPlate.position.set(0, 0.61, 1.002)
+      claspPlate.castShadow = true
+      box.add(claspPlate)
+      const heartShape = new THREE.Shape()
+      heartShape.moveTo(0, -0.07)
+      heartShape.bezierCurveTo(-0.12, 0.02, -0.15, 0.1, -0.08, 0.12)
+      heartShape.bezierCurveTo(-0.035, 0.13, 0, 0.09, 0, 0.06)
+      heartShape.bezierCurveTo(0, 0.09, 0.035, 0.13, 0.08, 0.12)
+      heartShape.bezierCurveTo(0.15, 0.1, 0.12, 0.02, 0, -0.07)
+      const heartGeometry = new THREE.ShapeGeometry(heartShape)
+      geometries.push(heartGeometry)
+      const heart = new THREE.Mesh(heartGeometry, rosewood)
+      heart.position.set(0, 0.61, 1.023)
+      heart.scale.set(0.62, 0.62, 0.62)
+      heart.castShadow = true
+      box.add(heart)
+      for (const x of [-0.63, 0.63]) {
+        boxMesh(0.025, 0.018, 0.025, edge, box, [x, 0.52, 0.928])
+        boxMesh(0.025, 0.018, 0.025, edge, box, [x, 0.7, 0.928])
+      }
+      for (const x of [-0.95, 0.95]) for (const z of [-0.64, 0.64]) {
+        const footGeometry = new THREE.CylinderGeometry(0.13, 0.16, 0.13, 16)
+        geometries.push(footGeometry)
+        const foot = new THREE.Mesh(footGeometry, edge)
+        foot.position.set(x, 0.11, z)
+        foot.castShadow = true
+        foot.receiveShadow = true
+        box.add(foot)
+      }
 
       const lid = new THREE.Group()
       lid.position.set(0, 0.88, -0.86)

@@ -45,7 +45,7 @@ export function createMyOneAndOnly(playerUids, random = Math.random) {
   return {
     game: 'my-one-and-only', playerUids: [...playerUids], hands,
     drawPile: deck, discardPile: first ? [first] : [], activeColor: first?.color || UNO_COLORS[0],
-    turnIndex: 0, status: 'playing', winnerUid: null, drawnCardId: null, moveCount: 0,
+    turnIndex: 0, status: 'playing', winnerUid: null, drawnCardId: null, moveCount: 0, lastActionBy: null,
   }
 }
 
@@ -65,7 +65,7 @@ export function playMyOneAndOnlyCard(state, { playerUid, cardId, color }) {
   const discardPile = [...state.discardPile, played]
   const next = {
     ...state, hands, discardPile, activeColor: card.color === 'wild' ? color : card.color,
-    drawnCardId: null, moveCount: state.moveCount + 1,
+    drawnCardId: null, moveCount: state.moveCount + 1, lastActionBy: playerUid,
     status: hands[playerUid].length === 0 ? 'finished' : 'playing',
     winnerUid: hands[playerUid].length === 0 ? playerUid : null,
   }
@@ -94,16 +94,16 @@ export function drawMyOneAndOnlyCard(state, playerUid, random = Math.random) {
     drawPile = shuffled(state.discardPile.slice(0, -1), random)
     recycled = true
   }
-  if (!drawPile.length) return { ...state, turnIndex: (playerIndex + 1) % 2 }
+  if (!drawPile.length) return { ...state, turnIndex: (playerIndex + 1) % 2, lastActionBy: playerUid }
   const [card, ...remaining] = drawPile
   const hands = { ...state.hands, [playerUid]: [...state.hands[playerUid], card] }
   const playable = card.color === 'wild' || card.color === state.activeColor || card.value === state.discardPile.at(-1)?.value
-  return { ...state, hands, drawPile: remaining, discardPile: recycled ? [state.discardPile.at(-1)] : state.discardPile, drawnCardId: playable ? card.id : null, turnIndex: playable ? playerIndex : (playerIndex + 1) % 2 }
+  return { ...state, hands, drawPile: remaining, discardPile: recycled ? [state.discardPile.at(-1)] : state.discardPile, drawnCardId: playable ? card.id : null, turnIndex: playable ? playerIndex : (playerIndex + 1) % 2, lastActionBy: playerUid }
 }
 
 export function keepDrawnMyOneAndOnlyCard(state, playerUid) {
   if (state.playerUids[state.turnIndex] !== playerUid || !state.drawnCardId) throw new Error('There is no drawn card to keep.')
-  return { ...state, drawnCardId: null, turnIndex: (state.turnIndex + 1) % 2 }
+  return { ...state, drawnCardId: null, turnIndex: (state.turnIndex + 1) % 2, lastActionBy: playerUid }
 }
 
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -283,7 +283,7 @@ export function createOurLittlePieces(playerUids, random = Math.random, solvedCo
   return {
     game: 'our-little-pieces', playerUids: [...playerUids], artIndex,
     pieces: Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`p${index}`, { slot: slots[index], rotation: Math.floor(random() * 4) * 90, placedBy: null }])),
-    status: 'playing', moveCount: 0, completedBy: null, solvedCount, puzzleNumber,
+    status: 'playing', moveCount: 0, completedBy: null, solvedCount, puzzleNumber, lastActionBy: null,
   }
 }
 
@@ -296,7 +296,7 @@ export function moveOurLittlePiece(state, { playerUid, pieceId, slot }) {
   const pieces = { ...state.pieces, [pieceId]: { ...moving, slot, placedBy: playerUid } }
   if (otherEntry) pieces[otherEntry[0]] = { ...otherEntry[1], slot: moving.slot, placedBy: playerUid }
   const complete = Object.entries(pieces).every(([id, piece]) => piece.slot === Number(id.slice(1)) && piece.rotation === 0)
-  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null, solvedCount: (state.solvedCount || 0) + (complete ? 1 : 0), puzzleNumber: state.puzzleNumber || 1 }
+  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null, solvedCount: (state.solvedCount || 0) + (complete ? 1 : 0), puzzleNumber: state.puzzleNumber || 1, lastActionBy: playerUid }
 }
 
 export function rotateOurLittlePiece(state, { playerUid, pieceId, direction = 1 }) {
@@ -306,7 +306,7 @@ export function rotateOurLittlePiece(state, { playerUid, pieceId, direction = 1 
   const rotation = (piece.rotation + direction * 90 + 360) % 360
   const pieces = { ...state.pieces, [pieceId]: { ...piece, rotation, placedBy: playerUid } }
   const complete = Object.entries(pieces).every(([id, current]) => current.slot === Number(id.slice(1)) && current.rotation === 0)
-  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null, solvedCount: (state.solvedCount || 0) + (complete ? 1 : 0), puzzleNumber: state.puzzleNumber || 1 }
+  return { ...state, pieces, moveCount: state.moveCount + 1, status: complete ? 'finished' : 'playing', completedBy: complete ? playerUid : null, solvedCount: (state.solvedCount || 0) + (complete ? 1 : 0), puzzleNumber: state.puzzleNumber || 1, lastActionBy: playerUid }
 }
 
 export const SAY_IT_WITHOUT_SAYING_PROMPTS = [

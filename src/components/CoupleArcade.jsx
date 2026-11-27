@@ -71,6 +71,35 @@ function getActiveArcadePlayerUid(gameId, state, currentUid) {
   return Number.isInteger(state.turnIndex) ? state.playerUids?.[state.turnIndex] || null : null
 }
 
+function getArcadeTileNotice(gameId, state, currentUid, partnerUid) {
+  if (!state || !currentUid || !partnerUid || state.status === 'finished') return ''
+  const ownIndex = state.playerUids?.indexOf(currentUid) ?? -1
+  const partnerIndex = state.playerUids?.indexOf(partnerUid) ?? -1
+  if (ownIndex < 0 || partnerIndex < 0) return ''
+  if (gameId === 'my-one-and-only') {
+    return state.turnIndex === ownIndex && state.lastActionBy === partnerUid ? 'YOUR TURN' : ''
+  }
+  if (gameId === 'catch-my-heart') {
+    return state.turnIndex === ownIndex && state.lastAction?.playerUid === partnerUid ? 'YOUR TURN' : ''
+  }
+  if (gameId === 'radar-love') {
+    if (state.status === 'placing' && state.fleetReady?.[partnerUid] && !state.fleetReady?.[currentUid]) return 'READY UP'
+    return state.status === 'playing' && state.turnIndex === ownIndex && state.lastShot?.playerUid === partnerUid ? 'YOUR TURN' : ''
+  }
+  if (gameId === 'say-it-without-saying') {
+    const lastActionBy = state.lastActionBy || (state.phase === 'guess' ? state.playerUids?.[state.actorIndex] : '')
+    const partnerActed = lastActionBy === partnerUid || (state.phase === 'act' && state.guesses?.[partnerUid] !== undefined)
+    const yourTurn = state.phase === 'guess'
+      ? state.actorIndex === partnerIndex && Boolean(state.clips?.[partnerUid])
+      : state.phase === 'act' && state.actorIndex === ownIndex && partnerActed
+    return yourTurn ? 'YOUR TURN' : ''
+  }
+  if (gameId === 'our-little-pieces') {
+    return state.moveCount > 0 && state.lastActionBy === partnerUid ? 'NEW MOVE' : ''
+  }
+  return ''
+}
+
 function playArcadeFeedback(audio, gameId, next, move, currentUid) {
   let event = 'tap'
   if (gameId === 'my-one-and-only') event = move.kind === 'draw' || move.kind === 'keep' ? 'draw' : 'card-play'
@@ -472,7 +501,7 @@ function CharadesGame({ state, playerUid, otherName, onAction, onReset }) {
   </div>
 }
 
-export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClose, onOpenFourEver, fourEverDisabled = false }) {
+export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClose, onOpenFourEver, fourEverDisabled = false, fourEverYourTurn = false }) {
   const audio = useAudio()
   const [games, setGames] = useState({})
   const [selectedGame, setSelectedGame] = useState('')
@@ -558,7 +587,16 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
   return createPortal(<ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={() => { audio?.playArcadeSfx?.(selectedGame || 'four-ever', 'tap'); onClose() }}>
-    {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => <button aria-label={game.name} className="arcade-game-tile" disabled={game.id === 'four-ever' ? (!onOpenFourEver || fourEverDisabled) : !COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => game.id === 'four-ever' ? onOpenFourEver?.() : openGame(game.id)} type="button"><img alt="" className="arcade-game-art" src={game.icon} /></button>)}</div> : <>
+    {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => {
+      const notice = game.id === 'four-ever'
+        ? fourEverYourTurn ? 'YOUR TURN' : ''
+        : getArcadeTileNotice(game.id, games[game.id]?.state, currentUid, otherPlayer?.uid)
+      const label = notice ? `${game.name}, ${notice.toLowerCase()}` : game.name
+      return <button aria-label={label} className="arcade-game-tile" disabled={game.id === 'four-ever' ? (!onOpenFourEver || fourEverDisabled) : !COUPLE_ARCADE_IDS.includes(game.id)} key={game.id} onClick={() => game.id === 'four-ever' ? onOpenFourEver?.() : openGame(game.id)} type="button">
+        <img alt="" className="arcade-game-art" src={game.icon} />
+        {notice && <span aria-hidden="true" className="arcade-notification-badge">{notice}</span>}
+      </button>
+    })}</div> : <>
       <button className="arcade-back" onClick={() => { audio?.playArcadeSfx?.(selectedGame, 'tap'); setSelectedGame(''); setError('') }} type="button">All games</button>
       {state && <div className="arcade-player-rail" aria-label="Players">
         {players.slice(0, 2).map(player => {
