@@ -1,4 +1,4 @@
-import { activityDefinitions, selectableDuelDefinitions } from './contentPackData.js'
+import { activeActivityDefinitions, selectableDuelDefinitions } from './contentPackData.js'
 import { getSessionPreset } from './sessionPresets.js'
 
 export const DEFAULT_VIBE_WEIGHTS = {
@@ -101,7 +101,7 @@ export function pickWeightedEntry(
 }
 
 export function pickWeightedActivityId(weights, usedIds = [], random = Math.random, options = {}) {
-  return pickWeightedEntry(activityDefinitions, weights, usedIds, random, options).id
+  return pickWeightedEntry(activeActivityDefinitions, weights, usedIds, random, options).id
 }
 
 export function pickWeightedActivityOptions(

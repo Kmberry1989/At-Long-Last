@@ -707,3 +707,9 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Kept release/collection completion per session in tab storage and reloads those flags when the active session changes.
 - The all-activity and prompt inventory is already in `docs/ACTIVITY_AND_PROMPT_CATALOG.md`; it includes 76 board activities, 18 duels, six arcade/finale games, and the listed prompt/question banks.
 - Validation: `git diff --check` passed. No tests or browser checks were run.
+
+## 2026-11-27 — Archive Comfort Menu
+
+- Removed Comfort Menu from the weighted board activity cycle and random activity picker; kept it in the full registry so older saved nights can still resolve it.
+- Split its prompts into the catalog's archived activity section and updated the active/archive counts.
+- Validation: `git diff --check` passed. No tests were run.

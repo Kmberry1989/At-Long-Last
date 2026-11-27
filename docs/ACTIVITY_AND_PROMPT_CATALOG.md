@@ -1,35 +1,17 @@
 # At Long Last: Activity and Prompt Catalog
 
-**Snapshot:** November 26, 2026. This catalog reflects the prompt and activity data currently wired into the game. It includes board activities, all registered duels (including legacy/non-selectable duels), and the full user-facing prompt banks for those experiences. Repeated shared questions are shown under each bank that uses them. Static UI copy, tutorial instructions, generated player answers, and word-dictionary validation lists are excluded.
+**Snapshot:** November 27, 2026. This catalog reflects the prompt and activity data currently wired into the game. It includes board activities, all registered duels (including legacy/non-selectable duels), and the full user-facing prompt banks for those experiences. Repeated shared questions are shown under each bank that uses them. Static UI copy, tutorial instructions, generated player answers, and word-dictionary validation lists are excluded.
 
 ## At a glance
 
-- **76 board activities**, grouped below by vibe and then identified by interaction type.
+- **76 catalogued board activities:** 75 in the active cycle, with one archived below.
 - **18 registered duels**; 10 are in the current selectable mini-game pool.
 - **6 arcade/finale games**, grouped by game style below.
 - Prompt variants are included as stored, including alternate activity prompts and expanded banks.
 
 ## Board activities
 
-### Tender (24)
-
-#### Comfort Menu
-
-- **ID:** `comfort-menu` · **Type:** `prompt` · **Intensity:** 1
-- **Description:** Build your personal comfort cheat sheet for each other.
-- **Prompts:**
-  - When I'm overwhelmed, what actually helps is...
-  - When I go quiet after a hard day, the kindest first move is...
-  - Build me a three-item comfort menu for a low-energy night: one thing to say, one thing to do, and one thing to bring.
-  - What helps you feel cared for when words feel tiring?
-  - Design a ten-minute reset we can do from different places.
-  - What should I remember about you on a difficult morning?
-  - You have had a disappointing day. Would you like company, a distraction, practical help, or something else?
-  - What small comfort from your childhood would you like to share with me?
-  - How could we make waiting for difficult news a little gentler together?
-  - Describe your ideal welcome after a tiring journey, from the door to the first drink.
-  - When plans fall through, what helps you feel that the evening is still ours?
-  - What does useful comfort look like when you are excited but nervous about something new?
+### Tender (23 active)
 
 #### Small Mercies
 
@@ -1241,6 +1223,27 @@
 - **Description:** A double-blind desire card. Both answer sealed — only a mutual yes ever sees the light.
 - **Prompts:**
   - No separate question bank; see the matching bank below if applicable.
+
+### Archived activities (1)
+
+#### Comfort Menu
+
+- **ID:** `comfort-menu` · **Status:** Archived; excluded from new board activity draws. Kept registered so an older saved night can still finish.
+- **Type:** `prompt` · **Intensity:** 1
+- **Description:** Build your personal comfort cheat sheet for each other.
+- **Prompts:**
+  - When I'm overwhelmed, what actually helps is...
+  - When I go quiet after a hard day, the kindest first move is...
+  - Build me a three-item comfort menu for a low-energy night: one thing to say, one thing to do, and one thing to bring.
+  - What helps you feel cared for when words feel tiring?
+  - Design a ten-minute reset we can do from different places.
+  - What should I remember about you on a difficult morning?
+  - You have had a disappointing day. Would you like company, a distraction, practical help, or something else?
+  - What small comfort from your childhood would you like to share with me?
+  - How could we make waiting for difficult news a little gentler together?
+  - Describe your ideal welcome after a tiring journey, from the door to the first drink.
+  - When plans fall through, what helps you feel that the evening is still ours?
+  - What does useful comfort look like when you are excited but nervous about something new?
 
 ## Prompt and question banks
 

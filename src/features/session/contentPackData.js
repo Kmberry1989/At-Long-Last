@@ -32,6 +32,13 @@ export const activityDefinitions = withActivityArt(
   })),
 )
 
+// Keep archived activities in the registry so older saved nights remain readable,
+// but exclude them from the pool used to draw new board activities.
+export const archivedActivityIds = ['comfort-menu']
+const archivedActivityIdSet = new Set(archivedActivityIds)
+export const archivedActivityDefinitions = activityDefinitions.filter((activity) => archivedActivityIdSet.has(activity.id))
+export const activeActivityDefinitions = activityDefinitions.filter((activity) => !archivedActivityIdSet.has(activity.id))
+
 export const NIGHT_WRITING_DUELS = [
   {
     id: 'love-in-the-blanks', vibe: 'playful', intensity: 1,

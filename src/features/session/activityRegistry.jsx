@@ -1,4 +1,4 @@
-import { activityDefinitions } from './contentPackData.js'
+import { activeActivityDefinitions, activityDefinitions, archivedActivityIds } from './contentPackData.js'
 import { createConnectionGameEntry } from './connectionGameRegistry.jsx'
 import { createSealedActivityEntry } from './sealedActivityRegistry.jsx'
 import { createWaveTwoGameEntry } from './waveTwoGameRegistry.jsx'
@@ -107,7 +107,9 @@ export const activityRegistry = Object.fromEntries(
 )
 
 export const activityIds = Object.keys(activityRegistry)
+export const activeActivityIds = activeActivityDefinitions.map((definition) => definition.id)
+export { archivedActivityIds }
 
 export function pickRandomActivityId(random = Math.random) {
-  return activityIds[Math.floor(random() * activityIds.length)]
+  return activeActivityIds[Math.floor(random() * activeActivityIds.length)]
 }
