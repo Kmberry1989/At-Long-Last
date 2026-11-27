@@ -1070,6 +1070,10 @@ export function buildFinalSummary(session, journalEntries = []) {
 
 export function createTradeOffer(session, { fromPlayerIndex, offeredInstanceId, requestedInstanceId = null, note = '' }) {
   const currentSession = ensureSessionArcState(session)
+  if (currentSession.lastMove?.tradeOffer?.status === 'pending') throw new Error('Finish the existing offer first.')
+  if (requestedInstanceId) throw new Error('Your person chooses their own keepsake when accepting.')
+  const offeredCard = currentSession.keepsakes?.find((card) => card.instanceId === offeredInstanceId)
+  if (!offeredCard || offeredCard.ownerIndex !== fromPlayerIndex) throw new Error('Choose a keepsake you own.')
   const tradeOffer = {
     createdAt: new Date().toISOString(),
     fromPlayerIndex,
@@ -1079,7 +1083,6 @@ export function createTradeOffer(session, { fromPlayerIndex, offeredInstanceId, 
     status: 'pending',
   }
 
-  const offeredCard = currentSession.keepsakes?.find((k) => k.instanceId === offeredInstanceId)
   const pName = currentSession.players[fromPlayerIndex]?.displayName || 'Partner'
   const actionText = `${pName} offered to trade ${offeredCard?.label || 'a keepsake'}.`
 
@@ -1093,7 +1096,7 @@ export function createTradeOffer(session, { fromPlayerIndex, offeredInstanceId, 
   }
 }
 
-export function resolveTradeOffer(session, { accept }) {
+export function resolveTradeOffer(session, { accept, returnInstanceId = null }) {
   const currentSession = ensureSessionArcState(session)
   const currentOffer = currentSession.lastMove?.tradeOffer
   if (!currentOffer || currentOffer.status !== 'pending') {
@@ -1116,27 +1119,28 @@ export function resolveTradeOffer(session, { accept }) {
     }
   }
 
-  const { fromPlayerIndex, offeredInstanceId, requestedInstanceId } = currentOffer
+  const { fromPlayerIndex, offeredInstanceId } = currentOffer
   const toPlayerIndex = fromPlayerIndex === 0 ? 1 : 0
+  const requestedInstanceId = returnInstanceId || currentOffer.requestedInstanceId
+  const offeredCard = currentSession.keepsakes?.find((card) => card.instanceId === offeredInstanceId)
+  const requestedCard = currentSession.keepsakes?.find((card) => card.instanceId === requestedInstanceId)
+  if (!offeredCard || offeredCard.ownerIndex !== fromPlayerIndex || !requestedCard || requestedCard.ownerIndex !== toPlayerIndex) {
+    throw new Error('Both players need an owned keepsake to complete this trade.')
+  }
 
   const nextKeepsakes = (currentSession.keepsakes || []).map((card) => {
     if (card.instanceId === offeredInstanceId) {
       return { ...card, ownerIndex: toPlayerIndex }
     }
-    if (requestedInstanceId && card.instanceId === requestedInstanceId) {
+    if (card.instanceId === requestedInstanceId) {
       return { ...card, ownerIndex: fromPlayerIndex }
     }
     return card
   })
 
-  const offeredCard = currentSession.keepsakes?.find((k) => k.instanceId === offeredInstanceId)
-  const requestedCard = currentSession.keepsakes?.find((k) => k.instanceId === requestedInstanceId)
-
   const p1 = currentSession.players[fromPlayerIndex]?.displayName || 'Player 1'
   const p2 = currentSession.players[toPlayerIndex]?.displayName || 'Player 2'
-  const actionText = requestedCard
-    ? `${p1} and ${p2} traded ${offeredCard?.label || 'keepsake'} for ${requestedCard?.label || 'keepsake'}!`
-    : `${p1} gifted ${offeredCard?.label || 'keepsake'} to ${p2}! 💛`
+  const actionText = `${p1} and ${p2} traded ${offeredCard.label} for ${requestedCard.label}!`
 
   return {
     ...currentSession,
@@ -1147,6 +1151,7 @@ export function resolveTradeOffer(session, { accept }) {
       ...currentSession.lastMove,
       tradeOffer: {
         ...currentOffer,
+        requestedInstanceId,
         status: 'accepted',
       },
     },

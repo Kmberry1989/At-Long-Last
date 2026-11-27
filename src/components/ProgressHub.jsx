@@ -199,6 +199,7 @@ function ThemePicker({ locked = false }) {
           onClick={() => handleVote('auto')}
           type="button"
         >
+          <img alt="" className="theme-art" loading="lazy" src="/assets/themes/surprise-theme-question-mark.webp" />
           <span className="theme-name">Surprise us</span>
 
           {myVote === 'auto' && <span className="theme-check"><BrandText text={"✓"} /></span>}
@@ -275,6 +276,9 @@ function FlowerCard() {
   const partnerWatered = (flower.wateredBy || []).some((waterer) => waterer !== userId)
   const partnerName =
     couple?.players?.find((player) => player.uid !== userId)?.displayName || 'Your partner'
+  const waitingOnPartnerNote = 'Watered. It grows once your partner waters today too.'
+  const bothWateredNote = 'You both watered today — it grew a little.'
+  const visibleNote = note === waitingOnPartnerNote && iWatered && partnerWatered ? bothWateredNote : note
 
   async function handleWater() {
     if (watering || iWatered) {
@@ -288,9 +292,9 @@ function FlowerCard() {
       const event = result?.events?.find((entry) => entry.type === 'flower-watered')
       if (event?.grew) {
         playSuccess?.()
-        setNote('You both watered today — it grew a little.')
+        setNote(bothWateredNote)
       } else {
-        setNote('Watered. It grows once your partner waters today too.')
+        setNote(waitingOnPartnerNote)
       }
     } finally {
       setWatering(false)
@@ -341,7 +345,7 @@ function FlowerCard() {
           ? <button className="primary-btn alt" disabled={picking} onClick={handlePick} type="button">{picking ? 'Picking…' : 'Pick the bloom'}</button>
           : <button className="primary-btn alt" disabled={iWatered || watering} onClick={handleWater} type="button"><BrandText text={iWatered ? '✓ Watered' : watering ? 'Watering…' : 'Water 💧'} /></button>)}
       </div>
-      {note && <p className="support-copy">{note}</p>}
+      {visibleNote && <p className="support-copy">{visibleNote}</p>}
       {revealedId && <div className="flower-reveal" role="status"><strong>You grew a {getFlowerSpecies(revealedId).name} together.</strong><span>It’s now part of your collection.</span><button aria-label="Dismiss flower reveal" onClick={() => setRevealedId(null)} type="button"><BrandText text={"×"} /></button></div>}
       {flower.collected.length > 0 && <div className="flower-collection"><h4>Our collection · {flower.collected.length}</h4><div className="flower-collection-grid">{flower.collected.map((speciesId) => <div className="flower-collection-item" key={speciesId}><Suspense fallback={<div className="flower-scene compact" aria-hidden="true" />}><FlowerScene compact revealName speciesId={speciesId} stage={3} /></Suspense><span>{getFlowerSpecies(speciesId).name}</span></div>)}</div></div>}
       {activeSpecies && <p className="support-copy">It grows only on days you both water it. Its name stays a mystery until you pick it.</p>}

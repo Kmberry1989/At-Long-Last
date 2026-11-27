@@ -5,6 +5,7 @@ import { PairingStory } from './Milestones.jsx'
 import { JournalTimeline } from './JournalTimeline.jsx'
 import { MilestonesHub } from './MilestonesHub.jsx'
 import { ProgressHub } from './ProgressHub.jsx'
+import { NightReplay } from './NightReplay.jsx'
 import './our-story-screens.css'
 
 const DESTINATIONS = [
@@ -13,18 +14,27 @@ const DESTINATIONS = [
   { id: 'collection', label: 'Collection', icon: 'bloom' },
 ]
 
-export function OurStoryScreens({ initialScreen = 'chooser', entries = [], themeLocked = false, onClose }) {
+export function OurStoryScreens({ initialScreen = 'chooser', entries = [], players = [], themeLocked = false, onClose }) {
   const [screen, setScreen] = useState(initialScreen)
+  const [replaySessionId, setReplaySessionId] = useState(null)
   const closeRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  const replaySessionRef = useRef(replaySessionId)
+  onCloseRef.current = onClose
+  replaySessionRef.current = replaySessionId
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    closeRef.current?.focus()
+    if (!replaySessionRef.current) closeRef.current?.focus()
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         event.preventDefault()
+        if (replaySessionRef.current) {
+          setReplaySessionId(null)
+          return
+        }
         if (screen !== 'chooser') setScreen('chooser')
-        else onClose()
+        else onCloseRef.current?.()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -32,7 +42,7 @@ export function OurStoryScreens({ initialScreen = 'chooser', entries = [], theme
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [onClose, screen])
+  }, [screen])
 
   if (screen === 'vault') {
     return createPortal(<MilestonesHub initialTab="constellation" onClose={() => setScreen('chooser')} />, document.body)
@@ -52,7 +62,8 @@ export function OurStoryScreens({ initialScreen = 'chooser', entries = [], theme
       </button>)}
     </nav> : screen === 'scrapbook' ? <div className="our-story-content scrapbook-screen-content">
       <PairingStory />
-      <JournalTimeline entries={entries} />
+      <JournalTimeline entries={entries} players={players} onReplayNight={setReplaySessionId} />
     </div> : <div className="our-story-content"><ProgressHub themeLocked={themeLocked} /></div>}
+    {replaySessionId && <NightReplay entries={entries.filter(entry => entry.sessionId === replaySessionId)} players={players} onClose={() => setReplaySessionId(null)} />}
   </main>, document.body)
 }

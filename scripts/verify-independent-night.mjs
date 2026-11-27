@@ -1,10 +1,10 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE_PATH || `${process.env.HOME}/.codex/skills/develop-web-game/scripts/node_modules/playwright/index.mjs`)
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 const base = process.env.QA_BASE_URL || 'http://127.0.0.1:5173'
 const authEmulator = process.env.QA_AUTH_EMULATOR_URL || 'http://127.0.0.1:9099'
 if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Error('Run this verification only against a local dev server.')
-const out = '.playwright-mcp/independent-night'
-const captureOut = process.env.QA_SCREENSHOT_DIR || 'artifacts/night-loop'
+const out = process.env.QA_DEBUG_DIR || '/tmp/at-long-last-playtest-debug'
+const captureOut = process.env.QA_SCREENSHOT_DIR || '/tmp/at-long-last-playtest-captures'
 const viewportWidths = process.env.QA_VIEWPORTS?.split(',').map(Number).filter(Number.isFinite) || [390, 393]
 await mkdir(out, { recursive: true })
 await mkdir(captureOut, { recursive: true })
@@ -118,13 +118,112 @@ console.log('paired', people.map(person => person.uid))
 await writeFile(`${out}/people.json`, JSON.stringify(people))
 await pages[0].screenshot({ path: `${out}/home.png`, fullPage: true })
 await capture(pages[0], 'paired-lobby')
+if (process.env.QA_AUX_SMOKE === '1') {
+  const dismissCeremony = async page => {
+    const ceremony = page.locator('.moment-celebration')
+    await ceremony.waitFor({ timeout: 1800 }).catch(() => {})
+    if (await ceremony.count()) await ceremony.getByRole('button', { name: 'Continue', exact: true }).click()
+  }
+  const openCollection = async page => {
+    await page.getByRole('button', { name: 'Our Story', exact: true }).click()
+    await page.getByRole('button', { name: 'Collection', exact: true }).click()
+    await page.getByRole('heading', { name: 'Collection', exact: true }).waitFor()
+    await page.getByRole('heading', { name: 'Our Bloom', exact: true }).waitFor()
+  }
+  const profileButton = pages[0].getByRole('button', { name: 'Edit profile portrait' })
+  await profileButton.click()
+  let profile = pages[0].getByRole('dialog', { name: 'Profile' })
+  await profile.getByRole('button', { name: 'Piece', exact: true }).click()
+  await profile.getByLabel('Piece color').fill('#8050c8')
+  await profile.getByRole('radio', { name: 'Satin' }).click()
+  await profile.getByRole('radio', { name: /Brocade/ }).click()
+  await profile.getByRole('button', { name: 'Save piece style' }).click()
+  await profile.getByRole('button', { name: 'Save piece style' }).waitFor()
+  await profile.getByRole('button', { name: 'Close profile' }).click()
+  await pages[0].reload()
+  await pages[0].getByRole('button', { name: 'Edit profile portrait' }).waitFor()
+  await dismissCeremony(pages[0])
+  await pages[0].getByRole('button', { name: 'Edit profile portrait' }).click()
+  profile = pages[0].getByRole('dialog', { name: 'Profile' })
+  await profile.getByRole('button', { name: 'Piece', exact: true }).click()
+  if (await profile.getByLabel('Piece color').inputValue() !== '#8050c8'
+    || await profile.getByRole('radio', { name: 'Satin' }).getAttribute('aria-checked') !== 'true'
+    || await profile.getByRole('radio', { name: /Brocade/ }).getAttribute('aria-checked') !== 'true') throw new Error('The piece style did not persist after reload.')
+  await capture(pages[0], 'profile-piece-style-restored')
+  await profile.getByRole('button', { name: 'Close profile' }).click()
+
+  await Promise.all(pages.map(openCollection))
+  const growthBefore = Number((await pages[0].locator('.companion-progress').innerText()).split('/')[0])
+  await pages[0].locator('.companion-card').getByRole('button', { name: /Water/ }).click()
+  await pages[0].getByText('You watered today', { exact: false }).waitFor()
+  await pages[1].locator('.companion-card').getByRole('button', { name: /Water/ }).click()
+  await pages[0].waitForFunction(expected => Number(document.querySelector('.companion-progress')?.textContent?.split('/')[0]) === expected, growthBefore + 1)
+  await pages[0].getByText('You both watered today — it grew a little.', { exact: true }).waitFor()
+  if (await pages[0].getByText('Watered. It grows once your partner waters today too.', { exact: true }).count()) throw new Error('The flower still says it is waiting after both partners watered.')
+  await capture(pages[0], 'our-bloom-both-watered')
+  const downloadPromise = pages[0].waitForEvent('download')
+  await pages[0].getByText('Download your data (JSON)').locator('..').getByRole('button', { name: 'Download' }).click()
+  const download = await downloadPromise
+  const exported = JSON.parse(await readFile(await download.path(), 'utf8'))
+  if (exported.app !== 'at-long-last' || !Array.isArray(exported.journalEntries) || exported.progress?.flower?.growth < growthBefore + 1) throw new Error('The downloaded memories missed the saved flower growth.')
+  await pages[0].getByRole('button', { name: 'Back to Our Story' }).click()
+  await pages[0].getByRole('button', { name: 'Close Our Story' }).click()
+  await pages[0].reload()
+  await pages[0].getByRole('button', { name: 'Our Story', exact: true }).waitFor()
+  await dismissCeremony(pages[0])
+  await openCollection(pages[0])
+  if (!await pages[0].getByText('You watered today', { exact: false }).count()) throw new Error('The flower watering state did not persist after reload.')
+  await capture(pages[0], 'our-bloom-restored-after-reload')
+  if (errors.length) throw new Error(`Browser errors: ${JSON.stringify(errors)}`)
+  console.log('profile style, flower watering, Collection reload, and JSON export passed')
+  await browser.close()
+  process.exit(0)
+}
+if (process.env.QA_DENIED_MEDIA_SMOKE === '1') {
+  for (const page of pages) await page.evaluate(() => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: async () => { const error = new Error('Permission denied'); error.name = 'NotAllowedError'; throw error } },
+    })
+  })
+  await Promise.all(pages.map(page => page.getByRole('button', { name: 'Open Our Arcade' }).click()))
+  await Promise.all(pages.map(page => page.getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'Say Without Saying', exact: true }).click()))
+  await Promise.all(pages.map(page => page.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()))
+  const actor = await pages[0].getByRole('button', { name: 'Open camera' }).count() ? pages[0] : pages[1]
+  await actor.getByRole('button', { name: 'Open camera' }).click()
+  await actor.getByRole('alert').filter({ hasText: 'Allow camera access to act this prompt.' }).waitFor()
+  await actor.getByRole('button', { name: 'Open camera' }).waitFor()
+  const cameraErrorVisible = await actor.getByRole('alert').evaluate(element => {
+    const bounds = element.getBoundingClientRect()
+    const dialog = element.closest('[role="dialog"]').getBoundingClientRect()
+    return bounds.top >= dialog.top && bounds.bottom <= dialog.bottom && bounds.bottom <= window.innerHeight
+  })
+  if (!cameraErrorVisible) throw new Error('Camera permission message is clipped in the phone arcade dialog.')
+  await capture(actor, 'charades-camera-denied')
+  await Promise.all(pages.map(page => page.getByRole('button', { name: 'Close games' }).click()))
+  await pages[0].getByRole('button', { name: 'Begin our night', exact: true }).click()
+  await pages[0].getByRole('button', { name: 'Record a note' }).waitFor()
+  await pages[0].getByRole('button', { name: 'Record a note' }).click()
+  await pages[0].getByRole('alert').filter({ hasText: 'Allow microphone access to record your note.' }).waitFor()
+  await pages[0].getByRole('button', { name: 'Record a note' }).waitFor()
+  await capture(pages[0], 'kiss-microphone-denied')
+  if (errors.length) throw new Error(`Browser errors: ${JSON.stringify(errors)}`)
+  console.log('camera and microphone denial messages and retry controls passed')
+  await browser.close()
+  process.exit(0)
+}
 if (process.env.QA_ARCADE_SMOKE === '1') {
   await pages[0].getByRole('button', { name: 'Open Our Arcade' }).click()
   const arcade = pages[0].getByRole('dialog', { name: 'Our Arcade' })
   await arcade.waitFor()
   const returnToArcade = async page => {
-    await page.getByRole('button', { name: 'All games', exact: true }).click({ force: true })
-    await page.getByRole('dialog', { name: 'Our Arcade' }).waitFor()
+    const menu = page.getByRole('dialog', { name: 'Our Arcade' })
+    if (await menu.getByRole('button', { name: 'Radar Love', exact: true }).count()) return
+    const allGames = page.getByRole('button', { name: 'All games', exact: true })
+    if (await allGames.count()) await allGames.click({ force: true })
+    else if (await page.getByRole('button', { name: 'Open Our Arcade' }).count()) await page.getByRole('button', { name: 'Open Our Arcade' }).click()
+    else throw new Error(`Could not return to arcade menu: ${await page.locator('body').innerText()}`)
+    await menu.getByRole('button', { name: 'Radar Love', exact: true }).waitFor()
   }
   await capture(pages[0], 'arcade-menu')
   for (const [label, screenshot] of [
@@ -145,113 +244,112 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
 
   // Exercise a valid interaction in each shared arcade game, then verify
   // the second browser can act on the same saved charade and Battleship state.
+  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
+  const partnerArcadeMenu = pages[1].getByRole('dialog', { name: 'Our Arcade' })
   await arcade.getByRole('button', { name: 'My One and Only!', exact: true }).click()
-  await pages[0].locator('.uno-hand').waitFor()
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  const playableUno = pages[0].locator('.uno-card:not(:disabled)').first()
+  await partnerArcadeMenu.getByRole('button', { name: 'My One and Only!', exact: true }).click()
+  await Promise.all(pages.map(page => page.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()))
+  const unoActor = await pages[0].getByRole('button', { name: 'Draw a card' }).isEnabled() ? pages[0] : pages[1]
+  const unoObserver = pages[1 - pages.indexOf(unoActor)]
+  const playableUno = unoActor.locator('.uno-card:not(:disabled)').first()
   if (await playableUno.count()) await playableUno.click()
   else {
-    await pages[0].getByRole('button', { name: 'Draw a card' }).click()
-    const keep = pages[0].getByRole('button', { name: 'Keep it', exact: true })
+    await unoActor.getByRole('button', { name: 'Draw a card' }).click()
+    const keep = unoActor.getByRole('button', { name: 'Keep it', exact: true })
     if (await keep.count()) await keep.click()
   }
-  const wildChoice = pages[0].getByRole('group', { name: 'Choose a color' })
+  const wildChoice = unoActor.getByRole('group', { name: 'Choose a color' })
   if (await wildChoice.count()) await wildChoice.getByRole('button').first().click()
-  await pages[0].waitForFunction(() => !document.querySelector('.arcade-error'))
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await capture(pages[0], 'arcade-my-one-and-only-played')
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
-  const unoArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
-  await unoArcade.getByRole('button', { name: 'My One and Only!', exact: true }).click()
-  await pages[1].locator('.uno-hand').waitFor()
-  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  const unoStatusBeforeReload = await pages[1].locator('.arcade-turn').innerText()
-  const unoHandSizeBeforeReload = await pages[1].locator('.uno-hand .uno-card').count()
-  await pages[1].reload()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).waitFor()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
-  await pages[1].getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'My One and Only!', exact: true }).click()
-  await pages[1].locator('.uno-hand').waitFor()
-  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  if (await pages[1].locator('.arcade-turn').innerText() !== unoStatusBeforeReload
-    || await pages[1].locator('.uno-hand .uno-card').count() !== unoHandSizeBeforeReload) {
+  await unoActor.waitForFunction(() => !document.querySelector('.arcade-error'))
+  await unoActor.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await capture(unoActor, 'arcade-my-one-and-only-played')
+  const unoStatusBeforeReload = await unoObserver.locator('.arcade-turn').innerText()
+  const unoHandSizeBeforeReload = await unoObserver.locator('.uno-hand .uno-card').count()
+  await unoObserver.reload()
+  await unoObserver.getByRole('button', { name: 'Open Our Arcade' }).waitFor()
+  await unoObserver.getByRole('button', { name: 'Open Our Arcade' }).click()
+  await unoObserver.getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'My One and Only!', exact: true }).click()
+  await unoObserver.locator('.uno-hand').waitFor()
+  await unoObserver.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  if (await unoObserver.locator('.arcade-turn').innerText() !== unoStatusBeforeReload
+    || await unoObserver.locator('.uno-hand .uno-card').count() !== unoHandSizeBeforeReload) {
     throw new Error('My One and Only did not restore the same turn and hand after reload.')
   }
-  await capture(pages[1], 'arcade-my-one-and-only-restored-after-reload')
-  await returnToArcade(pages[1])
-  await returnToArcade(pages[0])
+  await capture(unoObserver, 'arcade-my-one-and-only-restored-after-reload')
+  await Promise.all(pages.map(returnToArcade))
 
   await arcade.getByRole('button', { name: 'Catch My Heart', exact: true }).click()
-  await pages[0].locator('.fish-ranks button:not(:disabled)').first().waitFor()
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await pages[0].locator('.fish-ranks button:not(:disabled)').first().click()
-  try { await pages[0].locator('.arcade-result').waitFor({ timeout: 10000 }) } catch (error) {
-    await capture(pages[0], 'arcade-catch-my-heart-failure')
-    console.error('CATCH MY HEART ASK FAILED', await pages[0].locator('.arcade-game').innerText(), await pages[0].locator('[role="alert"]').allInnerTexts())
+  await partnerArcadeMenu.getByRole('button', { name: 'Catch My Heart', exact: true }).click()
+  await Promise.all(pages.map(page => page.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()))
+  const fishActor = await pages[0].locator('.fish-ranks button:not(:disabled)').count() ? pages[0] : pages[1]
+  const fishObserver = pages[1 - pages.indexOf(fishActor)]
+  await fishActor.locator('.fish-ranks button:not(:disabled)').first().click()
+  try { await fishActor.locator('.arcade-result').waitFor({ timeout: 10000 }) } catch (error) {
+    await capture(fishActor, 'arcade-catch-my-heart-failure')
+    console.error('CATCH MY HEART ASK FAILED', await fishActor.locator('.arcade-game').innerText(), await fishActor.locator('[role="alert"]').allInnerTexts())
     throw error
   }
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await capture(pages[0], 'arcade-catch-my-heart-played')
-  await pages[1].getByRole('button', { name: 'Catch My Heart', exact: true }).click()
-  await pages[1].locator('.fish-ranks button').first().waitFor()
-  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  const fishStatusBeforeReload = await pages[1].locator('.arcade-turn').innerText()
-  const fishResultBeforeReload = await pages[1].locator('.arcade-result').innerText()
-  await pages[1].reload()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).waitFor()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
-  await pages[1].getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'Catch My Heart', exact: true }).click()
-  await pages[1].locator('.fish-ranks button').first().waitFor()
-  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  if (await pages[1].locator('.arcade-turn').innerText() !== fishStatusBeforeReload
-    || await pages[1].locator('.arcade-result').innerText() !== fishResultBeforeReload) {
+  await fishActor.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await capture(fishActor, 'arcade-catch-my-heart-played')
+  await fishObserver.locator('.arcade-result').waitFor()
+  const fishStatusBeforeReload = await fishObserver.locator('.arcade-turn').innerText()
+  const fishResultBeforeReload = await fishObserver.locator('.arcade-result').innerText()
+  await fishObserver.reload()
+  await fishObserver.getByRole('button', { name: 'Open Our Arcade' }).waitFor()
+  await fishObserver.getByRole('button', { name: 'Open Our Arcade' }).click()
+  await fishObserver.getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'Catch My Heart', exact: true }).click()
+  await fishObserver.locator('.fish-ranks button').first().waitFor()
+  await fishObserver.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  if (await fishObserver.locator('.arcade-turn').innerText() !== fishStatusBeforeReload
+    || await fishObserver.locator('.arcade-result').innerText() !== fishResultBeforeReload) {
     throw new Error('Catch My Heart did not restore the same turn and last ask after reload.')
   }
-  await capture(pages[1], 'arcade-catch-my-heart-restored-after-reload')
-  await returnToArcade(pages[1])
-  await returnToArcade(pages[0])
+  await capture(fishObserver, 'arcade-catch-my-heart-restored-after-reload')
+  await Promise.all(pages.map(returnToArcade))
 
   await arcade.getByRole('button', { name: 'Say Without Saying', exact: true }).click()
-  await pages[0].locator('.charade-prompt').waitFor()
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  const firstPrompt = await pages[0].locator('.charade-prompt').innerText()
-  await pages[0].getByRole('button', { name: 'Open camera', exact: true }).click()
-  await pages[0].getByRole('button', { name: 'Record clip', exact: true }).waitFor()
-  await pages[0].getByRole('button', { name: 'Record clip', exact: true }).click()
-  await pages[0].getByRole('button', { name: 'Stop & preview', exact: true }).click()
-  await pages[0].getByRole('button', { name: 'Send clip', exact: true }).click()
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await pages[0].getByText('Your person is getting ready to act.').waitFor()
+  await partnerArcadeMenu.getByRole('button', { name: 'Say Without Saying', exact: true }).click()
+  await Promise.all(pages.map(page => page.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()))
+  const charadeActor = await pages[0].getByRole('button', { name: 'Open camera', exact: true }).count() ? pages[0] : pages[1]
+  const charadeGuesser = pages[1 - pages.indexOf(charadeActor)]
+  const firstPrompt = await charadeActor.locator('.charade-prompt').innerText()
+  await charadeActor.getByRole('button', { name: 'Open camera', exact: true }).click()
+  await charadeActor.getByRole('button', { name: 'Record clip', exact: true }).waitFor()
+  await charadeActor.getByRole('button', { name: 'Record clip', exact: true }).click()
+  await charadeActor.getByRole('button', { name: 'Stop & preview', exact: true }).click()
+  await charadeActor.getByRole('button', { name: 'Send clip', exact: true }).click()
+  await charadeActor.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await charadeActor.getByText('Your person is getting ready to act.').waitFor()
   // Reconnect the guessing player after the actor has saved the clip. The
   // Firestore-backed phase and clip must be restored before the guess UI opens.
-  await pages[1].reload()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).waitFor()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
-  const charadeArcade = pages[1].getByRole('dialog', { name: 'Our Arcade' })
+  await charadeGuesser.reload()
+  await charadeGuesser.getByRole('button', { name: 'Open Our Arcade' }).waitFor()
+  await charadeGuesser.getByRole('button', { name: 'Open Our Arcade' }).click()
+  const charadeArcade = charadeGuesser.getByRole('dialog', { name: 'Our Arcade' })
   await charadeArcade.getByRole('button', { name: 'Say Without Saying', exact: true }).click()
-  await pages[1].locator('.charade-choices button').first().waitFor()
-  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  const restoredClip = pages[1].locator('.charade-camera[controls]')
+  await charadeGuesser.locator('.charade-choices button').first().waitFor()
+  await charadeGuesser.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  const restoredClip = charadeGuesser.locator('.charade-camera[controls]')
   await restoredClip.waitFor()
   const restoredClipUrl = await restoredClip.getAttribute('src')
   if (!restoredClipUrl?.startsWith('data:video/')) throw new Error('The saved charade clip did not restore after reload.')
-  await capture(pages[1], 'arcade-say-without-saying-restored-clip')
-  await pages[1].screenshot({ path: `${captureOut}/arcade-say-without-saying-restored-clip-viewport.jpg`, type: 'jpeg', quality: 58, fullPage: false, timeout: 30000, animations: 'disabled' })
-  await pages[1].getByRole('button', { name: firstPrompt, exact: true }).click()
-  await pages[1].locator('.charade-prompt').waitFor()
-  const secondPrompt = await pages[1].locator('.charade-prompt').innerText()
-  await pages[1].getByRole('button', { name: 'Open camera', exact: true }).click()
-  await pages[1].getByRole('button', { name: 'Record clip', exact: true }).click()
-  await pages[1].getByRole('button', { name: 'Stop & preview', exact: true }).click()
-  await pages[1].getByRole('button', { name: 'Send clip', exact: true }).click()
-  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await pages[0].locator('.charade-choices button').first().waitFor()
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await pages[0].getByRole('button', { name: secondPrompt, exact: true }).click()
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await pages[0].locator('.arcade-turn').filter({ hasText: /won|tie/ }).waitFor()
-  await capture(pages[0], 'arcade-say-without-saying-played')
-  await returnToArcade(pages[0])
+  await capture(charadeGuesser, 'arcade-say-without-saying-restored-clip')
+  await charadeGuesser.screenshot({ path: `${captureOut}/arcade-say-without-saying-restored-clip-viewport.jpg`, type: 'jpeg', quality: 58, fullPage: false, timeout: 30000, animations: 'disabled' })
+  await charadeGuesser.getByRole('button', { name: firstPrompt, exact: true }).click()
+  await charadeGuesser.locator('.charade-prompt').waitFor()
+  const secondPrompt = await charadeGuesser.locator('.charade-prompt').innerText()
+  await charadeGuesser.getByRole('button', { name: 'Open camera', exact: true }).click()
+  await charadeGuesser.getByRole('button', { name: 'Record clip', exact: true }).click()
+  await charadeGuesser.getByRole('button', { name: 'Stop & preview', exact: true }).click()
+  await charadeGuesser.getByRole('button', { name: 'Send clip', exact: true }).click()
+  await charadeGuesser.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await charadeActor.locator('.charade-choices button').first().waitFor()
+  await charadeActor.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await charadeActor.getByRole('button', { name: secondPrompt, exact: true }).click()
+  await charadeActor.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await charadeActor.locator('.arcade-turn').filter({ hasText: /won|tie/ }).waitFor()
+  await capture(charadeActor, 'arcade-say-without-saying-played')
+  await Promise.all(pages.map(returnToArcade))
 
   await arcade.getByRole('button', { name: 'Radar Love', exact: true }).click()
   await pages[0].getByRole('button', { name: 'Randomize fleet', exact: true }).waitFor()
@@ -269,24 +367,25 @@ if (process.env.QA_ARCADE_SMOKE === '1') {
   await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
   await pages[1].getByRole('button', { name: 'Ready', exact: true }).click()
   await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await pages[0].locator('.radar-grid button:not(:disabled)').first().waitFor()
-  await pages[0].locator('.radar-grid button:not(:disabled)').first().click()
-  await pages[0].waitForFunction(() => document.querySelectorAll('.radar-hit, .radar-miss').length === 1)
-  await pages[0].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  await capture(pages[0], 'arcade-radar-love-played')
-  const radarStatusBeforeReload = await pages[1].locator('.arcade-turn').innerText()
-  const radarMarksBeforeReload = await pages[1].locator('.radar-hit, .radar-miss').count()
-  await pages[1].reload()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).waitFor()
-  await pages[1].getByRole('button', { name: 'Open Our Arcade' }).click()
-  await pages[1].getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'Radar Love', exact: true }).click()
-  await pages[1].locator('.radar-grid').waitFor()
-  await pages[1].locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
-  if (await pages[1].locator('.arcade-turn').innerText() !== radarStatusBeforeReload
-    || await pages[1].locator('.radar-hit, .radar-miss').count() !== radarMarksBeforeReload) {
+  const radarActor = await pages[0].locator('.radar-grid button:not(:disabled)').count() ? pages[0] : pages[1]
+  const radarObserver = pages[1 - pages.indexOf(radarActor)]
+  await radarActor.locator('.radar-grid button:not(:disabled)').first().click()
+  await radarActor.waitForFunction(() => document.querySelectorAll('.radar-hit, .radar-miss').length === 1)
+  await radarActor.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  await capture(radarActor, 'arcade-radar-love-played')
+  const radarStatusBeforeReload = await radarObserver.locator('.arcade-turn').innerText()
+  const radarMarksBeforeReload = await radarObserver.locator('.radar-hit, .radar-miss').count()
+  await radarObserver.reload()
+  await radarObserver.getByRole('button', { name: 'Open Our Arcade' }).waitFor()
+  await radarObserver.getByRole('button', { name: 'Open Our Arcade' }).click()
+  await radarObserver.getByRole('dialog', { name: 'Our Arcade' }).getByRole('button', { name: 'Radar Love', exact: true }).click()
+  await radarObserver.locator('.radar-grid').waitFor()
+  await radarObserver.locator('.couple-arcade-modal[aria-busy="false"]').waitFor()
+  if (await radarObserver.locator('.arcade-turn').innerText() !== radarStatusBeforeReload
+    || await radarObserver.locator('.radar-hit, .radar-miss').count() !== radarMarksBeforeReload) {
     throw new Error('Radar Love did not restore the same turn and shot after reload.')
   }
-  await capture(pages[1], 'arcade-radar-love-restored-after-reload')
+  await capture(radarObserver, 'arcade-radar-love-restored-after-reload')
   await returnToArcade(pages[1])
   await returnToArcade(pages[0])
 
@@ -537,7 +636,7 @@ async function rollDice(page, dice = [1, 1], swipe = false, retry = 0) {
   await page.waitForTimeout(360)
   await capture(page, `piece-hopping-player-${pages.indexOf(page) + 1}-${before + 1}`)
   await page.waitForTimeout(1650 + (dice[0] + dice[1]) * 235)
-  await page.waitForFunction(() => document.querySelector('.coin-touch-hint, .landing-ack-tray'))
+  await page.waitForFunction(() => document.querySelector('.moment-card-draw, .landing-ack-tray'))
   await capture(page, `landing-player-${pages.indexOf(page) + 1}-${before + 1}`)
   const boardDice = await page.evaluate(() => window.render_game_to_text?.())
   if (!boardDice || JSON.stringify(JSON.parse(boardDice).dice.values) !== JSON.stringify(dice)) {
@@ -575,13 +674,38 @@ async function sealReflection(page, text, guess) {
   }
   const answer = page.getByLabel('Your Answer', { exact: true })
   console.log('fill answer'); await answer.fill(text); console.log('answer filled')
-  await page.getByRole('button', { name: 'NEXT', exact: true }).click(); console.log('flipped')
-  await capture(page, `activity-${type}-guess-player-${pages.indexOf(page) + 1}`)
-  await page.locator('#activity-guess-input').fill(guess); console.log('guess filled')
+  const next = page.getByRole('button', { name: 'NEXT', exact: true })
+  if (await next.count()) {
+    await next.click(); console.log('flipped')
+    await capture(page, `activity-${type}-guess-player-${pages.indexOf(page) + 1}`)
+    await page.locator('#activity-guess-input').fill(guess); console.log('guess filled')
+  }
   await page.getByRole('button', { name: /Seal My Turn|Seal & Reveal/ }).click(); console.log('sealed')
   await page.waitForFunction(type => { const state = window.__atLongLastGameState; return state && !state.activity && !state.available.some(task => task.kind === 'activity' && task.type === type) }, type)
 }
 async function returnDiceToCup(page, index) {
+  if (process.env.QA_ASSERT_DICE_FRAMING === '1') {
+    try {
+      await page.waitForFunction(() => {
+        const canvas = document.querySelector('.board-canvas canvas')
+        const centers = JSON.parse(window.render_game_to_text()).dice.screenCenters
+        return canvas && centers.length === 2 && centers.every(point => point.x >= 18 && point.x <= canvas.clientWidth - 18 && point.y >= 18 && point.y <= canvas.clientHeight - 18)
+      }, undefined, { timeout: 5000 })
+      await page.waitForTimeout(900)
+    } catch (error) {
+      await capture(page, `dice-framing-failure-player-${index + 1}`)
+      throw error
+    }
+  }
+  // The visible return control remains usable when a settled die is partly
+  // outside the phone viewport after the board camera follows a piece.
+  const returnControl = page.getByRole('button', { name: 'Return dice to cup' })
+  if (process.env.QA_ASSERT_DICE_FRAMING !== '1' && await returnControl.count()) {
+    await returnControl.click()
+    const stepId = `roll-${(await gameState(page)).ownRolls}-${index}`
+    await page.waitForFunction(id => window.__atLongLastNightSteps?.find(step => step.id === id)?.diceReturned === true, stepId)
+    return
+  }
   const canvas = page.locator('.board-canvas canvas')
   let bounds = await canvas.boundingBox()
   for (let attempt = 0; !bounds && attempt < 8; attempt += 1) {
@@ -591,13 +715,17 @@ async function returnDiceToCup(page, index) {
   const board = JSON.parse(await page.evaluate(() => window.render_game_to_text()))
   const hits = await page.evaluate(({ bounds }) => {
     if (!bounds || typeof window.__atLongLastHitDice !== 'function') return []
+    const canvas = document.querySelector('.board-canvas canvas')
     const candidates = []
     for (let y = bounds.y; y < bounds.y + bounds.height; y += 8) for (let x = bounds.x; x < bounds.x + bounds.width; x += 8) {
-      if (x >= 0 && x <= innerWidth && y >= 0 && y <= innerHeight && window.__atLongLastHitDice(x, y)) candidates.push({ x, y })
+      if (x >= 0 && x <= innerWidth && y >= 0 && y <= innerHeight && document.elementFromPoint(x, y) === canvas && window.__atLongLastHitDice(x, y)) candidates.push({ x, y })
     }
     return candidates
   }, { bounds })
-  if (!hits.length) throw new Error(`Could not locate the dice to return them to the cup for player ${index + 1}: ${JSON.stringify({ bounds, state: await gameState(page), board: await page.evaluate(() => JSON.parse(window.render_game_to_text())) })}`)
+  if (!hits.length) {
+    await capture(page, `dice-return-obscured-player-${index + 1}`)
+    throw new Error(`Could not locate an unobscured die to return for player ${index + 1}: ${JSON.stringify({ bounds, state: await gameState(page), board: await page.evaluate(() => JSON.parse(window.render_game_to_text())) })}`)
+  }
   const center = board.dice.screenCenters[0]
   const target = { x: bounds.x + center.x, y: bounds.y + center.y }
   const hit = hits.sort((a, b) => Math.hypot(a.x - target.x, a.y - target.y) - Math.hypot(b.x - target.x, b.y - target.y))[0]
@@ -606,7 +734,8 @@ async function returnDiceToCup(page, index) {
   try {
     await page.waitForFunction(id => window.__atLongLastNightSteps?.find(step => step.id === id)?.diceReturned === true, stepId)
   } catch (error) {
-    console.error('DICE RETURN DID NOT SAVE', JSON.stringify({ stepId, hit, state: await gameState(page), steps: await page.evaluate(() => window.__atLongLastNightSteps), dice: board.dice, body: (await page.locator('body').innerText()).slice(-800) }))
+    await capture(page, `dice-return-did-not-save-player-${index + 1}`)
+    console.error('DICE RETURN DID NOT SAVE', JSON.stringify({ stepId, hit, target: await page.evaluate(point => { const element = document.elementFromPoint(point.x, point.y); return { tag: element?.tagName, className: String(element?.className || ''), hit: window.__atLongLastHitDice?.(point.x, point.y), canvasLabel: document.querySelector('.board-canvas canvas')?.getAttribute('aria-label'), returnChip: Boolean(document.querySelector('.dice-return-chip')) } }, hit), state: await gameState(page), steps: await page.evaluate(() => window.__atLongLastNightSteps), dice: board.dice, body: (await page.locator('body').innerText()).slice(-800) }))
     throw error
   }
 }
@@ -616,7 +745,7 @@ async function finishTurn(page, index, { leaveDiceOut = false } = {}) {
   if (state.readyToFinish) return
   const stepId = `roll-${state.ownRolls}-${index}`
   if (!leaveDiceOut) await returnDiceToCup(page, index)
-  const endTurn = page.getByRole('button', { name: 'End turn', exact: true })
+  const endTurn = page.locator('.turn-pass-switch')
   await page.waitForFunction(() => {
     const button = document.querySelector('.turn-pass-switch')
     return button && !button.disabled
@@ -890,6 +1019,55 @@ await rollDice(pages[secondPlayerIndex], [2,2], true)
 await finishLanding(pages[secondPlayerIndex], secondPlayerIndex)
 if ((await gameState(pages[firstPlayerIndex])).ownRolls !== 1 || (await gameState(pages[secondPlayerIndex])).ownRolls !== 1) throw new Error('The opening turns did not alternate between players')
 await pages[firstPlayerIndex].screenshot({ path: `${out}/both-first-turns-complete.png`, fullPage: true })
+if (process.env.QA_TRADE_SMOKE === '1') {
+  const sender = pages[firstPlayerIndex]
+  const recipient = pages[secondPlayerIndex]
+  const openTrade = async page => {
+    await page.getByRole('button', { name: /Open Keepsake Trade|Review trade offer/ }).click()
+    return page.getByRole('dialog', { name: 'Trade' })
+  }
+  const senderTrade = await openTrade(sender)
+  const offeredLabel = await senderTrade.getByRole('group', { name: 'Your keepsakes', exact: true }).getByRole('button').first().innerText()
+  await senderTrade.getByRole('group', { name: 'Your keepsakes', exact: true }).getByRole('button').first().click()
+  await senderTrade.getByRole('button', { name: 'Offer', exact: true }).click()
+  await recipient.getByRole('button', { name: /Review trade offer/ }).waitFor()
+  let recipientTrade = await openTrade(recipient)
+  const returnLabel = await recipientTrade.getByRole('group', { name: 'Your keepsakes to trade' }).getByRole('button').first().innerText()
+  if (await recipientTrade.getByRole('button', { name: 'Accept' }).isEnabled()) throw new Error('Trade accepted without choosing a return keepsake')
+  await capture(recipient, 'trade-incoming-offer')
+  await recipientTrade.getByRole('group', { name: 'Your keepsakes to trade' }).getByRole('button').first().click()
+  await recipientTrade.getByRole('button', { name: 'Accept' }).click()
+  await sender.getByRole('button', { name: 'Open Keepsake Trade' }).waitFor()
+  await recipient.getByRole('button', { name: 'Open Keepsake Trade' }).waitFor()
+  const senderAfter = await openTrade(sender)
+  if (!await senderAfter.getByRole('group', { name: 'Your keepsakes', exact: true }).getByRole('button', { name: returnLabel }).count()) throw new Error('Sender did not receive the return keepsake')
+  await senderAfter.getByRole('button', { name: 'Close trade' }).click()
+  recipientTrade = await openTrade(recipient)
+  if (!await recipientTrade.getByRole('group', { name: 'Your keepsakes', exact: true }).getByRole('button', { name: offeredLabel }).count()) throw new Error('Recipient did not receive the offered keepsake')
+  await recipientTrade.getByRole('button', { name: 'Close trade' }).click()
+  await capture(sender, 'trade-accepted-sender')
+  await capture(recipient, 'trade-accepted-recipient')
+  const secondOffer = await openTrade(sender)
+  await secondOffer.getByRole('group', { name: 'Your keepsakes', exact: true }).getByRole('button').first().click()
+  await secondOffer.getByRole('button', { name: 'Offer', exact: true }).click()
+  await recipient.getByRole('button', { name: /Review trade offer/ }).waitFor()
+  await recipient.reload()
+  await recipient.getByRole('button', { name: /Review trade offer/ }).waitFor()
+  recipientTrade = await openTrade(recipient)
+  await recipientTrade.getByRole('button', { name: 'Pass', exact: true }).click()
+  await recipient.getByRole('button', { name: 'Open Keepsake Trade' }).waitFor()
+  await sender.getByRole('button', { name: 'Open Keepsake Trade' }).waitFor()
+  const thirdOffer = await openTrade(sender)
+  await thirdOffer.getByRole('group', { name: 'Your keepsakes', exact: true }).getByRole('button').first().click()
+  await thirdOffer.getByRole('button', { name: 'Offer', exact: true }).click()
+  const outgoing = await openTrade(sender)
+  await outgoing.getByRole('button', { name: 'Cancel offer' }).click()
+  await sender.getByRole('button', { name: 'Open Keepsake Trade' }).waitFor()
+  await recipient.getByRole('button', { name: 'Open Keepsake Trade' }).waitFor()
+  console.log('trade offer, accept, reconnect, pass, and cancel passed')
+  await browser.close()
+  process.exit(0)
+}
 await pages[firstPlayerIndex].reload()
 await pages[firstPlayerIndex].waitForFunction(() => window.__atLongLastGameState?.ownRolls === 1)
 if (await pages[firstPlayerIndex].getByRole('heading', { name: 'Kiss sent', exact: true }).count()) {

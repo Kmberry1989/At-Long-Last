@@ -125,6 +125,25 @@ describe('journalHelpers', () => {
     ])
   })
 
+  it('uses saved player names for a trophy when no duel has an individual winner', () => {
+    expect(summarizeScrapbookRecord([
+      { type: 'vibe-setup', payload: { players: [{ uid: 'u1', displayName: 'Avery' }, { uid: 'u2', displayName: 'Rowan' }] } },
+      { type: 'trophy', payload: { method: 'progress', winnerUid: 'u1', loserUid: 'u2' } },
+    ])).toEqual([
+      { uid: 'u1', name: 'Avery', wins: 1, losses: 0 },
+      { uid: 'u2', name: 'Rowan', wins: 0, losses: 1 },
+    ])
+  })
+
+  it('uses the current couple names for an archived trophy with no saved name fields', () => {
+    expect(summarizeScrapbookRecord([
+      { type: 'trophy', payload: { method: 'progress', winnerUid: 'u2', loserUid: 'u1' } },
+    ], [{ uid: 'u1', displayName: 'Avery' }, { uid: 'u2', displayName: 'Rowan' }])).toEqual([
+      { uid: 'u2', name: 'Rowan', wins: 1, losses: 0 },
+      { uid: 'u1', name: 'Avery', wins: 0, losses: 1 },
+    ])
+  })
+
   it('writes a wavelength scorecard into the duel journal entry', () => {
     const session = {
       currentDuel: { attempt: 1, id: 'wavelength-duel' },

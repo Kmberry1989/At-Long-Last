@@ -1,10 +1,10 @@
 # At Long Last — Player Game Flow Manual
 
-*Current-flow reference, checked against the game code and two-profile emulator playthrough on 2026-11-11.*
+*Current-flow reference, updated against the alternating-turn game on 2026-11-20.*
 
 ## What a night is
 
-At Long Last is a two-player, shared-heart board night with an individual lap prize. The shared hearts belong to the couple’s night; they are not either player’s health. Each player moves their own piece, handles their own board landings, and can keep going without waiting for their partner. Shared comparisons gather until the end.
+At Long Last is a two-player, shared-heart board night with an individual lap prize. The shared hearts belong to the couple’s night; they are not either player’s health. Each player moves their own piece, resolves their landing, and passes the board turn to their partner. Shared comparison answers gather at the end.
 
 ## Before the first roll
 
@@ -12,7 +12,7 @@ At Long Last is a two-player, shared-heart board night with an individual lap pr
 2. Invite your person by the email they use to sign in. They accept the invitation inside the game. Both accounts must be paired before beginning a shared night. The separate permanent **Commit** step is optional for play.
 3. Before starting, both players choose a board look from **Our Story → Collection → Themes**. The night stays locked until their votes match; once they agree, that theme is saved for both boards. Choosing **Surprise us** is also a vote and must match. Existing couples with a saved shared theme keep that prior agreement.
 4. From the paired lobby, choose **Begin our night**. The current button starts the Long night: eight rounds, or up to eight rolls per player. (Shorter presets remain in the code, but the current lobby starts the longest one.)
-5. Each player records and sends a short voice note for the opening Kiss Courier. Recording pauses the music. Once a note is sent, tap **Begin our night** on that screen to close it and enter the board. Each player can do this independently; you do not have to wait for the other note before taking your first turn.
+5. Each player records and sends a short voice note for the opening Kiss Courier. Recording pauses the music. Once a note is sent, tap **Begin our night** on that screen to enter the board. Each can send a note independently; the saved first-turn coin decides who rolls first.
 
 ## The night, in order
 
@@ -21,15 +21,15 @@ flowchart TD
     A[Sign in and pair] --> B[Begin Long night]
     B --> C[Each player sends an opening voice note]
     C --> D[Portrait coin toss chooses who rolls first]
-    D --> E[Each player rolls when ready]
+    D --> E[Active player rolls]
     E --> F[Piece moves by the sum of two dice]
     F --> G[Resolve the board landing]
-    G --> H[Flip the coin and draw this roll's Trash or Treasure card]
+    G --> H[Coin flips and draws this roll's Trash or Treasure card]
     H --> I[Reveal and move with the card]
-    I --> J{More of your rolls?}
-    J -->|Yes| E
-    J -->|No| K[Wait only for unfinished night actions]
-    K --> L[Both players finish all eight rolls]
+    I --> J[Return dice and pass the turn]
+    J --> K{Both completed eight rolls?}
+    K -->|No| E
+    K -->|Yes| L[Finish any remaining night actions]
     L --> M[Complete shared comparisons and reveals]
     M --> N[Each catches the partner's opening kiss]
     N --> O[Open tonight's reveals and count the hearts]
@@ -38,14 +38,13 @@ flowchart TD
 
 ## When and how the dice are rolled
 
-- **You may roll when your own last landing is resolved.** Your partner’s unfinished turn does not block you. You can take your next roll after finishing your own activity or keepsake and resolving your moment card.
-- **Either player may start.** The night has an internal starting-player value for prize tie-breaks, but it does not enforce alternating turns in this independent-paced flow.
-- A portrait coin appears at the first board visit. Tap it once to reveal which portrait rolls first, then Continue. This is an opening presentation of the already-saved starting player; it does not block the other person's independent turns.
+- **The board turn alternates.** Finish your landing and moment card, return the dice to the cup, then flip the Pass switch. Your partner rolls next. Leaving the dice out applies the shown Trash penalty when you pass.
+- **Either player may be chosen to start.** A portrait coin appears at the first board visit. Tap it to reveal the saved starting player, then Continue. Only that player can make the first roll.
 - There is no Vibe dial or tone ballot at night start. New nights go from the opening kiss to the board and first-turn coin.
 - Tap or swipe directly on the dice. The camera rises to the dice, then pans back down toward the board as they tumble out of the tray. The gesture changes the visual throw and its strength; it does not choose the result. Keyboard Enter/Space also works on desktop.
 - The app waits about **620 ms** before choosing two random six-sided values. The 3D dice then tumble for about **2 seconds**, and the piece hops one space at a time, with a short sound on each step.
 - **The two dice are added together for the main move.** For example, a 2 and a 5 move the piece seven spaces. Double ones move two spaces; they do not cause another roll.
-- Each player has one roll in each round, up to eight each in the current Long night. Round 3 does not mean “wait for round 2 to finish”: each person can be on a different round while moving at their own pace.
+- Each player has one roll in each round, up to eight each in the current Long night. The active board turn passes from one partner to the other after the current landing is resolved.
 
 ## What happens after a roll
 
@@ -67,12 +66,12 @@ Heart, Oops, and Duel effects apply from the main landing. Connection activities
 
 ### 2. Resolve the moment card
 
-- Tap the coin when it is brought into view. The Trash or Treasure result is random and equally likely; the matching pile supplies a card from that category. The deck currently has 12 moments in each category.
+- After the piece lands, the game flips the coin and draws a card automatically. The Trash or Treasure result is random and equally likely; the matching pile supplies a card from that category. The deck currently has 12 moments in each category.
 - The **lower** die determines card movement: a value from 1 to 6 spaces. Treasure moves your piece forward that many spaces; Trash moves it backward.
-- Tap **Move piece** to apply it. The card changes board/race progress; it does not add or remove hearts and does not trigger another board-space reward or a second card draw.
+- Tap **Continue** to apply it. The card changes board/race progress; it does not add or remove hearts and does not trigger another board-space reward or a second card draw.
 - The sum of the dice controls the main landing; the lower die controls only this separate card movement.
 
-If your landing also created a Connection activity or a Mystery Card, finish that too. Then your next roll becomes available. Your partner may keep playing throughout.
+If your landing also created a Connection activity or a Mystery Card, finish that too. Return the dice, then pass the board turn. Your next roll becomes available after your partner passes back.
 
 ## The shared comparisons
 
@@ -115,11 +114,11 @@ The finale shows the shared hearts, keepsakes, saved moments, and individual pri
 
 ## Optional trade
 
-The Trade control can be used during the board night. Offer one keepsake you own for one of your person’s keepsakes. The exchange happens only if they accept; either player can dismiss a pending offer. Trading does not use a roll.
+The Trade control can be used during the board night. Offer one keepsake you own. Your person chooses one of their own keepsakes to return when accepting. Both players need a keepsake to complete the exchange; the recipient can pass, and the sender can cancel a pending offer. Trading does not use a roll.
 
 ## Quick answers
 
-**Do I wait for my person before rolling?** No. Resolve your own landing, then roll again. Shared comparisons wait until both players have finished their roll sets.
+**Do I wait for my person before rolling?** Yes, for the board turn. Resolve your landing and pass; your next roll follows their pass. Shared comparison answers can be submitted separately.
 
 **What do the dice numbers mean?** Add both dice for the main move. Use the lower die for the separate Trash/Treasure card movement.
 
@@ -131,7 +130,7 @@ The Trade control can be used during the board night. Offer one keepsake you own
 
 ## Implementation notes for future updates
 
-- This guide describes the current independent-night path in `IndependentNight`, not the legacy alternating-turn session flow.
+- This guide describes the active alternating-turn night in `IndependentNight`; older saved session paths remain available for compatibility.
 - The current lobby starts the `long` preset directly. The underlying preset table also defines Quick (4 rounds) and Standard (6 rounds).
 - The couple-wide theme is selected in **Our Story → Collection → Themes**; there is no separate per-player theme vote at night start.
 - Session state and each player’s night steps are saved to Firestore in shared play. A browser refresh can reopen the active session; unsent text and a sealed Wavelength reveal commitment may remain specific to the original tab/device.

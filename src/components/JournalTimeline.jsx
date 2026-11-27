@@ -537,7 +537,7 @@ function KeepsakeEntryCard({ entry }) {
   )
 }
 
-function FinaleEntryCard({ entry }) {
+function FinaleEntryCard({ entry, onReplayNight }) {
   const keepsakeLabels = Array.isArray(entry.payload?.keepsakeLabels) ? entry.payload.keepsakeLabels : []
 
   return (
@@ -577,6 +577,7 @@ function FinaleEntryCard({ entry }) {
           ))}
         </div>
       )}
+      {onReplayNight && entry.sessionId && <button className="scrapbook-replay-action" onClick={() => onReplayNight(entry.sessionId)} type="button">Replay this night</button>}
     </>
   )
 }
@@ -590,7 +591,7 @@ function DefaultEntryCard({ entry }) {
   )
 }
 
-function ScrapbookEntry({ entry, index, vaultRevealed }) {
+function ScrapbookEntry({ entry, index, vaultRevealed, onReplayNight }) {
   let body = <DefaultEntryCard entry={entry} />
 
   if (entry.type === 'duel') {
@@ -598,7 +599,7 @@ function ScrapbookEntry({ entry, index, vaultRevealed }) {
   } else if (entry.type === 'keepsake') {
     body = <KeepsakeEntryCard entry={entry} />
   } else if (entry.type === 'finale') {
-    body = <FinaleEntryCard entry={entry} />
+    body = <FinaleEntryCard entry={entry} onReplayNight={onReplayNight} />
   } else if (entry.type === 'match' || entry.type === 'prediction') {
     body = <ChoiceRevealCard entry={entry} />
   } else if (entry.type === 'vault') {
@@ -637,7 +638,7 @@ function ScrapbookEntry({ entry, index, vaultRevealed }) {
   )
 }
 
-export function JournalTimeline({ entries }) {
+export function JournalTimeline({ entries, players = [], onReplayNight, revealVaults = false }) {
   if (!entries.length) {
     return <JournalEmptyState />
   }
@@ -647,7 +648,7 @@ export function JournalTimeline({ entries }) {
       .filter((entry) => entry.type === 'finale' && entry.sessionId)
       .map((entry) => entry.sessionId),
   )
-  const record = summarizeScrapbookRecord(entries)
+  const record = summarizeScrapbookRecord(entries, players)
 
   return (
     <div className="journal-timeline scrapbook-flow">
@@ -667,10 +668,10 @@ export function JournalTimeline({ entries }) {
           entry={entry}
           index={index}
           key={entry.id}
+          onReplayNight={onReplayNight}
           vaultRevealed={
             entry.type === 'vault' &&
-            Boolean(entry.sessionId) &&
-            finaleSessionIds.has(entry.sessionId)
+            (revealVaults || (Boolean(entry.sessionId) && finaleSessionIds.has(entry.sessionId)))
           }
         />
       ))}

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { activityRegistry } from './activityRegistry.jsx'
 import { buildInitialSession } from './sessionLogic.js'
-import { advanceNightStep, canAnswerStep, finishIndependentNight, getNightProgress, makeRollSteps, mergeNightSteps, needsRevealInteraction, resolveNightPrize, updateNightTurn } from './independentNight.js'
+import { advanceNightStep, canAnswerStep, changeNightTrade, finishIndependentNight, getNightProgress, makeRollSteps, mergeNightSteps, needsRevealInteraction, resolveNightPrize, updateNightTurn } from './independentNight.js'
 import { commitChoice } from './choiceCommitment.js'
 
 const players = [{ uid: 'a', displayName: 'A' }, { uid: 'b', displayName: 'B' }]
@@ -17,6 +17,22 @@ async function answer(s, steps, id, playerIndex, input) {
 }
 
 describe('independent night pacing', () => {
+  it('lets only the recipient choose the return keepsake and only the sender cancel', () => {
+    const start = { ...session(), keepsakes: [
+      { instanceId: 'a-card', label: 'A card', ownerIndex: 0 },
+      { instanceId: 'b-card', label: 'B card', ownerIndex: 1 },
+    ] }
+    expect(() => changeNightTrade(start, 0, { kind: 'tradeOffer', offeredInstanceId: 'a-card', requestedInstanceId: 'b-card' })).toThrow('chooses their own')
+    const offered = changeNightTrade(start, 0, { kind: 'tradeOffer', offeredInstanceId: 'a-card' })
+    expect(() => changeNightTrade(offered, 0, { kind: 'tradeRespond', accept: true, returnInstanceId: 'b-card' })).toThrow('partner responds')
+    expect(() => changeNightTrade(offered, 1, { kind: 'tradeRespond', accept: true, returnInstanceId: 'a-card' })).toThrow('owned keepsake')
+    expect(() => changeNightTrade(offered, 1, { kind: 'tradeDismiss' })).toThrow('Only the sender')
+    const accepted = changeNightTrade(offered, 1, { kind: 'tradeRespond', accept: true, returnInstanceId: 'b-card' })
+    expect(accepted.keepsakes.map(card => card.ownerIndex)).toEqual([1, 0])
+    expect(accepted.lastMove.tradeOffer.requestedInstanceId).toBe('b-card')
+    expect(() => changeNightTrade(accepted, 1, { kind: 'tradeRespond', accept: true, returnInstanceId: 'b-card' })).toThrow('no longer open')
+    expect(changeNightTrade(offered, 0, { kind: 'tradeDismiss' }).lastMove.tradeOffer).toBeUndefined()
+  })
   it('does not let a stale listener snapshot undo a local coin flip, card reveal, or collection', () => {
     const id = 'roll-1-0'
     const current = [{ id, kind: 'keepsake', ownerIndex: 0, round: 1, ready: true, completed: true, skipped: false, state: {

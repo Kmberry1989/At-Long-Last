@@ -1367,7 +1367,7 @@ describe('long independent nights', () => {
       : [[hostDb, HOST_UID, 0], [guestDb, GUEST_UID, 1]]
     for (let round = 1; round <= rounds; round++) {
       for (const [db, uid, ownerIndex] of orderedPlayers) {
-        await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: dice[round - 1] })
+        await runNightCommand(db, sessionId, uid, { kind: 'roll', round, dice: dice[round - 1], selectionSeed: 0.01 })
         await resolvePlayerRoll(db, sessionId, uid, round, ownerIndex)
       }
     }

@@ -1,0 +1,11 @@
+.night-replay-backdrop{position:fixed;inset:0;z-index:2400;display:grid;place-items:center;padding:clamp(10px,3vw,28px);background:rgba(9,8,17,.78);backdrop-filter:blur(9px)}
+.night-replay-dialog{width:min(820px,100%);max-height:min(92dvh,980px);overflow:auto;padding:clamp(18px,4vw,34px);border:1px solid #dfc18c88;border-radius:24px;background:linear-gradient(155deg,#292033,#181b2c);box-shadow:0 28px 100px #000a;color:#fff2dc}
+.night-replay-header{position:sticky;top:calc(-1 * clamp(18px,4vw,34px));z-index:2;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:calc(-1 * clamp(18px,4vw,34px)) calc(-1 * clamp(18px,4vw,34px)) 12px;padding:clamp(18px,4vw,34px);background:linear-gradient(155deg,#292033f5,#181b2cf5)}
+.night-replay-header .eyebrow{margin:0 0 4px;color:#d6b587;letter-spacing:.12em;text-transform:uppercase;font-size:11px}
+.night-replay-header h2{margin:0;color:#fff0d4;font:700 clamp(27px,6vw,38px)/1.05 'Cormorant Garamond',Georgia,serif}
+.night-replay-intro{margin:0 0 16px;color:#e5d4c3}
+.night-replay-dialog .journal-timeline{margin-top:16px}
+.scrapbook-replay-action{min-height:42px;margin-top:14px;padding:9px 15px;border:1px solid #e2bd83aa;border-radius:999px;background:#f2cf91;color:#321c2b;font:700 13px 'DM Sans',Arial,sans-serif;cursor:pointer}
+.scrapbook-replay-action:hover{filter:brightness(1.06)}
+@media(max-width:480px){.night-replay-backdrop{padding:8px}.night-replay-dialog{max-height:96dvh;padding:17px 13px;border-radius:19px}.night-replay-header{top:-17px;margin:-17px -13px 10px;padding:17px 13px}.night-replay-header .ghost-btn{min-height:40px;padding:8px 12px}}
+@media(prefers-reduced-motion:reduce){.night-replay-dialog{scroll-behavior:auto}}

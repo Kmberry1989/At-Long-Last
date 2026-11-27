@@ -697,6 +697,7 @@ function LegacyGameScreen() {
         <JournalDrawer
           sessionId={session.id}
           entries={journalEntries}
+          players={session.players}
           onClose={() => startTransition(() => setJournalOpen(false))}
           open={journalOpen}
         />

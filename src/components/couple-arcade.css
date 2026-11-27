@@ -63,6 +63,9 @@
   .couple-arcade-modal h2{font-size:clamp(22px,6vw,28px)}
   .arcade-game-list{gap:7px}
   .arcade-game-art{aspect-ratio:1.45;border-radius:12px}
+  .charades-game{gap:10px}
+  .charades-game .charade-prompt-art{width:clamp(96px,28vw,130px)}
+  .charades-game .charade-camera{max-height:min(25dvh,210px)}
 }
 
 /* Catch My Heart's deck uses generated foil suit art and a matching card back. */
@@ -92,6 +95,11 @@
 @keyframes radar-vessel-sink{0%,18%{opacity:1;filter:drop-shadow(0 0 16px #ffdf9a);transform:var(--ship-rotation) translateY(0) rotateX(0) scale(1)}55%{opacity:.82;transform:var(--ship-rotation) translateY(7px) rotateX(32deg) scale(.94)}100%{opacity:.22;filter:drop-shadow(0 7px 5px #05070d99) blur(1px);transform:var(--ship-rotation) translateY(18px) rotateX(68deg) scale(.78)}}
 @keyframes radar-splash{0%{opacity:0;transform:scale(.25)}28%{opacity:.92}100%{opacity:0;transform:scale(1.55)}}
 @media(prefers-reduced-motion:reduce){.radar-sonar-hit,.radar-sonar-miss{animation:none;opacity:.65;scale:1}.radar-scan-sweep{animation:none;opacity:.18;transform:none}.radar-sink-art{animation:none;opacity:.7}.radar-vessel.is-sinking,.radar-vessel.is-sinking::after{animation:none}.radar-vessel.is-sinking{opacity:.5;transform:var(--ship-rotation) translateY(8px) rotateX(55deg) scale(.82)}}
+
+.radar-vessel>img{object-fit:contain}
+.radar-vessel-preview{opacity:.5}
+.radar-vessel-preview.is-invalid{filter:drop-shadow(0 0 7px #ff5366) drop-shadow(0 0 5px #090913c9)}
+.couple-arcade-help-trigger{position:absolute;left:-8px;top:50%;transform:translateY(-50%)}
 
 /* Keep the game title and back control visible when a tall board is scrolled. */
 .couple-arcade-modal>header{position:sticky;top:calc(-1 * clamp(18px,4vw,30px));z-index:3;padding:8px 0 12px;background:linear-gradient(150deg,rgba(55,26,44,.99),rgba(21,22,39,.99))}

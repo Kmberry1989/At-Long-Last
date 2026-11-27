@@ -440,15 +440,16 @@ export function changeNightTrade(session, playerIndex, command) {
   const pending = session.lastMove?.tradeOffer
   if (command.kind === 'tradeOffer') {
     if (pending?.status === 'pending') throw new Error('Finish the existing offer first.')
+    if (command.requestedInstanceId) throw new Error('Your person chooses their own keepsake when accepting.')
     const offered = session.keepsakes.find(card => card.instanceId === command.offeredInstanceId)
-    const requested = session.keepsakes.find(card => card.instanceId === command.requestedInstanceId)
-    if (!offered || offered.ownerIndex !== playerIndex || (command.requestedInstanceId && (!requested || requested.ownerIndex === playerIndex))) throw new Error('Choose keepsakes from the correct hands.')
+    if (!offered || offered.ownerIndex !== playerIndex) throw new Error('Choose a keepsake you own.')
     return createTradeOffer(session, { ...command, fromPlayerIndex: playerIndex })
   }
   if (command.kind === 'tradeRespond') {
-    if (!pending || pending.status !== 'pending') return session
+    if (!pending || pending.status !== 'pending') throw new Error('That trade offer is no longer open.')
     if (pending.fromPlayerIndex === playerIndex) throw new Error('Your partner responds to this offer.')
-    return resolveTradeOffer(session, { accept: command.accept })
+    return resolveTradeOffer(session, { accept: command.accept, returnInstanceId: command.returnInstanceId })
   }
+  if (pending?.status === 'pending' && pending.fromPlayerIndex !== playerIndex) throw new Error('Only the sender can cancel this offer.')
   return dismissTradeOffer(session)
 }

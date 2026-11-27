@@ -66,6 +66,25 @@ describe('duelRegistry', () => {
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ practice: 'ground', won: true }))
   })
 
+  it('completes the selectable Kiss Courier send and catch', () => {
+    const onComplete = vi.fn()
+    const Start = duelRegistry['kiss-courier'].start
+    render(createElement(Start, { disabled: false, onComplete }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blow Kiss' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Catch It' }))
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ won: true, score: 1 }))
+  })
+
+  it('completes Love in the Blanks after each word choice', () => {
+    const onComplete = vi.fn()
+    const Start = duelRegistry['love-in-the-blanks'].start
+    render(createElement(Start, { disabled: false, onComplete, promptSeed: 'catalog', round: 1 }))
+    for (let step = 0; step < 12 && !onComplete.mock.calls.length; step++) {
+      fireEvent.click(screen.getAllByRole('button', { name: /.+/ }).find(button => button.classList.contains('mad-lib-choice')))
+    }
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ won: true, excerpt: expect.stringContaining('text') }))
+  })
+
   it('picks the faster winner when both clear the duel', () => {
     const outcome = resolveTieByTime(
       { won: true, time: 0.92 },

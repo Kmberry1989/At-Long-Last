@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
 import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { ArcadeHelpButton, ArcadeHelpDialog } from './ArcadeHelp.jsx'
+import { SharedColoringBook } from './SharedColoringBook.jsx'
 import './arcade-turn-portraits.css'
 import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
@@ -17,6 +19,7 @@ const GAMES = [
   { id: 'radar-love', name: 'Radar Love', icon: '/assets/arcade/icons/radar-love.png' },
   { id: 'four-ever', name: 'Four Ever', icon: '/assets/arcade/icons/four-ever.png' },
   { id: 'our-little-pieces', name: 'Our Little Pieces', icon: '/assets/arcade/icons/our-little-pieces.png' },
+  { id: 'shared-coloring-book', name: 'Color Together', icon: '/assets/arcade/icons/shared-coloring-book.svg' },
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const JIGSAW_ART = [
@@ -112,6 +115,7 @@ function playArcadeFeedback(audio, gameId, next, move, currentUid) {
     else if (move.kind === 'ready') event = 'send'
   }
   if (gameId === 'our-little-pieces') event = move.kind === 'rotate-piece' ? 'rotate' : move.kind === 'move-piece' ? 'move' : 'tap'
+  if (gameId === 'shared-coloring-book') event = 'tap'
   if (gameId === 'say-it-without-saying') {
     if (move.kind === 'charade') event = 'send'
     if (move.kind === 'guess') event = next.guesses?.[currentUid] === next.promptIndex ? 'correct' : 'miss'
@@ -120,9 +124,9 @@ function playArcadeFeedback(audio, gameId, next, move, currentUid) {
   if (next.status === 'finished') audio?.playArcadeSfx?.(gameId, next.winnerUid ? 'win' : 'solved')
 }
 
-function ArcadeModal({ children, title, onClose, busy = false }) {
+function ArcadeModal({ children, title, onClose, busy = false, onHelp, showHelp = false }) {
   return <section aria-busy={busy} aria-label={title} aria-modal="true" className="couple-arcade-modal" role="dialog">
-    <header><h2>{title}</h2><button aria-label="Close games" className="arcade-close" onClick={onClose} type="button">×</button></header>
+    <header>{showHelp && <ArcadeHelpButton className="couple-arcade-help-trigger" gameName={title} onClick={onHelp} />}<h2>{title}</h2><button aria-label="Close games" className="arcade-close" onClick={onClose} type="button">×</button></header>
     {children}
   </section>
 }
@@ -204,6 +208,10 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   const ownTurn = state.turnIndex === ownIndex
   const [selectedShip, setSelectedShip] = useState(0)
   const [vertical, setVertical] = useState(false)
+  const [preview, setPreview] = useState(null)
+  const previewRef = useRef(null)
+  const touchPlacementRef = useRef(null)
+  const pointerTypeRef = useRef('')
   const shots = new Set(state.shots[playerUid] || [])
   const hits = new Set(state.hits[playerUid] || [])
   const fleet = state.fleets[playerUid] || []
@@ -215,6 +223,40 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
   const isReady = Boolean(state.fleetReady[playerUid])
   const allPlaced = fleet.length > 0 && fleet.every(ship => ship.cells.length === ship.length)
   const wins = state.wins?.[playerUid] || 0
+  function updatePreview(row, column) {
+    const next = { row, column, shipId: selectedShip, vertical }
+    previewRef.current = next
+    setPreview(next)
+  }
+  function placeAt(row, column) {
+    const ship = fleet[selectedShip]
+    if (!ship) return
+    const cells = Array.from({ length: ship.length }, (_, part) => vertical ? `${row + part}:${column}` : `${row}:${column + part}`)
+    const outOfBounds = vertical ? row + ship.length > boardSize : column + ship.length > boardSize
+    const occupiedElsewhere = new Set(fleet.filter(item => item.id !== ship.id).flatMap(item => item.cells))
+    if (outOfBounds || cells.some(cell => occupiedElsewhere.has(cell))) return
+    onAction({ kind: 'place-ship', shipId: selectedShip, cells })
+    previewRef.current = null
+    setPreview(null)
+  }
+  function handlePlacementPointerDown(event, row, column) {
+    pointerTypeRef.current = event.pointerType || ''
+    if (event.pointerType !== 'touch') return
+    const current = previewRef.current
+    const isSecondTap = current?.row === row && current?.column === column && current.shipId === selectedShip && current.vertical === vertical
+    touchPlacementRef.current = { key: `${row}:${column}`, isSecondTap }
+    if (!isSecondTap) updatePreview(row, column)
+  }
+  function handlePlacementClick(event, row, column) {
+    if (event.detail === 0 || pointerTypeRef.current !== 'touch') {
+      placeAt(row, column)
+      touchPlacementRef.current = null
+      return
+    }
+    const tap = touchPlacementRef.current
+    if (tap?.key === `${row}:${column}` && tap.isSecondTap) placeAt(row, column)
+    touchPlacementRef.current = null
+  }
   const status = isPlacing
     ? isReady ? `Fleet ready · waiting for ${otherName}` : 'Place your fleet'
     : state.status === 'finished'
@@ -229,17 +271,17 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
       <div className="radar-ships" aria-label="Choose ship">
         {fleet.map(ship => {
           const shipName = ship.name || (fleet.length === RADAR_FLEET.length ? RADAR_FLEET[ship.id]?.name : null) || `Ship ${ship.id + 1}`
-          return <button aria-label={`${shipName}, ${ship.length} spaces${ship.cells.length ? ', placed' : ''}`} aria-pressed={selectedShip === ship.id} className={`radar-ship-choice${selectedShip === ship.id ? ' selected' : ''}${ship.cells.length ? ' is-placed' : ''}`} key={ship.id} onClick={() => { setSelectedShip(ship.id); audio?.playArcadeSfx?.('radar-love', 'tap') }} type="button">
+          return <button aria-label={`${shipName}, ${ship.length} spaces${ship.cells.length ? ', placed' : ''}`} aria-pressed={selectedShip === ship.id} className={`radar-ship-choice${selectedShip === ship.id ? ' selected' : ''}${ship.cells.length ? ' is-placed' : ''}`} key={ship.id} onClick={() => { setSelectedShip(ship.id); previewRef.current = null; setPreview(null); audio?.playArcadeSfx?.('radar-love', 'tap') }} type="button">
             <img alt="" aria-hidden="true" src={RADAR_FLEET_ART[ship.id] || RADAR_FLEET_ART[4]} />
             <span aria-hidden="true" className="radar-ship-length">{ship.length}</span>
           </button>
         })}
       </div>
       <div className="arcade-actions">
-        <button className="arcade-secondary" onClick={() => { setVertical(value => !value); audio?.playArcadeSfx?.('radar-love', 'rotate') }} type="button">{vertical ? 'Vertical' : 'Horizontal'}</button>
-        <button className="arcade-secondary" onClick={() => onAction({ kind: 'auto-place' })} type="button">Randomize fleet</button>
+        <button className="arcade-secondary" onClick={() => { setVertical(value => !value); previewRef.current = null; setPreview(null); audio?.playArcadeSfx?.('radar-love', 'rotate') }} type="button">{vertical ? 'Vertical' : 'Horizontal'}</button>
+        <button className="arcade-secondary" onClick={() => { previewRef.current = null; setPreview(null); onAction({ kind: 'auto-place' }) }} type="button">Randomize fleet</button>
       </div>
-      <p className="arcade-small">Choose a ship, direction, then tap its first space.</p>
+      <p className="arcade-small">Hover, then click; on touch, tap twice. Tab to preview and press Enter to place.</p>
     </>}
     <div aria-label="Radar grid" className="radar-grid" role="grid" style={{ '--radar-columns': boardSize }}>
       {Array.from({ length: boardSize * boardSize }, (_, index) => {
@@ -247,12 +289,11 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         const hit = hits.has(key)
         const miss = shots.has(key) && !hit
         const hasShip = placedCells.has(key)
-        const cells = Array.from({ length: fleet[selectedShip]?.length || 0 }, (_, part) => vertical ? `${row + part}:${column}` : `${row}:${column + part}`)
         const skin = wins >= 3 ? 'radar-skin-moonlit' : wins >= 1 ? 'radar-skin-rose' : 'radar-skin-silver'
         const sunkShip = !isPlacing && visibleShips.find(ship => ship.cells.includes(key))
         const className = [isPlacing && hasShip ? `radar-ship ${skin}` : hit ? 'radar-hit' : miss ? 'radar-miss' : '', sunkShip ? 'radar-sunk-cell' : ''].filter(Boolean).join(' ')
-        return <button aria-label={`Radar row ${row + 1}, column ${column + 1}${isPlacing && hasShip ? ', ship placed' : hit ? ', hit' : miss ? ', clear' : ''}`} className={className} disabled={isPlacing ? isReady : !ownTurn || shots.has(key) || state.status === 'finished'} key={key} onClick={() => isPlacing
-          ? !isReady && onAction({ kind: 'place-ship', shipId: selectedShip, cells })
+        return <button aria-label={`Radar row ${row + 1}, column ${column + 1}${isPlacing && hasShip ? ', ship placed' : hit ? ', hit' : miss ? ', clear' : ''}`} className={className} disabled={isPlacing ? isReady : !ownTurn || shots.has(key) || state.status === 'finished'} key={key} onPointerDown={isPlacing && !isReady ? event => handlePlacementPointerDown(event, row, column) : undefined} onPointerEnter={isPlacing && !isReady ? event => { if (event.pointerType === 'mouse') updatePreview(row, column) } : undefined} onFocus={isPlacing && !isReady ? () => updatePreview(row, column) : undefined} onClick={event => isPlacing
+          ? !isReady && handlePlacementClick(event, row, column)
           : onAction({ kind: 'shot', row, column })} role="gridcell" type="button">{!isPlacing && (hit ? '✦' : miss ? '·' : '')}</button>
       })}
       {visibleShips.map(ship => {
@@ -262,10 +303,10 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
         const horizontal = Boolean(next && next[0] === row)
         const cellPercent = 100 / boardSize
         const gridGap = 3
-        const shipExtent = `calc(${ship.length * cellPercent}% + ${(ship.length - 1) * gridGap}px)`
+        const shipExtent = `calc(${ship.length * cellPercent}% + ${(ship.length - boardSize) * gridGap / boardSize}px)`
         const cellSize = `calc(${cellPercent}% - ${gridGap * (boardSize - 1) / boardSize}px)`
-        const rowStep = `calc(${row * cellPercent}% + ${row * gridGap}px)`
-        const columnStep = `calc(${column * cellPercent}% + ${column * gridGap}px)`
+        const rowStep = `calc(${row * cellPercent}% + ${row * gridGap / boardSize}px)`
+        const columnStep = `calc(${column * cellPercent}% + ${column * gridGap / boardSize}px)`
         const offset = `(${shipExtent} - ${cellSize}) / 2`
         const sinking = state.lastShot?.sunkShipId === ship.id
         return <span aria-hidden="true" className={`radar-vessel${horizontal ? ' is-horizontal' : ''}${sinking ? ' is-sinking' : ''}`} key={`ship-${ship.id}`} style={{
@@ -276,6 +317,29 @@ function RadarGame({ state, playerUid, otherName, onAction, onReset }) {
           '--ship-rotation': horizontal ? 'rotate(90deg)' : 'none',
         }}><img alt="" src={RADAR_FLEET_ART[ship.id] || RADAR_FLEET_ART[4]} /></span>
       })}
+      {isPlacing && !isReady && preview && (() => {
+        const ship = fleet[selectedShip]
+        if (!ship) return null
+        const cellPercent = 100 / boardSize
+        const gridGap = 3
+        const shipExtent = `calc(${ship.length * cellPercent}% + ${(ship.length - boardSize) * gridGap / boardSize}px)`
+        const cellSize = `calc(${cellPercent}% - ${gridGap * (boardSize - 1) / boardSize}px)`
+        const rowStep = `calc(${preview.row * cellPercent}% + ${preview.row * gridGap / boardSize}px)`
+        const columnStep = `calc(${preview.column * cellPercent}% + ${preview.column * gridGap / boardSize}px)`
+        const offset = `(${shipExtent} - ${cellSize}) / 2`
+        const horizontal = !vertical
+        const cells = Array.from({ length: ship.length }, (_, part) => vertical ? `${preview.row + part}:${preview.column}` : `${preview.row}:${preview.column + part}`)
+        const outOfBounds = vertical ? preview.row + ship.length > boardSize : preview.column + ship.length > boardSize
+        const occupiedElsewhere = new Set(fleet.filter(item => item.id !== ship.id).flatMap(item => item.cells))
+        const isInvalid = outOfBounds || cells.some(cell => occupiedElsewhere.has(cell))
+        return <span aria-hidden="true" className={`radar-vessel radar-vessel-preview${isInvalid ? ' is-invalid' : ''}`} key={`preview-${ship.id}-${preview.row}-${preview.column}-${vertical ? 'v' : 'h'}`} style={{
+          height: horizontal ? shipExtent : cellSize,
+          left: horizontal ? `calc(${columnStep} + ${offset})` : columnStep,
+          top: horizontal ? `calc(${rowStep} - ${offset})` : rowStep,
+          width: cellSize,
+          '--ship-rotation': horizontal ? 'rotate(90deg)' : 'none',
+        }}><img alt="" src={RADAR_FLEET_ART[ship.id] || RADAR_FLEET_ART[4]} /></span>
+      })()}
       {!isPlacing && state.lastShot && <span
         aria-hidden="true"
         className="radar-scan-sweep"
@@ -507,6 +571,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   const [selectedGame, setSelectedGame] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
   const playerUids = players.map(player => player.uid)
   const otherPlayer = players.find(player => player.uid !== currentUid)
   const otherName = otherPlayer?.displayName || 'your person'
@@ -525,6 +590,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
 
   async function openGame(gameId) {
     setSelectedGame(gameId)
+    setHelpOpen(false)
     setError('')
     if (!enabled || !db) {
       setGames(current => current[gameId] ? current : { ...current, [gameId]: { state: createCoupleArcadeState(gameId, playerUids) } })
@@ -584,9 +650,10 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'catch-my-heart') gameUi = <FishGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'radar-love') gameUi = <RadarGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} audio={audio} />
+  if (state && selectedGame === 'shared-coloring-book') gameUi = <SharedColoringBook state={state} playerUid={currentUid} otherName={otherName} onAction={action} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
-  return createPortal(<ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} onClose={() => { audio?.playArcadeSfx?.(selectedGame || 'four-ever', 'tap'); onClose() }}>
+  return createPortal(<ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} showHelp={Boolean(selectedGame)} onHelp={() => setHelpOpen(true)} onClose={() => { audio?.playArcadeSfx?.(selectedGame || 'four-ever', 'tap'); setHelpOpen(false); onClose() }}>
     {!selectedGame ? <div className="arcade-game-list">{GAMES.map(game => {
       const notice = game.id === 'four-ever'
         ? fourEverYourTurn ? 'YOUR TURN' : ''
@@ -597,7 +664,7 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
         {notice && <span aria-hidden="true" className="arcade-notification-badge">{notice}</span>}
       </button>
     })}</div> : <>
-      <button className="arcade-back" onClick={() => { audio?.playArcadeSfx?.(selectedGame, 'tap'); setSelectedGame(''); setError('') }} type="button">All games</button>
+      <button className="arcade-back" onClick={() => { audio?.playArcadeSfx?.(selectedGame, 'tap'); setHelpOpen(false); setSelectedGame(''); setError('') }} type="button">All games</button>
       {state && <div className="arcade-player-rail" aria-label="Players">
         {players.slice(0, 2).map(player => {
           const active = player.uid === activeArcadePlayerUid
@@ -609,5 +676,6 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
       {busy && !state ? <p role="status">Opening…</p> : gameUi}
     </>}
     {error && <p className="arcade-error" role="alert">{error}</p>}
+    {helpOpen && selectedGame && <ArcadeHelpDialog gameId={selectedGame} gameName={selectedTitle} onClose={() => setHelpOpen(false)} />}
   </ArcadeModal>, document.body)
 }

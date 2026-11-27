@@ -6,6 +6,8 @@ import {
   createMyOneAndOnly,
   createOurLittlePieces,
   createRadarLove,
+  createSharedColoringBook,
+  colorSharedColoringRegion,
   drawMyOneAndOnlyCard,
   fireRadarLoveShot,
   keepDrawnMyOneAndOnlyCard,
@@ -17,7 +19,7 @@ import {
   SAY_IT_WITHOUT_SAYING_PROMPTS,
 } from '../session/coupleArcade.js'
 
-export const COUPLE_ARCADE_IDS = ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying', 'our-little-pieces']
+export const COUPLE_ARCADE_IDS = ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying', 'our-little-pieces', 'shared-coloring-book']
 
 export function subscribeCoupleArcades(db, coupleId, onNext, onError) {
   return onSnapshot(collection(db, 'coupleArcades', coupleId, 'games'), snapshot => {
@@ -32,6 +34,7 @@ export function createCoupleArcadeState(gameId, playerUids, random = Math.random
     case 'catch-my-heart': state = createCatchMyHeart(playerUids, random); break
     case 'radar-love': state = createRadarLove(playerUids, progression.wins); break
     case 'our-little-pieces': return createOurLittlePieces(playerUids, random, progression.solvedCount, progression.puzzleNumber)
+    case 'shared-coloring-book': return createSharedColoringBook(playerUids)
     case 'say-it-without-saying': state = {
       game: gameId, playerUids: [...playerUids], actorIndex: 0, phase: 'act', lastActionBy: null,
       promptIndex: Math.floor(random() * SAY_IT_WITHOUT_SAYING_PROMPTS.length), clips: {}, guesses: {}, scores: [0, 0], status: 'playing', winnerUid: null,
@@ -60,6 +63,7 @@ export function applyCoupleArcadeAction(state, gameId, playerUid, action) {
   if (gameId === 'radar-love' && action.kind === 'shot') return fireRadarLoveShot(state, { playerUid, row: action.row, column: action.column })
   if (gameId === 'our-little-pieces' && action.kind === 'move-piece') return moveOurLittlePiece(state, { ...action, playerUid })
   if (gameId === 'our-little-pieces' && action.kind === 'rotate-piece') return rotateOurLittlePiece(state, { ...action, playerUid })
+  if (gameId === 'shared-coloring-book' && action.kind === 'color-region') return colorSharedColoringRegion(state, { ...action, playerUid })
   if (gameId === 'say-it-without-saying' && action.kind === 'charade') {
     const actorUid = state.playerUids[state.actorIndex]
     if (actorUid !== playerUid || state.phase !== 'act') throw new Error('It is not your turn to act.')

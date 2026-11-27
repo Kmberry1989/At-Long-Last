@@ -1466,7 +1466,7 @@ service cloud.firestore {
       function validArcadeState(data, allowedPlayers) {
         let state = data.state;
         return data.gameId == gameId
-          && gameId in ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying', 'our-little-pieces']
+          && gameId in ['my-one-and-only', 'catch-my-heart', 'radar-love', 'say-it-without-saying', 'our-little-pieces', 'shared-coloring-book']
           && data.playerUids == allowedPlayers
           && data.playerUids is list && data.playerUids.size() == 2
           && state is map && state.playerUids == allowedPlayers
@@ -1474,7 +1474,7 @@ service cloud.firestore {
           && (
             (gameId == 'my-one-and-only'
               && state.keys().hasAll(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount'])
-              && state.keys().hasOnly(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount'])
+              && state.keys().hasOnly(['game', 'playerUids', 'hands', 'drawPile', 'discardPile', 'activeColor', 'turnIndex', 'status', 'winnerUid', 'drawnCardId', 'moveCount', 'lastActionBy'])
               && state.game == gameId && state.hands is map
               && state.hands.keys().hasAll(allowedPlayers) && state.hands.keys().hasOnly(allowedPlayers)
               && state.hands[allowedPlayers[0]] is list && state.hands[allowedPlayers[0]].size() <= 108
@@ -1484,7 +1484,8 @@ service cloud.firestore {
               && state.activeColor in ['coral', 'plum', 'teal', 'gold']
               && state.turnIndex in [0, 1]
               && (state.winnerUid == null || state.winnerUid in allowedPlayers)
-              && isBoundedInt(state.moveCount, 0, 10000))
+              && isBoundedInt(state.moveCount, 0, 10000)
+              && (!state.keys().hasAny(['lastActionBy']) || state.lastActionBy == null || state.lastActionBy in allowedPlayers))
             ||
             (gameId == 'catch-my-heart'
               && state.keys().hasAll(['game', 'playerUids', 'hands', 'drawPile', 'books', 'turnIndex', 'status', 'winnerUid', 'lastAction'])
@@ -1530,7 +1531,7 @@ service cloud.firestore {
             ||
             (gameId == 'our-little-pieces'
               && state.keys().hasAll(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy'])
-              && state.keys().hasOnly(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy', 'solvedCount', 'puzzleNumber'])
+              && state.keys().hasOnly(['game', 'playerUids', 'artIndex', 'pieces', 'status', 'moveCount', 'completedBy', 'solvedCount', 'puzzleNumber', 'lastActionBy'])
               && state.game == gameId && state.artIndex in [0, 1, 2, 3, 4]
               && state.pieces is map && state.pieces.size() == 9
               && state.pieces.keys().hasOnly(['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'])
@@ -1539,11 +1540,28 @@ service cloud.firestore {
               && isBoundedInt(state.moveCount, 0, 10000)
               && (!state.keys().hasAny(['solvedCount']) || isBoundedInt(state.solvedCount, 0, 10000))
               && (!state.keys().hasAny(['puzzleNumber']) || isBoundedInt(state.puzzleNumber, 1, 10000))
-              && (state.completedBy == null || state.completedBy in allowedPlayers))
+              && (state.completedBy == null || state.completedBy in allowedPlayers)
+              && (!state.keys().hasAny(['lastActionBy']) || state.lastActionBy == null || state.lastActionBy in allowedPlayers))
+            ||
+            (gameId == 'shared-coloring-book'
+              && state.keys().hasAll(['game', 'playerUids', 'status', 'colors', 'savedPages', 'lastActionBy'])
+              && state.keys().hasOnly(['game', 'playerUids', 'status', 'colors', 'savedPages', 'lastActionBy'])
+              && state.game == gameId && state.status == 'playing'
+              && state.savedPages is list && state.savedPages.size() <= 3
+              && state.savedPages.hasOnly(['garden', 'tea-for-two', 'moonlit-picnic'])
+              && state.colors is map && state.colors.keys().hasAll(['garden', 'tea-for-two', 'moonlit-picnic'])
+              && state.colors.keys().hasOnly(['garden', 'tea-for-two', 'moonlit-picnic'])
+              && state.colors.garden is map && state.colors.garden.size() <= 24
+              && state.colors.garden.keys().hasOnly(['sun', 'petal-1', 'petal-2', 'petal-3', 'petal-4', 'petal-5', 'leaf-left', 'leaf-right', 'pot', 'watering-can', 'cloud'])
+              && state.colors['tea-for-two'] is map && state.colors['tea-for-two'].size() <= 24
+              && state.colors['tea-for-two'].keys().hasOnly(['mug-left', 'tea-left', 'mug-right', 'tea-right', 'heart', 'cake', 'plate-left', 'plate-right', 'tablecloth'])
+              && state.colors['moonlit-picnic'] is map && state.colors['moonlit-picnic'].size() <= 24
+              && state.colors['moonlit-picnic'].keys().hasOnly(['blanket', 'basket', 'basket-cloth', 'apple', 'pear', 'moon', 'star-left', 'star-right', 'flower'])
+              && (state.lastActionBy == null || state.lastActionBy in allowedPlayers))
             ||
             (gameId == 'say-it-without-saying'
               && state.keys().hasAll(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid'])
-              && state.keys().hasOnly(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid'])
+              && state.keys().hasOnly(['game', 'playerUids', 'actorIndex', 'phase', 'promptIndex', 'clips', 'guesses', 'scores', 'status', 'winnerUid', 'lastActionBy'])
               && state.game == gameId && state.actorIndex in [0, 1]
               && state.phase in ['act', 'guess'] && isBoundedInt(state.promptIndex, 0, 47)
               && state.clips is map && state.clips.size() <= 2 && state.clips.keys().hasOnly(allowedPlayers)
@@ -1552,7 +1570,8 @@ service cloud.firestore {
               && state.guesses is map && state.guesses.size() <= 2 && state.guesses.keys().hasOnly(allowedPlayers)
               && state.scores is list && state.scores.size() == 2
               && isBoundedInt(state.scores[0], 0, 2) && isBoundedInt(state.scores[1], 0, 2)
-              && (state.winnerUid == null || state.winnerUid in allowedPlayers))
+              && (state.winnerUid == null || state.winnerUid in allowedPlayers)
+              && (!state.keys().hasAny(['lastActionBy']) || state.lastActionBy == null || state.lastActionBy in allowedPlayers))
           );
       }
       function validArcadeRecord(data) {

@@ -1,5 +1,19 @@
 Original prompt: Harden the Firestore rules so participants can make only legitimate couple and session lifecycle updates, without breaking the verified invite/join flow. Add focused rules coverage and retest the two-account critical path before deploying.
 
+## 2026-11-22 — Playtest continuation and final local verification
+
+- Added deterministic render checks for all 76 activity screens in both lead/viewer orders and all 18 current or legacy duel screens for both players. The 63 standard two-answer activities also complete and produce journal text in both player orders.
+- Fixed offscreen phone dice after piece follow, stale Our Bloom watering text, Collection support-copy contrast, and a clipped camera-denial message in the phone arcade dialog. A strict two-account eight-round browser replay kept both dice visible and physically tappable at 390px and 1280px.
+- Two-account auxiliary checks passed profile style reload, both partners watering the flower, Collection reload, JSON export, and denied camera/microphone messages with retry controls. The issue ledger and remaining physical-device/production gaps are in `docs/PLAYTEST_LOG_2026-11-20.md`.
+- Final local checks passed: 621 app tests, 63 Firestore rules tests, lint, production build, browser script syntax, and diff check. No deployment or production write was performed.
+
+## 2026-11-20 — Full playtest and Trade restoration
+
+- Current request: playtest all features, keep a running issue log, implement the approved reliability and one-for-one Trade plan, and suggest later replay enhancements.
+- The running issue and coverage ledger is `docs/PLAYTEST_LOG_2026-11-20.md`. Baseline: 455/458 app tests; three test failures, stale replay selectors, absent active-night Trade, and stale guidance were fixed.
+- Fixed dice-pair settling and the automatic card-reveal callback order. Added active-night Trade with a recipient-chosen one-for-one keepsake exchange. The two-account emulator run passed offer, accept, reconnect, pass, and cancel. A fresh sign-in verified the archived scrapbook and second-night start; an archived record-name issue was also fixed.
+- The eight-round two-account browser night passed at 390px and 1280px with zero page errors. All six arcade entries opened; representative UNO, Go Fish, charades, Radar Love, jigsaw, and Four Ever interactions passed. App tests passed 462/462, rules passed 63/63, and lint/build/diff check passed. Remaining visual and coverage gaps are ranked in the log.
+
 ## 2026-11-16 — Dice cleanup, automatic card reveal, and background audio
 
 - Kept each die at its settled landing transform until the player manually returns the pair to the cup; the existing turn-end penalty can now detect genuinely unreturned dice. Added a position-preservation assertion to the existing board test.

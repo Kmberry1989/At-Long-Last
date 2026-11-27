@@ -33,6 +33,9 @@
 @keyframes kiss-recording-pulse { 50% { box-shadow: 0 0 28px rgba(255, 118, 135, .55); } }
 @media (prefers-reduced-motion: reduce) { .kiss-bookend-stamp, .kiss-bookend-action.is-recording { animation: none !important; opacity: .94; transform: translate(-50%, -50%); } }
 .independent-night .hud.top { flex-wrap: nowrap; }
+.game-screen.active.independent-night .hud.top { width: 154px; display: flex; align-items: center; justify-content: center; gap: 10px; grid-template-columns: none; }
+.game-screen.active.independent-night .hud.top .trade-hud-btn { position: relative; flex: 0 0 52px; }
+.trade-offer-dot { position: absolute !important; z-index: 2; top: 1px; right: 1px; width: 11px; height: 11px; border: 2px solid #fff5dc; border-radius: 50%; background: #db6878; box-shadow: 0 0 8px #db6878; }
 
 .first-turn-toss {
   position: absolute;

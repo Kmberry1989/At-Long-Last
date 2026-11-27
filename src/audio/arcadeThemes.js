@@ -3,6 +3,9 @@ const SCALE_INTERVALS = {
   minor: [0, 2, 3, 5, 7, 8, 10],
 }
 
+// Slow every arcade loop to a relaxed, roughly half-time pace.
+const ARCADE_TEMPO_SCALE = 0.55
+
 const THEME_BLUEPRINTS = {
   'my-one-and-only': {
     name: 'My One and Only!', bpm: 98, root: 62, mode: 'major', voice: 'felt', seed: 1701,
@@ -77,7 +80,8 @@ function pitchAtDegree(root, scale, degree) {
 function makeSong(id, blueprint) {
   const random = seededRandom(blueprint.seed)
   const scale = SCALE_INTERVALS[blueprint.mode]
-  const secondsPerBar = 240 / blueprint.bpm
+  const bpm = Math.round(blueprint.bpm * ARCADE_TEMPO_SCALE)
+  const secondsPerBar = 240 / bpm
   // The opening four bars return halfway through as a recognizable hook;
   // the final phrase brings it back in a lower, softer register.
   const sectionShifts = [0, 1, 0, -1, 0, 1, -1, 0]
@@ -105,7 +109,7 @@ function makeSong(id, blueprint) {
     const bass = midiFrequency(chordRoot - 12)
     return { chord, bass, melody }
   })
-  return Object.freeze({ id, name: blueprint.name, bpm: blueprint.bpm, secondsPerBar, voice: blueprint.voice, bars })
+  return Object.freeze({ id, name: blueprint.name, bpm, secondsPerBar, voice: blueprint.voice, bars })
 }
 
 export const ARCADE_SONGS = Object.freeze(Object.fromEntries(

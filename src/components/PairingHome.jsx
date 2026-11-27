@@ -17,6 +17,7 @@ import { dropConnectFourMove, selectConnectFourTokenPreference, startNewConnectF
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
 import { savePieceStyle, subscribePieceStyles } from '../features/couple/portraitService.js'
+import { activeFlowerSpecies, localDateStr, resolveFlower } from '../features/couple/progressService.js'
 import './PairingHome.css'
 
 export function PairingHome({ avatar, onAvatarChange }) {
@@ -36,6 +37,7 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
+  const [profileInitialTab, setProfileInitialTab] = useState('frames')
   const [pieceStyles, setPieceStyles] = useState({})
   const [themeVotesLoaded, setThemeVotesLoaded] = useState(false)
   const [storyScreen, setStoryScreen] = useState('')
@@ -77,6 +79,13 @@ export function PairingHome({ avatar, onAvatarChange }) {
   const currentThemeVote = pieceStyles[user?.uid]?.themeVote || (!hasThemeVote ? coupleProgress?.selectedTheme || null : null)
   const partnerThemeVote = pieceStyles[partner?.uid]?.themeVote || (!hasThemeVote ? coupleProgress?.selectedTheme || null : null)
   const themeAgreed = Boolean(currentThemeVote && currentThemeVote === partnerThemeVote)
+  const bloomFlower = coupleProgress ? resolveFlower(coupleProgress) : null
+  const bloomWateredToday = bloomFlower?.wateredDate === localDateStr() ? bloomFlower.wateredBy || [] : []
+  const showBloomWaterNudge = Boolean(
+    paired && user?.uid && bloomFlower && activeFlowerSpecies(bloomFlower) && bloomFlower.stage < 3
+    && !bloomWateredToday.includes(user.uid),
+  )
+  const partnerWateredBloomToday = bloomWateredToday.some(uid => uid !== user?.uid)
 
   useEffect(() => {
     if (!db || !couple?.id || !paired) {
@@ -256,10 +265,15 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </>}
       </> : <>
         <div className="pairing-title"><h2>You &amp; {partner?.displayName || 'your person'}</h2></div>
+        <button className="lobby-piece-style-button" onClick={() => { setProfileInitialTab('piece'); setProfileSheetOpen(true) }} type="button">Decorate your playing piece</button>
+        {showBloomWaterNudge && <section aria-label="Our Bloom needs watering" className="bloom-water-nudge">
+          <div><strong>Our Bloom is ready for water</strong><span>{partnerWateredBloomToday ? `${partner?.displayName || 'Your person'} watered today. Add yours so it can grow.` : 'Water it today; it grows when you both water.'}</span></div>
+          <button className="bloom-water-nudge-button" onClick={() => setStoryScreen('collection')} type="button">Water Our Bloom</button>
+        </section>}
         {!committed && <div className="pairing-commit">
           <h3>Commit</h3>
-          <p className="support-copy">One person. One permanent commitment.</p>
-          {ownCommitment ? <p role="status">Your commitment is pending until {partner?.displayName || 'your person'} confirms.</p> : !user?.emailVerified ? <>
+          <p className="support-copy">{ownCommitment ? 'Your commitment is saved; only your person needs to confirm.' : 'Each person confirms once. Your confirmation is not saved yet.'}</p>
+          {ownCommitment ? <p role="status">Your commitment is saved. You don’t need to commit again; {partner?.displayName || 'your person'} still needs to confirm.</p> : !user?.emailVerified ? <>
             <p>Verify {user?.email} before committing.</p>
             <button className="ghost-btn" disabled={disabled} onClick={() => act(async () => { await verifyEmail(); setNotice('Verification email sent') })} type="button">Verify email</button>
             <button className="ghost-btn" disabled={disabled} onClick={() => act(async () => { const verified = await refreshEmailVerification(); setNotice(verified ? 'Email verified' : 'Open the verification link in your email, then check again.') })} type="button">Check verification</button>
@@ -286,8 +300,8 @@ export function PairingHome({ avatar, onAvatarChange }) {
         </> : <button className="ghost-btn" disabled={disabled} onClick={() => setConfirmUnpair(true)} type="button">{paired ? 'Cancel connection' : 'Cancel invite'}</button>}
       </div>}
       {(notice || (!gameOpen && displayedError)) && <p className={noticeError || (!notice && displayedError) ? 'error-copy' : 'support-copy'} role={noticeError || (!notice && displayedError) ? 'alert' : 'status'}>{notice || displayedError}</p>}
-      {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial, texture: ownPieceStyle.pieceTexture }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
-      {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} themeLocked={hasCurrentNight} onClose={() => setStoryScreen('')} />}
+      {profileSheetOpen && paired && <ProfileSheet streak={profile?.loginStreak} initialTab={profileInitialTab} pieceStyle={{ color: ownPieceStyle.pieceColor, material: ownPieceStyle.pieceMaterial, texture: ownPieceStyle.pieceTexture }} onSavePieceStyle={updatePieceStyle} selectedToken={selectedConnectFourToken} partnerToken={partnerConnectFourToken} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenLocked={connectFourMatchActive} onSelectToken={selectPlayerConnectFourToken} onClose={closeProfileSheet} />}
+      {storyScreen && <OurStoryScreens initialScreen={storyScreen} entries={journalEntries} players={couple?.players || []} themeLocked={hasCurrentNight} onClose={() => setStoryScreen('')} />}
       {connectFourOpen && connectFourPlayers.length === 2 && <ConnectFourFinale state={connectFourState} players={connectFourPlayers} playerUid={user?.uid} lifetimeNights={coupleProgress?.lifetimeNights || 0} tokenPreferences={connectFourTokenPreferences} disabled={connectFourBusy} error={connectFourError} onDrop={dropConnectFour} onClose={() => { audio?.playArcadeSfx?.('four-ever', 'tap'); setConnectFourOpen(false) }} onNewGame={() => { audio?.playArcadeSfx?.('four-ever', 'new-match'); return newConnectFourMatch() }} onLand={connectFourLanding} />}
       {arcadeOpen && paired && <CoupleArcade db={db} enabled={enabled} coupleId={couple.id} players={connectFourPlayers} currentUid={user?.uid} fourEverDisabled={connectFourBusy} fourEverYourTurn={fourEverYourTurn} onOpenFourEver={() => { audio?.playArcadeSfx?.('four-ever', 'open'); setArcadeOpen(false); setConnectFourError(''); setConnectFourOpen(true) }} onClose={() => setArcadeOpen(false)} />}
     </>

@@ -719,7 +719,7 @@ export function createPrimitiveDie(value, diceSkin) {
 
 export function settlePrimitiveDie(die, value) {
   if (die?.userData?.die1) {
-    settlePrimitiveDice(die, resolveDiceValues(value))
+    settlePrimitiveDice(die, resolveDiceValues(value, Array.isArray(value) ? value : undefined))
   } else {
     setPrimitiveDieValue(die, value)
   }
@@ -1981,6 +1981,11 @@ export function BoardScene({
       } else if (movingPiecePosition) {
         cameraShotMode = 'piece'
         shotFocus = movingPiecePosition
+      } else if (canReturnDiceRef.current && phaseRef.current === 'turn' && !userInteracting) {
+        // Bring the settled pair back into view after the landing overlay.
+        // A piece-follow shot can otherwise strand a die beyond a phone edge.
+        cameraShotMode = 'dice-ready'
+        shotFocus = diceBox.position.clone().add(new THREE.Vector3(0, 0.35, 0))
       } else {
         cameraShotMode = 'board'
       }

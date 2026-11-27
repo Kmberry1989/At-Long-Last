@@ -38,6 +38,7 @@ export function FinaleScreen({
   themeId = 'cozy',
   players = [],
   onOpenScrapbook,
+  onOpenReplay,
   onPlayAgain,
   canPlayAgain = false,
   working = false,
@@ -237,6 +238,7 @@ export function FinaleScreen({
 
           {/* Action Buttons */}
           <div className="finale-actions">
+            <button type="button" className="finale-btn finale-secondary-btn" onClick={() => { playAction?.(); onOpenReplay?.() }}><BrandText text={"Replay Tonight’s Highlights ↺"} /></button>
             <button
               type="button"
               className="finale-btn finale-primary-btn"

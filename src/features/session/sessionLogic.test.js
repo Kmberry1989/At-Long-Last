@@ -500,7 +500,6 @@ describe('night checklist and moods', () => {
     const offered = createTradeOffer(session, {
       fromPlayerIndex: 0,
       offeredInstanceId: 'inst-1',
-      requestedInstanceId: 'inst-2',
       note: 'Trade coffee for a massage? ♡',
     })
 
@@ -509,7 +508,9 @@ describe('night checklist and moods', () => {
     expect(offered.lastMove.tradeOffer.note).toBe('Trade coffee for a massage? ♡')
     expect(offered.actionText).toContain('Kyle offered to trade Morning Coffee Pass.')
 
-    const accepted = resolveTradeOffer(offered, { accept: true })
+    expect(() => createTradeOffer(session, { fromPlayerIndex: 0, offeredInstanceId: 'inst-1', requestedInstanceId: 'inst-2' })).toThrow('chooses their own')
+    expect(() => createTradeOffer(offered, { fromPlayerIndex: 0, offeredInstanceId: 'inst-1' })).toThrow('Finish the existing offer')
+    const accepted = resolveTradeOffer(offered, { accept: true, returnInstanceId: 'inst-2' })
     expect(accepted.lastMove.tradeOffer.status).toBe('accepted')
     expect(accepted.hearts).toBe(7) // +2 hearts for couple
     expect(accepted.keepsakes.find((k) => k.instanceId === 'inst-1').ownerIndex).toBe(1)
@@ -520,7 +521,7 @@ describe('night checklist and moods', () => {
     expect(dismissed.lastMove.tradeOffer).toBeUndefined()
   })
 
-  it('supports gifting a keepsake without requesting one in return', () => {
+  it('requires a keepsake from each player before accepting', () => {
     const session = buildReadySession({
       keepsakes: [
         { id: 'k1', instanceId: 'inst-1', label: 'Morning Coffee Pass', ownerIndex: 0 },
@@ -535,10 +536,7 @@ describe('night checklist and moods', () => {
       note: 'A surprise gift for you!',
     })
 
-    const accepted = resolveTradeOffer(offered, { accept: true })
-    expect(accepted.keepsakes.find((k) => k.instanceId === 'inst-1').ownerIndex).toBe(1)
-    expect(accepted.hearts).toBe(5)
-    expect(accepted.actionText).toContain('Kyle gifted Morning Coffee Pass to Elaine! 💛')
+    expect(() => resolveTradeOffer(offered, { accept: true })).toThrow('Both players need an owned keepsake')
   })
 
   it('handles declining a trade offer gracefully', () => {

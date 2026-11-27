@@ -301,11 +301,17 @@ export function buildDuelJournalEntry({
   }
 }
 
-export function summarizeScrapbookRecord(entries = []) {
+export function summarizeScrapbookRecord(entries = [], players = []) {
   const record = new Map()
   const names = new Map()
+  for (const player of players) {
+    if (player.uid && player.displayName) names.set(player.uid, player.displayName)
+  }
   for (const entry of entries) {
     const payload = entry?.payload
+    for (const player of Array.isArray(payload?.players) ? payload.players : []) {
+      if (player.uid && player.displayName) names.set(player.uid, player.displayName)
+    }
     if (entry?.type !== 'duel' || payload?.outcomeStatus !== 'resolved') continue
     if (payload.winnerUid && payload.winnerName) names.set(payload.winnerUid, payload.winnerName)
     if (payload.loserUid && payload.loserName) names.set(payload.loserUid, payload.loserName)

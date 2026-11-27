@@ -11,6 +11,7 @@
 .our-story-choice .our-story-choice-arrow { width: 20px; height: 20px; color: #bb9b70; }
 .our-story-content { width: min(100%, 620px); margin: 0 auto; }
 .our-story-content .progress-hub { padding: 0; }
+.our-story-content .progress-section > .support-copy { color: #e5d4c3; }
 .scrapbook-screen-content .pairing-story { margin: 4px 0 24px; }
 .scrapbook-screen-content .pairing-story > .eyebrow { margin: 0; color: #d6b587; letter-spacing: .16em; }
 .scrapbook-screen-content .story-moment { position: relative; grid-template-columns: 34px 1fr; gap: 14px; padding: 16px 16px 16px 12px; border: 1px solid #dfc18c36; border-radius: 17px; background: linear-gradient(120deg, #fff1d51c, #fff1d508); box-shadow: none; color: #f8ead5; }

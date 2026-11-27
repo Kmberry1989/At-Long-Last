@@ -1,4 +1,45 @@
 .pairing-title h2 { margin-bottom: 8px; }
+.lobby-piece-style-button {
+  justify-self: center;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid rgba(142, 93, 74, .34);
+  border-radius: 999px;
+  background: rgba(255, 249, 238, .74);
+  color: #704a40;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+.bloom-water-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 390px);
+  margin: 0 auto;
+  padding: 11px 13px;
+  border: 1px solid rgba(92, 134, 91, .35);
+  border-radius: 16px;
+  background: rgba(241, 249, 232, .82);
+  color: #315a3c;
+  text-align: left;
+}
+.bloom-water-nudge > div { display: grid; gap: 3px; }
+.bloom-water-nudge strong { font-size: 13px; }
+.bloom-water-nudge span { font-size: 11px; line-height: 1.35; }
+.bloom-water-nudge-button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #79a66e;
+  border-radius: 999px;
+  background: #fffdf3;
+  color: #315a3c;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
 .pairing-committed { color: #87384e; font-weight: 800; }
 .pairing-commit { display: grid; gap: 12px; padding: 18px; border: 1px solid rgba(198,84,102,.25); border-radius: 20px; background: rgba(255,249,242,.72); }
 .pairing-commit h3 { margin: 0; }

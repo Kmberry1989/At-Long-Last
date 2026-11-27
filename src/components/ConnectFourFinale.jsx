@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CONNECT_FOUR_COLUMNS, CONNECT_FOUR_ROWS, CONNECT_FOUR_TOKENS, getConnectFourMovePlayer, getConnectFourPlayerTokenIds } from '../features/session/connectFour.js'
 import { PlayerPortrait } from './PlayerPortrait.jsx'
+import { ArcadeHelpButton, ArcadeHelpDialog } from './ArcadeHelp.jsx'
 import './connect-four-finale.css'
 
 const BOARD_ART = '/assets/connect-four/board.webp'
@@ -30,6 +31,7 @@ function getWinningCells(board) {
 
 export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 0, tokenPreferences = {}, disabled, error = '', onDrop, onClose, onNewGame, onLand }) {
   const [animatingKey, setAnimatingKey] = useState(null)
+  const [helpOpen, setHelpOpen] = useState(false)
   const playerTokenIds = useMemo(() => getConnectFourPlayerTokenIds(state), [state])
   const playerIndex = Math.max(0, state.playerUids?.indexOf(playerUid) ?? players.findIndex((player) => player.uid === playerUid))
   const ownTokenId = playerTokenIds[playerIndex] || tokenPreferences[playerUid]
@@ -91,6 +93,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
           <h2 id="connect-four-title">Four Ever</h2>
           <p className={`connect-four-status${winnerName ? ' is-winner' : ''}`} aria-live="polite">{status}</p>
         </div>
+        <ArcadeHelpButton className="connect-four-help-trigger" gameName="Four Ever" onClick={() => setHelpOpen(true)} />
         <button className="connect-four-close" type="button" onClick={onClose} aria-label="Close Four Ever">×</button>
       </header>
 
@@ -109,6 +112,7 @@ export function ConnectFourFinale({ state, players, playerUid, lifetimeNights = 
       {nextGame ? <button className="connect-four-done" type="button" onClick={onNewGame}>Play again <span>↻</span></button>
         : isYourMove && <p className="connect-four-hint">Drop a piece</p>}
       <button className="connect-four-close-match" type="button" onClick={onClose}>Done for now</button>
+      {helpOpen && <ArcadeHelpDialog gameId="four-ever" gameName="Four Ever" onClose={() => setHelpOpen(false)} />}
     </section>
   </div>
 }

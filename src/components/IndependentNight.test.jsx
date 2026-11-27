@@ -63,10 +63,10 @@ it('lets the second player roll directly on the board dice', async () => {
   expect(mocks.command.mock.calls[0][3].dice.every(value => value >= 1 && value <= 6)).toBe(true)
   expect(roll).toBeDisabled()
 })
-it('keeps the flat end-turn switch in the board HUD without trade copy', async () => {
+it('keeps the pass switch and Trade action in the board HUD', async () => {
   render(<IndependentNight />)
   expect(await screen.findByRole('button', { name: 'Pass turn to A' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Trade' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Open Keepsake Trade' })).toBeInTheDocument()
   expect(screen.queryByText('ROLLS')).not.toBeInTheDocument()
   expect(screen.queryByText('MATCHES')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /center the board/i })).not.toBeInTheDocument()
@@ -131,6 +131,7 @@ it('automatically flips the coin, then draws and reveals the selected deck card'
   }
   mocks.command.mockImplementationOnce(async () => { act(() => mocks.next([cardStep])); return cardStep })
   await act(async () => { await vi.advanceTimersByTimeAsync(1750) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(680) })
   expect(screen.getByRole('heading', { name: 'A Warm Mug Left Ready' })).toBeInTheDocument()
 })
 it('keeps the automatically revealed card selected while the Firestore listener still shows the pre-flip state', async () => {
@@ -147,6 +148,7 @@ it('keeps the automatically revealed card selected while the Firestore listener 
   act(() => mocks.next([pendingStep]))
   mocks.command.mockResolvedValueOnce(revealedStep)
   await act(async () => { await vi.advanceTimersByTimeAsync(1750) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(680) })
   expect(screen.getByRole('heading', { name: 'A Warm Mug Left Ready' })).toBeInTheDocument()
   expect(window.__atLongLastGameState.selectedId).toBe('roll-1-1')
   expect(window.__atLongLastGameState.selectedContentReady).toBe(true)

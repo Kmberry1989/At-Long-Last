@@ -1,0 +1,11 @@
+.arcade-help-trigger{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid rgba(255,225,169,.64);border-radius:50%;background:rgba(255,255,255,.1);color:#ffe5b0;font:700 16px 'DM Sans',Arial,sans-serif;cursor:pointer}
+.arcade-help-trigger:hover{background:rgba(255,225,169,.2);box-shadow:0 0 14px #f2cf9140}
+.arcade-help-trigger:focus-visible,.arcade-help-close:focus-visible{outline:2px solid #ffe7b5;outline-offset:3px}
+.arcade-help-overlay{position:absolute;inset:0;z-index:20;display:grid;place-items:center;padding:18px;border-radius:inherit;background:rgba(15,10,22,.82);backdrop-filter:blur(7px)}
+.arcade-help-card{position:relative;width:min(100%,380px);padding:28px 24px 24px;border:1px solid rgba(236,204,156,.64);border-radius:22px;background:linear-gradient(145deg,#4b2c45,#202236);box-shadow:0 20px 56px #05040bd1;color:#fff1d9;text-align:center}
+.arcade-help-kicker{color:#e9c788;font:700 10px/1.2 'DM Sans',Arial,sans-serif;letter-spacing:.16em}
+.arcade-help-card h3{margin:8px 28px 10px;color:#fff0d4;font:700 25px/1.05 'Cormorant Garamond',Georgia,serif}
+.arcade-help-card p{margin:0;color:rgba(255,239,219,.84);font:500 14px/1.55 'DM Sans',Arial,sans-serif}
+.arcade-help-close{position:absolute;top:9px;right:10px;display:grid;width:32px;height:32px;place-items:center;border:1px solid rgba(235,205,162,.4);border-radius:50%;background:rgba(20,15,28,.55);color:#fff2dc;font-size:21px;cursor:pointer}
+.connect-four-help-trigger{grid-column:3;grid-row:1;justify-self:start;margin-left:8px}
+@media(max-width:400px){.arcade-help-card{padding:25px 17px 20px}.arcade-help-card h3{font-size:22px}.arcade-help-card p{font-size:13px}}

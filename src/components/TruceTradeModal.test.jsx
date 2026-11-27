@@ -32,7 +32,7 @@ describe('TruceTradeModal', () => {
     expect(onSendOffer).toHaveBeenCalledWith({ offeredInstanceId: 'mine', requestedInstanceId: null, note: '' })
   })
 
-  it('requires the recipient to accept or pass on the offered keepsake', () => {
+  it('requires the recipient to choose a return keepsake before accepting', () => {
     const onRespondOffer = vi.fn()
     const incoming = {
       ...session,
@@ -41,9 +41,18 @@ describe('TruceTradeModal', () => {
     render(<TruceTradeModal isOpen session={incoming} playerIndex={0} onRespondOffer={onRespondOffer} />)
 
     expect(screen.getByLabelText('Keepsake offered to you')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeDisabled()
+    expect(screen.getByRole('group', { name: 'Your keepsakes to trade' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Morning Coffee Pass' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    expect(onRespondOffer).toHaveBeenCalledWith(true, 'mine')
+  })
+
+  it('lets the recipient pass without giving up a keepsake', () => {
+    const onRespondOffer = vi.fn()
+    render(<TruceTradeModal isOpen session={{ ...session, lastMove: { tradeOffer: { fromPlayerIndex: 1, offeredInstanceId: 'theirs', status: 'pending' } } }} playerIndex={0} onRespondOffer={onRespondOffer} />)
     fireEvent.click(screen.getByRole('button', { name: 'Pass' }))
-    expect(onRespondOffer).toHaveBeenCalledWith(false)
+    expect(onRespondOffer).toHaveBeenCalledWith(false, null)
   })
 
   it('lets the sender cancel a pending offer', () => {
@@ -58,10 +67,10 @@ describe('TruceTradeModal', () => {
   })
 
   it('keeps the close control available with an empty hand', () => {
-    const { container } = render(<TruceTradeModal isOpen session={{ ...session, keepsakes: [] }} playerIndex={0} />)
+    render(<TruceTradeModal isOpen session={{ ...session, keepsakes: [] }} playerIndex={0} />)
     expect(screen.getByText('No keepsakes')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Offer' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Close trade' })).toBeInTheDocument()
-    expect(container.querySelector('.truce-trade-compact')).toBeInTheDocument()
+    expect(document.querySelector('.truce-trade-compact')).toBeInTheDocument()
   })
 })

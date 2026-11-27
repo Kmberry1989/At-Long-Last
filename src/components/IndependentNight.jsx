@@ -21,6 +21,8 @@ import { DuelArena } from './DuelArena.jsx'
 import { FinaleScreen } from './FinaleScreen.jsx'
 import { NightTransitionBanner } from './NightTransitionBanner.jsx'
 import { MomentCard } from './MomentCard.jsx'
+import { TruceTradeModal } from './TruceTradeModal.jsx'
+import { NightReplay } from './NightReplay.jsx'
 import './independent-night.css'
 
 function nightErrorMessage(error) {
@@ -65,6 +67,7 @@ export function IndependentNight() {
   const rollTraceRef = useRef([])
   const [rollPresentation, setRollPresentation] = useState(null)
   const [cardDrawKey, setCardDrawKey] = useState(null)
+  const [completedCardDrawKey, setCompletedCardDrawKey] = useState(null)
   const [cardDrawReady, setCardDrawReady] = useState(false)
   const [coinFlipKey, setCoinFlipKey] = useState(null)
   const [coinOutcome, setCoinOutcome] = useState(null)
@@ -73,6 +76,8 @@ export function IndependentNight() {
   const [pieceStyles, setPieceStyles] = useState({})
   const [rollGesture, setRollGesture] = useState(null)
   const [journalOpen, setJournalOpen] = useState(false)
+  const [tradeOpen, setTradeOpen] = useState(false)
+  const [nightReplayOpen, setNightReplayOpen] = useState(false)
   const firstTurnRevealKey = `at-long-last:first-turn-toss:${session?.id || 'none'}:${userId || `preview-${previewPlayer}`}`
   const [firstTurnRevealDismissed, setFirstTurnRevealDismissed] = useState(() => {
     try { return sessionStorage.getItem(firstTurnRevealKey) === 'yes' } catch { return false }
@@ -190,18 +195,17 @@ export function IndependentNight() {
     setCardDrawKey(`${pending.id}:card`)
   }, [cardDrawKey, loaded, playerIndex, progress.nextRound, rolling, rollPresentation, selectedId, session.phase, steps])
   useEffect(() => {
-    if (rollPresentation?.stage !== 'drawing-card') return
-    const step = steps.find(item => item.id === rollPresentation.stepId)
-    if (!step?.state?.momentPending || step.state.momentCard) return
-    // A delayed animation callback may outlive a stale Firestore snapshot.
-    // If the flip has not produced a saved card, restore the coin interaction.
-    setCardDrawKey(null)
-    setCardDrawReady(false)
+    if (!completedCardDrawKey || completedCardDrawKey !== cardDrawKey || rollPresentation?.stage !== 'drawing-card') return
+    const drawnStep = steps.find(step => step.id === rollPresentation.stepId)
+    if (!drawnStep?.state?.momentCard || completedCardDrawKeysRef.current.has(completedCardDrawKey)) return
+    completedCardDrawKeysRef.current.add(completedCardDrawKey)
+    if (completedCardDrawKeysRef.current.size > 24) completedCardDrawKeysRef.current.delete(completedCardDrawKeysRef.current.values().next().value)
+    setCardDrawReady(true)
+    setSelectedId(rollPresentation.stepId)
+    setRollPresentation(null)
     setRolling(false)
-    setRollPresentation(current => current?.stepId === step.id && current.stage === 'drawing-card'
-      ? { ...current, stage: 'confirm-landing' }
-      : current)
-  }, [rollPresentation, steps])
+    setRollGesture(null)
+  }, [cardDrawKey, completedCardDrawKey, rollPresentation, steps])
   useEffect(() => {
     setNightKisses({})
     setNightKissesLoaded(!enabled)
@@ -408,6 +412,7 @@ export function IndependentNight() {
       key !== `${rollPresentation.stepId}:coin`
     ) return
     setCardDrawReady(false)
+    setCompletedCardDrawKey(null)
     setCardDrawKey(`${rollPresentation.stepId}:card`)
     setRollPresentation(current => current ? { ...current, stage: 'drawing-card' } : current)
   }
@@ -477,6 +482,8 @@ export function IndependentNight() {
         ? 'Flip the switch to pass your turn.'
         : 'Open your moment to continue.'
   const canReturnDice = Boolean(currentRollStep && !currentRollStep.state?.diceReturned && !currentRollStep.state?.turnEnded && !currentRollStep.state?.turnEndRequested && !rolling)
+  const pendingTradeOffer = session.lastMove?.tradeOffer?.status === 'pending' ? session.lastMove.tradeOffer : null
+  const incomingTradeOffer = pendingTradeOffer?.fromPlayerIndex !== undefined && pendingTradeOffer.fromPlayerIndex !== playerIndex
 
   async function returnDiceToCup() {
     if (!canReturnDice || !currentRollStep || working) return
@@ -501,17 +508,7 @@ export function IndependentNight() {
         <Suspense fallback={<div className="board-loading">Loading board…</div>}>
           <BoardScene activePlayerIndex={playerIndex} turnInProgress={progress.activeTurnPlayer === playerIndex} boardState={boardState} dice={rolling ? rollingDice : session.lastMove?.dice} lastMove={session.lastMove} moveEvents={steps.flatMap(step => [step.state?.move, step.state?.momentMove, step.state?.penaltyMove]).filter(Boolean)} activeMomentMoveKey={activeMomentMoveKey} lastRoll={session.lastRoll}
             deferPieceMoveKey={deferPieceMoveKey} pausePieceMovement={Boolean(rollPresentation && ['rolling', 'confirm-roll'].includes(rollPresentation.stage))} cardDrawKey={cardDrawKey} onCardDrawComplete={key => {
-              if (key !== cardDrawKey || completedCardDrawKeysRef.current.has(key)) return
-              if (!rollPresentation || rollPresentation.stage !== 'drawing-card' || `${rollPresentation.stepId}:card` !== key) return
-              const drawnStep = steps.find(step => step.id === rollPresentation.stepId)
-              if (!drawnStep?.state?.momentCard) return
-              completedCardDrawKeysRef.current.add(key)
-              if (completedCardDrawKeysRef.current.size > 24) completedCardDrawKeysRef.current.delete(completedCardDrawKeysRef.current.values().next().value)
-              setCardDrawReady(true)
-              setSelectedId(rollPresentation.stepId)
-              setRollPresentation(null)
-              setRolling(false)
-              setRollGesture(null)
+              if (key === cardDrawKey && !completedCardDrawKeysRef.current.has(key)) setCompletedCardDrawKey(key)
             }}
             canFlipCoin={false} onCoinFlip={flipCoin} coinFlipKey={coinFlipKey} coinOutcome={coinOutcome} coinGesture={coinGesture} onCoinFlipComplete={beginCardDraw} momentCardCategory={coinOutcome}
             onDiceSettled={() => setRollPresentation(current => current ? { ...current, diceSettled: true, stage: current.saved ? 'confirm-roll' : current.stage } : current)}
@@ -538,6 +535,14 @@ export function IndependentNight() {
             players={boardPlayers} positions={session.positions} round={Math.min(progress.nextRound, session.totalRounds)} rolling={rolling && boardReady && rollPresentation?.stage === 'rolling'} themeId={coupleProgress?.selectedTheme || 'cozy'} />
         </Suspense>
         <div className="hud top">
+          <button className={`trade-hud-btn control-badge${incomingTradeOffer ? ' has-offer' : ''}`} type="button"
+            aria-label={incomingTradeOffer ? `Review trade offer from ${session.players[pendingTradeOffer.fromPlayerIndex]?.displayName || 'your person'}` : 'Open Keepsake Trade'}
+            title={incomingTradeOffer ? 'Review trade offer' : 'Open Keepsake Trade'}
+            onClick={() => { audio?.playAction?.(); setTradeOpen(true) }}>
+            <BrandIcon className="control-badge-mark" name="trade" />
+            <span className="trade-hud-label">Trade</span>
+            {incomingTradeOffer && <span className="trade-offer-dot" aria-hidden="true" />}
+          </button>
           <button className={`turn-pass-switch${canEndTurn ? ' is-ready' : ''}`} type="button" aria-label={`Pass turn to ${turnTarget?.displayName || 'your person'}`} title={`Pass turn to ${turnTarget?.displayName || 'your person'}`} disabled={!canEndTurn} onClick={endTurn}>
             <span className="turn-pass-rail" aria-hidden="true"><span className="turn-pass-hint">PASS</span><span className={`turn-pass-knob points-to-${1 - playerIndex}`}><span>{playerIndex === 0 ? '›' : '‹'}</span></span></span>
           </button>
@@ -608,8 +613,13 @@ export function IndependentNight() {
       </div>}
       {session.phase === 'finale' && <FinaleScreen session={session} finalSummary={buildFinalSummary(session, tonight)} journalEntries={journalEntries}
         themeId={coupleProgress?.selectedTheme || 'cozy'} players={session.players} canPlayAgain={canRecoverSession} working={working}
-        onOpenScrapbook={() => setJournalOpen(true)} onPlayAgain={startFreshSession} />}
-      <Suspense fallback={null}><JournalDrawer sessionId={session.id} entries={journalEntries} onClose={() => setJournalOpen(false)} open={journalOpen} /></Suspense>
+        onOpenScrapbook={() => setJournalOpen(true)} onOpenReplay={() => setNightReplayOpen(true)} onPlayAgain={startFreshSession} />}
+      {nightReplayOpen && <NightReplay entries={journalEntries.filter(entry => entry.sessionId === session.id)} players={session.players} onClose={() => setNightReplayOpen(false)} />}
+      <Suspense fallback={null}><JournalDrawer sessionId={session.id} entries={journalEntries} players={session.players} onClose={() => setJournalOpen(false)} open={journalOpen} /></Suspense>
+      <TruceTradeModal isOpen={tradeOpen && session.phase === 'turn'} onClose={() => setTradeOpen(false)} session={session} playerIndex={playerIndex}
+        onSendOffer={({ offeredInstanceId }) => run({ kind: 'tradeOffer', offeredInstanceId })}
+        onRespondOffer={(accept, returnInstanceId) => run({ kind: 'tradeRespond', accept, returnInstanceId })}
+        onDismissOffer={() => run({ kind: 'tradeDismiss' })} />
     </section>
   )
 }

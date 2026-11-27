@@ -10,6 +10,23 @@ export const RADAR_FLEET = [
   { name: 'Destroyer', length: 2 },
 ]
 
+export const SHARED_COLORING_PALETTE = [
+  { id: 'rose', name: 'Rose', value: '#d77b8d' },
+  { id: 'peach', name: 'Peach', value: '#efa987' },
+  { id: 'sunshine', name: 'Sunshine', value: '#e9c36e' },
+  { id: 'lavender', name: 'Lavender', value: '#a996c8' },
+  { id: 'ocean', name: 'Ocean', value: '#75a8c2' },
+  { id: 'meadow', name: 'Meadow', value: '#82a47b' },
+  { id: 'mint', name: 'Mint', value: '#8fb9a7' },
+  { id: 'berry', name: 'Berry', value: '#92576e' },
+]
+
+export const SHARED_COLORING_PAGES = [
+  { id: 'garden', title: 'A little garden', regions: ['sun', 'petal-1', 'petal-2', 'petal-3', 'petal-4', 'petal-5', 'leaf-left', 'leaf-right', 'pot', 'watering-can', 'cloud'] },
+  { id: 'tea-for-two', title: 'Tea for two', regions: ['mug-left', 'tea-left', 'mug-right', 'tea-right', 'heart', 'cake', 'plate-left', 'plate-right', 'tablecloth'] },
+  { id: 'moonlit-picnic', title: 'Moonlit picnic', regions: ['blanket', 'basket', 'basket-cloth', 'apple', 'pear', 'moon', 'star-left', 'star-right', 'flower'] },
+]
+
 export const UNO_COLORS_LIST = UNO_COLORS
 export const UNO_CARD_LABELS = { skip: 'Skip', reverse: 'Reverse', 'draw-two': 'Draw 2', wild: 'Wild', 'wild-draw-four': 'Wild Draw 4' }
 
@@ -285,6 +302,26 @@ export function createOurLittlePieces(playerUids, random = Math.random, solvedCo
     pieces: Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`p${index}`, { slot: slots[index], rotation: Math.floor(random() * 4) * 90, placedBy: null }])),
     status: 'playing', moveCount: 0, completedBy: null, solvedCount, puzzleNumber, lastActionBy: null,
   }
+}
+
+export function createSharedColoringBook(playerUids) {
+  if (!Array.isArray(playerUids) || playerUids.length !== 2 || playerUids[0] === playerUids[1]) throw new Error('Two players are needed.')
+  return {
+    game: 'shared-coloring-book', playerUids: [...playerUids], status: 'playing',
+    colors: Object.fromEntries(SHARED_COLORING_PAGES.map(page => [page.id, {}])),
+    savedPages: [], lastActionBy: null,
+  }
+}
+
+export function colorSharedColoringRegion(state, { playerUid, pageId, regionId, color }) {
+  if (state.status !== 'playing' || !state.playerUids.includes(playerUid)) throw new Error('This coloring book is not available now.')
+  const page = SHARED_COLORING_PAGES.find(item => item.id === pageId)
+  if (!page || !page.regions.includes(regionId) || !SHARED_COLORING_PALETTE.some(item => item.id === color)) throw new Error('Choose a page, color, and space to paint.')
+  const pageColors = { ...(state.colors?.[pageId] || {}), [regionId]: color }
+  const colors = { ...state.colors, [pageId]: pageColors }
+  const isComplete = page.regions.every(id => Boolean(pageColors[id]))
+  const savedPages = isComplete && !state.savedPages?.includes(pageId) ? [...(state.savedPages || []), pageId] : (state.savedPages || [])
+  return { ...state, colors, savedPages, lastActionBy: playerUid }
 }
 
 export function moveOurLittlePiece(state, { playerUid, pieceId, slot }) {

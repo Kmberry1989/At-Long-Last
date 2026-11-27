@@ -1,5 +1,6 @@
 import { BrandIcon } from './BrandIcon.jsx'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAudio } from '../audio/AudioProvider.jsx'
 import { KeepsakeCard } from './MysteryKeepsakeCard.jsx'
 import './truce-trade-modal.css'
@@ -15,6 +16,8 @@ export function TruceTradeModal({
 }) {
   const audio = useAudio() || {}
   const [selectedOfferedId, setSelectedOfferedId] = useState(null)
+  const [selectedReturnId, setSelectedReturnId] = useState(null)
+  const [working, setWorking] = useState(false)
   if (!isOpen) return null
 
   const offer = session?.lastMove?.tradeOffer
@@ -29,22 +32,32 @@ export function TruceTradeModal({
     setSelectedOfferedId(current => current === instanceId ? null : instanceId)
   }
 
-  function sendOffer() {
-    if (!selectedOfferedId) return
-    audio.playSuccess?.()
-    onSendOffer?.({ offeredInstanceId: selectedOfferedId, requestedInstanceId: null, note: '' })
-    setSelectedOfferedId(null)
-    onClose?.()
+  async function sendOffer() {
+    if (!selectedOfferedId || working) return
+    setWorking(true)
+    try {
+      const saved = await onSendOffer?.({ offeredInstanceId: selectedOfferedId, requestedInstanceId: null, note: '' })
+      if (saved === false) return
+      audio.playSuccess?.()
+      setSelectedOfferedId(null)
+      onClose?.()
+    } finally { setWorking(false) }
   }
 
-  function respond(accept) {
-    if (accept) audio.playSuccess?.()
-    else audio.playCardSlide?.()
-    onRespondOffer?.(accept)
-    onClose?.()
+  async function respond(accept) {
+    if (working || (accept && !selectedReturnId)) return
+    setWorking(true)
+    try {
+      const saved = await onRespondOffer?.(accept, accept ? selectedReturnId : null)
+      if (saved === false) return
+      if (accept) audio.playSuccess?.()
+      else audio.playCardSlide?.()
+      setSelectedReturnId(null)
+      onClose?.()
+    } finally { setWorking(false) }
   }
 
-  return (
+  return createPortal(
     <div className="truce-trade-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="trade-title">
       <section className="truce-trade-sheet truce-trade-compact" onClick={event => event.stopPropagation()}>
         <header className="truce-trade-header truce-trade-compact-header">
@@ -61,6 +74,18 @@ export function TruceTradeModal({
                 <div className="truce-slot-card-preview"><KeepsakeCard item={offeredCard} revealed compact /></div>
             </div>
           )}
+
+          {isIncoming && <>
+            <p className="truce-trade-state">Choose one of your keepsakes to trade back</p>
+            {keepsakes.length > 0 ? <div className="truce-tray-card-rack truce-trade-own-rack" role="group" aria-label="Your keepsakes to trade">
+              {keepsakes.map(card => <button key={card.instanceId} type="button"
+                className={`truce-tray-card-item ${selectedReturnId === card.instanceId ? 'is-selected' : ''}`}
+                onClick={() => { audio.playChoiceTap?.(); setSelectedReturnId(card.instanceId) }}
+                aria-pressed={selectedReturnId === card.instanceId}>
+                <span className="truce-tray-card-title">{card.label}</span>
+              </button>)}
+            </div> : <p className="truce-trade-state">You need a keepsake to accept.</p>}
+          </>}
 
           {isOutgoing && offeredCard && (
             <>
@@ -93,16 +118,16 @@ export function TruceTradeModal({
         <footer className="truce-trade-footer truce-trade-compact-footer">
           {isIncoming ? (
             <>
-              <button type="button" className="truce-action-btn truce-secondary-btn" onClick={() => respond(false)}>Pass</button>
-              <button type="button" className="truce-action-btn truce-primary-btn" onClick={() => respond(true)}>Accept</button>
+              <button type="button" className="truce-action-btn truce-secondary-btn" disabled={working} onClick={() => respond(false)}>Pass</button>
+              <button type="button" className="truce-action-btn truce-primary-btn" disabled={working || !selectedReturnId} onClick={() => respond(true)}>Accept</button>
             </>
           ) : isOutgoing ? (
-            <button type="button" className="truce-action-btn truce-secondary-btn" onClick={() => { onDismissOffer?.(); onClose?.() }}>Cancel offer</button>
+            <button type="button" className="truce-action-btn truce-secondary-btn" disabled={working} onClick={async () => { setWorking(true); try { const saved = await onDismissOffer?.(); if (saved !== false) onClose?.() } finally { setWorking(false) } }}>Cancel offer</button>
           ) : (
-            <button type="button" className="truce-action-btn truce-primary-btn" disabled={!selectedOfferedId} onClick={sendOffer}>Offer</button>
+            <button type="button" className="truce-action-btn truce-primary-btn" disabled={working || !selectedOfferedId} onClick={sendOffer}>Offer</button>
           )}
         </footer>
       </section>
-    </div>
+    </div>, document.body
   )
 }

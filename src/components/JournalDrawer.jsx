@@ -3,6 +3,8 @@ import { getScrapbookMomentCount } from '../features/session/journalHelpers.js'
 import { JournalTimeline } from './JournalTimeline.jsx'
 import { PairingStory } from './Milestones.jsx'
 import { useAudio } from '../audio/AudioProvider.jsx'
+import { createPortal } from 'react-dom'
+import { NightReplay } from './NightReplay.jsx'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -27,13 +29,26 @@ function matchesFilter(entry, filterId) {
   return entry.type !== 'finale'
 }
 
-export function JournalDrawer({ entries, open, onClose, sessionId }) {
+export function JournalDrawer({ entries, open, onClose, players = [], sessionId }) {
   const { setScrapbookOpen } = useAudio() || {}
   const [activeFilter, setActiveFilter] = useState('all')
   const [nightScope, setNightScope] = useState('tonight')
+  const [replaySessionId, setReplaySessionId] = useState(null)
+  const completedNights = useMemo(() => {
+    const seen = new Set()
+    return entries.filter(entry => {
+      if (entry.type !== 'finale' || !entry.sessionId || seen.has(entry.sessionId)) return false
+      seen.add(entry.sessionId)
+      return true
+    })
+  }, [entries])
   useEffect(() => { setNightScope('tonight') }, [sessionId])
   const scopedEntries = useMemo(
-    () => sessionId && nightScope === 'tonight' ? entries.filter(entry => entry.sessionId === sessionId) : entries,
+    () => {
+      if (nightScope === 'all') return entries
+      const selectedSessionId = nightScope === 'tonight' ? sessionId : nightScope.slice('night:'.length)
+      return selectedSessionId ? entries.filter(entry => entry.sessionId === selectedSessionId) : entries
+    },
     [entries, nightScope, sessionId],
   )
   const drawerRef = useRef(null)
@@ -42,6 +57,11 @@ export function JournalDrawer({ entries, open, onClose, sessionId }) {
     return () => setScrapbookOpen?.(false)
   }, [open, setScrapbookOpen])
   const finaleEntry = scopedEntries.find((entry) => entry.type === 'finale')
+  const selectedNightLabel = nightScope === 'tonight'
+    ? 'Tonight'
+    : nightScope === 'all'
+      ? 'All nights'
+      : finaleEntry?.payload?.presetLabel || 'Completed night'
   const momentsCount = getScrapbookMomentCount(scopedEntries)
   const duelCount = scopedEntries.filter((entry) => entry.type === 'duel').length
   const keepsakeCount = scopedEntries.filter((entry) => entry.type === 'keepsake').length
@@ -71,12 +91,13 @@ export function JournalDrawer({ entries, open, onClose, sessionId }) {
       </div>
       <PairingStory />
       {sessionId && <details className="scrapbook-night-picker">
-        <summary>{nightScope === 'tonight' ? 'Tonight' : 'All nights'} · Change view</summary>
+        <summary>{selectedNightLabel} · Change view</summary>
         <label>
           <span>Scrapbook night</span>
           <select aria-label="Scrapbook night" value={nightScope} onChange={event => setNightScope(event.target.value)}>
             <option value="tonight">Tonight</option>
             <option value="all">All nights</option>
+            {completedNights.filter(entry => entry.sessionId !== sessionId).map(entry => <option key={entry.sessionId} value={`night:${entry.sessionId}`}>{entry.payload?.presetLabel || entry.title || 'Completed night'}</option>)}
           </select>
         </label>
       </details>}
@@ -102,7 +123,7 @@ export function JournalDrawer({ entries, open, onClose, sessionId }) {
       {finaleEntry?.payload && (
         <div className="scrapbook-tonight-card">
           <div className="scrapbook-tonight-head">
-            <span>Tonight</span>
+            <span>{nightScope === 'tonight' ? 'Tonight' : 'Completed night'}</span>
             <strong>{finaleEntry.payload.presetLabel}</strong>
           </div>
           <p>{finaleEntry.payload.duelOutcomeLabel}</p>
@@ -113,6 +134,7 @@ export function JournalDrawer({ entries, open, onClose, sessionId }) {
               ))}
             </div>
           )}
+          {nightScope !== 'all' && finaleEntry.sessionId && <button className="scrapbook-replay-action" onClick={() => setReplaySessionId(finaleEntry.sessionId)} type="button">Replay this night</button>}
         </div>
       )}
       <div className="mode-toggle journal-filter-row" role="tablist" aria-label="Scrapbook filter">
@@ -127,7 +149,8 @@ export function JournalDrawer({ entries, open, onClose, sessionId }) {
           </button>
         ))}
       </div>
-      <JournalTimeline entries={filteredEntries} />
+      <JournalTimeline entries={filteredEntries} players={players} onReplayNight={id => { if (id) setReplaySessionId(id) }} />
+      {replaySessionId && createPortal(<NightReplay entries={entries.filter(entry => entry.sessionId === replaySessionId)} players={players} onClose={() => setReplaySessionId(null)} />, document.body)}
     </aside>
   )
 }

@@ -870,12 +870,12 @@ export function SessionProvider({ children }) {
     }
   }
 
-  async function respondTradeOffer(accept) {
+  async function respondTradeOffer(accept, returnInstanceId = null) {
     if (!session || working) return
     setWorking(true)
     setError('')
     try {
-      const nextSession = resolveTradeOffer(session, { accept })
+      const nextSession = resolveTradeOffer(session, { accept, returnInstanceId })
       if (!enabled) {
         setSession(nextSession)
         return
