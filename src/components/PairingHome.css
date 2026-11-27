@@ -378,3 +378,49 @@
 .couple-arcade-lobby-link:hover img{transform:translateY(-3px) scale(1.025);filter:drop-shadow(0 12px 18px #39203275)}
 .couple-arcade-lobby-link:focus-visible{outline:3px solid #ffe2a4;outline-offset:5px;border-radius:24px}
 @media(prefers-reduced-motion:reduce){.couple-arcade-lobby-link img{transition:none}}
+
+/* Keep the paired lobby's wordmark out of the portraits and make the lobby
+   content scroll naturally on narrow phones. */
+@media (max-width: 600px) {
+  .lobby-screen.paired-lobby {
+    padding: max(60px, calc(env(safe-area-inset-top) + 48px)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+  .lobby-screen.paired-lobby .title-band { display: none; }
+  .lobby-screen.paired-lobby .lobby-content {
+    height: auto;
+    min-height: 100%;
+    align-content: start;
+    gap: 10px;
+    padding: 8px 0 max(18px, env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+  .lobby-card:has(.couple-portrait-stage) {
+    gap: 10px;
+    padding: 4px 0;
+  }
+  .couple-portrait-stage {
+    width: min(88vw, 360px);
+    height: clamp(112px, 30vw, 132px);
+  }
+  .couple-portrait-button {
+    width: min(27vw, 104px);
+    height: min(27vw, 104px);
+  }
+  .lobby-screen.paired-lobby .pairing-title h2 {
+    margin: 0;
+    font-size: clamp(22px, 6vw, 30px);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .lobby-piece-style-button { max-width: 100%; }
+  .bloom-water-nudge {
+    width: 100%;
+    gap: 8px;
+    padding: 10px 11px;
+  }
+  .bloom-water-nudge strong { font-size: 12px; }
+  .bloom-water-nudge span { font-size: 10px; }
+  .bloom-water-nudge-button { padding-inline: 10px; white-space: nowrap; }
+  .pairing-commit { width: 100%; padding: 16px; }
+  .lobby-screen.paired-lobby .night-start-button { min-height: 56px; font-size: clamp(16px, 4.7vw, 19px); }
+}
