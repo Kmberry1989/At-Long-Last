@@ -19,7 +19,7 @@ const GAMES = [
   { id: 'radar-love', name: 'Radar Love', icon: '/assets/arcade/icons/radar-love.png' },
   { id: 'four-ever', name: 'Four Ever', icon: '/assets/arcade/icons/four-ever.png' },
   { id: 'our-little-pieces', name: 'Our Little Pieces', icon: '/assets/arcade/icons/our-little-pieces.png' },
-  { id: 'shared-coloring-book', name: 'Color Together', icon: '/assets/arcade/icons/shared-coloring-book.svg' },
+  { id: 'shared-coloring-book', name: 'Color Together', icon: '/assets/arcade/icons/color-together.png' },
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const JIGSAW_ART = [
