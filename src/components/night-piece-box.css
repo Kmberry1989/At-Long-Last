@@ -1,0 +1,47 @@
+.night-piece-box-overlay {
+  position: fixed;
+  z-index: 1250;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(230px, 1fr) auto auto;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: max(22px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, rgba(80, 43, 64, .92), rgba(17, 18, 31, .98) 75%);
+  color: #fff0d7;
+  text-align: center;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.night-piece-box-overlay h2 {
+  margin: 0;
+  font: 700 clamp(26px, 7vw, 38px)/1.1 'Fraunces', Georgia, serif;
+}
+.night-piece-box-stage {
+  width: min(100%, 600px);
+  height: min(54vh, 460px);
+  min-height: 230px;
+}
+.night-piece-box-stage canvas { display: block; width: 100%; height: 100%; }
+.night-piece-box-overlay p { margin: 0; color: rgba(255, 240, 215, .78); font: 500 14px/1.4 'DM Sans', Arial, sans-serif; }
+.night-piece-box-skip {
+  min-height: 48px;
+  margin-top: 4px;
+  padding: 10px 24px;
+  border: 1px solid rgba(255, 225, 169, .72);
+  border-radius: 999px;
+  background: linear-gradient(110deg, #f2cf91, #cf7783);
+  color: #321c2b;
+  font: 700 15px 'DM Sans', Arial, sans-serif;
+}
+.night-piece-box-skip:focus-visible { outline: 3px solid #fff1cd; outline-offset: 3px; }
+@media (max-height: 600px) {
+  .night-piece-box-overlay { grid-template-rows: auto minmax(160px, 1fr) auto auto; gap: 4px; padding-block: max(12px, env(safe-area-inset-top)); }
+  .night-piece-box-stage { height: min(44vh, 290px); min-height: 160px; }
+  .night-piece-box-skip { min-height: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .night-piece-box-overlay { scroll-behavior: auto; }
+}

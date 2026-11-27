@@ -6,7 +6,6 @@ import { PlayerPortrait } from './PlayerPortrait.jsx'
 import { ArcadeHelpButton, ArcadeHelpDialog } from './ArcadeHelp.jsx'
 import { SharedColoringBook } from './SharedColoringBook.jsx'
 import './arcade-turn-portraits.css'
-import { JigsawUnboxing } from './JigsawUnboxing.jsx'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
 import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS, getSayWithoutSayingGuessOptions, RADAR_BOARD_SIZE, RADAR_FLEET } from '../features/session/coupleArcade.js'
 import './couple-arcade.css'
@@ -410,7 +409,6 @@ function OurLittlePieces({ state, onAction, onReset, audio }) {
     <div aria-label={`Puzzle art collection, ${JIGSAW_ART.filter(item => solvedCount >= item.unlockAt).length} of ${JIGSAW_ART.length} unlocked`} className="jigsaw-collection">
       {JIGSAW_ART.map(item => <span aria-label={solvedCount >= item.unlockAt ? `${item.title}, collected` : `${item.title}, locked; ${item.unlockAt - solvedCount} solves to unlock`} className={solvedCount >= item.unlockAt ? 'is-collected' : ''} key={item.title} role="img" title={solvedCount >= item.unlockAt ? `${item.title} collected` : `${item.title} · ${item.unlockAt - solvedCount} solves to unlock`} style={{ backgroundImage: `url("${item.src}")` }}><i aria-hidden="true">{solvedCount >= item.unlockAt ? '✓' : '·'}</i></span>)}
     </div>
-    <JigsawUnboxing key={`unbox-${state.puzzleNumber || 1}-${art.src}`} image={art.src} title={art.title} audio={audio} />
     <div aria-label="Shared three-dimensional jigsaw puzzle" className="jigsaw-board" role="grid">
       {Array.from({ length: 9 }, (_, slot) => {
         const entry = pieceAt(slot)

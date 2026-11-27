@@ -23,6 +23,7 @@ import { NightTransitionBanner } from './NightTransitionBanner.jsx'
 import { MomentCard } from './MomentCard.jsx'
 import { TruceTradeModal } from './TruceTradeModal.jsx'
 import { NightReplay } from './NightReplay.jsx'
+import { NightPieceBox } from './NightPieceBox.jsx'
 import './independent-night.css'
 
 function nightErrorMessage(error) {
@@ -42,6 +43,23 @@ export function IndependentNight() {
   const { db, enabled, userId } = useFirebaseApp()
   const { session, gameOpen, boardState, journalEntries, applyPreviewNight, startFreshSession, canRecoverSession, error: providerError } = useSession()
   const selectedIdStorageKey = `at-long-last:selected-night-step:${session?.id || 'none'}:${userId || 'preview'}`
+  const pieceReleaseKey = `at-long-last:piece-box-release:${session?.id || 'none'}`
+  const pieceCollectionKey = `at-long-last:piece-box-collection:${session?.id || 'none'}`
+  const [nightPiecesReleased, setNightPiecesReleased] = useState(() => {
+    try { return sessionStorage.getItem(pieceReleaseKey) === 'yes' } catch { return false }
+  })
+  const [nightPiecesCollected, setNightPiecesCollected] = useState(() => {
+    try { return sessionStorage.getItem(pieceCollectionKey) === 'yes' } catch { return false }
+  })
+  useEffect(() => {
+    try {
+      setNightPiecesReleased(sessionStorage.getItem(pieceReleaseKey) === 'yes')
+      setNightPiecesCollected(sessionStorage.getItem(pieceCollectionKey) === 'yes')
+    } catch {
+      setNightPiecesReleased(false)
+      setNightPiecesCollected(false)
+    }
+  }, [pieceCollectionKey, pieceReleaseKey])
   const [selectedId, setSelectedId] = useState(() => {
     try { return sessionStorage.getItem(selectedIdStorageKey) || null } catch { return null }
   })
@@ -129,7 +147,17 @@ export function IndependentNight() {
   const duel = selected?.kind === 'duel' ? duelRegistry[selected.type] : null
   const duelSession = selected?.kind === 'duel' ? { ...session, round: selected.round, currentDuel: { id: selected.type, attempt: 1 }, duelResults: {} } : null
   const isOpeningTurn = session?.phase === 'turn' && session.round === 1 && session.turnsTakenThisRound === 0 && !session.lastRoll && !session.lastMove
-  const showFirstTurnCoin = isOpeningTurn && !firstTurnRevealDismissed
+  const showFirstTurnCoin = isOpeningTurn && !firstTurnRevealDismissed && nightPiecesReleased
+
+  function releaseNightPieces() {
+    setNightPiecesReleased(true)
+    try { sessionStorage.setItem(pieceReleaseKey, 'yes') } catch { /* The opening still works without tab storage. */ }
+  }
+
+  function collectNightPieces() {
+    setNightPiecesCollected(true)
+    try { sessionStorage.setItem(pieceCollectionKey, 'yes') } catch { /* The finale still works without tab storage. */ }
+  }
 
   useEffect(() => {
     try {
@@ -611,7 +639,9 @@ export function IndependentNight() {
       {usesKissBookend && catchKissOpen && partnerKiss && <div className="overlay-screen independent-overlay kiss-bookend-overlay">
         <KissBookend mode="catch" recording={partnerKiss} featuredPlayer={session.players[1 - playerIndex]} voicePrompt={KISS_COURIER_VOICE_PROMPT} working={working} onCatch={catchOpeningKiss} onContinue={() => setCatchKissOpen(false)} />
       </div>}
-      {session.phase === 'finale' && <FinaleScreen session={session} finalSummary={buildFinalSummary(session, tonight)} journalEntries={journalEntries}
+      {session.phase !== 'finale' && !nightPiecesReleased && <NightPieceBox audio={audio} mode="release" onComplete={releaseNightPieces} players={boardPlayers} />}
+      {session.phase === 'finale' && !nightPiecesCollected && <NightPieceBox audio={audio} mode="collect" onComplete={collectNightPieces} players={boardPlayers} />}
+      {session.phase === 'finale' && nightPiecesCollected && <FinaleScreen session={session} finalSummary={buildFinalSummary(session, tonight)} journalEntries={journalEntries}
         themeId={coupleProgress?.selectedTheme || 'cozy'} players={session.players} canPlayAgain={canRecoverSession} working={working}
         onOpenScrapbook={() => setJournalOpen(true)} onOpenReplay={() => setNightReplayOpen(true)} onPlayAgain={startFreshSession} />}
       {nightReplayOpen && <NightReplay entries={journalEntries.filter(entry => entry.sessionId === session.id)} players={session.players} onClose={() => setNightReplayOpen(false)} />}

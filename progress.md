@@ -700,3 +700,10 @@ Original prompt: gameplay test and audit and feedback. WITH SUGGESTIONS FOR REPL
 - Aligned Firestore validation with Radar Love's current 10×10 board, five-ship fleet, 100-shot limit, and 17-cell fleet total. Kept legacy 8×8 three-ship saves valid so an in-progress older match can still be resumed.
 - Verification: full app suite passed (74 files / 453 tests), Firestore emulator suite passed (4 files / 63 tests), lint, production build, and `git diff --check` passed.
 - Remote two-player production play, physical-device audio/video, and Netlify release were not part of this pass.
+
+## 2026-11-27 — Mobile puzzle layout and night piece box
+
+- Removed the decorative Three.js unboxing from Our Little Pieces, tightened the phone layout so the board and actions fit more readily, and moved the piece-box animation to the start and finish of the main night flow.
+- Kept release/collection completion per session in tab storage and reloads those flags when the active session changes.
+- The all-activity and prompt inventory is already in `docs/ACTIVITY_AND_PROMPT_CATALOG.md`; it includes 76 board activities, 18 duels, six arcade/finale games, and the listed prompt/question banks.
+- Validation: `git diff --check` passed. No tests or browser checks were run.

@@ -24,7 +24,6 @@
 .radar-grid button.radar-skin-rose{background:radial-gradient(circle at 38% 35%,#ffe0d4,#bd6688 76%);box-shadow:0 0 14px #fa9abd99,inset 0 -4px 6px #6b315866}.radar-grid button.radar-skin-moonlit{background:radial-gradient(circle at 38% 35%,#fff0b9,#77609b 76%);box-shadow:0 0 16px #d0b5ffb5,inset 0 -4px 6px #392c6066}
 .arcade-collectibles{display:flex;justify-content:center;flex-wrap:wrap;gap:5px;margin:-3px 0 2px}.arcade-collectibles span{padding:4px 7px;border:1px solid #e8d5c42c;border-radius:999px;color:#f4e6dc80;font-size:10px}.arcade-collectibles span.is-collected{border-color:#f1cc8c79;color:#ffe2a6;background:#f1cc8c12}
 .jigsaw-collection{display:flex;justify-content:center;gap:7px}.jigsaw-collection span{position:relative;width:40px;height:30px;border:1px solid #d9b779;border-radius:7px;background-size:cover;background-position:center;box-shadow:0 3px 6px #0005;filter:grayscale(1);opacity:.48}.jigsaw-collection span.is-collected{filter:none;opacity:1}.jigsaw-collection i{position:absolute;right:-4px;bottom:-4px;display:grid;width:15px;height:15px;place-items:center;border:1px solid #f8dfac;border-radius:50%;background:#2d2035;color:#ffe4a8;font:700 10px Arial,sans-serif}
-.jigsaw-unboxing{position:relative;width:min(100%,390px);height:clamp(150px,42vw,205px);overflow:hidden;border:1px solid #d9b7798a;border-radius:16px;background:linear-gradient(145deg,#382637,#191824);box-shadow:inset 0 0 25px #d39b5e1a,0 8px 20px #0005}.jigsaw-unboxing-mount,.jigsaw-unboxing-mount canvas{display:block;width:100%;height:100%}.jigsaw-unboxing-caption{position:absolute;left:10px;bottom:8px;padding:4px 9px;border:1px solid #ffe2b84d;border-radius:999px;background:#251b2bba;color:#ffedcb;font:600 10px 'DM Sans',Arial,sans-serif;letter-spacing:.04em;pointer-events:none}.jigsaw-unboxing.is-fallback .jigsaw-unboxing-mount{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 100%,#d69a5338,transparent 65%),linear-gradient(145deg,#382637,#191824)}.jigsaw-unboxing.is-fallback .jigsaw-unboxing-mount::before{width:44%;height:54%;border:5px solid #bd9259;border-radius:10px;background:var(--jigsaw-art) center/cover,linear-gradient(#76504b,#392637);box-shadow:0 12px 18px #0008,0 7px 0 #6f4d42;content:""}
 .arcade-game-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
 .arcade-game-tile{display:block;overflow:hidden;padding:0;border:0;border-radius:18px;background:transparent;box-shadow:0 7px 18px #09071155;line-height:0}
 .arcade-game-art{display:block;width:100%;height:auto;aspect-ratio:1.3;object-fit:contain;border-radius:18px}
@@ -108,3 +107,15 @@
 .arcade-game-tile{position:relative}
 .arcade-notification-badge{position:absolute;top:8px;right:8px;z-index:2;display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:5px 9px;border:1px solid #ffe4a7;border-radius:999px;background:linear-gradient(120deg,#ffe5ab,#e7b969);box-shadow:0 3px 10px #100916a8;color:#352031;font:800 9px/1 'DM Sans',Arial,sans-serif;letter-spacing:.08em;white-space:nowrap;pointer-events:none}
 .arcade-notification-badge::before{width:5px;height:5px;border-radius:50%;background:#8e4656;box-shadow:0 0 0 2px #8e465626;content:""}
+
+/* Keep the puzzle's board and action controls in the first phone viewport. */
+@media (max-width: 480px) {
+  .jigsaw-game { gap: 8px; }
+  .jigsaw-collection { width: 100%; justify-content: center; gap: 5px; }
+  .jigsaw-collection span { width: clamp(27px, calc((100vw - 101px) / 8), 36px); height: 26px; flex: 0 1 auto; }
+  .jigsaw-board { width: min(100%, 320px); padding: 7px; gap: 4px; }
+  .jigsaw-piece { border-radius: 8px; }
+  .jigsaw-game .arcade-actions { gap: 7px; }
+  .jigsaw-game .arcade-actions button { flex: 1 1 0; min-width: 0; min-height: 42px; padding: 8px 10px; }
+  .couple-arcade-modal:has(.jigsaw-game) { max-height: 94dvh; padding-top: 12px; padding-bottom: 12px; }
+}
