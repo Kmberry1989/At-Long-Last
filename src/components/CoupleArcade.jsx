@@ -4,7 +4,6 @@ import { useAudio } from '../audio/AudioProvider.jsx'
 import { arcadeStage } from '../audio/arcadeThemes.js'
 import { PlayerPortrait } from './PlayerPortrait.jsx'
 import { ArcadeHelpButton, ArcadeHelpDialog } from './ArcadeHelp.jsx'
-import { SharedColoringBook } from './SharedColoringBook.jsx'
 import './arcade-turn-portraits.css'
 import { applyCoupleArcadeAction, createCoupleArcadeState, runCoupleArcadeAction, subscribeCoupleArcades, prepareCoupleArcade, resetCoupleArcade, COUPLE_ARCADE_IDS } from '../features/couple/coupleArcadeService.js'
 import { UNO_CARD_LABELS, UNO_COLORS_LIST, SAY_IT_WITHOUT_SAYING_PROMPTS, getSayWithoutSayingGuessOptions, RADAR_BOARD_SIZE, RADAR_FLEET } from '../features/session/coupleArcade.js'
@@ -18,7 +17,6 @@ const GAMES = [
   { id: 'radar-love', name: 'Radar Love', icon: '/assets/arcade/icons/radar-love.png' },
   { id: 'four-ever', name: 'Four Ever', icon: '/assets/arcade/icons/four-ever.png' },
   { id: 'our-little-pieces', name: 'Our Little Pieces', icon: '/assets/arcade/icons/our-little-pieces.png' },
-  { id: 'shared-coloring-book', name: 'Color Together', icon: '/assets/arcade/icons/color-together.png' },
 ]
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const JIGSAW_ART = [
@@ -648,7 +646,6 @@ export function CoupleArcade({ db, enabled, coupleId, players, currentUid, onClo
   if (state && selectedGame === 'catch-my-heart') gameUi = <FishGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'radar-love') gameUi = <RadarGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
   if (state && selectedGame === 'our-little-pieces') gameUi = <OurLittlePieces state={state} onAction={action} onReset={reset} audio={audio} />
-  if (state && selectedGame === 'shared-coloring-book') gameUi = <SharedColoringBook state={state} playerUid={currentUid} otherName={otherName} onAction={action} />
   if (state && selectedGame === 'say-it-without-saying') gameUi = <CharadesGame state={state} playerUid={currentUid} otherName={otherName} onAction={action} onReset={reset} />
 
   return createPortal(<ArcadeModal busy={busy} title={selectedGame ? selectedTitle : 'Our Arcade'} showHelp={Boolean(selectedGame)} onHelp={() => setHelpOpen(true)} onClose={() => { audio?.playArcadeSfx?.(selectedGame || 'four-ever', 'tap'); setHelpOpen(false); onClose() }}>
