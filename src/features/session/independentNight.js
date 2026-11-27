@@ -72,7 +72,7 @@ export function needsRevealInteraction(step) {
 
 export function canAnswerStep(step, playerIndex, revealing = false) {
   if (step.skipped) return false
-  const pendingMoment = (step.state.momentPending || step.state.momentCard && !step.state.momentResolution || step.state.penaltyCard && !step.state.penaltyResolution)
+  const pendingMoment = (step.state.momentPending || step.state.momentCard && !step.state.momentResolution)
   if (step.completed && !(step.ownerIndex === playerIndex && pendingMoment)) return false
   if (step.ownerIndex === playerIndex && pendingMoment) return true
   if (revealing && step.ready && needsRevealInteraction(step)) {
@@ -93,6 +93,13 @@ export function canAnswerStep(step, playerIndex, revealing = false) {
   return isIndependentActivity(step.type) || step.state.turnIndex === playerIndex
 }
 
+function roundReadyForReveal(steps, round) {
+  const roundSteps = steps.filter(step => step.round === round)
+  const rollSteps = roundSteps.filter(step => step.id.startsWith('roll-'))
+  if (rollSteps.length < 2 || ![0, 1].every(index => rollSteps.some(step => step.ownerIndex === index))) return false
+  return roundSteps.every(step => step.ready && !step.state.momentPending && (!step.state.momentCard || step.state.momentResolution))
+}
+
 function getActiveTurnPlayer(session, steps) {
   const startingPlayer = session.startingPlayerIndex || 0
   for (let round = 1; round <= session.totalRounds; round += 1) {
@@ -107,12 +114,9 @@ function getActiveTurnPlayer(session, steps) {
       // rates. Once a later round exists, a resolved earlier landing is closed
       // even if its saved turnEnded flag was explicitly false.
       const hasPendingMoment = step.state.momentPending ||
-        (step.state.momentCard && !step.state.momentResolution) ||
-        (step.state.penaltyCard && !step.state.penaltyResolution)
-      const legacyEnded = step.ready && step.completed && !hasPendingMoment && (
-        step.state.turnEnded === undefined || step.round < session.round
-      )
-      if (!explicitlyEnded && !legacyEnded) return playerIndex
+        (step.state.momentCard && !step.state.momentResolution)
+      const autoEnded = step.ready && step.completed && !hasPendingMoment
+      if (!explicitlyEnded && !autoEnded) return playerIndex
     }
   }
   return null
@@ -136,15 +140,23 @@ export function getNightProgress(session, steps, playerIndex) {
     steps.filter(step => step.id.startsWith('roll-') && step.ownerIndex === index).length === session.totalRounds)
   const allDuels = steps.filter(step => step.kind === 'duel').length === session.totalRounds
   const readyToReveal = allRolled && allDuels && steps.every(step => step.ready && !step.state.momentPending && (!step.state.momentCard || step.state.momentResolution))
+  const roundRevealRounds = [...new Set(steps.map(step => step.round))]
+    .filter(round => roundReadyForReveal(steps, round))
+  const roundRevealSteps = steps.filter(step => roundRevealRounds.includes(step.round) &&
+    step.kind === 'activity' && hasSubmitted(step, playerIndex))
   return {
     canRoll: session.phase === 'turn' && activeTurnPlayer === playerIndex && rolls.length < session.totalRounds && !pendingLanding && !pendingTurnStep,
     nextRound: rolls.length + 1,
     ownRolls: rolls.length,
     readyToReveal,
     readyToFinish: readyToReveal && steps.every(step => !needsRevealInteraction(step)),
-    // Keep comparisons out of the board tray while either player still has
-    // turns to take. They are collected and answered together at night's end.
-    available: steps.filter(step => (step.kind !== 'duel' || allRolled) && canAnswerStep(step, playerIndex, readyToReveal)),
+    // Keep open comparisons out of the tray until the other player has answered.
+    // Completed prompt answers join the tray together when that board round ends.
+    available: steps.filter(step => (step.kind !== 'duel' || allRolled) && (
+      canAnswerStep(step, playerIndex, readyToReveal) || roundRevealSteps.some(reveal => reveal.id === step.id)
+    )),
+    roundRevealRounds,
+    roundRevealSteps,
     pendingTurnStep,
     activeTurnPlayer,
     comparisons: steps.filter(step => step.kind === 'activity' || step.kind === 'duel').length,
@@ -155,31 +167,15 @@ export function updateNightTurn(session, steps, stepId, playerIndex, action) {
   const step = steps.find(item => item.id === stepId)
   if (!step || !step.id.startsWith('roll-') || step.ownerIndex !== playerIndex) throw new Error('That turn is not yours.')
   const hasPendingMoment = step.state.momentPending ||
-    (step.state.momentCard && !step.state.momentResolution) ||
-    (step.state.penaltyCard && !step.state.penaltyResolution)
+    (step.state.momentCard && !step.state.momentResolution)
   if (step.round < session.round && step.ready && step.completed && !hasPendingMoment) return null
-  if (action === 'return-dice') {
-    if (step.state.turnEnded || step.state.turnEndRequested || step.state.diceReturned) return null
-    return { session, step: { ...step, state: { ...step.state, diceReturned: true } }, penalty: false }
-  }
+  if (action === 'return-dice') return null
   if (action !== 'end-turn') throw new Error('Unknown turn action.')
   if (step.state.turnEnded || step.state.turnEndRequested) return null
-  if (step.state.momentPending || step.state.momentCard && !step.state.momentResolution || step.state.penaltyCard && !step.state.penaltyResolution) {
+  if (step.state.momentPending || step.state.momentCard && !step.state.momentResolution) {
     throw new Error('Finish the landing before ending your turn.')
   }
-  if (step.state.diceReturned) {
-    return { session, step: { ...step, state: { ...step.state, turnEnded: true } }, penalty: false }
-  }
-  const penaltyCard = drawMomentCard('trash', Math.random, [1, 1])
-  penaltyCard.movement = -1
-  penaltyCard.spaces = 1
-  penaltyCard.lowerDie = 1
-  penaltyCard.effect = 'Back one space and return the dice.'
-  return {
-    session,
-    step: { ...step, state: { ...step.state, turnEndRequested: true, penaltyApplied: true, penaltyCard } },
-    penalty: true,
-  }
+  return { session, step: { ...step, state: { ...step.state, turnEnded: true } } }
 }
 
 export function makeRollSteps(session, steps, playerIndex, dice, history = [], random = Math.random) {
@@ -248,7 +244,7 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
   if (!step || !canAnswerStep(step, playerIndex, progress.readyToReveal)) return null
   if (input.skip) {
     // A pass closes only this card, never the partner's other work.
-    return { session, step: { ...step, ready: true, completed: true, skipped: true } }
+    return { session, step: { ...step, state: { ...step.state, momentPending: false, turnEnded: true }, ready: true, completed: true, skipped: true } }
   }
   for (const key of ['text', 'answer', 'guess', 'caption', 'response', 'excerpt']) {
     const value = input[key]
@@ -263,22 +259,6 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     return {
       session,
       step: { ...step, state: { ...step.state, momentPending: false, coinResult, momentCard } },
-    }
-  }
-  if (step.state.penaltyCard && !step.state.penaltyResolution) {
-    if (!input.resolvePenalty) throw new Error('Resolve the dice reminder first.')
-    const card = step.state.penaltyCard
-    const movement = -1
-    const from = session.positions[playerIndex]
-    const to = ((from + movement) % 20 + 20) % 20
-    const previousProgress = step.state.race?.progress || 0
-    const raceProgress = previousProgress + movement
-    const raceLaps = Math.max(step.state.race?.laps || 0, Math.floor(Math.max(0, raceProgress) / 20))
-    const momentMove = { id: `${step.id}:cup-penalty`, from, to, playerIndex, steps: movement, cardEffect: true, dice: null }
-    const nextStep = { ...step, state: { ...step.state, race: { ...step.state.race, progress: raceProgress, laps: raceLaps }, penaltyResolution: { movement, effect: card.effect }, penaltyMove: momentMove, turnEnded: true } }
-    return {
-      session: { ...session, positions: session.positions.map((position, index) => index === playerIndex ? to : position), lastMove: { ...session.lastMove, cardEffect: true, from, playerIndex, steps: movement, to }, actionText: `${card.title}: back one space.` },
-      step: nextStep,
     }
   }
   if (step.state.momentCard && !step.state.momentResolution) {
@@ -317,7 +297,7 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
     const card = { ...item, instanceId: step.id, ownerIndex: playerIndex }
     return {
       session: { ...session, keepsakes: [...session.keepsakes, card], keepsakePerks: [...new Set([...session.keepsakePerks, item.perkId])] },
-      step: { ...step, ready: true, completed: true },
+      step: { ...step, state: { ...step.state, turnEnded: true }, ready: true, completed: true },
     }
   }
   if (step.kind === 'duel') {
@@ -356,6 +336,7 @@ export async function advanceNightStep(session, steps, stepId, playerIndex, inpu
   if (JSON.stringify(advanced.state) === JSON.stringify(state) && !advanced.completed) return null
   const next = { ...step, state: advanced.state, completed: advanced.completed }
   next.ready = advanced.completed || [0, 1].every(index => hasSubmitted(next, index))
+  if (next.ready && step.id.startsWith('roll-')) next.state = { ...next.state, turnEnded: true }
   return { session, step: next }
 }
 
@@ -368,10 +349,6 @@ export function finishIndependentNight(session, steps) {
       const { momentCard, momentResolution } = step.state
       const direction = momentResolution.movement < 0 ? 'back' : 'ahead'
       entries.push({ coupleId: session.coupleId, sessionId: session.id, type: `moment-${momentCard.category}`, title: momentCard.title, vibe: momentCard.category === 'treasure' ? 'tender' : 'playful', summary: `${momentCard.effect}: ${Math.abs(momentResolution.movement)} ${Math.abs(momentResolution.movement) === 1 ? 'space' : 'spaces'} ${direction}.`, text: `${momentCard.scene} ${momentCard.effect} moves ${direction} ${Math.abs(momentResolution.movement)} spaces.`, payload: { category: momentCard.category, cardId: momentCard.id, effect: momentCard.effect, movement: momentResolution.movement, lowerDie: momentResolution.lowerDie } })
-    }
-    if (step.state.penaltyCard && step.state.penaltyResolution) {
-      const { penaltyCard, penaltyResolution } = step.state
-      entries.push({ coupleId: session.coupleId, sessionId: session.id, type: 'moment-trash', title: penaltyCard.title, vibe: 'playful', summary: 'Dice left out: moved back one space.', text: `${penaltyCard.scene} ${penaltyResolution.effect}`, payload: { category: 'trash', cardId: penaltyCard.id, effect: penaltyResolution.effect, movement: -1 } })
     }
     if (step.skipped) continue
     if (step.kind === 'board') continue

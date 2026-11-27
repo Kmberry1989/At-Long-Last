@@ -809,11 +809,15 @@ function tintModel(model, color, finish = 'porcelain', bumpMap = null) {
       ? child.material
       : [child.material]
     const tintedMaterials = materials.map((material) => {
-      const tinted = material.clone()
-      tinted.color?.lerp(playerColor, 0.32)
+      const cloned = material.clone()
+      const tinted = cloned.isMeshStandardMaterial && !cloned.isMeshPhysicalMaterial
+        ? new THREE.MeshPhysicalMaterial().copy(cloned)
+        : cloned
+      if (tinted !== cloned) cloned.dispose()
+      tinted.color?.lerp(playerColor, 0.72)
       if (bumpMap) {
         tinted.bumpMap = bumpMap
-        tinted.bumpScale = finish === 'velvet' ? 0.025 : 0.04
+        tinted.bumpScale = finish === 'velvet' ? 0.04 : 0.075
       }
       if ('metalness' in tinted) tinted.metalness = pbr.metalness
       if ('roughness' in tinted) tinted.roughness = pbr.roughness
@@ -872,10 +876,7 @@ export function BoardScene({
   onDiceCast = null,
   onRoll = null,
   canRoll = false,
-  canReturnDice = false,
   turnInProgress = false,
-  diceReturnKey = null,
-  onReturnDice = null,
   onReady = null,
   rollGesture = null,
   pacingMode = 'freeFlow',
@@ -911,10 +912,7 @@ export function BoardScene({
   const onDiceCastRef = useRef(onDiceCast)
   const onRollRef = useRef(onRoll)
   const canRollRef = useRef(canRoll)
-  const canReturnDiceRef = useRef(canReturnDice)
   const turnInProgressRef = useRef(turnInProgress)
-  const onReturnDiceRef = useRef(onReturnDice)
-  const previousDiceReturnKeyRef = useRef(null)
   const onReadyRef = useRef(onReady)
   const rollGestureRef = useRef(rollGesture)
   const phaseRef = useRef(phase)
@@ -1022,28 +1020,20 @@ export function BoardScene({
     onDiceCastRef.current = onDiceCast
     onRollRef.current = onRoll
     canRollRef.current = canRoll
-    canReturnDiceRef.current = canReturnDice
     turnInProgressRef.current = turnInProgress
-    onReturnDiceRef.current = onReturnDice
     onReadyRef.current = onReady
     rollGestureRef.current = rollGesture
-  }, [canReturnDice, canRoll, onDiceCast, onDiceImpact, onDiceRattle, onReady, onReturnDice, onRoll, rollGesture, turnInProgress])
-
-  useEffect(() => {
-    if (!diceReturnKey || diceReturnKey === previousDiceReturnKeyRef.current) return
-    previousDiceReturnKeyRef.current = diceReturnKey
-    dieRef.current?.userData.returnToCup?.()
-  }, [diceReturnKey])
+  }, [canRoll, onDiceCast, onDiceImpact, onDiceRattle, onReady, onRoll, rollGesture, turnInProgress])
 
   useEffect(() => {
     const canvas = mountRef.current?.querySelector('canvas')
     if (!canvas) return
-    const interactive = canRoll || canFlipCoin || canReturnDice
+    const interactive = canRoll || canFlipCoin
     canvas.setAttribute('role', interactive ? 'button' : 'img')
-    canvas.setAttribute('aria-label', canFlipCoin ? 'Flip the Trash or Treasure coin' : canReturnDice ? 'Tap dice to return them to the cup' : canRoll ? 'Roll dice' : 'Game board dice')
+    canvas.setAttribute('aria-label', canFlipCoin ? 'Flip the Trash or Treasure coin' : canRoll ? 'Roll dice' : 'Game board dice')
     canvas.tabIndex = interactive ? 0 : -1
     canvas.style.cursor = interactive ? 'pointer' : 'grab'
-  }, [canFlipCoin, canReturnDice, canRoll])
+  }, [canFlipCoin, canRoll])
 
   useEffect(() => {
     lastRollRef.current = lastRoll
@@ -1326,21 +1316,13 @@ export function BoardScene({
 
     const dice = createPrimitiveDicePair(resolveDiceValues(lastRollRef.current || 2, dicePropRef.current), boardTheme.diceSkin)
     let dieRoll = null
-    let diceReturnTween = null
-    dice.userData.returnToCup = () => {
-      if (dieRoll || diceReturnTween) return
-      diceReturnTween = {
-        startedAt: latestSceneTime,
-        from: [dice.userData.die1.position.clone(), dice.userData.die2.position.clone()],
-        rotations: [dice.userData.die1.rotation.clone(), dice.userData.die2.rotation.clone()],
-      }
-    }
     dice.userData.startRoll = (value, explicitDice) => {
       const finalValues = Array.isArray(explicitDice) ? resolveDiceValues(value, explicitDice) : null
       if (dieRoll) {
         if (finalValues) dieRoll.finalValues = finalValues
         return
       }
+      dice.rotation.set(0, 0, 0)
       const { die1, die2 } = dice.userData
       const homeLift = getDiceHomeBaseMotion((latestSceneTime - startedAt) / 1000, reducedMotion).lift
       die1.position.set(-2.55, 0.62 + homeLift, 0.7)
@@ -1408,9 +1390,9 @@ export function BoardScene({
         return
       }
       const hit = hitsDice(event)
-      if (!event.isPrimary || event.button !== 0 || activeDicePointer || activeCoinPointer || !hit || (!canRollRef.current && !canReturnDiceRef.current)) return
+      if (!event.isPrimary || event.button !== 0 || activeDicePointer || activeCoinPointer || !hit || !canRollRef.current) return
       consumePointer(event)
-      activeDicePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), returning: canReturnDiceRef.current }
+      activeDicePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() }
       dice.userData.touch = { startedAt: activeDicePointer.time, x: 0, y: 0 }
       controls.enabled = false
       canvas.style.cursor = 'grabbing'
@@ -1449,7 +1431,7 @@ export function BoardScene({
         return
       }
       if (canFlipCoinRef.current && hitsCoin(event)) canvas.style.cursor = 'pointer'
-      else if ((canRollRef.current || canReturnDiceRef.current) && hitsDice(event)) canvas.style.cursor = 'pointer'
+      else if (canRollRef.current && hitsDice(event)) canvas.style.cursor = 'pointer'
       else canvas.style.cursor = 'grab'
     }
     const handleDicePointerUp = (event) => {
@@ -1478,12 +1460,8 @@ export function BoardScene({
       activeDicePointer = null
       dice.userData.touch = null
       controls.enabled = true
-      canvas.style.cursor = canRollRef.current || canReturnDiceRef.current ? 'pointer' : 'grab'
+      canvas.style.cursor = canRollRef.current ? 'pointer' : 'grab'
       try { canvas.releasePointerCapture(event.pointerId) } catch { /* Already released by the browser. */ }
-      if (start.returning && canReturnDiceRef.current) {
-        onReturnDiceRef.current?.()
-        return
-      }
       if (!canRollRef.current) return
       const gesture = makeDiceRollGesture(deltaX, deltaY, performance.now() - start.time)
       onDiceCastRef.current?.()
@@ -1916,6 +1894,9 @@ export function BoardScene({
       environment.sky.position.copy(camera.position)
       const diceHomeMotion = getDiceHomeBaseMotion(elapsed, reducedMotion)
       diceBox.position.y = diceHomeMotion.lift
+      const diceReadyCue = canRollRef.current && !dieRoll && !dice.userData.touch && !reducedMotion
+      dice.rotation.x = diceReadyCue ? Math.sin(elapsed * 4.1) * 0.018 : 0
+      dice.rotation.z = diceReadyCue ? Math.sin(elapsed * 5.2) * 0.026 : 0
       diceShadow.material.opacity = diceHomeMotion.shadowOpacity
       diceShadow.scale.setScalar(diceHomeMotion.shadowScale)
       boxRim.material.emissiveIntensity = canRollRef.current && !reducedMotion
@@ -1981,11 +1962,6 @@ export function BoardScene({
       } else if (movingPiecePosition) {
         cameraShotMode = 'piece'
         shotFocus = movingPiecePosition
-      } else if (canReturnDiceRef.current && phaseRef.current === 'turn' && !userInteracting) {
-        // Bring the settled pair back into view after the landing overlay.
-        // A piece-follow shot can otherwise strand a die beyond a phone edge.
-        cameraShotMode = 'dice-ready'
-        shotFocus = diceBox.position.clone().add(new THREE.Vector3(0, 0.35, 0))
       } else {
         cameraShotMode = 'board'
       }
@@ -2090,20 +2066,6 @@ export function BoardScene({
             onDiceSettledRef.current?.({ dice: finalValues })
           }
         }
-      } else if (diceReturnTween) {
-        const amount = Math.min(1, Math.max(0, (latestSceneTime - diceReturnTween.startedAt) / 620))
-        const eased = 1 - (1 - amount) ** 3
-        const homeY = 0.62 + diceHomeMotion.lift
-        const targets = [new THREE.Vector3(-2.55, homeY, 0.7), new THREE.Vector3(-3.8, homeY, 1.05)]
-        const dieParts = [dice.userData.die1, dice.userData.die2]
-        dieParts.forEach((die, index) => {
-          die.position.lerpVectors(diceReturnTween.from[index], targets[index], eased)
-          die.rotation.x = THREE.MathUtils.lerp(diceReturnTween.rotations[index].x, index ? 0.08 : -0.04, eased)
-          die.rotation.y = THREE.MathUtils.lerp(diceReturnTween.rotations[index].y, index ? -0.26 : 0.32, eased)
-          die.rotation.z = THREE.MathUtils.lerp(diceReturnTween.rotations[index].z, index ? 0.12 : -0.06, eased)
-          die.scale.setScalar(1 + Math.sin(amount * Math.PI) * 0.08)
-        })
-        if (amount >= 1) diceReturnTween = null
       } else if (dice.userData.touch) {
         const touch = dice.userData.touch
         const die1 = dice.userData.die1

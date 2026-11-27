@@ -5,6 +5,40 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { resolvePlayerAvatar } from '../features/couple/playerAvatar.js'
 import './night-piece-box.css'
 
+const PIECE_FINISHES = {
+  porcelain: { metalness: 0.12, roughness: 0.2, clearcoat: 0.9, clearcoatRoughness: 0.16 },
+  satin: { metalness: 0.28, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3 },
+  gold: { metalness: 0.82, roughness: 0.24, clearcoat: 0.48, clearcoatRoughness: 0.22 },
+  velvet: { metalness: 0.03, roughness: 0.88, clearcoat: 0.04, clearcoatRoughness: 0.8 },
+}
+
+function createPieceBumpMap(textureId = 'smooth') {
+  if (!['silk', 'brocade', 'starlight'].includes(textureId)) return null
+  const size = 64
+  const pixels = new Uint8Array(size * size * 3)
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = (y * size + x) * 3
+      const diagonal = (x + y) / size
+      const wave = Math.sin(x * 0.78) * Math.sin(y * 0.78)
+      const hash = Math.abs(Math.sin(x * 127.1 + y * 311.7) * 43758.5453) % 1
+      let value = 128
+      if (textureId === 'silk') value += Math.sin(diagonal * Math.PI * 18) * 19 + wave * 4
+      if (textureId === 'brocade') value += (Math.sin(x * Math.PI / 8) * Math.sin(y * Math.PI / 8) + wave * 0.42) * 22
+      if (textureId === 'starlight') value += hash > 0.975 ? 70 : Math.sin(diagonal * Math.PI * 12) * 3
+      pixels[index] = pixels[index + 1] = pixels[index + 2] = Math.max(0, Math.min(255, Math.round(value)))
+    }
+  }
+  const texture = new THREE.DataTexture(pixels, size, size, THREE.RGBFormat)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.magFilter = THREE.LinearFilter
+  texture.minFilter = THREE.LinearMipmapLinearFilter
+  texture.generateMipmaps = true
+  texture.needsUpdate = true
+  return texture
+}
+
 function disposeModel(root) {
   const geometries = new Set()
   const materials = new Set()
@@ -38,8 +72,21 @@ function fitPlayerModel(model) {
     object.castShadow = true
     const materials = Array.isArray(object.material) ? object.material : [object.material]
     const tinted = materials.map(material => {
-      const next = material.clone()
-      next.color?.lerp(new THREE.Color(model.userData.playerColor || '#ffffff'), 0.22)
+      const cloned = material.clone()
+      const next = cloned.isMeshStandardMaterial && !cloned.isMeshPhysicalMaterial
+        ? new THREE.MeshPhysicalMaterial().copy(cloned)
+        : cloned
+      if (next !== cloned) cloned.dispose()
+      next.color?.lerp(new THREE.Color(model.userData.playerColor || '#ffffff'), 0.72)
+      const finish = PIECE_FINISHES[model.userData.playerMaterial] || PIECE_FINISHES.porcelain
+      if (model.userData.playerTextureMap) {
+        next.bumpMap = model.userData.playerTextureMap
+        next.bumpScale = model.userData.playerMaterial === 'velvet' ? 0.04 : 0.075
+      }
+      if ('metalness' in next) next.metalness = finish.metalness
+      if ('roughness' in next) next.roughness = finish.roughness
+      if ('clearcoat' in next) next.clearcoat = finish.clearcoat
+      if ('clearcoatRoughness' in next) next.clearcoatRoughness = finish.clearcoatRoughness
       return next
     })
     object.material = Array.isArray(object.material) ? tinted : tinted[0]
@@ -144,10 +191,13 @@ export function NightPieceBox({ players = [], mode = 'release', onComplete, audi
       shadow.scale.set(1.5, 0.9, 1)
       scene.add(shadow)
 
-      const fallbackMaterial = new THREE.MeshStandardMaterial({ color: '#e4b867', roughness: 0.3, metalness: 0.28 })
-      materials.push(fallbackMaterial)
       players.slice(0, 2).forEach((player, index) => {
         const color = player.pieceColor || player.color || (index ? '#59b5ff' : '#ff7a97')
+        const finishId = player.pieceMaterial || 'porcelain'
+        const finish = PIECE_FINISHES[finishId] || PIECE_FINISHES.porcelain
+        const bumpMap = createPieceBumpMap(player.pieceTexture)
+        const fallbackMaterial = new THREE.MeshPhysicalMaterial({ color, ...finish, bumpMap, bumpScale: finishId === 'velvet' ? 0.04 : 0.075 })
+        materials.push(fallbackMaterial)
         const group = new THREE.Group()
         const ringGeometry = new THREE.TorusGeometry(0.48, 0.065, 10, 28)
         const ringMaterial = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, metalness: 0.2, roughness: 0.3 })
@@ -169,6 +219,8 @@ export function NightPieceBox({ players = [], mode = 'release', onComplete, audi
         group.add(fallback)
         group.userData.fallback = fallback
         group.userData.color = color
+        group.userData.material = finishId
+        group.userData.textureMap = bumpMap
         group.userData.startX = index === 0 ? -0.55 : 0.55
         group.userData.outsideX = index === 0 ? -1.48 : 1.48
         group.position.set(mode === 'release' ? group.userData.startX : group.userData.outsideX, mode === 'release' ? 0.57 : 0.04, 0.25)
@@ -187,6 +239,8 @@ export function NightPieceBox({ players = [], mode = 'release', onComplete, audi
           const model = gltf.scene
           if (disposed) { disposeModel(model); return }
           model.userData.playerColor = group.userData.color
+          model.userData.playerMaterial = group.userData.material
+          model.userData.playerTextureMap = group.userData.textureMap
           fitPlayerModel(model)
           model.scale.multiplyScalar(0.78)
           group.remove(group.userData.fallback)
